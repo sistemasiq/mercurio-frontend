@@ -17,3 +17,5 @@ coverage
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+CLAUDE.md
