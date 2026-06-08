@@ -1,9 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import type { UserRole } from '@/types/auth'
 
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     publicOnly?: boolean
+    roles?: UserRole[]
   }
 }
 
@@ -27,14 +29,26 @@ const router = createRouter({
       ],
     },
     {
-      path: '/',
+      path: '/home',
       component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
-          path: 'dashboard',
-          name: 'dashboard',
-          component: () => import('@/pages/DashboardPage.vue'),
-          meta: { requiresAuth: true },
+          path: 'admin',
+          name: 'home-admin',
+          component: () => import('@/pages/home/AdminHomePage.vue'),
+          meta: { requiresAuth: true, roles: ['Administrador'] as UserRole[] },
+        },
+        {
+          path: 'cashier',
+          name: 'home-cashier',
+          component: () => import('@/pages/home/CashierHomePage.vue'),
+          meta: { requiresAuth: true, roles: ['Cajero'] as UserRole[] },
+        },
+        {
+          path: 'kitchen',
+          name: 'home-kitchen',
+          component: () => import('@/pages/home/KitchenHomePage.vue'),
+          meta: { requiresAuth: true, roles: ['Cocina'] as UserRole[] },
         },
       ],
     },
