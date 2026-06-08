@@ -2,6 +2,8 @@ import { reactive, ref } from 'vue'
 import { Notify } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
+import { getRoleHome } from '@/utils/roleHome'
+import { inactivityTimer } from '@/utils/inactivityTimer'
 import type { LoginRequest, ApiError } from '@/types/auth'
 
 export function useAuthForm() {
@@ -18,9 +20,7 @@ export function useAuthForm() {
 
   const showPassword = ref(false)
 
-  const branchIdRules = [
-    (v: string) => !!v || 'El ID de sucursal es requerido.',
-  ]
+  const branchIdRules = [(v: string) => !!v || 'El ID de sucursal es requerido.']
 
   const emailRules = [
     (v: string) => !!v || 'El usuario o correo electrónico es requerido.',
@@ -35,6 +35,7 @@ export function useAuthForm() {
   async function handleLogin(): Promise<void> {
     try {
       await auth.login({ ...credentials })
+      inactivityTimer.start()
 
       Notify.create({
         type: 'positive',
@@ -43,7 +44,7 @@ export function useAuthForm() {
       })
 
       const redirect = route.query.redirect as string | undefined
-      await router.push(redirect || { name: 'dashboard' })
+      await router.push(redirect ?? { name: getRoleHome(auth.currentUser!.roles) })
     } catch (err) {
       Notify.create({
         type: 'negative',
