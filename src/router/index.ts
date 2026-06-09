@@ -36,6 +36,12 @@ const router = createRouter({
           component: () => import('@/pages/DashboardPage.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          path: 'cocina',
+          name: 'cocina',
+          component: () => import('@/pages/comandas/CocinaPage.vue'),
+          meta: { requiresAuth: false },
+        },
       ],
     },
     {
