@@ -1,19 +1,24 @@
 import type { Router } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { getRoleHome } from '@/utils/roleHome'
 
 export function setupRouterGuards(router: Router): void {
-  router.beforeEach((to, _from) => {
+  router.beforeEach((to) => {
     const auth = useAuthStore()
 
-    const requiresAuth = to.meta.requiresAuth === true
-    const isPublicOnly = to.meta.publicOnly === true
-
-    if (requiresAuth && !auth.isAuthenticated) {
+    if (to.meta.requiresAuth && !auth.isAuthenticated) {
       return { name: 'login', query: { redirect: to.fullPath } }
     }
 
-    if (isPublicOnly && auth.isAuthenticated) {
-      return { name: 'dashboard' }
+    if (to.meta.publicOnly && auth.isAuthenticated) {
+      return { name: getRoleHome(auth.currentUser?.roles ?? []) }
+    }
+
+    if (to.meta.roles?.length && auth.currentUser) {
+      const allowed = to.meta.roles.some((r) => auth.hasRole(r))
+      if (!allowed) {
+        return { name: getRoleHome(auth.currentUser.roles) }
+      }
     }
   })
 }

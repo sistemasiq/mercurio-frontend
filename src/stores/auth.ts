@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { AuthState, LoginRequest, User } from '@/types/auth'
+import type { AuthState, LoginRequest, User, UserRole } from '@/types/auth'
 import { authService } from '@/services/authService'
 import { sessionStorage } from '@/utils/session'
 import { resolveErrorMessage } from '@/utils/errorHandler'
+import { inactivityTimer } from '@/utils/inactivityTimer'
 import type { ApiError } from '@/types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -14,10 +15,16 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
 
   const isAuthenticated = computed(
-    () => !!token.value && !!tokenExpiry.value && Date.now() < tokenExpiry.value
+    () => !!token.value && !!tokenExpiry.value && Date.now() < tokenExpiry.value,
   )
 
   const currentUser = computed<User | null>(() => user.value)
+
+  const primaryRole = computed<UserRole | null>(() => user.value?.roles[0] ?? null)
+
+  function hasRole(role: UserRole): boolean {
+    return user.value?.roles.includes(role) ?? false
+  }
 
   async function login(credentials: LoginRequest): Promise<void> {
     loading.value = true
@@ -69,6 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
     tokenExpiry.value = null
     error.value = null
     sessionStorage.clear()
+    inactivityTimer.stop()
   }
 
   return {
@@ -78,6 +86,8 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     isAuthenticated,
     currentUser,
+    primaryRole,
+    hasRole,
     login,
     logout,
     restoreSession,
