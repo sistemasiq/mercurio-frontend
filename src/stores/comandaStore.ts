@@ -1,82 +1,91 @@
-// src/stores/comandasStore.ts
+// src/stores/comandaStore.ts
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { IComanda, IItemComanda, EstadoComanda } from '../types/comanda';
+import type { IComanda, EstadoComanda } from '../types/comanda';
 
 export const useComandasStore = defineStore('comandas', () => {
-  // Estado reactivo (Privado por convención usando guion bajo)
-  const _comandas = ref<IComanda[]>([]);
+  // Datos hardcodeados iniciales directo en el estado de Mercurio
+  const _comandas = ref<IComanda[]>([
+    {
+      id: 'ord-0038',
+      folio: '001',
+      mesa: 'Mesa 4',
+      meseroId: 'usr-123',
+      meseroNombre: 'Andrés Palmerín',
+      estado: 'en_proceso', // Naranja
+      notasGenerales: '12 min • PARA LLEVAR',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      items: [
+        { id: '1', nombre: 'Hamburguesa Doble Queso', cantidad: 2, precioUnitario: 85, observaciones: 'Sin cebolla, extra pepinillos' },
+        { id: '2', nombre: 'Papas Fritas Grandes', cantidad: 1, precioUnitario: 45 },
+        { id: '3', nombre: 'Refresco de Cola', cantidad: 2, precioUnitario: 25 }
+      ]
+    },
+    {
+      id: 'ord-0042',
+      folio: '002',
+      mesa: 'Mesa 12',
+      meseroId: 'usr-123',
+      meseroNombre: 'Andrés Palmerín',
+      estado: 'pendiente', // Gris
+      notasGenerales: '5 min • PENDIENTE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      items: [
+        { id: '4', nombre: 'Pizza Margarita Familiar', cantidad: 1, precioUnitario: 180, observaciones: 'Masa delgada' },
+        { id: '5', nombre: 'Ensalada César', cantidad: 1, precioUnitario: 90, observaciones: 'Alergia: Sin crutones' }
+      ]
+    },
+    {
+      id: 'ord-0043',
+      folio: '003',
+      mesa: 'Mostrador',
+      meseroId: 'usr-123',
+      meseroNombre: 'Andrés Palmerín',
+      estado: 'pendiente', // Gris
+      notasGenerales: '1 min • MOSTRADOR',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      items: [
+        { id: '6', nombre: 'Helado de Vainilla', cantidad: 4, precioUnitario: 20 },
+        { id: '7', nombre: 'Café Americano', cantidad: 2, precioUnitario: 30 }
+      ]
+    }
+  ]);
+
   const _loading = ref<boolean>(false);
 
-  // Getters (Propiedades Computadas)
+  // Getters
   const comandasActivas = computed(() => _comandas.value);
-  
   const isLoading = computed(() => _loading.value);
   
-  // Filtra solo las comandas activas que el cocinero debe ver (Pendientes y En Proceso)
+  // Modificado: Cocina muestra Pendientes, En Proceso Y TAMBIÉN "Listos" para poder entregarlos
   const comandasEnCocina = computed(() => 
-    _comandas.value.filter(c => c.estado === 'pendiente' || c.estado === 'en_proceso')
+    _comandas.value.filter(c => c.estado === 'pendiente' || c.estado === 'en_proceso' || c.estado === 'listo')
   );
 
-  // Getters adicionales para alimentar los badges contadores del Header de Cocina
-  const totalPendientes = computed(() => 
-    _comandas.value.filter(c => c.estado === 'pendiente').length
-  );
-  
-  const totalEnProceso = computed(() => 
-    _comandas.value.filter(c => c.estado === 'en_proceso').length
-  );
-  
-  const totalListos = computed(() => 
-    _comandas.value.filter(c => c.estado === 'listo').length
-  );
+  // Contadores exactos para los chips de la UI
+  const totalPendientes = computed(() => _comandas.value.filter(c => c.estado === 'pendiente').length);
+  const totalEnProceso = computed(() => _comandas.value.filter(c => c.estado === 'en_proceso').length);
+  const totalListos = computed(() => _comandas.value.filter(c => c.estado === 'listo').length);
 
-  /**
-   * Acción para registrar una nueva comanda (Mesero -> Cocina)
-   */
-  function crearComanda(mesa: string, items: IItemComanda[], notas?: string) {
-    _loading.value = true;
-    try {
-      const nuevaComanda: IComanda = {
-        id: crypto.randomUUID(),
-        // Genera folios autoincrementables limpios: COM-001, COM-002, etc.
-        folio: `COM-${String(_comandas.value.length + 1).padStart(3, '0')}`,
-        mesa,
-        meseroId: 'usr-123', // Estático temporalmente hasta integrar auth
-        meseroNombre: 'Andrés Palmerín',
-        estado: 'pendiente',
-        items,
-        notasGenerales: notas,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      _comandas.value.push(nuevaComanda);
-      
-      // TODO: Conexión con Backend de Mercurio en el futuro:
-      // const response = await axios.post('/api/comandas', nuevaComanda);
-    } catch (error) {
-      console.error('Error al crear la comanda en Mercurio:', error);
-    } finally {
-      _loading.value = false;
-    }
+  function crearComanda(mesa: string, items: any[], notas?: string) {
+    // Mantener la firma por si se ocupa en la Caja más delante
   }
 
-  /**
-   * Acción para actualizar el ciclo de vida de una orden (KDS / Caja)
-   */
-  function actualizarEstado(id: string, nuevoEstado: EstadoComanda) {
-    const comanda = _comandas.value.find(c => c.id === id);
-    if (comanda) {
-      comanda.estado = nuevoEstado;
-      comanda.updatedAt = new Date().toISOString();
-      
-      // TODO: Sincronizar estado con la base de datos vía Axios:
-      // await axios.patch(`/api/comandas/${id}`, { estado: nuevoEstado });
-    }
-  }
+function actualizarEstado(id: string, nuevoEstado: EstadoComanda) {
+  const index = _comandas.value.findIndex(c => c.id === id);
+  if (index !== -1) {
 
-  // Retornamos el estado, propiedades computadas y métodos públicos
+    _comandas.value[index] = {
+      ..._comandas.value[index],
+      estado: nuevoEstado,
+      updatedAt: new Date().toISOString()
+    };
+  }
+}
+
   return {
     comandasActivas,
     comandasEnCocina,
