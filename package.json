@@ -1,0 +1,32 @@
+{
+  "name": "mercurio-frontend",
+  "version": "0.0.1",
+  "description": "FEC Mercurio Frontend",
+  "productName": "Mercurio",
+  "scripts": {
+    "dev": "quasar dev",
+    "build": "quasar build",
+    "lint": "eslint --ext .js,.ts,.vue ."
+  },
+  "dependencies": {
+    "@quasar/extras": "^1.16.4",
+    "pinia": "^2.1.6",
+    "quasar": "^2.14.2",
+    "vue": "^3.3.4",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@quasar/app-vite": "^2.0.0",
+    "@types/node": "^20.5.9",
+    "@typescript-eslint/eslint-plugin": "^6.5.0",
+    "@typescript-eslint/parser": "^6.5.0",
+    "eslint": "^8.48.0",
+    "eslint-plugin-vue": "^9.17.0",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": "^20 || ^18 || ^16",
+    "npm": ">= 6.13.4",
+    "yarn": ">= 1.21.1"
+  }
+}
