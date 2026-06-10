@@ -1,1 +1,24 @@
 node_modules
+<<<<<<< HEAD
+=======
+dist
+dist-ssr
+coverage
+*.local
+
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.tsbuildinfo
+*.timestamp-*-*.mjs
+
+.env
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+CLAUDE.md
+>>>>>>> 401a970290c8f8613dad024e64d5c89e44b569f5

@@ -1,6 +1,7 @@
 <template>
   <router-view />
 </template>
+<<<<<<< HEAD
 
 <script setup lang="ts">
 /**
@@ -21,3 +22,5 @@
  * - Ruta /reservaciones → muestra ReservacionesPage en router-view
  */
 </script>
+=======
+>>>>>>> 401a970290c8f8613dad024e64d5c89e44b569f5

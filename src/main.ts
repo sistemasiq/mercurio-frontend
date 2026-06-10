@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /**
  * Punto de entrada principal de la aplicación Mercurio
  * 
@@ -57,4 +58,15 @@ app.use(createPinia())
 app.use(router)
 
 // Monta la aplicación en el elemento con id="app" en index.html
+=======
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router'
+import { setupPlugins } from './boot/setupPlugins'
+
+const app = createApp(App)
+
+setupPlugins(app, router)
+
+>>>>>>> 401a970290c8f8613dad024e64d5c89e44b569f5
 app.mount('#app')
