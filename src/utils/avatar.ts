@@ -9,7 +9,8 @@ const AVATAR_COLORS = [
   '#6366f1',
 ]
 
-export function getInitials(name: string): string {
+export function getInitials(name: string | null | undefined): string {
+  if (!name?.trim()) return '?'
   return name
     .trim()
     .split(/\s+/)
@@ -18,7 +19,8 @@ export function getInitials(name: string): string {
     .join('')
 }
 
-export function getAvatarColor(name: string): string {
+export function getAvatarColor(name: string | null | undefined): string {
+  if (!name) return AVATAR_COLORS[0]
   let hash = 0
   for (let i = 0; i < name.length; i++) {
     hash = (hash * 31 + name.charCodeAt(i)) | 0
