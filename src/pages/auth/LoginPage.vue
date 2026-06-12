@@ -8,7 +8,8 @@ const formRef = ref<InstanceType<typeof QForm> | null>(null)
 const {
   credentials,
   showPassword,
-  branchIdRules,
+  branchOptions,
+  branchesLoading,
   emailRules,
   passwordRules,
   isLoading,
@@ -25,16 +26,10 @@ async function onSubmit(): Promise<void> {
 <template>
   <q-page class="auth-page">
     <aside class="auth-left">
-      <img
-        src="/screen-login.png"
-        alt=""
-        class="auth-left__illustration"
-        aria-hidden="true"
-      />
+      <img src="/screen-login.png" alt="" class="auth-left__illustration" aria-hidden="true" />
     </aside>
 
     <section class="auth-right">
-
       <!-- Header del panel -->
       <header class="auth-header">
         <div class="auth-brand">
@@ -52,30 +47,30 @@ async function onSubmit(): Promise<void> {
         <h1 class="auth-title">Bienvenido de nuevo</h1>
         <p class="auth-subtitle">Ingrese sus credenciales corporativas para continuar.</p>
 
-        <q-form
-          ref="formRef"
-          class="auth-form"
-          greedy
-          @submit.prevent="onSubmit"
-        >
-          <!-- ID de Sucursal -->
+        <q-form ref="formRef" class="auth-form" greedy @submit.prevent="onSubmit">
+          <!-- Sucursal -->
           <div class="field-wrap">
-            <label class="field-label">ID de Sucursal</label>
-            <q-input
-              v-model="credentials.branchId"
+            <label class="field-label">Sucursal</label>
+            <q-select
+              v-model="credentials.sucursalId"
+              :options="branchOptions"
+              option-label="label"
+              option-value="value"
+              emit-value
+              map-options
               outlined
               dense
-              placeholder="Ej. BR-4092"
-              :rules="branchIdRules"
-              lazy-rules
+              placeholder="Selecciona tu sucursal"
+              :loading="branchesLoading"
               :disable="isLoading()"
               no-error-icon
               class="field-input"
+              clearable
             >
               <template #prepend>
                 <q-icon name="store" color="grey-5" size="16px" />
               </template>
-            </q-input>
+            </q-select>
           </div>
 
           <!-- Usuario / Email -->
@@ -142,11 +137,7 @@ async function onSubmit(): Promise<void> {
               color="primary"
               class="auth-remember"
             />
-            <a
-              href="#"
-              class="auth-forgot"
-              @click.prevent
-            >¿Olvidaste tu contraseña?</a>
+            <a href="#" class="auth-forgot" @click.prevent>¿Olvidaste tu contraseña?</a>
           </div>
 
           <!-- Botón de envío -->
@@ -177,7 +168,6 @@ async function onSubmit(): Promise<void> {
           <a href="#" class="auth-footer__link auth-footer__lang" @click.prevent>EN</a>
         </div>
       </footer>
-
     </section>
   </q-page>
 </template>
