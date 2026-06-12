@@ -25,6 +25,7 @@ const columns = [
     align: 'center' as const,
     sortable: true,
   },
+  { name: 'actions', label: '', field: 'actions', align: 'center' as const, sortable: false },
 ]
 
 const roleOptions: { label: string; value: UserRole | '' }[] = [
@@ -123,6 +124,20 @@ onMounted(fetchUsers)
             <q-badge
               :color="row.isActive ? 'positive' : 'grey'"
               :label="row.isActive ? 'Activo' : 'Inactivo'"
+            />
+          </q-td>
+        </template>
+
+        <template #body-cell-actions="{ row }">
+          <q-td class="text-center">
+            <q-btn
+              flat
+              round
+              dense
+              icon="edit"
+              color="primary"
+              title="Editar"
+              @click="router.push({ name: 'sysadmin-users-edit', params: { id: row.id } })"
             />
           </q-td>
         </template>

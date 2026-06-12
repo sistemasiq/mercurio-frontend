@@ -1,5 +1,5 @@
 import { apiClient } from './axiosClient'
-import type { Branch, CreateBranchPayload } from '@/types/branch'
+import type { Branch, CreateBranchPayload, UpdateBranchPayload } from '@/types/branch'
 
 interface BackendBranchResponse {
   id: string
@@ -25,6 +25,11 @@ export const branchesApi = {
     return data.map(mapBranch)
   },
 
+  async getById(id: string): Promise<Branch> {
+    const { data } = await apiClient.get<BackendBranchResponse>(`/branches/${id}`)
+    return mapBranch(data)
+  },
+
   async create(payload: CreateBranchPayload): Promise<Branch> {
     const { data } = await apiClient.post<BackendBranchResponse>('/branches', {
       nombre: payload.nombre,
@@ -32,5 +37,18 @@ export const branchesApi = {
       telefono: payload.telefono ?? null,
     })
     return mapBranch(data)
+  },
+
+  async update(id: string, payload: UpdateBranchPayload): Promise<Branch> {
+    const { data } = await apiClient.put<BackendBranchResponse>(`/branches/${id}`, {
+      nombre: payload.nombre,
+      direccion: payload.direccion ?? null,
+      telefono: payload.telefono ?? null,
+    })
+    return mapBranch(data)
+  },
+
+  async remove(id: string): Promise<void> {
+    await apiClient.delete(`/branches/${id}`)
   },
 }

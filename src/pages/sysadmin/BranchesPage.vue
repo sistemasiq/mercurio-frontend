@@ -35,6 +35,7 @@ const columns = [
     align: 'center' as const,
     sortable: true,
   },
+  { name: 'actions', label: '', field: 'actions', align: 'center' as const, sortable: false },
 ]
 
 const filteredRows = computed(() => {
@@ -104,6 +105,20 @@ onMounted(fetchBranches)
             <q-badge
               :color="row.isActive ? 'positive' : 'grey'"
               :label="row.isActive ? 'Activa' : 'Inactiva'"
+            />
+          </q-td>
+        </template>
+
+        <template #body-cell-actions="{ row }">
+          <q-td class="text-center">
+            <q-btn
+              flat
+              round
+              dense
+              icon="edit"
+              color="primary"
+              title="Editar"
+              @click="router.push({ name: 'sysadmin-branches-edit', params: { id: row.id } })"
             />
           </q-td>
         </template>

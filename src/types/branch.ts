@@ -11,3 +11,9 @@ export interface CreateBranchPayload {
   direccion?: string | null
   telefono?: string | null
 }
+
+export interface UpdateBranchPayload {
+  nombre: string
+  direccion?: string | null
+  telefono?: string | null
+}

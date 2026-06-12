@@ -16,3 +16,11 @@ export interface CreateUserPayload {
   role: UserRole
   branchId?: string | null
 }
+
+export interface UpdateUserPayload {
+  name: string
+  email: string
+  role: UserRole
+  branchId?: string | null
+  password?: string | null
+}

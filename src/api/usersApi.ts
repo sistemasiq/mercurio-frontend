@@ -1,5 +1,5 @@
 import { apiClient } from './axiosClient'
-import type { UserListItem, CreateUserPayload } from '@/types/user'
+import type { UserListItem, CreateUserPayload, UpdateUserPayload } from '@/types/user'
 import type { UserRole } from '@/types/auth'
 
 interface BackendUserResponse {
@@ -9,14 +9,6 @@ interface BackendUserResponse {
   role: UserRole
   branch_id: string | null
   is_active: boolean
-}
-
-interface BackendCreateUserRequest {
-  full_name: string
-  email: string
-  password: string
-  role: UserRole
-  branch_id?: string | null
 }
 
 function mapUser(raw: BackendUserResponse): UserListItem {
@@ -36,15 +28,34 @@ export const usersApi = {
     return data.map(mapUser)
   },
 
+  async getById(id: string): Promise<UserListItem> {
+    const { data } = await apiClient.get<BackendUserResponse>(`/users/${id}`)
+    return mapUser(data)
+  },
+
   async create(payload: CreateUserPayload): Promise<UserListItem> {
-    const body: BackendCreateUserRequest = {
+    const { data } = await apiClient.post<BackendUserResponse>('/users', {
       full_name: payload.name,
       email: payload.email,
       password: payload.password,
       role: payload.role,
       branch_id: payload.branchId ?? null,
-    }
-    const { data } = await apiClient.post<BackendUserResponse>('/users', body)
+    })
     return mapUser(data)
+  },
+
+  async update(id: string, payload: UpdateUserPayload): Promise<UserListItem> {
+    const { data } = await apiClient.put<BackendUserResponse>(`/users/${id}`, {
+      full_name: payload.name,
+      email: payload.email,
+      role: payload.role,
+      branch_id: payload.branchId ?? null,
+      password: payload.password || null,
+    })
+    return mapUser(data)
+  },
+
+  async remove(id: string): Promise<void> {
+    await apiClient.delete(`/users/${id}`)
   },
 }
