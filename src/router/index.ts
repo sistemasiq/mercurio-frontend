@@ -53,6 +53,28 @@ const router = createRouter({
       ],
     },
     {
+      path: '/sysadmin',
+      component: () => import('@/layouts/SysAdminLayout.vue'),
+      meta: { requiresAuth: true, roles: ['AdministradorSistema'] as UserRole[] },
+      children: [
+        {
+          path: 'dashboard',
+          name: 'sysadmin-dashboard',
+          component: () => import('@/pages/sysadmin/SysAdminDashboardPage.vue'),
+        },
+        {
+          path: 'users',
+          name: 'sysadmin-users',
+          component: () => import('@/pages/sysadmin/UsersPage.vue'),
+        },
+        {
+          path: 'users/new',
+          name: 'sysadmin-users-new',
+          component: () => import('@/pages/sysadmin/UserRegisterPage.vue'),
+        },
+      ],
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/login',
     },

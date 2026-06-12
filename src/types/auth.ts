@@ -1,4 +1,4 @@
-export type UserRole = 'Administrador' | 'Cajero' | 'Cocina'
+export type UserRole = 'Administrador' | 'Cajero' | 'Cocina' | 'AdministradorSistema'
 
 export interface LoginRequest {
   branchId: string
