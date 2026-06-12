@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { userService } from '@/services/userService'
-import type { SystemStats } from '@/types/user'
+import type { UserListItem } from '@/types/user'
 
-const stats = ref<SystemStats | null>(null)
+const users = ref<UserListItem[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
+
+const totalUsers = computed(() => users.value.length)
+const activeUsers = computed(() => users.value.filter((u) => u.isActive).length)
 
 onMounted(async () => {
   loading.value = true
   error.value = null
   try {
-    stats.value = await userService.getStats()
+    users.value = await userService.listUsers()
   } catch {
     error.value = 'No se pudieron cargar las estadísticas.'
   } finally {
@@ -36,7 +39,7 @@ onMounted(async () => {
             <div class="text-body2 text-grey-7">Usuarios totales</div>
             <div class="text-h4 text-weight-bold">
               <q-skeleton v-if="loading" type="text" width="40px" />
-              <span v-else>{{ stats?.totalUsers ?? '—' }}</span>
+              <span v-else>{{ totalUsers }}</span>
             </div>
           </div>
         </q-card-section>
@@ -49,20 +52,7 @@ onMounted(async () => {
             <div class="text-body2 text-grey-7">Usuarios activos</div>
             <div class="text-h4 text-weight-bold">
               <q-skeleton v-if="loading" type="text" width="40px" />
-              <span v-else>{{ stats?.activeUsers ?? '—' }}</span>
-            </div>
-          </div>
-        </q-card-section>
-      </q-card>
-
-      <q-card class="col-12 col-sm-3">
-        <q-card-section class="flex items-center no-wrap q-gutter-md">
-          <q-icon name="store" color="secondary" size="48px" />
-          <div>
-            <div class="text-body2 text-grey-7">Sucursales</div>
-            <div class="text-h4 text-weight-bold">
-              <q-skeleton v-if="loading" type="text" width="40px" />
-              <span v-else>{{ stats?.totalBranches ?? '—' }}</span>
+              <span v-else>{{ activeUsers }}</span>
             </div>
           </div>
         </q-card-section>

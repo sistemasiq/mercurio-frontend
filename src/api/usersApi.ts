@@ -1,30 +1,50 @@
 import { apiClient } from './axiosClient'
-import type { CreateUserPayload, UserListItem, UserListResponse, SystemStats } from '@/types/user'
+import type { UserListItem, CreateUserPayload } from '@/types/user'
+import type { UserRole } from '@/types/auth'
 
-export interface ListUsersParams {
-  page?: number
-  limit?: number
-  search?: string
-  role?: string
+interface BackendUserResponse {
+  id: string
+  full_name: string
+  email: string
+  role: UserRole
+  branch_id: string | null
+  is_active: boolean
+}
+
+interface BackendCreateUserRequest {
+  full_name: string
+  email: string
+  password: string
+  role: UserRole
+  branch_id?: string | null
+}
+
+function mapUser(raw: BackendUserResponse): UserListItem {
+  return {
+    id: raw.id,
+    name: raw.full_name,
+    email: raw.email,
+    role: raw.role,
+    branchId: raw.branch_id,
+    isActive: raw.is_active,
+  }
 }
 
 export const usersApi = {
-  async list(params?: ListUsersParams): Promise<UserListResponse> {
-    const { data } = await apiClient.get<UserListResponse>('/admin/users', { params })
-    return data
+  async list(): Promise<UserListItem[]> {
+    const { data } = await apiClient.get<BackendUserResponse[]>('/users')
+    return data.map(mapUser)
   },
 
   async create(payload: CreateUserPayload): Promise<UserListItem> {
-    const { data } = await apiClient.post<UserListItem>('/admin/users', payload)
-    return data
-  },
-
-  async setActive(userId: number, isActive: boolean): Promise<void> {
-    await apiClient.patch(`/admin/users/${userId}/status`, { isActive })
-  },
-
-  async getStats(): Promise<SystemStats> {
-    const { data } = await apiClient.get<SystemStats>('/admin/stats')
-    return data
+    const body: BackendCreateUserRequest = {
+      full_name: payload.name,
+      email: payload.email,
+      password: payload.password,
+      role: payload.role,
+      branch_id: payload.branchId ?? null,
+    }
+    const { data } = await apiClient.post<BackendUserResponse>('/users', body)
+    return mapUser(data)
   },
 }

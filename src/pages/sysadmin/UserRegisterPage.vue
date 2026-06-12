@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { userService } from '@/services/userService'
 import type { UserRole } from '@/types/auth'
+import type { ApiError } from '@/types/auth'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -17,7 +18,7 @@ const form = reactive({
   email: '',
   password: '',
   confirmPassword: '',
-  roles: [] as UserRole[],
+  role: null as UserRole | null,
 })
 
 const roleOptions: { label: string; value: UserRole }[] = [
@@ -37,7 +38,14 @@ const passwordRules = [
   (v: string) => v.length >= 8 || 'Mínimo 8 caracteres',
 ]
 const confirmRules = [(v: string) => v === form.password || 'Las contraseñas no coinciden']
-const rolesRules = [(v: UserRole[]) => v.length > 0 || 'Selecciona al menos un rol']
+const roleRules = [(v: UserRole | null) => !!v || 'Selecciona un rol']
+
+function resolveErrorMessage(err: ApiError): string {
+  if (err.statusCode === 409) return 'Ya existe un usuario con ese correo electrónico.'
+  if (err.statusCode === 403) return 'No tienes permiso para asignar ese rol.'
+  if (err.statusCode === 422) return 'La sucursal es requerida para este rol.'
+  return 'No se pudo registrar el usuario. Verifica los datos.'
+}
 
 async function handleSubmit(): Promise<void> {
   loading.value = true
@@ -46,12 +54,12 @@ async function handleSubmit(): Promise<void> {
       name: form.name.trim(),
       email: form.email.trim(),
       password: form.password,
-      roles: form.roles,
+      role: form.role!,
     })
     $q.notify({ type: 'positive', message: 'Usuario registrado correctamente.' })
     router.push({ name: 'sysadmin-users' })
-  } catch {
-    $q.notify({ type: 'negative', message: 'No se pudo registrar el usuario. Verifica los datos.' })
+  } catch (err) {
+    $q.notify({ type: 'negative', message: resolveErrorMessage(err as ApiError) })
   } finally {
     loading.value = false
   }
@@ -120,24 +128,17 @@ async function handleSubmit(): Promise<void> {
           </q-input>
 
           <q-select
-            v-model="form.roles"
+            v-model="form.role"
             :options="roleOptions"
             option-label="label"
             option-value="value"
             emit-value
             map-options
-            multiple
-            label="Roles"
+            label="Rol"
             outlined
-            :rules="rolesRules"
+            :rules="roleRules"
             lazy-rules
-          >
-            <template #selected-item="{ opt }">
-              <q-chip dense color="primary" text-color="white" class="q-mr-xs">
-                {{ opt.label }}
-              </q-chip>
-            </template>
-          </q-select>
+          />
 
           <div class="row justify-end q-gutter-sm q-mt-md">
             <q-btn
