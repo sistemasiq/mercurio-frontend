@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
@@ -7,6 +7,8 @@ import { getInitials, getAvatarColor } from '@/utils/avatar'
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+
+const leftOpen = ref(true)
 
 const navMain = [
   { label: 'Dashboard', icon: 'dashboard', routeName: 'sysadmin-dashboard' },
@@ -36,9 +38,16 @@ async function handleLogout(): Promise<void> {
 </script>
 
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <q-layout view="hHh LpR fFf">
     <!-- ── Sidebar ─────────────────────────────────────────── -->
-    <q-drawer :width="220" permanent style="background: #0f172a">
+    <q-drawer
+      v-model="leftOpen"
+      side="left"
+      :width="220"
+      :breakpoint="0"
+      show-if-above
+      style="background: #0f172a"
+    >
       <div class="sb-root">
         <!-- Logo -->
         <div class="sb-logo">

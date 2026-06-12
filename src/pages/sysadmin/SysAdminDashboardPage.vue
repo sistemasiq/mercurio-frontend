@@ -16,6 +16,7 @@ const loading = ref(true)
 
 const totalUsers = computed(() => users.value.length)
 const activeBranches = computed(() => branches.value.filter((b) => b.isActive).length)
+const inactiveBranches = computed(() => branches.value.filter((b) => !b.isActive).length)
 const branchList = computed(() => branches.value.slice(0, 5))
 
 onMounted(async () => {
@@ -39,17 +40,14 @@ onMounted(async () => {
         <h1 class="page-title">Dashboard</h1>
         <p class="page-sub">Bienvenido al panel de control de TEC-FS.</p>
       </div>
-      <div class="row q-gutter-sm">
-        <q-btn outline color="grey-7" label="Descargar reporte" icon="download" dense />
-        <q-btn
-          unelevated
-          color="primary"
-          label="Nueva sucursal"
-          icon="add"
-          dense
-          @click="router.push({ name: 'sysadmin-branches-new' })"
-        />
-      </div>
+      <q-btn
+        unelevated
+        color="primary"
+        label="Nueva sucursal"
+        icon="add_business"
+        dense
+        @click="router.push({ name: 'sysadmin-branches-new' })"
+      />
     </div>
 
     <!-- Stat cards -->
@@ -65,7 +63,7 @@ onMounted(async () => {
           <div v-else class="stat-card__val">{{ totalUsers.toLocaleString() }}</div>
           <div class="stat-card__label">Total Usuarios</div>
         </div>
-        <q-badge color="blue" outline label="Sistema" class="stat-card__badge" />
+        <q-badge color="blue" outline label="Registrados" class="stat-card__badge" />
       </div>
 
       <div class="stat-card">
@@ -83,25 +81,36 @@ onMounted(async () => {
       </div>
 
       <div class="stat-card">
-        <div class="stat-card__icon" style="background: #fff7ed">
-          <q-icon name="speed" color="orange" size="22px" />
+        <div class="stat-card__icon" style="background: #fff1f2">
+          <q-icon name="store_mall_directory" color="red" size="22px" />
         </div>
         <div class="stat-card__body">
-          <div class="stat-card__val">99.98%</div>
-          <div class="stat-card__label">Uptime</div>
+          <div v-if="loading" class="stat-card__val">
+            <q-skeleton type="text" width="60px" />
+          </div>
+          <div v-else class="stat-card__val">{{ inactiveBranches }}</div>
+          <div class="stat-card__label">Sucursales Inactivas</div>
         </div>
-        <q-badge color="orange" outline label="Alta disp." class="stat-card__badge" />
+        <q-badge
+          :color="inactiveBranches > 0 ? 'red' : 'green'"
+          outline
+          :label="inactiveBranches > 0 ? 'Alertas' : 'Sin alertas'"
+          class="stat-card__badge"
+        />
       </div>
 
       <div class="stat-card">
-        <div class="stat-card__icon" style="background: #f0fdf4">
-          <q-icon name="security" color="green" size="22px" />
+        <div class="stat-card__icon" style="background: #f5f3ff">
+          <q-icon name="manage_accounts" color="deep-purple" size="22px" />
         </div>
         <div class="stat-card__body">
-          <div class="stat-card__val" style="font-size: 20px">Protegido</div>
-          <div class="stat-card__label">Seguridad</div>
+          <div v-if="loading" class="stat-card__val">
+            <q-skeleton type="text" width="60px" />
+          </div>
+          <div v-else class="stat-card__val">{{ branches.length }}</div>
+          <div class="stat-card__label">Total Sucursales</div>
         </div>
-        <q-badge color="green" outline label="OK" class="stat-card__badge" />
+        <q-badge color="deep-purple" outline label="Sistema" class="stat-card__badge" />
       </div>
     </div>
 
