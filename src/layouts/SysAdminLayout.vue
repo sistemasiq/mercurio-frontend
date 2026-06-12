@@ -10,6 +10,7 @@ const drawerOpen = ref(true)
 
 const navItems = [
   { label: 'Dashboard', icon: 'dashboard', routeName: 'sysadmin-dashboard' },
+  { label: 'Sucursales', icon: 'store', routeName: 'sysadmin-branches' },
   { label: 'Usuarios', icon: 'group', routeName: 'sysadmin-users' },
 ]
 

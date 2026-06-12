@@ -72,6 +72,16 @@ const router = createRouter({
           name: 'sysadmin-users-new',
           component: () => import('@/pages/sysadmin/UserRegisterPage.vue'),
         },
+        {
+          path: 'branches',
+          name: 'sysadmin-branches',
+          component: () => import('@/pages/sysadmin/BranchesPage.vue'),
+        },
+        {
+          path: 'branches/new',
+          name: 'sysadmin-branches-new',
+          component: () => import('@/pages/sysadmin/BranchRegisterPage.vue'),
+        },
       ],
     },
     {

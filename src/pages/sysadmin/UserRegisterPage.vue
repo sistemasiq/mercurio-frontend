@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { userService } from '@/services/userService'
-import type { UserRole } from '@/types/auth'
-import type { ApiError } from '@/types/auth'
+import { branchService } from '@/services/branchService'
+import type { UserRole, ApiError } from '@/types/auth'
+import type { Branch } from '@/types/branch'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -12,6 +13,7 @@ const router = useRouter()
 const loading = ref(false)
 const showPassword = ref(false)
 const showConfirm = ref(false)
+const branches = ref<Branch[]>([])
 
 const form = reactive({
   name: '',
@@ -19,6 +21,7 @@ const form = reactive({
   password: '',
   confirmPassword: '',
   role: null as UserRole | null,
+  branchId: null as string | null,
 })
 
 const roleOptions: { label: string; value: UserRole }[] = [
@@ -27,6 +30,12 @@ const roleOptions: { label: string; value: UserRole }[] = [
   { label: 'Cajero', value: 'Cajero' },
   { label: 'Cocina', value: 'Cocina' },
 ]
+
+const branchOptions = computed(() =>
+  branches.value.filter((b) => b.isActive).map((b) => ({ label: b.nombre, value: b.id })),
+)
+
+const requiresBranch = computed(() => form.role !== null && form.role !== 'AdministradorSistema')
 
 const nameRules = [(v: string) => !!v.trim() || 'El nombre es requerido']
 const emailRules = [
@@ -39,6 +48,9 @@ const passwordRules = [
 ]
 const confirmRules = [(v: string) => v === form.password || 'Las contraseñas no coinciden']
 const roleRules = [(v: UserRole | null) => !!v || 'Selecciona un rol']
+const branchRules = [
+  (v: string | null) => !requiresBranch.value || !!v || 'La sucursal es requerida para este rol',
+]
 
 function resolveErrorMessage(err: ApiError): string {
   if (err.statusCode === 409) return 'Ya existe un usuario con ese correo electrónico.'
@@ -55,6 +67,7 @@ async function handleSubmit(): Promise<void> {
       email: form.email.trim(),
       password: form.password,
       role: form.role!,
+      branchId: requiresBranch.value ? form.branchId : null,
     })
     $q.notify({ type: 'positive', message: 'Usuario registrado correctamente.' })
     router.push({ name: 'sysadmin-users' })
@@ -64,6 +77,14 @@ async function handleSubmit(): Promise<void> {
     loading.value = false
   }
 }
+
+onMounted(async () => {
+  try {
+    branches.value = await branchService.listBranches()
+  } catch {
+    $q.notify({ type: 'warning', message: 'No se pudieron cargar las sucursales.' })
+  }
+})
 </script>
 
 <template>
@@ -138,6 +159,24 @@ async function handleSubmit(): Promise<void> {
             outlined
             :rules="roleRules"
             lazy-rules
+            @update:model-value="form.branchId = null"
+          />
+
+          <q-select
+            v-if="requiresBranch"
+            v-model="form.branchId"
+            :options="branchOptions"
+            option-label="label"
+            option-value="value"
+            emit-value
+            map-options
+            label="Sucursal *"
+            outlined
+            :rules="branchRules"
+            lazy-rules
+            :hint="
+              branchOptions.length === 0 ? 'No hay sucursales activas registradas.' : undefined
+            "
           />
 
           <div class="row justify-end q-gutter-sm q-mt-md">
