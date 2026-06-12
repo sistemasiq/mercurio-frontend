@@ -77,6 +77,11 @@ const columns = [
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'center' as const, sortable: false },
 ]
 
+function setRoleFilter(value: UserRole | ''): void {
+  roleFilter.value = value
+  pagination.value.page = 1
+}
+
 async function fetchUsers(): Promise<void> {
   loading.value = true
   try {
@@ -133,10 +138,7 @@ onMounted(fetchUsers)
             :key="f.value"
             class="pill"
             :class="{ 'pill--active': roleFilter === f.value }"
-            @click="
-              roleFilter = f.value
-              pagination.page = 1
-            "
+            @click="setRoleFilter(f.value)"
           >
             {{ f.label }}
           </button>
