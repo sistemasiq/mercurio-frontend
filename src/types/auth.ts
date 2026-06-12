@@ -1,7 +1,6 @@
 export type UserRole = 'Administrador' | 'Cajero' | 'Cocina' | 'AdministradorSistema'
 
 export interface LoginRequest {
-  sucursalId: string | null
   email: string
   password: string
   rememberMe?: boolean

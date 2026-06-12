@@ -5,16 +5,8 @@ import { useAuthForm } from '@/composables/useAuthForm'
 
 const formRef = ref<InstanceType<typeof QForm> | null>(null)
 
-const {
-  credentials,
-  showPassword,
-  branchOptions,
-  branchesLoading,
-  emailRules,
-  passwordRules,
-  isLoading,
-  handleLogin,
-} = useAuthForm()
+const { credentials, showPassword, emailRules, passwordRules, isLoading, handleLogin } =
+  useAuthForm()
 
 async function onSubmit(): Promise<void> {
   const valid = await formRef.value?.validate()
@@ -48,31 +40,6 @@ async function onSubmit(): Promise<void> {
         <p class="auth-subtitle">Ingrese sus credenciales corporativas para continuar.</p>
 
         <q-form ref="formRef" class="auth-form" greedy @submit.prevent="onSubmit">
-          <!-- Sucursal -->
-          <div class="field-wrap">
-            <label class="field-label">Sucursal</label>
-            <q-select
-              v-model="credentials.sucursalId"
-              :options="branchOptions"
-              option-label="label"
-              option-value="value"
-              emit-value
-              map-options
-              outlined
-              dense
-              placeholder="Selecciona tu sucursal"
-              :loading="branchesLoading"
-              :disable="isLoading()"
-              no-error-icon
-              class="field-input"
-              clearable
-            >
-              <template #prepend>
-                <q-icon name="store" color="grey-5" size="16px" />
-              </template>
-            </q-select>
-          </div>
-
           <!-- Usuario / Email -->
           <div class="field-wrap">
             <label class="field-label">Usuario o Correo Electrónico</label>
