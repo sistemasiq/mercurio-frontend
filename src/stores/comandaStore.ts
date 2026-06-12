@@ -71,8 +71,32 @@ export const useComandasStore = defineStore('comandas', () => {
   const totalListos = computed(() => _comandas.value.filter(c => c.estado === 'listo').length);
 
   function crearComanda(mesa: string, items: any[], notas?: string) {
-    // Mantener la firma por si se ocupa en la Caja más delante
-  }
+  // Generamos un número de folio automático basado en cuántas órdenes ya existen
+  const nuevoFolio = String(_comandas.value.length + 1).padStart(3, '0');
+  
+  const nuevaComanda: IComanda = {
+    id: `ord-00${Date.now()}`, // ID único temporal
+    folio: nuevoFolio,
+    mesa: mesa,
+    meseroId: 'usr-123',
+    meseroNombre: 'Diana Ayala', 
+    estado: 'pendiente',         // Entra directo a la fila de espera
+    notasGenerales: notas || '1 min • NUEVO',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    // Mapeamos los items de tu caja al formato estricto que espera la cocina
+    items: items.map((item, index) => ({
+      id: String(index + 1),
+      nombre: item.producto.nombre,
+      cantidad: item.cantidad,
+      precioUnitario: item.producto.precio,
+      observaciones: item.notas || undefined
+    }))
+  };
+
+  // Metemos la nueva orden al arreglo reactivo de Pinia
+  _comandas.value.push(nuevaComanda);
+}
 
 function actualizarEstado(id: string, nuevoEstado: EstadoComanda) {
   const index = _comandas.value.findIndex(c => c.id === id);

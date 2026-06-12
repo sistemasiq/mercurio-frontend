@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useComandasStore } from '../../stores/comandaStore';
-import ComandaCard from '../../components/comandas/ComandaCard.vue';
+import { useComandasStore } from '@/stores/comandaStore';
+import ComandaCard from '@/components/comandas/ComandaCard.vue';
 
 const store = useComandasStore();
 
