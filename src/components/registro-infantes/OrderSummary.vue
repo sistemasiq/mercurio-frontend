@@ -26,7 +26,9 @@ function formatCurrency(value: number) {
           :key="child.id"
           class="row justify-between items-center q-mb-xs"
         >
-          <span class="text-body2 text-grey-8"> 1× Niño ({{ store.tutor.estimatedTime }}) </span>
+          <span class="text-body2 text-grey-8">
+            1× ({{ child.name }}) ({{ store.tutor.estimatedTime }})
+          </span>
           <span class="text-body2">{{ formatCurrency(store.pricePerChild) }}</span>
         </div>
 
@@ -60,7 +62,7 @@ function formatCurrency(value: number) {
           <template #avatar>
             <q-icon name="nfc" color="blue-8" />
           </template>
-          Pago registrado. Vincula las pulseras RFID a cada niño para completar.
+          Pago registrado. Asigna las pulseras a cada niño para finalizar.
         </q-banner>
 
         <q-btn
@@ -76,7 +78,7 @@ function formatCurrency(value: number) {
           v-if="!store.allChildrenHaveBracelet"
           class="text-caption text-grey-6 text-center q-mt-xs"
         >
-          Vincula una pulsera a cada niño registrado
+          Asigna una pulsera a cada niño registrado
         </div>
       </template>
 

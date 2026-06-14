@@ -11,6 +11,9 @@ const child = computed(() => store.children[props.index])
 const canSave = computed(() => child.value.name.trim() !== '' && child.value.age !== null)
 
 function save() {
+  if (child.value && !child.value.rfidBracelet) {
+    child.value.rfidBracelet = ''
+  }
   store.saveChild(props.index)
 }
 
@@ -23,8 +26,36 @@ function remove() {
 }
 
 function blockSpecialChars(e: KeyboardEvent) {
-  if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+  const controlKeys = [
+    'Backspace',
+    'Delete',
+    'ArrowUp',
+    'ArrowDown',
+    'ArrowLeft',
+    'ArrowRight',
+    'Tab',
+    'Enter',
+  ]
+  if (controlKeys.includes(e.key)) {
+    return
+  }
+
+  if (e.ctrlKey || e.metaKey) {
+    return
+  }
+
+  if (!/^[0-9]$/.test(e.key)) {
     e.preventDefault()
+  }
+}
+
+function limitAgeInput(value: number | string | null) {
+  if (value === null || value === '') return
+
+  const stringValue = value.toString()
+
+  if (stringValue.length > 2) {
+    child.value.age = parseInt(stringValue.slice(0, 2))
   }
 }
 </script>
@@ -81,6 +112,15 @@ function blockSpecialChars(e: KeyboardEvent) {
             placeholder="Nombre completo"
             outlined
             dense
+            lazy-rules
+            :rules="[
+              (val) => !!val || 'El nombre completo es obligatorio',
+              (val) =>
+                val.trim().split(/\s+/).length >= 2 ||
+                'Por favor, introduce nombre y primer apellido',
+              (val) =>
+                /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(val) || 'El nombre solo puede contener letras',
+            ]"
           />
         </div>
         <div class="col-12 col-sm-5">
@@ -89,17 +129,21 @@ function blockSpecialChars(e: KeyboardEvent) {
             label="Edad"
             type="number"
             min="1"
-            max="15"
+            max="99"
             suffix="Años"
             outlined
             dense
+            class="custom-age-input"
             lazy-rules
             :rules="[
               (val) => (val !== null && val !== '') || 'La edad es obligatoria',
-              (val) => (val >= 1 && val <= 15) || 'La edad debe ser entre 1 y 15 años',
+              (val) => (val >= 1 && val <= 99) || 'La edad debe ser entre 1 y 99 años',
             ]"
             @keydown="blockSpecialChars"
-          />
+            @paste.prevent
+            @update:model-value="limitAgeInput"
+          >
+          </q-input>
         </div>
       </div>
 
@@ -111,21 +155,6 @@ function blockSpecialChars(e: KeyboardEvent) {
         dense
         class="q-mb-sm"
       />
-
-      <!-- RFID field - disabled until payment -->
-      <q-input
-        v-model="child.rfidBracelet"
-        label="Vinculación RFID"
-        placeholder="Pendiente de pago"
-        outlined
-        dense
-        :disable="true"
-        class="q-mb-sm rfid-disabled"
-      >
-        <template #prepend>
-          <q-icon name="nfc" color="grey-5" />
-        </template>
-      </q-input>
 
       <q-btn
         unelevated

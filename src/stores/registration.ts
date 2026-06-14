@@ -91,11 +91,7 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   const pricePerChild = computed(() => PRICE_PER_HOUR[tutor.value.estimatedTime] ?? 150)
 
-  const subtotal = computed(() => savedChildren.value.length * pricePerChild.value)
-
-  const iva = computed(() => Math.round(subtotal.value * 0.16))
-
-  const total = computed(() => subtotal.value + iva.value)
+  const total = computed(() => savedChildren.value.length * pricePerChild.value)
 
   const usedBracelets = computed(() => children.value.map((c) => c.rfidBracelet).filter(Boolean))
 
@@ -170,8 +166,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     folioId,
     savedChildren,
     pricePerChild,
-    subtotal,
-    iva,
     total,
     usedBracelets,
     availableBraceletsForChild,

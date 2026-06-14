@@ -25,7 +25,10 @@ function scheduledExit() {
 }
 
 function printVoucher() {
+  const originalTitle = document.title
+  document.title = `Ticket_Folio_${store.folioId || '000'}`
   window.print()
+  document.title = originalTitle
 }
 </script>
 
@@ -72,13 +75,13 @@ function printVoucher() {
       <div class="row text-caption text-grey-7 q-mb-xs">
         <div class="col">Nombre</div>
         <div style="width: 50px" class="text-center">Edad</div>
-        <div style="width: 80px" class="text-right">RFID Bracelet</div>
+        <div style="width: 80px" class="text-right">Brazalete</div>
       </div>
       <div v-for="child in store.savedChildren" :key="child.id" class="row items-center q-mb-xs">
         <div class="col text-weight-medium" style="font-size: 14px">{{ child.name }}</div>
         <div style="width: 50px" class="text-center text-body2">{{ child.age }}</div>
         <div style="width: 80px" class="text-right">
-          <q-chip dense color="blue-2" text-color="blue-9" :label="child.rfidBracelet" size="sm" />
+          <q-chip dense color="blue-2" text-color="black-9" :label="child.rfidBracelet" size="md" />
         </div>
       </div>
 
@@ -89,24 +92,16 @@ function printVoucher() {
         <div class="voucher-section-title q-mb-sm">DETALLES DE ESTANCIA</div>
         <div class="row justify-between q-mb-xs">
           <span class="text-body2">Tiempo Prepagado:</span>
-          <span class="text-weight-bold text-primary">{{ store.tutor.estimatedTime }} 00 min</span>
+          <span class="text-weight-bold">{{ store.tutor.estimatedTime }}</span>
         </div>
         <div class="row justify-between">
           <span class="text-body2">Salida Programada:</span>
-          <q-chip dense color="orange-2" text-color="orange-9" :label="scheduledExit()" size="sm" />
+          <q-chip dense color="black-2" text-color="black-9" :label="scheduledExit()" size="md" />
         </div>
       </div>
 
       <!-- Payment details -->
       <div class="voucher-section-title q-mb-sm">DETALLES DE PAGO</div>
-      <div class="row justify-between q-mb-xs">
-        <span class="text-body2">Subtotal:</span>
-        <span class="text-body2">${{ store.subtotal.toFixed(2) }}</span>
-      </div>
-      <div class="row justify-between q-mb-sm">
-        <span class="text-body2">IVA (16%):</span>
-        <span class="text-body2">${{ store.iva.toFixed(2) }}</span>
-      </div>
       <div class="row justify-between q-mb-md">
         <span class="text-subtitle1 text-weight-bold">TOTAL:</span>
         <span class="text-subtitle1 text-weight-bold">${{ store.total.toFixed(2) }}</span>
@@ -130,7 +125,7 @@ function printVoucher() {
 
 <style scoped>
 .voucher-wrapper {
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.05);
   padding: 24px;
   display: flex;
   justify-content: center;
@@ -143,7 +138,7 @@ function printVoucher() {
   padding: 24px;
   max-width: 420px;
   width: 100%;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
 .voucher-label {
@@ -172,9 +167,54 @@ function printVoucher() {
   border-radius: 8px;
   border: 1px solid #e3f0ff;
 }
+</style>
 
+<style>
 @media print {
-  .print-hide {
+  @page {
+    margin: 0;
+  }
+
+  body,
+  #q-app,
+  .q-layout,
+  .q-page-container,
+  .registration-page {
+    background: none !important;
+    background-color: white !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .voucher-wrapper,
+  .voucher-wrapper * {
+    visibility: visible !important;
+  }
+
+  .voucher-wrapper {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    justify-content: center !important;
+    background: none !important;
+  }
+
+  .voucher {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 24px !important;
+    max-width: 100% !important;
+  }
+
+  .print-hide,
+  button,
+  .q-btn {
     display: none !important;
   }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRegistrationStore } from '@/stores/registration'
-import { ref } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 
 const store = useRegistrationStore()
 
@@ -14,49 +14,80 @@ const RELATIONSHIP_OPTIONS = [
 
 const TIME_OPTIONS = ['1 hr', '2 hr', '3 hr']
 
-const ineInputRef = ref<HTMLInputElement | null>(null)
 const showInePreview = ref(false)
-
-const arrivalInputRef = ref<HTMLInputElement | null>(null)
 const showArrivalPreview = ref(false)
 
-function triggerIneCapture() {
-  ineInputRef.value?.click()
+const cameraActive = ref(false)
+const videoRef = ref<HTMLVideoElement | null>(null)
+let streamInstance: MediaStream | null = null
+let currentPhotoTarget: 'ine' | 'arrival' | null = null
+
+async function startCamera(target: 'ine' | 'arrival') {
+  currentPhotoTarget = target
+  cameraActive.value = true
+
+  setTimeout(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720, facingMode: target === 'ine' ? 'environment' : 'user' },
+        audio: false,
+      })
+      streamInstance = stream
+      if (videoRef.value) {
+        videoRef.value.srcObject = stream
+      }
+    } catch (err) {
+      console.error('Error al acceder a la cámara web:', err)
+      cameraActive.value = false
+    }
+  }, 100)
 }
 
-function onIneFileChange(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    store.tutor.inePhoto = e.target?.result as string
+function stopCamera() {
+  if (streamInstance) {
+    streamInstance.getTracks().forEach((track) => track.stop())
+    streamInstance = null
   }
-  reader.readAsDataURL(file)
+  cameraActive.value = false
 }
 
-function triggerArrivalCapture() {
-  arrivalInputRef.value?.click()
-}
+function capturePhoto() {
+  if (!videoRef.value || !currentPhotoTarget) return
 
-function onArrivalFileChange(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    store.tutor.arrivalPhoto = e.target?.result as string
+  const video = videoRef.value
+  const canvas = document.createElement('canvas')
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    const base64Image = canvas.toDataURL('image/jpeg')
+
+    if (currentPhotoTarget === 'ine') {
+      store.tutor.inePhoto = base64Image
+    } else {
+      store.tutor.arrivalPhoto = base64Image
+    }
   }
-  reader.readAsDataURL(file)
+
+  stopCamera()
 }
 
 function retakeIne() {
   store.tutor.inePhoto = null
-  if (ineInputRef.value) ineInputRef.value.value = ''
+  startCamera('ine')
 }
 
 function retakeArrival() {
   store.tutor.arrivalPhoto = null
-  if (arrivalInputRef.value) arrivalInputRef.value.value = ''
+  startCamera('arrival')
 }
+
+// Limpieza de recursos por seguridad si se cierra el componente inesperadamente
+onBeforeUnmount(() => {
+  stopCamera()
+})
 </script>
 
 <template>
@@ -75,6 +106,13 @@ function retakeArrival() {
         outlined
         dense
         class="q-mb-md"
+        lazy-rules
+        :rules="[
+          (val) => !!val || 'El nombre completo es obligatorio',
+          (val) =>
+            val.trim().split(/\s+/).length >= 2 || 'Por favor, introduce nombre y primer apellido',
+          (val) => /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(val) || 'El nombre solo puede contener letras',
+        ]"
       />
 
       <!-- Relationship + Phone -->
@@ -96,6 +134,11 @@ function retakeArrival() {
             outlined
             dense
             mask="##########"
+            lazy-rules
+            :rules="[
+              (val) => !!val || 'El teléfono es obligatorio',
+              (val) => val.length === 10 || 'El teléfono debe tener exactamente 10 dígitos',
+            ]"
           />
         </div>
       </div>
@@ -104,22 +147,13 @@ function retakeArrival() {
       <div class="row q-col-gutter-md q-mb-md">
         <!-- INE Photo -->
         <div class="col-12 col-sm-6">
-          <input
-            ref="ineInputRef"
-            type="file"
-            accept="image/*"
-            capture="environment"
-            class="hidden-input"
-            @change="onIneFileChange"
-          />
-
           <div
             v-if="!store.tutor.inePhoto"
             class="photo-capture-box cursor-pointer"
-            @click="triggerIneCapture"
+            @click="startCamera('ine')"
           >
-            <q-icon name="badge" size="28px" color="primary" />
-            <span class="text-caption text-primary q-mt-xs">Capturar INE (Foto)</span>
+            <q-icon name="photo_camera" size="28px" color="primary" />
+            <span class="text-caption text-primary q-mt-xs">Tomar Foto de INE</span>
           </div>
 
           <div v-else class="photo-preview-box">
@@ -129,7 +163,7 @@ function retakeArrival() {
                 <q-btn
                   flat
                   dense
-                  size="sm"
+                  size="md"
                   icon="zoom_in"
                   label="Ver foto"
                   color="primary"
@@ -141,7 +175,7 @@ function retakeArrival() {
                 <q-btn
                   flat
                   dense
-                  size="sm"
+                  size="md"
                   icon="camera_alt"
                   label="Tomar de nuevo"
                   color="grey-7"
@@ -155,22 +189,13 @@ function retakeArrival() {
 
         <!-- Arrival Photo -->
         <div class="col-12 col-sm-6">
-          <input
-            ref="arrivalInputRef"
-            type="file"
-            accept="image/*"
-            capture="user"
-            class="hidden-input"
-            @change="onArrivalFileChange"
-          />
-
           <div
             v-if="!store.tutor.arrivalPhoto"
             class="photo-capture-box cursor-pointer"
-            @click="triggerArrivalCapture"
+            @click="startCamera('arrival')"
           >
-            <q-icon name="photo_camera" size="28px" color="primary" />
-            <span class="text-caption text-primary q-mt-xs">Foto de Llegada (Tutor y Niños)</span>
+            <q-icon name="add_a_photo" size="28px" color="primary" />
+            <span class="text-caption text-primary q-mt-xs">Tomar Foto de Llegada</span>
           </div>
 
           <div v-else class="photo-preview-box">
@@ -184,7 +209,7 @@ function retakeArrival() {
                 <q-btn
                   flat
                   dense
-                  size="sm"
+                  size="md"
                   icon="zoom_in"
                   label="Ver foto"
                   color="primary"
@@ -196,7 +221,7 @@ function retakeArrival() {
                 <q-btn
                   flat
                   dense
-                  size="sm"
+                  size="md"
                   icon="camera_alt"
                   label="Tomar de nuevo"
                   color="grey-7"
@@ -219,6 +244,38 @@ function retakeArrival() {
       />
     </q-card-section>
   </q-card>
+
+  <!-- Interactive Camera Modal Dialog -->
+  <q-dialog v-model="cameraActive" persistent>
+    <q-card style="max-width: 500px; width: 100%; border-radius: 12px">
+      <q-card-section class="row items-center q-pb-xs">
+        <div class="text-subtitle1 text-weight-bold">
+          {{
+            currentPhotoTarget === 'ine'
+              ? 'Capturar Fotografía de INE'
+              : 'Capturar Fotografía de Llegada'
+          }}
+        </div>
+        <q-space />
+        <q-btn icon="close" flat round dense @click="stopCamera" />
+      </q-card-section>
+
+      <q-card-section class="q-pa-md text-center">
+        <div class="camera-stream-wrapper">
+          <video ref="videoRef" autoplay playsinline class="video-stream"></video>
+        </div>
+        <q-btn
+          color="primary"
+          icon="camera"
+          label="Capturar Foto"
+          class="q-mt-md full-width"
+          size="md"
+          rounded
+          @click="capturePhoto"
+        />
+      </q-card-section>
+    </q-card>
+  </q-dialog>
 
   <!-- INE Preview Dialog -->
   <q-dialog v-model="showInePreview">
@@ -254,10 +311,6 @@ function retakeArrival() {
   border-radius: 12px;
 }
 
-.hidden-input {
-  display: none;
-}
-
 .photo-capture-box {
   border: 2px dashed #1976d2;
   border-radius: 8px;
@@ -284,9 +337,27 @@ function retakeArrival() {
 
 .photo-thumb {
   width: 100%;
-  height: 80px;
+  height: 120px;
   object-fit: cover;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.camera-stream-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.video-stream {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 </style>

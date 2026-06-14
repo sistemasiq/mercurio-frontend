@@ -36,18 +36,18 @@ function filterFn(val: string, update: (callback: () => void) => void, childId: 
     <q-card-section>
       <div class="row items-center q-mb-md">
         <q-icon name="nfc" size="22px" color="blue-8" class="q-mr-sm" />
-        <span class="text-subtitle1 text-weight-bold">Vinculación RFID</span>
+        <span class="text-subtitle1 text-weight-bold">Pulseras</span>
         <q-chip
           dense
           :color="store.allChildrenHaveBracelet ? 'positive' : 'orange'"
-          text-color="white"
+          text-color="store.allChildrenHaveBracelet ? 'white' : 'black'"
           :label="
             store.allChildrenHaveBracelet
-              ? 'Todos vinculados'
-              : `${store.savedChildren.filter((c) => c.rfidBracelet).length}/${store.savedChildren.length} vinculados`
+              ? 'Todos con pulsera'
+              : `${store.savedChildren.filter((c) => c.rfidBracelet).length}/${store.savedChildren.length} con pulsera asignada`
           "
-          size="sm"
-          class="q-ml-sm"
+          size="md"
+          class="q-ml-md"
         />
       </div>
 
@@ -84,6 +84,11 @@ function filterFn(val: string, update: (callback: () => void) => void, childId: 
             outlined
             dense
             clearable
+            lazy-rules
+            :rules="[
+              (val) =>
+                (val !== null && val !== undefined && val !== '') || 'La pulsera es obligatoria',
+            ]"
             :color="child.rfidBracelet ? 'positive' : 'primary'"
             @filter="(val, update) => filterFn(val, update, child.id)"
           >
@@ -112,7 +117,8 @@ function filterFn(val: string, update: (callback: () => void) => void, childId: 
   transition: all 0.2s;
 }
 .rfid-pending {
-  background: #fafafa;
+  background: #fff5f5;
+  border-color: #fee2e2;
 }
 .rfid-assigned {
   background: #f0fdf4;
