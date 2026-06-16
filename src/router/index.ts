@@ -56,6 +56,12 @@ const router = createRouter({
           component: () => import('@/components/NewBranchPage.vue'),
           meta: { requiresAuth: true, roles: ['Administrador'] as UserRole[] },
         },
+        {
+          path: 'branches/:branchId/edit',
+          name: 'EditBranch',
+          component: () => import('@/components/EditBranchPage.vue'),
+          meta: { requiresAuth: true, roles: ['Administrador'] as UserRole[] },
+        },
       ],
     },
     {
