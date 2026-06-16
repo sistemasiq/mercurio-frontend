@@ -50,6 +50,12 @@ const router = createRouter({
           component: () => import('@/pages/home/KitchenHomePage.vue'),
           meta: { requiresAuth: true, roles: ['Cocina'] as UserRole[] },
         },
+        {
+          path: 'branches/new',
+          name: 'NewBranch',
+          component: () => import('@/components/NewBranchPage.vue'),
+          meta: { requiresAuth: true, roles: ['Administrador'] as UserRole[] },
+        },
       ],
     },
     {
