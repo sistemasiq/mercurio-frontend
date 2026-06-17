@@ -41,6 +41,11 @@ export function setupPlugins(app: App, router: Router): void {
 
   setupRouterGuards(router)
 
+  window.addEventListener('auth:refreshed', (e: Event) => {
+    const detail = (e as CustomEvent<{ token: string }>).detail
+    auth.updateToken(detail.token)
+  })
+
   let handlingUnauthorized = false
   window.addEventListener('auth:unauthorized', () => {
     if (handlingUnauthorized) return

@@ -36,7 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = response.token
       user.value = response.user
 
-      sessionStorage.save(response.token, response.user)
+      sessionStorage.save(response.token, response.refreshToken, response.user)
     } catch (err) {
       error.value = resolveErrorMessage(err as ApiError)
       throw err
@@ -46,8 +46,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout(): Promise<void> {
+    const refreshToken = sessionStorage.load()?.refreshToken ?? ''
     try {
-      await authService.logout()
+      await authService.logout(refreshToken)
     } catch {
       // El logout local procede aunque falle el endpoint
     } finally {
@@ -61,7 +62,39 @@ export const useAuthStore = defineStore('auth', () => {
 
     token.value = session.token
     user.value = session.user
+
+    // Refrescar datos del usuario en segundo plano
+    authService
+      .me()
+      .then((freshUser) => {
+        user.value = freshUser
+      })
+      .catch(() => {
+        // El interceptor de 401 maneja la renovación o el logout
+      })
+
     return true
+  }
+
+  async function tryRefresh(): Promise<boolean> {
+    const session = sessionStorage.load()
+    if (!session?.refreshToken) return false
+
+    try {
+      const response = await authService.refresh(session.refreshToken)
+      token.value = response.token
+      user.value = response.user
+      sessionStorage.save(response.token, response.refreshToken, response.user)
+      return true
+    } catch {
+      sessionStorage.clear()
+      _clearState()
+      return false
+    }
+  }
+
+  function updateToken(newToken: string): void {
+    token.value = newToken
   }
 
   function clearError(): void {
@@ -89,6 +122,8 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     restoreSession,
+    tryRefresh,
+    updateToken,
     clearError,
   }
 })

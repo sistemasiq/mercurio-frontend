@@ -1,4 +1,4 @@
-import { apiClient } from '@/api/axiosClient'
+import { apiClient, rawApiClient } from '@/api/axiosClient'
 import type { LoginRequest, LoginResponse, TokenPayload, User, UserRole } from '@/types/auth'
 import { decodeToken } from '@/utils/tokenUtils'
 
@@ -14,6 +14,8 @@ interface BackendLoginResponse {
   token: string
   token_type: string
   expires_in: number
+  refresh_token: string
+  refresh_expires_in: number
   user: BackendUser
 }
 
@@ -33,17 +35,31 @@ function mapLoginResponse(raw: BackendLoginResponse): LoginResponse {
     token: raw.token,
     tokenType: raw.token_type,
     expiresIn: raw.expires_in,
+    refreshToken: raw.refresh_token,
+    refreshExpiresIn: raw.refresh_expires_in,
     user: mapUser(raw.user, payload),
   }
 }
 
 export const authService = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const { data } = await apiClient.post<BackendLoginResponse>('/auth/login', credentials)
+    const { data } = await rawApiClient.post<BackendLoginResponse>('/auth/login', credentials)
     return mapLoginResponse(data)
   },
 
-  async logout(): Promise<void> {
-    await apiClient.post('/auth/logout')
+  async me(): Promise<User> {
+    const { data } = await apiClient.get<BackendUser>('/auth/me')
+    return mapUser(data, null)
+  },
+
+  async refresh(refreshToken: string): Promise<LoginResponse> {
+    const { data } = await rawApiClient.post<BackendLoginResponse>('/auth/refresh', {
+      refreshToken,
+    })
+    return mapLoginResponse(data)
+  },
+
+  async logout(refreshToken: string): Promise<void> {
+    await apiClient.post('/auth/logout', { refreshToken })
   },
 }

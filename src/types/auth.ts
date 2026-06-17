@@ -27,6 +27,8 @@ export interface LoginResponse {
   token: string
   tokenType: string
   expiresIn: number
+  refreshToken: string
+  refreshExpiresIn: number
   user: User
 }
 
@@ -41,6 +43,7 @@ export interface AuthState {
 export interface StoredSession {
   token: string
   tokenExpiry: number
+  refreshToken: string
   user: User
 }
 
