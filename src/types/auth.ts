@@ -1,5 +1,13 @@
 export type UserRole = 'Administrador' | 'Cajero' | 'Cocina' | 'AdministradorSistema'
 
+export interface TokenPayload {
+  sub: string
+  exp: number
+  iat: number
+  role?: UserRole
+  roles?: UserRole[]
+}
+
 export interface LoginRequest {
   email: string
   password: string
@@ -23,7 +31,6 @@ export interface LoginResponse {
 export interface AuthState {
   user: User | null
   token: string | null
-  tokenExpiry: number | null
   isAuthenticated: boolean
   loading: boolean
   error: string | null

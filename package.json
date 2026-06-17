@@ -18,6 +18,7 @@
   "dependencies": {
     "@quasar/extras": "^2.0.0",
     "axios": "^1.16.1",
+    "jwt-decode": "^4.0.0",
     "pinia": "^3.0.4",
     "quasar": "^2.19.3",
     "vue": "^3.5.32",

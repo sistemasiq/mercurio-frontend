@@ -1,12 +1,14 @@
 import type { StoredSession, User } from '@/types/auth'
+import { decodeToken } from '@/utils/tokenUtils'
 
 const SESSION_KEY = 'auth_session'
 
 export const sessionStorage = {
-  save(token: string, expiresIn: number, user: User): void {
+  save(token: string, user: User): void {
+    const payload = decodeToken(token)
     const session: StoredSession = {
       token,
-      tokenExpiry: Date.now() + expiresIn * 1000,
+      tokenExpiry: payload?.exp ? payload.exp * 1000 : 0,
       user,
     }
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
