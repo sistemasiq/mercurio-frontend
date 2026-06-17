@@ -1,6 +1,8 @@
 {
-  "name": "login",
-  "version": "0.0.0",
+  "name": "mercurio-frontend",
+  "version": "0.0.1",
+  "description": "FEC Mercurio Frontend",
+  "productName": "Mercurio",
   "private": true,
   "type": "module",
   "scripts": {
