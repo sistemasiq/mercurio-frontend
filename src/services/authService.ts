@@ -17,18 +17,13 @@ interface BackendLoginResponse {
   user: BackendUser
 }
 
-function extractRoles(payload: TokenPayload | null, fallback: UserRole): UserRole[] {
-  if (payload?.roles?.length) return payload.roles
-  if (payload?.role) return [payload.role]
-  return [fallback]
-}
-
 function mapUser(raw: BackendUser, payload: TokenPayload | null): User {
   return {
     id: raw.id,
     name: raw.full_name,
     email: raw.email,
-    roles: extractRoles(payload, raw.role),
+    roles: [payload?.role ?? raw.role],
+    branchId: payload?.branch_id ?? raw.branch_id,
   }
 }
 

@@ -2,10 +2,11 @@ export type UserRole = 'Administrador' | 'Cajero' | 'Cocina' | 'AdministradorSis
 
 export interface TokenPayload {
   sub: string
-  exp: number
+  email: string
+  role: UserRole
+  branch_id: string | null
   iat: number
-  role?: UserRole
-  roles?: UserRole[]
+  exp: number
 }
 
 export interface LoginRequest {
@@ -19,6 +20,7 @@ export interface User {
   name: string
   email: string
   roles: UserRole[]
+  branchId: string | null
 }
 
 export interface LoginResponse {
