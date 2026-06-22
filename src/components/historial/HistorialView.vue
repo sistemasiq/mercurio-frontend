@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
 import SideNavBar from '../navigation/SideNavBar.vue';
 import DetalleOrdenPagada from './DetalleOrdenPagada.vue';
 import DetalleOrdenCancelada from './DetalleOrdenCancelada.vue';
@@ -8,7 +7,6 @@ import DetalleOrdenCancelada from './DetalleOrdenCancelada.vue';
 const mostrarModalPagado = ref(false);
 const mostrarModalCancelado = ref(false);
 
-const router = useRouter();
 
 interface ITransaccion {
   id: string;

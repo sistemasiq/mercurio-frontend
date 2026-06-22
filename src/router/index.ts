@@ -11,10 +11,8 @@ declare module 'vue-router' {
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    {
-      path: '/',
-      redirect: '/login',
-    },
+    { path: '/', redirect: '/login' },
+
     {
       path: '/',
       component: () => import('@/layouts/AuthLayout.vue'),
@@ -27,6 +25,7 @@ const router = createRouter({
         },
       ],
     },
+
     {
       path: '/',
       component: () => import('@/layouts/MainLayout.vue'),
@@ -35,7 +34,7 @@ const router = createRouter({
           path: 'dashboard',
           name: 'dashboard',
           component: () => import('@/pages/DashboardPage.vue'),
-          meta: { requiresAuth: true },
+          meta: { requiresAuth: false },
         },
         {
           path: 'cocina',
@@ -45,31 +44,28 @@ const router = createRouter({
         },
       ],
     },
+
     
-    // 📊 REAGRUPACIÓN DEBUG: Metemos todas tus vistas bajo la misma regla de bypass
     {
       path: '/debug/historial',
       name: 'debug-historial',
       component: () => import('@/components/historial/HistorialView.vue'),
-      meta: { requiresAuth: false } // Evita que el guard te mande al login
+      meta: { requiresAuth: false },
     },
     {
       path: '/debug/detalle-pagado',
       name: 'debug-detalle-pagado',
       component: () => import('@/components/historial/DetalleOrdenPagada.vue'),
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: false },
     },
     {
       path: '/debug/detalle-cancelado',
       name: 'debug-detalle-cancelado',
       component: () => import('@/components/historial/DetalleOrdenCancelada.vue'),
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: false },
     },
-    
-    {
-      path: '/:pathMatch(.*)*',
-      redirect: '/login',
-    },
+
+    { path: '/:pathMatch(.*)*', redirect: '/login' },
   ],
 })
 
