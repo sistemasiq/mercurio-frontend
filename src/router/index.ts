@@ -1,3 +1,4 @@
+// src/router/index.ts
 import { createRouter, createWebHistory } from 'vue-router'
 
 declare module 'vue-router' {
@@ -39,11 +40,32 @@ const router = createRouter({
         {
           path: 'cocina',
           name: 'cocina',
-          component: () => import('@/pages/comandas/CocinaPage.vue'),
+          component: () => import('@/components/comandas/VisorCocina.vue'),
           meta: { requiresAuth: false },
         },
       ],
     },
+    
+    // 📊 REAGRUPACIÓN DEBUG: Metemos todas tus vistas bajo la misma regla de bypass
+    {
+      path: '/debug/historial',
+      name: 'debug-historial',
+      component: () => import('@/components/historial/HistorialView.vue'),
+      meta: { requiresAuth: false } // Evita que el guard te mande al login
+    },
+    {
+      path: '/debug/detalle-pagado',
+      name: 'debug-detalle-pagado',
+      component: () => import('@/components/historial/DetalleOrdenPagada.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/debug/detalle-cancelado',
+      name: 'debug-detalle-cancelado',
+      component: () => import('@/components/historial/DetalleOrdenCancelada.vue'),
+      meta: { requiresAuth: false }
+    },
+    
     {
       path: '/:pathMatch(.*)*',
       redirect: '/login',

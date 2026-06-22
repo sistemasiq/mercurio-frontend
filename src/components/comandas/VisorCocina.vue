@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useComandasStore } from '../../stores/comandaStore';
+import { useComandasStore } from '../../stores/comandaStore.ts';
 import ComandaCard from '../../components/comandas/ComandaCard.vue';
 
 const store = useComandasStore();
@@ -22,7 +22,7 @@ const manejarCambioEstado = (id: string) => {
 </script>
 
 <template>
-  <q-page class="q-pa-xl bg-grey-1">
+  <div class="q-pa-xl bg-grey-1">
     <div class="row items-center justify-between q-mb-xl">
       <div>
         <h1 class="text-h4 text-weight-bolder q-my-none text-grey-9">Visor de Cocina</h1>
@@ -60,7 +60,7 @@ const manejarCambioEstado = (id: string) => {
         />
       </div>
     </div>
-  </q-page>
+  </div>
 </template>
 
 <style scoped>
