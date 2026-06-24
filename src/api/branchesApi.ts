@@ -6,7 +6,12 @@ interface BackendBranchResponse {
   nombre: string
   direccion: string | null
   telefono: string | null
+  correo: string | null
+  clave: string | null
+  administrador_id: string | null
+  administrador_name: string | null
   is_active: boolean
+  creado: string | null
 }
 
 function mapBranch(raw: BackendBranchResponse): Branch {
@@ -15,7 +20,12 @@ function mapBranch(raw: BackendBranchResponse): Branch {
     nombre: raw.nombre,
     direccion: raw.direccion,
     telefono: raw.telefono,
+    correo: raw.correo,
+    clave: raw.clave,
+    administradorId: raw.administrador_id,
+    administradorName: raw.administrador_name,
     isActive: raw.is_active,
+    creado: raw.creado,
   }
 }
 
@@ -31,24 +41,16 @@ export const branchesApi = {
   },
 
   async create(payload: CreateBranchPayload): Promise<Branch> {
-    const { data } = await apiClient.post<BackendBranchResponse>('/branches', {
-      nombre: payload.nombre,
-      direccion: payload.direccion ?? null,
-      telefono: payload.telefono ?? null,
-    })
+    const { data } = await apiClient.post<BackendBranchResponse>('/branches', payload)
     return mapBranch(data)
   },
 
   async update(id: string, payload: UpdateBranchPayload): Promise<Branch> {
-    const { data } = await apiClient.put<BackendBranchResponse>(`/branches/${id}`, {
-      nombre: payload.nombre,
-      direccion: payload.direccion ?? null,
-      telefono: payload.telefono ?? null,
-    })
+    const { data } = await apiClient.put<BackendBranchResponse>(`/branches/${id}`, payload)
     return mapBranch(data)
   },
 
   async remove(id: string): Promise<void> {
-    await apiClient.delete(`/branches/${id}`)
+    await apiClient.patch(`/branches/${id}/deactivate`)
   },
 }
