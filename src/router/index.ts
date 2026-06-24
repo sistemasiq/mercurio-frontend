@@ -80,17 +80,22 @@ const router = createRouter({
         {
           path: 'branches',
           name: 'sysadmin-branches',
-          component: () => import('@/pages/sysadmin/BranchesPage.vue'),
+          component: () => import('@/pages/locations/SucursalesPage.vue'),
         },
         {
           path: 'branches/new',
           name: 'sysadmin-branches-new',
-          component: () => import('@/pages/sysadmin/BranchRegisterPage.vue'),
+          component: () => import('@/components/NewBranchPage.vue'),
         },
         {
           path: 'branches/:id/edit',
           name: 'sysadmin-branches-edit',
-          component: () => import('@/pages/sysadmin/BranchEditPage.vue'),
+          component: () => import('@/components/EditBranchPage.vue'),
+        },
+        {
+          path: 'branches/:id',
+          name: 'sysadmin-branches-detail',
+          component: () => import('@/components/DetailBranchPage.vue'),
         },
       ],
     },
