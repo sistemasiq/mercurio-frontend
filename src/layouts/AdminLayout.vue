@@ -117,6 +117,57 @@
             <q-icon name="group" />
             Clientes
           </div>
+
+          <!-- ── Catálogo ─────────────────────────────── -->
+          <div class="sidebar__section-label">Catálogo</div>
+
+          <div
+            class="sidebar__item"
+            :class="{ 'sidebar__item--active': $route.name === 'extras' }"
+            @click="$router.push({ name: 'extras' })"
+          >
+            <q-icon name="add_box" />
+            Extras
+          </div>
+
+          <div
+            class="sidebar__item"
+            :class="{ 'sidebar__item--active': $route.name === 'paquetes' }"
+            @click="$router.push({ name: 'paquetes' })"
+          >
+            <q-icon name="inventory_2" />
+            Paquetes
+          </div>
+
+          <!-- ── Configuración ───────────────────────── -->
+          <div class="sidebar__section-label">Configuración</div>
+
+          <div
+            class="sidebar__item"
+            :class="{ 'sidebar__item--active': $route.name === 'sucursales' }"
+            @click="$router.push({ name: 'sucursales' })"
+          >
+            <q-icon name="store" />
+            Sucursales
+          </div>
+
+          <div
+            class="sidebar__item"
+            :class="{ 'sidebar__item--active': $route.name === 'tipos-evento' }"
+            @click="$router.push({ name: 'tipos-evento' })"
+          >
+            <q-icon name="category" />
+            Tipos de Evento
+          </div>
+
+          <div
+            class="sidebar__item"
+            :class="{ 'sidebar__item--active': $route.name === 'metodos-pago' }"
+            @click="$router.push({ name: 'metodos-pago' })"
+          >
+            <q-icon name="credit_card" />
+            Métodos de Pago
+          </div>
         </nav>
 
         <!-- Nueva Reserva Button -->
@@ -254,6 +305,16 @@ const userInitials = computed(() => isCajero.value ? 'CS' : 'AE')
 </script>
 
 <style lang="scss" scoped>
+// ── Section labels ────────────────────────────────────────────────────────────
+.sidebar__section-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  padding: 12px 20px 4px;
+}
+
 // ── Submenu animation ─────────────────────────────────────────────────────────
 .submenu-enter-active,
 .submenu-leave-active {

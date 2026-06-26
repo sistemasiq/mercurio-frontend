@@ -1,114 +1,109 @@
-<<<<<<< HEAD
-/**
- * CONFIGURACIÓN DEL SISTEMA DE RUTAS (ROUTER)
- * 
- * FUNCIÓN PRINCIPAL:
- * Este archivo define todas las rutas de navegación de la aplicación
- * y cómo se estructura la navegación entre páginas.
- * 
- * ESTRUCTURA DE RUTAS:
- * - Ruta base "/" → Carga AdminLayout como contenedor principal
- * - Rutas hijas dentro de "/" → Se renderizan dentro de AdminLayout
- * - Cualquier ruta desconocida → Redirige a /dashboard
- * 
- * FLUJO DE NAVEGACIÓN:
- * 1. Usuario hace clic en un link o navega a una URL
- * 2. Router compara la URL con las rutas definidas
- * 3. Si encuentra coincidencia, carga el componente
- * 4. Si no encuentra, redirige a /dashboard
- * 5. Actualiza el título del navegador con el meta.title
- * 
- * RUTAS DISPONIBLES:
- * - /dashboard → Panel principal con estadísticas
- * - /reservaciones → Listado de todas las reservaciones
- * - /reservaciones/nueva → Crear nueva reservación
- * - /calendario → Vista de calendario
- * - /pagos → Gestión de pagos
- * - /clientes → Listado de clientes
- */
-
 import { defineRouter } from '#q-app/wrappers'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import type { UserRole } from '@/types/auth'
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    publicOnly?: boolean
+    roles?: UserRole[]
+    title?: string
+  }
+}
 
-// Definición de todas las rutas de la aplicación
 const routes: RouteRecordRaw[] = [
   {
-    // Ruta base que contiene el layout principal
+    path: '/login',
+    name: 'login',
+    component: () => import('@/pages/auth/LoginPage.vue'),
+    meta: { publicOnly: true },
+  },
+  {
     path: '/',
-    // AdminLayout es el contenedor que tiene sidebar, header y router-view
-    component: () => import('../layouts/AdminLayout.vue'),
+    component: () => import('@/layouts/AdminLayout.vue'),
     children: [
-      // Redirige automáticamente de / a /dashboard
-      {
-        path: '',
-        redirect: '/dashboard'
-      },
-      // Dashboard: Panel de control con estadísticas y eventos próximos
+      { path: '', redirect: '/dashboard' },
       {
         path: '/dashboard',
         name: 'dashboard',
-        component: () => import('../pages/DashboardPage.vue'),
-        meta: { title: 'Dashboard - FEC Admin' }
+        component: () => import('@/pages/DashboardPage.vue'),
+        meta: { title: 'Dashboard', requiresAuth: true },
       },
-      // Reservaciones: Listado de todas las reservaciones
       {
         path: '/reservaciones',
         name: 'reservaciones',
-        component: () => import('../pages/ReservacionesPage.vue'),
-        meta: { title: 'Reservaciones' }
+        component: () => import('@/pages/ReservacionesPage.vue'),
+        meta: { title: 'Reservaciones', requiresAuth: true },
       },
-      // Nueva Reservación: Formulario para crear una nueva reservación
       {
         path: '/reservaciones/nueva',
         name: 'nueva-reservacion',
-        component: () => import('../pages/NuevaReservacionPage.vue'),
-        meta: { title: 'Nueva Reservación' }
+        component: () => import('@/pages/NuevaReservacionPage.vue'),
+        meta: { title: 'Nueva Reservación', requiresAuth: true },
       },
-      // Calendario: Vista de calendario de eventos
       {
         path: '/calendario',
         name: 'calendario',
-        component: () => import('../pages/CalendarioPage.vue'),
-        meta: { title: 'Calendario' }
+        component: () => import('@/pages/CalendarioPage.vue'),
+        meta: { title: 'Calendario', requiresAuth: true },
       },
-      // Pagos: Gestión y registro de pagos
       {
         path: '/pagos',
         name: 'pagos',
-        component: () => import('../pages/PagosPage.vue'),
-        meta: { title: 'Pagos' }
+        component: () => import('@/pages/PagosPage.vue'),
+        meta: { title: 'Pagos', requiresAuth: true },
       },
-      // Clientes: Listado y gestión de clientes
       {
         path: '/clientes',
         name: 'clientes',
-        component: () => import('../pages/ClientesPage.vue'),
-        meta: { title: 'Clientes' }
-      }
-    ]
+        component: () => import('@/pages/ClientesPage.vue'),
+        meta: { title: 'Clientes', requiresAuth: true },
+      },
+      {
+        path: '/extras',
+        name: 'extras',
+        component: () => import('@/pages/ExtrasPage.vue'),
+        meta: { title: 'Extras', requiresAuth: true },
+      },
+      {
+        path: '/paquetes',
+        name: 'paquetes',
+        component: () => import('@/pages/PaquetesPage.vue'),
+        meta: { title: 'Paquetes', requiresAuth: true },
+      },
+      {
+        path: '/sucursales',
+        name: 'sucursales',
+        component: () => import('@/pages/SucursalesPage.vue'),
+        meta: { title: 'Sucursales', requiresAuth: true },
+      },
+      {
+        path: '/tipos-evento',
+        name: 'tipos-evento',
+        component: () => import('@/pages/TiposEventoPage.vue'),
+        meta: { title: 'Tipos de Evento', requiresAuth: true },
+      },
+      {
+        path: '/metodos-pago',
+        name: 'metodos-pago',
+        component: () => import('@/pages/MetodosPagoPage.vue'),
+        meta: { title: 'Métodos de Pago', requiresAuth: true },
+      },
+    ],
   },
-  // Ruta catch-all: Cualquier URL no definida redirige a dashboard
   {
     path: '/:catchAll(.*)*',
-    redirect: '/dashboard'
-  }
+    redirect: '/dashboard',
+  },
 ]
 
-// Crea y configura el router
-export default defineRouter(function (/* { store, ssrContext } */) {
-  // Crea la instancia del router
+export default defineRouter(function () {
   const Router = createRouter({
-    // Hace scroll al top cuando navegas a una ruta nueva
     scrollBehavior: () => ({ left: 0, top: 0 }),
     routes,
-    // Usa hash history: URLs como /#/dashboard
-    // (ideal para aplicaciones sin servidor backend)
-    history: createWebHashHistory()
+    history: createWebHashHistory(),
   })
 
-  // Hook que se ejecuta después de cada navegación
-  // Actualiza el título del navegador con el meta.title de la ruta
   Router.afterEach((to) => {
     const title = to.meta?.title as string
     if (title) document.title = title
@@ -116,67 +111,3 @@ export default defineRouter(function (/* { store, ssrContext } */) {
 
   return Router
 })
-=======
-import { createRouter, createWebHistory } from 'vue-router'
-import type { UserRole } from '@/types/auth'
-
-declare module 'vue-router' {
-  interface RouteMeta {
-    requiresAuth?: boolean
-    publicOnly?: boolean
-    roles?: UserRole[]
-  }
-}
-
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    {
-      path: '/',
-      redirect: '/login',
-    },
-    {
-      path: '/',
-      component: () => import('@/layouts/AuthLayout.vue'),
-      children: [
-        {
-          path: 'login',
-          name: 'login',
-          component: () => import('@/pages/auth/LoginPage.vue'),
-          meta: { publicOnly: true },
-        },
-      ],
-    },
-    {
-      path: '/home',
-      component: () => import('@/layouts/MainLayout.vue'),
-      children: [
-        {
-          path: 'admin',
-          name: 'home-admin',
-          component: () => import('@/pages/home/AdminHomePage.vue'),
-          meta: { requiresAuth: true, roles: ['Administrador'] as UserRole[] },
-        },
-        {
-          path: 'cashier',
-          name: 'home-cashier',
-          component: () => import('@/pages/home/CashierHomePage.vue'),
-          meta: { requiresAuth: true, roles: ['Cajero'] as UserRole[] },
-        },
-        {
-          path: 'kitchen',
-          name: 'home-kitchen',
-          component: () => import('@/pages/home/KitchenHomePage.vue'),
-          meta: { requiresAuth: true, roles: ['Cocina'] as UserRole[] },
-        },
-      ],
-    },
-    {
-      path: '/:pathMatch(.*)*',
-      redirect: '/login',
-    },
-  ],
-})
-
-export default router
->>>>>>> 401a970290c8f8613dad024e64d5c89e44b569f5
