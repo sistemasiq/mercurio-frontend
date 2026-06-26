@@ -1,4 +1,4 @@
-import { apiClient } from './axiosClient'
+import { apiClient } from '@/api/axiosClient'
 import type { MetodosPago, MetodosPagoCreate, MetodosPagoUpdate } from '@/types/metodos_pago'
 
 export const metodosPagoApi = {

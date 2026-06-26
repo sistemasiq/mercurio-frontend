@@ -1,4 +1,4 @@
-import { apiClient } from './axiosClient'
+import { apiClient } from '@/api/axiosClient'
 import type { Reservacion_extras, Reservacion_extras_create, Reservacion_extras_update } from '@/types/reservacion_extras'
 
 export const reservacionExtrasApi = {

@@ -1,4 +1,4 @@
-import { apiClient } from './axiosClient'
+import { apiClient } from '@/api/axiosClient'
 import type { Sucursales, SucursalCreate, SucursalUpdate } from '@/types/sucursales'
 
 export const sucursalesApi = {

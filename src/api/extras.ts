@@ -1,4 +1,4 @@
-import { apiClient } from './axiosClient'
+import { apiClient } from '@/api/axiosClient'
 import type { Extras, ExtrasCreate, ExtrasUpdate } from '@/types/extras'
 
 export const extrasApi = {

@@ -1,4 +1,4 @@
-import { apiClient } from './axiosClient'
+import { apiClient } from '@/api/axiosClient'
 import type { Paquetes, PaquetesCreate, PaquetesUpdate } from '@/types/paquetes'
 
 export const paquetesApi = {

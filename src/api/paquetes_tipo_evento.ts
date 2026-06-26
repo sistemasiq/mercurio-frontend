@@ -1,4 +1,4 @@
-import { apiClient } from './axiosClient'
+import { apiClient } from '@/api/axiosClient'
 import type { Paquetes_tipo_evento, Paquetes_tipo_evento_create } from '@/types/paquetes_tipo_evento'
 
 export const paquetesTipoEventoApi = {
