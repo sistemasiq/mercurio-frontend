@@ -21,4 +21,8 @@ export const branchService = {
   async deleteBranch(id: string): Promise<void> {
     return branchesApi.remove(id)
   },
+
+  async restoreBranch(id: string): Promise<void> {
+    return branchesApi.restore(id)
+  },
 }

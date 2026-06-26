@@ -53,4 +53,8 @@ export const branchesApi = {
   async remove(id: string): Promise<void> {
     await apiClient.patch(`/branches/${id}/deactivate`)
   },
+
+  async restore(id: string): Promise<void> {
+    await apiClient.patch(`/branches/${id}/reactivate`)
+  },
 }

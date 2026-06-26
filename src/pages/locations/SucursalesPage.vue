@@ -79,6 +79,7 @@
       :pagination="pagination"
       :total-pages="totalPages"
       @eliminar="eliminarSucursal"
+      @reactivar="reactivarSucursal"
       @editar="editarSucursal"
       @ver-detalle="verDetalleSucursal"
       @cambiar-pagina="cambiarPagina"
@@ -181,6 +182,16 @@ async function confirmarDesactivacion() {
     Notify.create({ type: 'negative', message: 'Error al desactivar la sucursal.' })
   } finally {
     sucursalADesactivar.value = null
+  }
+}
+
+async function reactivarSucursal(sucursal: Sucursal) {
+  try {
+    await branchService.restoreBranch(sucursal.id)
+    Notify.create({ type: 'positive', message: 'Sucursal reactivada correctamente.' })
+    await cargarSucursales()
+  } catch {
+    Notify.create({ type: 'negative', message: 'Error al reactivar la sucursal.' })
   }
 }
 

@@ -60,6 +60,7 @@
         <q-td :props="slotProps">
           <div class="acciones-cell">
             <q-btn
+              v-if="slotProps.row.statusClave === 'activa'"
               flat
               dense
               round
@@ -69,6 +70,18 @@
               @click="emit('eliminar', slotProps.row)"
             >
               <q-tooltip>Desactivar</q-tooltip>
+            </q-btn>
+            <q-btn
+              v-else
+              flat
+              dense
+              round
+              icon="restore"
+              size="sm"
+              class="accion-btn accion-btn--reactivate"
+              @click="emit('reactivar', slotProps.row)"
+            >
+              <q-tooltip>Reactivar</q-tooltip>
             </q-btn>
             <q-btn
               flat
@@ -133,6 +146,7 @@ interface Props {
 
 interface Emits {
   (e: 'eliminar', sucursal: Sucursal): void
+  (e: 'reactivar', sucursal: Sucursal): void
   (e: 'editar', id: string): void
   (e: 'verDetalle', id: string): void
   (e: 'cambiarPagina', pagina: number): void
