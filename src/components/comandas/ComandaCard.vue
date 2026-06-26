@@ -1,79 +1,90 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { IComanda } from '../../types/comanda';
+import { computed } from 'vue'
+import type { Comanda, EstadoActualComanda } from '@/types/comanda'
 
 const props = defineProps<{
-  comanda: IComanda
-}>();
+  comanda: Comanda
+}>()
 
 const emit = defineEmits<{
-  (e: 'avanzarEstado', id: string): void
-}>();
+  (e: 'cambiar-estado', comandaId: string, nuevoEstado: Exclude<EstadoActualComanda, 'P'>): void
+}>()
 
-// Configuración dinámica limpia y reactiva para cada estado
 const configEstilo = computed(() => {
-  const estadoActual = props.comanda.estado;
+  const estadoActual = props.comanda.estado_actual
 
-  if (estadoActual === 'pendiente') {
+  if (estadoActual === 'P') {
     return {
       cardBg: '#ffffff',
       statusBar: 'bg-grey-5',
       labelUpper: 'PENDIENTE',
-      btnColor: 'grey-3',
-      btnTextColor: 'text-grey-9',
-      btnLabel: 'Comenzar Preparación',
-      btnIcon: 'play_arrow'
-    };
+      badgeColor: 'grey-3',
+      badgeTextColor: 'grey-9',
+      badgeLabel: 'Pendiente',
+      actionLabel: 'Comenzar Preparación',
+      actionIcon: 'play_arrow',
+      actionColor: 'grey-3',
+      actionTextColor: 'text-grey-9',
+      targetState: 'E' as Exclude<EstadoActualComanda, 'P'>,
+      showBadge: false,
+      showAction: true,
+    }
   }
-  
-  if (estadoActual === 'en_proceso') {
+
+  if (estadoActual === 'E') {
     return {
       cardBg: '#fffaf7',
       statusBar: 'bg-orange-7',
       labelUpper: 'EN PREPARACIÓN',
-      btnColor: 'primary',
-      btnTextColor: 'text-white',
-      btnLabel: 'Listo Para Entregar',
-      btnIcon: 'check_circle'
-    };
-  }
-  
-  if (estadoActual === 'listo') {
-    return {
-      cardBg: '#f4fbf7',
-      statusBar: 'bg-green-6',
-      labelUpper: 'LISTO PARA ENTREGA',
-      btnColor: 'positive',
-      btnTextColor: 'text-white',
-      btnLabel: 'Entregar',
-      btnIcon: 'local_shipping'
-    };
+      badgeColor: 'orange-1',
+      badgeTextColor: 'orange-10',
+      badgeLabel: 'En preparación',
+      actionLabel: 'Marcar como Listo',
+      actionIcon: 'check_circle',
+      actionColor: 'primary',
+      actionTextColor: 'text-white',
+      targetState: 'L' as Exclude<EstadoActualComanda, 'P'>,
+      showBadge: false,
+      showAction: true,
+    }
   }
 
   return {
-    cardBg: '#f1f5f9',
-    statusBar: 'bg-grey-6',
-    labelUpper: 'ENTREGADO',
-    btnColor: 'grey-4',
-    btnTextColor: 'text-grey-7',
-    btnLabel: 'Finalizado',
-    btnIcon: 'done_all'
-  };
-});
+    cardBg: '#f4fbf7',
+    statusBar: 'bg-green-6',
+    labelUpper: 'LISTO PARA ENTREGA',
+    badgeColor: 'green-1',
+    badgeTextColor: 'green-10',
+    badgeLabel: 'Listo',
+    actionLabel: '',
+    actionIcon: '',
+    actionColor: 'positive',
+    actionTextColor: 'text-white',
+    targetState: 'L' as Exclude<EstadoActualComanda, 'P'>,
+    showBadge: true,
+    showAction: false,
+  }
+})
+
+const subtotal = computed(() => {
+  return props.comanda.detalles_comanda.reduce((suma, detalle) => suma + detalle.precio_unitario * detalle.cantidad, 0)
+})
 
 const tiempoTranscurrido = computed(() => {
-  if (!props.comanda.notasGenerales) return '1 min';
-  return props.comanda.notasGenerales.includes('•') 
-    ? props.comanda.notasGenerales.split('•')[0].trim() 
-    : '1 min';
-});
+  if (!props.comanda.notas_generales) return '1 min'
+  return props.comanda.notas_generales.includes('•')
+    ? props.comanda.notas_generales.split('•')[0].trim()
+    : '1 min'
+})
 
 const tipoServicio = computed(() => {
-  if (!props.comanda.notasGenerales) return 'MOSTRADOR';
-  return props.comanda.notasGenerales.includes('•') 
-    ? props.comanda.notasGenerales.split('•')[1].trim() 
-    : props.comanda.notasGenerales;
-});
+  if (!props.comanda.notas_generales) return 'MOSTRADOR'
+  return props.comanda.notas_generales.includes('•')
+    ? props.comanda.notas_generales.split('•')[1].trim()
+    : props.comanda.notas_generales
+})
+
+const tieneAccion = computed(() => configEstilo.value.showAction)
 </script>
 
 <template>
@@ -103,7 +114,7 @@ const tipoServicio = computed(() => {
         </div>
 
         <div class="q-mt-md order-items-container">
-          <div v-for="item in comanda.items" :key="item.id" class="product-row q-py-sm">
+          <div v-for="item in comanda.detalles_comanda" :key="item.id" class="product-row q-py-sm">
             <div class="row items-start no-wrap">
               <div class="qty-box text-weight-bolder text-grey-8 text-center q-mr-md">
                 {{ item.cantidad }}
@@ -112,6 +123,10 @@ const tipoServicio = computed(() => {
               <div class="full-width">
                 <div class="text-subtitle1 text-weight-bold text-grey-9 lh-sm">
                   {{ item.nombre }}
+                </div>
+
+                <div class="text-caption text-grey-6 q-mt-xs">
+                  ${{ (item.precio_unitario * item.cantidad).toFixed(2) }}
                 </div>
                 
                 <div v-if="item.observaciones" class="q-mt-xs">
@@ -124,19 +139,34 @@ const tipoServicio = computed(() => {
             </div>
           </div>
         </div>
+
+        <div class="q-mt-md text-right text-caption text-grey-7">
+          Subtotal: ${{ subtotal.toFixed(2) }}
+        </div>
       </div>
 
       <div class="q-mt-lg">
+        <q-badge
+          v-if="configEstilo.showBadge"
+          rounded
+          :color="configEstilo.badgeColor"
+          :text-color="configEstilo.badgeTextColor"
+          class="q-pa-sm text-weight-bold full-width justify-center"
+        >
+          {{ configEstilo.badgeLabel }}
+        </q-badge>
+
         <q-btn
+          v-else-if="tieneAccion"
           class="full-width text-weight-bold action-btn"
-          :color="configEstilo.btnColor"
-          :class="configEstilo.btnTextColor"
+          :color="configEstilo.actionColor"
+          :class="configEstilo.actionTextColor"
           unelevated
           no-caps
-          @click="emit('avanzarEstado', comanda.id)"
+          @click="emit('cambiar-estado', comanda.id, configEstilo.targetState)"
         >
-          <q-icon :name="configEstilo.btnIcon" class="q-mr-xs" size="xs" />
-          {{ configEstilo.btnLabel }}
+          <q-icon :name="configEstilo.actionIcon" class="q-mr-xs" size="xs" />
+          {{ configEstilo.actionLabel }}
         </q-btn>
       </div>
     </div>

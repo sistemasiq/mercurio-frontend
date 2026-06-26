@@ -2,6 +2,13 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { IComanda, EstadoComanda } from '../types/comanda';
+import type { Producto } from '@/types/producto';
+
+interface ItemTicket {
+  producto: Producto;
+  cantidad: number;
+  notas?: string;
+}
 
 export const useComandasStore = defineStore('comandas', () => {
   // Datos hardcodeados iniciales directo en el estado de Mercurio
@@ -70,7 +77,7 @@ export const useComandasStore = defineStore('comandas', () => {
   const totalEnProceso = computed(() => _comandas.value.filter(c => c.estado === 'en_proceso').length);
   const totalListos = computed(() => _comandas.value.filter(c => c.estado === 'listo').length);
 
-  function crearComanda(mesa: string, items: any[], notas?: string) {
+  function crearComanda(mesa: string, items: ItemTicket[], notas?: string) {
   // Generamos un número de folio automático basado en cuántas órdenes ya existen
   const nuevoFolio = String(_comandas.value.length + 1).padStart(3, '0');
   
@@ -89,7 +96,7 @@ export const useComandasStore = defineStore('comandas', () => {
       id: String(index + 1),
       nombre: item.producto.nombre,
       cantidad: item.cantidad,
-      precioUnitario: item.producto.precio,
+      precioUnitario: item.producto.precio_unitario,
       observaciones: item.notas || undefined
     }))
   };

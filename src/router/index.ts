@@ -33,7 +33,7 @@ const router = createRouter({
         {
           path: 'dashboard',
           name: 'dashboard',
-          component: () => import('@/pages/DashboardPage.vue'),
+          component: () => import('@/components/DashboardComponent.vue'),
           meta: { requiresAuth: false },
         },
         {
@@ -42,27 +42,25 @@ const router = createRouter({
           component: () => import('@/components/comandas/VisorCocina.vue'),
           meta: { requiresAuth: false },
         },
+        {
+          path: 'debug/historial',
+          name: 'debug-historial',
+          component: () => import('@/components/historial/HistorialView.vue'),
+          meta: { requiresAuth: false },
+        },
+        {
+          path: 'debug/detalle-pagado',
+          name: 'debug-detalle-pagado',
+          component: () => import('@/components/historial/DetalleOrdenPagada.vue'),
+          meta: { requiresAuth: false },
+        },
+        {
+          path: 'debug/detalle-cancelado',
+          name: 'debug-detalle-cancelado',
+          component: () => import('@/components/historial/DetalleOrdenCancelada.vue'),
+          meta: { requiresAuth: false },
+        },
       ],
-    },
-
-    
-    {
-      path: '/debug/historial',
-      name: 'debug-historial',
-      component: () => import('@/components/historial/HistorialView.vue'),
-      meta: { requiresAuth: false },
-    },
-    {
-      path: '/debug/detalle-pagado',
-      name: 'debug-detalle-pagado',
-      component: () => import('@/components/historial/DetalleOrdenPagada.vue'),
-      meta: { requiresAuth: false },
-    },
-    {
-      path: '/debug/detalle-cancelado',
-      name: 'debug-detalle-cancelado',
-      component: () => import('@/components/historial/DetalleOrdenCancelada.vue'),
-      meta: { requiresAuth: false },
     },
 
     { path: '/:pathMatch(.*)*', redirect: '/login' },

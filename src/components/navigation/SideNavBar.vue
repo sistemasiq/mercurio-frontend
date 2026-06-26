@@ -1,45 +1,86 @@
 <script setup lang="ts">
-defineProps<{
-  currentRoute?: string
+import { ref, watch, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+
+const props = defineProps<{ collapsed?: boolean }>();
+const emit = defineEmits<{
+  (e: 'update:collapsed', value: boolean): void
 }>();
+
+const router = useRouter();
+const route = useRoute();
+
+const internalCollapsed = ref(!!props.collapsed);
+
+watch(() => props.collapsed, v => {
+  internalCollapsed.value = !!v;
+});
+
+const toggle = () => {
+  internalCollapsed.value = !internalCollapsed.value;
+  emit('update:collapsed', internalCollapsed.value);
+};
+
+const links = [
+  { label: 'Caja', icon: 'store', name: 'dashboard' },
+  { label: 'Cocina', icon: 'restaurant', name: 'cocina' },
+  { label: 'Historial', icon: 'history', name: 'debug-historial' },
+];
+
+const isActive = (name?: string) => {
+  if (!name) return false;
+  return route.name === name;
+};
+
+const go = (name?: string) => {
+  if (!name) return;
+  router.push({ name }).catch(() => {});
+};
+
+const sidebarClass = computed(() => ({
+  'stitch-sidebar': true,
+  'collapsed-sidebar': internalCollapsed.value,
+}));
 </script>
 
 <template>
-  <aside class="stitch-sidebar">
+  <aside :class="sidebarClass">
     <div class="sidebar-brand-section">
-      <h1 class="brand-logo">ComertexPOS</h1>
-      
-      <div class="profile-box">
+      <div class="brand-row">
+        <h1 class="brand-logo">ComertexPOS</h1>
+        <button class="btn-toggle" @click="toggle" aria-label="Toggle sidebar">
+          <q-icon name="chevron_left" />
+        </button>
+      </div>
+
+      <div class="profile-box" v-if="!internalCollapsed">
         <div class="store-icon-circle">
-          <span class="material-symbols-outlined icon-filled">storefront</span>
+          <q-icon name="storefront" class="icon-filled" />
         </div>
         <div class="profile-text">
           <h2 class="profile-name">Admin Staff</h2>
-          <p class="profile-station">Estación Principal / #01</p>
+          <p class="profile-station">Mostrador • #01</p>
         </div>
       </div>
     </div>
 
     <nav class="sidebar-nav">
-      <a class="nav-link" href="#">
-        <span class="material-symbols-outlined icon-filled">store</span>
-        <span class="nav-text">Caja</span>
-      </a>
-      <a class="nav-link" href="#">
-        <span class="material-symbols-outlined">restaurant</span>
-        <span class="nav-text">Cocina</span>
-      </a>
-      <a class="nav-link active-link" href="#">
-        <span class="material-symbols-outlined">history</span>
-        <span class="nav-text">Historial</span>
-      </a>
+      <button
+        v-for="item in links"
+        :key="item.label"
+        :class="['nav-link', { 'active-link': isActive(item.name) } ]"
+        @click="go(item.name)"
+      >
+        <q-icon :name="item.icon" :class="{ 'icon-filled': isActive(item.name) }" />
+        <span class="nav-text" v-if="!internalCollapsed">{{ item.label }}</span>
+      </button>
     </nav>
 
-    <div class="sidebar-footer">
-      <a class="nav-link" href="#">
-        <span class="material-symbols-outlined">help</span>
+      <div class="sidebar-footer" v-if="!internalCollapsed">
+      <button class="nav-link" @click="go('support')">
+        <q-icon name="help" />
         <span class="nav-text">Soporte</span>
-      </a>
+      </button>
     </div>
   </aside>
 </template>
@@ -59,7 +100,7 @@ defineProps<{
   flex-direction: column;
   padding: 24px 0;
   box-sizing: border-box;
-  z-index: 50;
+  z-index: 10;
   font-family: 'Inter', -apple-system, sans-serif;
 }
 
@@ -139,11 +180,13 @@ defineProps<{
   border-radius: 12px;
   text-decoration: none;
   color: #414754; /* text-on-surface-variant */
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, box-shadow 0.15s;
+  border: 1px solid transparent;
 }
 
 .nav-link:hover {
   background-color: #e1e3e4; /* hover:bg-surface-variant */
+  box-shadow: 0 1px 0 rgba(0,0,0,0.06) inset;
 }
 
 .nav-text {
@@ -155,7 +198,8 @@ defineProps<{
 .active-link {
   background-color: #0059bb !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 89, 187, 0.2);
+  box-shadow: 0 4px 6px -1px rgba(0, 89, 187, 0.12);
+  border-color: rgba(255,255,255,0.08);
 }
 
 .active-link .material-symbols-outlined {
@@ -172,4 +216,16 @@ defineProps<{
   padding: 16px 8px 0 8px;
   border-top: 1px solid #c1c6d7; /* border-outline-variant */
 }
+
+/* Collapsed styles */
+.collapsed-sidebar {
+  width: 72px !important;
+}
+
+.collapsed-sidebar .brand-logo { font-size: 16px !important; }
+.collapsed-sidebar .profile-box { display: none; }
+.collapsed-sidebar .nav-link { justify-content: center; padding: 10px 8px; }
+.collapsed-sidebar .nav-text { display: none; }
+.btn-toggle { background: transparent; border: none; cursor: pointer; color: #414754; }
+.brand-row { display:flex; align-items:center; justify-content:space-between; }
 </style>

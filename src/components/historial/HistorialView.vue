@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import SideNavBar from '../navigation/SideNavBar.vue';
+import { ref, inject } from 'vue';
 import DetalleOrdenPagada from './DetalleOrdenPagada.vue';
 import DetalleOrdenCancelada from './DetalleOrdenCancelada.vue';
 
@@ -97,12 +96,12 @@ const verDetalleOrden = (estado: string) => {
 const imprimirDirecto = () => {
   window.print();
 };
+
+const sidebarWidth = inject('sidebarWidth') as any || ref('256px');
 </script>
 
 <template>
   <div class="historial-layout-wrapper">
-    <SideNavBar />
-
     <main class="historial-main-content">
       <header class="historial-header-panel">
         <div>
@@ -310,25 +309,21 @@ const imprimirDirecto = () => {
 <style scoped>
 /* 🔒 ESTILOS DEL COMPONENTE */
 .historial-layout-wrapper {
-  display: flex;
-  width: 100vw;
+  display: block;
+  width: 100%;
   min-height: 100vh;
-  position: fixed;
-  top: 0;
-  left: 0;
   background-color: #f8f9fa;
   font-family: 'Inter', -apple-system, sans-serif !important;
-  z-index: 9999;
 }
+
 .historial-main-content {
-  margin-left: 256px;
-  width: calc(100vw - 256px);
-  height: 100vh;
-  overflow-y: auto;
+  width: 100%;
+  min-height: 100vh;
   padding: 32px;
   background-color: #f8f9fa;
   box-sizing: border-box;
 }
+
 .section-title {
   font-family: 'Plus Jakarta Sans', sans-serif !important;
   font-size: 24px !important;
@@ -337,28 +332,33 @@ const imprimirDirecto = () => {
   line-height: 1.2 !important;
   margin: 0 !important;
 }
+
 .section-subtitle {
   font-size: 14px !important;
   color: #414754 !important;
   margin: 4px 0 0 0 !important;
 }
+
 .historial-header-panel {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
+
 .header-actions {
   display: flex;
   align-items: center;
   gap: 16px;
 }
+
 .time-toggle-group {
   display: flex;
   background-color: #e7e8e9;
   border-radius: 9999px;
   padding: 4px;
 }
+
 .toggle-btn {
   border: none;
   background-color: transparent;
@@ -370,11 +370,13 @@ const imprimirDirecto = () => {
   cursor: pointer;
   transition: all 0.2s;
 }
+
 .active-toggle {
   background-color: #0059bb !important;
   color: #ffffff !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
 }
+
 .btn-sync-circle {
   width: 38px;
   height: 38px;
