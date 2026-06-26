@@ -146,14 +146,8 @@ function cancelEdit() {
           <q-card-section class="q-pt-lg">
             <div class="row q-col-gutter-md">
               <div class="col-12 col-md-6">
-                <div class="field-label">ID de Sucursal</div>
-                <q-input
-                  :model-value="branch.id"
-                  outlined
-                  dense
-                  readonly
-                  class="field-input field-input--readonly"
-                />
+                <div class="field-label">Clave de Sucursal</div>
+                <q-input :model-value="branch.clave" outlined dense class="field-input" />
               </div>
               <div class="col-12 col-md-6">
                 <div class="field-label">Nombre de la Sucursal</div>

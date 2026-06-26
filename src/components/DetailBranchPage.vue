@@ -33,21 +33,38 @@ const contactItems = computed(() => [
     value: branch.value?.telefono ?? '-',
     accent: false,
   },
-  { icon: 'place', label: 'Dirección', value: branch.value?.direccion ?? '-', accent: false },
+  {
+    icon: 'mail',
+    label: 'Correo Electrónico',
+    value: branch.value?.correo ?? '-',
+    accent: true,
+  },
+  {
+    icon: 'person',
+    label: 'Administrador',
+    value: branch.value?.administradorName ?? '-',
+    accent: true,
+  },
 ])
 
-const addressLines = computed(() =>
-  branch.value?.direccion
-    ? branch.value.direccion
-        .split(',')
-        .map((l) => l.trim())
-        .filter(Boolean)
-    : ['-'],
-)
+const addressLines = computed(() => [
+  {
+    icon: 'place',
+    label: 'Dirección',
+    value: branch.value?.direccion ?? '-',
+    accent: false,
+  },
+])
 
 const metadata = computed(() => [
-  { label: 'ID', value: branch.value?.id ?? '-' },
-  { label: 'Estado', value: branch.value?.isActive ? 'Activa' : 'Inactiva' },
+  {
+    label: 'Administrado',
+    value: branch.value?.administradorName ?? '-',
+  },
+  {
+    label: 'Estado',
+    value: branch.value?.isActive ? 'Activa' : 'Inactiva',
+  },
 ])
 
 function handleEdit(): void {
@@ -91,7 +108,7 @@ function handleEdit(): void {
           </q-badge>
         </div>
         <p class="text-subtitle2 text-grey-7 q-mt-sm q-mb-none">
-          Vista general de la sucursal <strong>{{ branch.id }}</strong>
+          Vista general de la sucursal <strong>{{ branch.clave }}</strong>
         </p>
       </div>
       <q-btn outline color="dark" icon="edit" label="Editar" class="btn-edit" @click="handleEdit" />
@@ -136,8 +153,9 @@ function handleEdit(): void {
               </q-card-section>
               <q-separator />
               <q-card-section class="q-pt-lg location-section">
-                <div v-for="line in addressLines" :key="line" class="address-line">
-                  {{ line }}
+                <div v-for="item in addressLines" :key="item.label" class="address-line">
+                  <q-icon :name="item.icon" size="18px" color="grey-7" class="q-mr-sm" />
+                  {{ item.value }}
                 </div>
               </q-card-section>
             </q-card>
