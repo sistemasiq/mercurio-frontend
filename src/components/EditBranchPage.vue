@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { branchService } from '@/services/branchService'
 import { userService } from '@/services/userService'
@@ -54,6 +54,13 @@ onMounted(async () => {
   loading.value = false
 })
 
+const isFormValid = computed(() => {
+  const n = branch.value?.nombre || ''
+  const t = branch.value?.telefono || ''
+  const c = branchClave.value || ''
+  return n.trim() !== '' && t.trim() !== '' && c.trim() !== ''
+})
+
 async function saveChanges() {
   if (!branch.value) return
   loading.value = true
@@ -63,6 +70,7 @@ async function saveChanges() {
       direccion: branch.value.direccion,
       telefono: branch.value.telefono,
       correo: branchEmail.value || null,
+      clave: branchClave.value || null, // <--- ¡FALTABA ESTO!
       administrador_id: administrador.value?.id ?? null,
       administrador_name: administrador.value?.label ?? null,
     })
@@ -127,6 +135,7 @@ function cancelEdit() {
           label="Guardar Cambios"
           class="btn-save"
           :loading="loading"
+          :disable="!isFormValid"
           @click="saveChanges"
         />
       </div>
@@ -146,11 +155,15 @@ function cancelEdit() {
           <q-card-section class="q-pt-lg">
             <div class="row q-col-gutter-md">
               <div class="col-12 col-md-6">
-                <div class="field-label">Clave de Sucursal</div>
-                <q-input :model-value="branch.clave" outlined dense class="field-input" />
+                <div class="field-label">
+                  Clave de Sucursal <span class="text-negative">*</span>
+                </div>
+                <q-input v-model="branchClave" outlined dense class="field-input" />
               </div>
               <div class="col-12 col-md-6">
-                <div class="field-label">Nombre de la Sucursal</div>
+                <div class="field-label">
+                  Nombre de la Sucursal <span class="text-negative">*</span>
+                </div>
                 <q-input
                   v-model="branch.nombre"
                   outlined
@@ -166,7 +179,9 @@ function cancelEdit() {
                 </q-input>
               </div>
               <div class="col-12 col-md-6">
-                <div class="field-label">Teléfono de Contacto</div>
+                <div class="field-label">
+                  Teléfono de Contacto <span class="text-negative">*</span>
+                </div>
                 <q-input v-model="branch.telefono" outlined dense class="field-input">
                   <template #prepend><q-icon name="phone" color="grey-6" /></template>
                 </q-input>
@@ -213,7 +228,6 @@ function cancelEdit() {
                   :loading="adminLoading"
                   clearable
                   class="field-input"
-                  emit-value
                   map-options
                 >
                   <template #prepend><q-icon name="search" color="grey-6" /></template>
