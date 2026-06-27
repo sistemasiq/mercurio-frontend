@@ -12,6 +12,11 @@ interface BackendBranchResponse {
   administrador_name: string | null
   is_active: boolean
   creado: string | null
+  creado_por: string | null
+  creador_name: string | null
+  modificado: string | null
+  modificado_por: string | null
+  modificador_name: string | null
 }
 
 function mapBranch(raw: BackendBranchResponse): Branch {
@@ -26,9 +31,13 @@ function mapBranch(raw: BackendBranchResponse): Branch {
     administradorName: raw.administrador_name,
     isActive: raw.is_active,
     creado: raw.creado,
+    creadoPor: raw.creado_por,
+    creadorName: raw.creador_name,
+    modificado: raw.modificado,
+    modificadoPor: raw.modificado_por,
+    modificadorName: raw.modificador_name,
   }
 }
-
 export const branchesApi = {
   async list(): Promise<Branch[]> {
     const { data } = await apiClient.get<BackendBranchResponse[]>('/branches')
