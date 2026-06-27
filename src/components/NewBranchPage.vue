@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { branchService } from '@/services/branchService'
 import { userService } from '@/services/userService'
@@ -29,6 +29,10 @@ onMounted(async () => {
   } finally {
     adminLoading.value = false
   }
+})
+
+const isFormValid = computed(() => {
+  return nombre.value.trim() !== '' && telefono.value.trim() !== '' && clave.value.trim() !== ''
 })
 
 async function createBranch() {
@@ -84,6 +88,7 @@ function cancelCreation() {
           label="Guardar Sucursal"
           class="btn-guardar"
           :loading="loading"
+          :disable="!isFormValid"
           @click="createBranch"
         />
       </div>
@@ -103,7 +108,9 @@ function cancelCreation() {
           <q-card-section class="q-pt-lg">
             <div class="row q-col-gutter-md">
               <div class="col-12 col-md-6">
-                <div class="field-label">Clave de Sucursal</div>
+                <div class="field-label">
+                  Clave de Sucursal <span class="text-negative">*</span>
+                </div>
                 <q-input
                   v-model="clave"
                   outlined
@@ -138,7 +145,9 @@ function cancelCreation() {
                 </q-input>
               </div>
               <div class="col-12 col-md-6">
-                <div class="field-label">Teléfono de Contacto</div>
+                <div class="field-label">
+                  Teléfono de Contacto <span class="text-negative">*</span>
+                </div>
                 <q-input
                   v-model="telefono"
                   outlined
@@ -191,17 +200,9 @@ function cancelCreation() {
                   :loading="adminLoading"
                   clearable
                   class="field-input"
-                  emit-value
-                  map-options
                 >
                   <template #prepend><q-icon name="search" color="grey-6" /></template>
-                  <template #no-option>
-                    <q-item>
-                      <q-item-section class="text-grey">
-                        {{ adminLoading ? 'Cargando...' : 'Sin administradores disponibles' }}
-                      </q-item-section>
-                    </q-item>
-                  </template>
+                  <template #no-option> </template>
                 </q-select>
               </div>
               <div class="col-12 col-md-4">
