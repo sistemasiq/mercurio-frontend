@@ -17,6 +17,15 @@ const administrador = ref<{ id: string; label: string } | null>(null)
 const adminOptions = ref<{ id: string; label: string }[]>([])
 const adminLoading = ref(false)
 
+const originalValues = ref<{
+  nombre: string
+  telefono: string
+  direccion: string
+  email: string
+  clave: string
+  adminId: string | null
+} | null>(null)
+
 onMounted(async () => {
   const branchId = route.params.id as string
   if (!branchId) {
@@ -51,6 +60,15 @@ onMounted(async () => {
     }
   }
 
+  originalValues.value = {
+    nombre: branch.value!.nombre,
+    telefono: branch.value!.telefono ?? '',
+    direccion: branch.value!.direccion ?? '',
+    email: branchEmail.value,
+    clave: branchClave.value,
+    adminId: administrador.value?.id ?? null,
+  }
+
   loading.value = false
 })
 
@@ -58,8 +76,34 @@ const isFormValid = computed(() => {
   const n = branch.value?.nombre || ''
   const t = branch.value?.telefono || ''
   const c = branchClave.value || ''
-  return n.trim() !== '' && t.trim() !== '' && c.trim() !== ''
+  return n.trim() !== '' && t.trim() !== '' && c.trim() !== '' && administrador.value !== null
 })
+
+const hasChanges = computed(() => {
+  if (!branch.value || !originalValues.value) return false
+  return (
+    branch.value.nombre !== originalValues.value.nombre ||
+    (branch.value.telefono ?? '') !== originalValues.value.telefono ||
+    (branch.value.direccion ?? '') !== originalValues.value.direccion ||
+    branchEmail.value !== originalValues.value.email ||
+    branchClave.value !== originalValues.value.clave ||
+    (administrador.value?.id ?? null) !== originalValues.value.adminId
+  )
+})
+
+const nombreTouched = ref(false)
+const telefonoTouched = ref(false)
+const claveTouched = ref(false)
+const administradorTouched = ref(false)
+
+const nombreError = computed(() => nombreTouched.value && !(branch.value?.nombre ?? '').trim())
+const telefonoError = computed(
+  () => telefonoTouched.value && !(branch.value?.telefono ?? '').trim(),
+)
+const claveError = computed(() => claveTouched.value && !branchClave.value.trim())
+const administradorError = computed(
+  () => administradorTouched.value && administrador.value === null,
+)
 
 async function saveChanges() {
   if (!branch.value) return
@@ -135,7 +179,7 @@ function cancelEdit() {
           label="Guardar Cambios"
           class="btn-save"
           :loading="loading"
-          :disable="!isFormValid"
+          :disable="!isFormValid || !hasChanges"
           @click="saveChanges"
         />
       </div>
@@ -158,7 +202,15 @@ function cancelEdit() {
                 <div class="field-label">
                   Clave de Sucursal <span class="text-negative">*</span>
                 </div>
-                <q-input v-model="branchClave" outlined dense class="field-input" />
+                <q-input
+                  v-model="branchClave"
+                  outlined
+                  dense
+                  class="field-input"
+                  :error="claveError"
+                  error-message="La clave de la sucursal es requerida"
+                  @blur="claveTouched = true"
+                />
               </div>
               <div class="col-12 col-md-6">
                 <div class="field-label">
@@ -170,6 +222,9 @@ function cancelEdit() {
                   dense
                   class="field-input"
                   placeholder="Plaza Colibrí"
+                  :error="nombreError"
+                  error-message="El nombre de la sucursal es requerido"
+                  @blur="nombreTouched = true"
                 />
               </div>
               <div class="col-12">
@@ -182,7 +237,15 @@ function cancelEdit() {
                 <div class="field-label">
                   Teléfono de Contacto <span class="text-negative">*</span>
                 </div>
-                <q-input v-model="branch.telefono" outlined dense class="field-input">
+                <q-input
+                  v-model="branch.telefono"
+                  outlined
+                  dense
+                  class="field-input"
+                  :error="telefonoError"
+                  error-message="El teléfono de contacto es requerido"
+                  @blur="telefonoTouched = true"
+                >
                   <template #prepend><q-icon name="phone" color="grey-6" /></template>
                 </q-input>
               </div>
@@ -212,7 +275,9 @@ function cancelEdit() {
           </q-card-section>
           <q-separator />
           <q-card-section class="q-pt-lg">
-            <div class="field-label">Administrador Responsable</div>
+            <div class="field-label">
+              Administrador Responsable <span class="text-negative">*</span>
+            </div>
             <div class="row q-col-gutter-md items-center">
               <div class="col-12 col-md-8">
                 <q-select
@@ -229,6 +294,9 @@ function cancelEdit() {
                   clearable
                   class="field-input"
                   map-options
+                  :error="administradorError"
+                  error-message="Se requiere un administrador responsable"
+                  @blur="administradorTouched = true"
                 >
                   <template #prepend><q-icon name="search" color="grey-6" /></template>
                   <template #no-option>

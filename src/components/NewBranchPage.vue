@@ -32,14 +32,27 @@ onMounted(async () => {
 })
 
 const isFormValid = computed(() => {
-  return nombre.value.trim() !== '' && telefono.value.trim() !== '' && clave.value.trim() !== ''
+  return (
+    nombre.value.trim() !== '' &&
+    telefono.value.trim() !== '' &&
+    clave.value.trim() !== '' &&
+    administrador.value !== null
+  )
 })
 
+const nombreTouched = ref(false)
+const telefonoTouched = ref(false)
+const claveTouched = ref(false)
+const administradorTouched = ref(false)
+
+const nombreError = computed(() => nombreTouched.value && nombre.value.trim() === '')
+const telefonoError = computed(() => telefonoTouched.value && telefono.value.trim() === '')
+const claveError = computed(() => claveTouched.value && clave.value.trim() === '')
+const administradorError = computed(
+  () => administradorTouched.value && administrador.value === null,
+)
+
 async function createBranch() {
-  if (!nombre.value.trim()) {
-    Notify.create({ type: 'warning', message: 'El nombre de la sucursal es requerido.' })
-    return
-  }
   loading.value = true
   try {
     await branchService.createBranch({
@@ -117,6 +130,9 @@ function cancelCreation() {
                   dense
                   placeholder="ej. SUC-LP-01"
                   class="field-input"
+                  :error="claveError"
+                  error-message="La clave de la sucursal es requerida"
+                  @blur="claveTouched = true"
                 />
               </div>
               <div class="col-12 col-md-6">
@@ -129,6 +145,9 @@ function cancelCreation() {
                   dense
                   placeholder="ej. Plaza Colibrí"
                   class="field-input"
+                  :error="nombreError"
+                  error-message="El nombre de la sucursal es requerido"
+                  @blur="nombreTouched = true"
                 />
               </div>
               <div class="col-12">
@@ -154,6 +173,9 @@ function cancelCreation() {
                   dense
                   placeholder="+52 000 000 0000"
                   class="field-input"
+                  :error="telefonoError"
+                  error-message="El teléfono de contacto es requerido"
+                  @blur="telefonoTouched = true"
                 >
                   <template #prepend><q-icon name="phone" color="grey-6" /></template>
                 </q-input>
@@ -184,7 +206,9 @@ function cancelCreation() {
           </q-card-section>
           <q-separator />
           <q-card-section class="q-pt-lg">
-            <div class="field-label">Administrador Responsable</div>
+            <div class="field-label">
+              Administrador Responsable <span class="text-negative">*</span>
+            </div>
             <div class="row q-col-gutter-md items-center">
               <div class="col-12 col-md-8">
                 <q-select
@@ -200,6 +224,9 @@ function cancelCreation() {
                   :loading="adminLoading"
                   clearable
                   class="field-input"
+                  :error="administradorError"
+                  error-message="Se requiere un administrador responsable"
+                  @blur="administradorTouched = true"
                 >
                   <template #prepend><q-icon name="search" color="grey-6" /></template>
                   <template #no-option> </template>
