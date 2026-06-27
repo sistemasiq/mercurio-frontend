@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { branchService } from '@/services/branchService'
 import type { Branch } from '@/types/branch'
+import { format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,6 +27,14 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+function formatFechaLocal(fechaIso: string): string {
+  try {
+    return format(parseISO(fechaIso), "dd MMM yyyy 'a las' HH:mm", { locale: es })
+  } catch {
+    return fechaIso
+  }
+}
 
 const contactItems = computed(() => [
   {
@@ -56,16 +66,34 @@ const addressLines = computed(() => [
   },
 ])
 
-const metadata = computed(() => [
-  {
-    label: 'Administrado',
-    value: branch.value?.administradorName ?? '-',
-  },
-  {
-    label: 'Estado',
-    value: branch.value?.isActive ? 'Activa' : 'Inactiva',
-  },
-])
+const metadata = computed(() => {
+  const meta = [
+    {
+      label: 'Fecha de creación',
+      value: branch.value?.creado ? formatFechaLocal(branch.value.creado) : '-',
+    },
+    {
+      label: 'Creado por',
+      value: branch.value?.creadorName ?? '-',
+    },
+  ]
+
+  // Solo si existe una modificación, agregamos estos campos extra
+  if (branch.value?.modificado && branch.value?.modificadorName) {
+    meta.push(
+      {
+        label: 'Última modificación',
+        value: formatFechaLocal(branch.value.modificado),
+      },
+      {
+        label: 'Modificado por',
+        value: branch.value.modificadorName,
+      },
+    )
+  }
+
+  return meta
+})
 
 function handleEdit(): void {
   router.push({ name: 'sysadmin-branches-edit', params: { id: id.value } })
@@ -114,11 +142,11 @@ function handleEdit(): void {
       <q-btn outline color="dark" icon="edit" label="Editar" class="btn-edit" @click="handleEdit" />
     </div>
 
-    <div class="row q-col-gutter-lg">
+    <div class="row q-col-gutter-lg items-stretch">
       <div class="col-12 col-lg-8">
-        <div class="row q-col-gutter-lg">
+        <div class="row q-col-gutter-lg items-stretch" style="height: 100%">
           <div class="col-12 col-md-6">
-            <q-card flat bordered class="info-card h-100">
+            <q-card flat bordered class="info-card full-height">
               <q-card-section class="section-header">
                 <div class="section-title">
                   <q-icon name="support_agent" size="18px" color="primary" class="q-mr-sm" />
@@ -144,7 +172,7 @@ function handleEdit(): void {
           </div>
 
           <div class="col-12 col-md-6">
-            <q-card flat bordered class="info-card h-100">
+            <q-card flat bordered class="info-card full-height">
               <q-card-section class="section-header">
                 <div class="section-title">
                   <q-icon name="place" size="18px" color="primary" class="q-mr-sm" />
@@ -152,10 +180,13 @@ function handleEdit(): void {
                 </div>
               </q-card-section>
               <q-separator />
-              <q-card-section class="q-pt-lg location-section">
-                <div v-for="item in addressLines" :key="item.label" class="address-line">
-                  <q-icon :name="item.icon" size="18px" color="grey-7" class="q-mr-sm" />
-                  {{ item.value }}
+              <q-card-section class="q-pt-lg contact-section">
+                <div v-for="item in addressLines" :key="item.label" class="contact-item">
+                  <q-icon :name="item.icon" size="18px" color="grey-7" class="contact-item__icon" />
+                  <div class="contact-item__content">
+                    <div class="contact-item__label">{{ item.label }}</div>
+                    <div class="contact-item__value">{{ item.value }}</div>
+                  </div>
                 </div>
               </q-card-section>
             </q-card>
@@ -164,18 +195,17 @@ function handleEdit(): void {
       </div>
 
       <div class="col-12 col-lg-4">
-        <q-card flat bordered class="meta-card">
-          <q-card-section class="section-header section-header--compact">
-            <div class="section-title section-title--compact">
-              <q-icon name="history" size="18px" color="primary" class="q-mr-sm" />
-              Detalles del registro
-            </div>
+        <q-card flat bordered class="meta-card full-height">
+          <q-card-section class="section-header">
+            <div class="section-title text-grey-9">Detalles del registro</div>
           </q-card-section>
           <q-separator />
-          <q-card-section class="meta-section">
-            <div v-for="item in metadata" :key="item.label" class="meta-row">
-              <div class="meta-row__label">{{ item.label }}</div>
-              <div class="meta-row__value">{{ item.value }}</div>
+          <q-card-section class="q-pt-lg">
+            <div class="meta-discrete-list">
+              <div v-for="item in metadata" :key="item.label" class="meta-discrete-row">
+                <span class="meta-discrete-label">{{ item.label }}:</span>
+                <span class="meta-discrete-value">{{ item.value }}</span>
+              </div>
             </div>
           </q-card-section>
         </q-card>
@@ -304,5 +334,30 @@ function handleEdit(): void {
   .section-header {
     padding-inline: 18px;
   }
+}
+
+.meta-discrete-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.meta-discrete-row {
+  font-size: 14px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 16px;
+  line-height: 1.2;
+}
+
+.meta-discrete-label {
+  color: #4b5563; /* Tono grisáceo discreto */
+  white-space: nowrap;
+}
+
+.meta-discrete-value {
+  color: #1f2937; /* Tono un poco más oscuro pero sin ser negrita */
+  text-align: right;
 }
 </style>
