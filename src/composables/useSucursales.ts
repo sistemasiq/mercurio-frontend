@@ -44,7 +44,7 @@ export function useSucursales() {
   const loading = ref(false)
   const busqueda = ref('')
   const filtros = ref<Filtros>({ estado: null })
-  const pagination = ref({ page: 1, perPage: 10, total: 0 })
+  const pagination = ref({ page: 1, perPage: 5, total: 0 })
 
   const sucursales = computed(() => {
     let result = allSucursales.value

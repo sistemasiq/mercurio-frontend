@@ -8,6 +8,7 @@
       :loading="loading"
       class="tabla-sucursales"
       hide-pagination
+      :pagination="{ rowsPerPage: 0 }"
     >
       <!-- Clave -->
       <template #body-cell-clave="slotProps">
