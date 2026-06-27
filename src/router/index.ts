@@ -1,7 +1,7 @@
-import { defineRouter } from '#q-app/wrappers'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import type { UserRole } from '@/types/auth'
+
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
@@ -14,9 +14,15 @@ declare module 'vue-router' {
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
-    name: 'login',
-    component: () => import('@/pages/auth/LoginPage.vue'),
-    meta: { publicOnly: true },
+    component: () => import('@/layouts/AuthLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'login',
+        component: () => import('@/pages/auth/LoginPage.vue'),
+        meta: { publicOnly: true },
+      },
+    ],
   },
   {
     path: '/',
@@ -28,6 +34,24 @@ const routes: RouteRecordRaw[] = [
         name: 'dashboard',
         component: () => import('@/pages/DashboardPage.vue'),
         meta: { title: 'Dashboard', requiresAuth: true },
+      },
+      {
+        path: '/home/admin',
+        name: 'home-admin',
+        component: () => import('@/pages/home/AdminHomePage.vue'),
+        meta: { title: 'Inicio', requiresAuth: true, roles: ['Administrador'] },
+      },
+      {
+        path: '/home/cajero',
+        name: 'home-cashier',
+        component: () => import('@/pages/home/CashierHomePage.vue'),
+        meta: { title: 'Inicio', requiresAuth: true, roles: ['Cajero'] },
+      },
+      {
+        path: '/home/cocina',
+        name: 'home-kitchen',
+        component: () => import('@/pages/home/KitchenHomePage.vue'),
+        meta: { title: 'Inicio', requiresAuth: true, roles: ['Cocina'] },
       },
       {
         path: '/reservaciones',
@@ -97,17 +121,15 @@ const routes: RouteRecordRaw[] = [
   },
 ]
 
-export default defineRouter(function () {
-  const Router = createRouter({
-    scrollBehavior: () => ({ left: 0, top: 0 }),
-    routes,
-    history: createWebHashHistory(),
-  })
-
-  Router.afterEach((to) => {
-    const title = to.meta?.title as string
-    if (title) document.title = title
-  })
-
-  return Router
+const router = createRouter({
+  scrollBehavior: () => ({ left: 0, top: 0 }),
+  routes,
+  history: createWebHashHistory(),
 })
+
+router.afterEach((to) => {
+  const title = to.meta?.title as string
+  if (title) document.title = title
+})
+
+export default router

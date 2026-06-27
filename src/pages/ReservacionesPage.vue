@@ -1,31 +1,38 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="text-center q-mt-lg">
-      <q-icon name="event_note" size="80px" color="primary" />
-      <h3 class="q-mt-md">Próximamente</h3>
-      <p class="text-caption">Esta sección está en desarrollo</p>
+  <q-page padding class="q-pa-lg">
+    <div class="row items-center q-mb-md">
+      <div class="text-h5 text-weight-bold">Reservaciones</div>
+      <q-space />
+      <q-btn color="primary" icon="add" label="Nueva Reservación" unelevated no-caps @click="$router.push({ name: 'nueva-reservacion' })" />
     </div>
+    <q-card flat bordered>
+      <q-table
+        :rows="store.reservaciones"
+        :columns="columns"
+        row-key="id"
+        flat
+        :loading="store.loading"
+        :rows-per-page-options="[10, 25, 50]"
+        no-data-label="No hay reservaciones registradas"
+      />
+    </q-card>
   </q-page>
 </template>
 
 <script setup lang="ts">
-/**
- * PAGINA: RESERVACIONES
- * 
- * ESTADO: En desarrollo (Proximamente)
- * 
- * PROPOSITO:
- * Esta pagina se utilizara para:
- * - Ver listado de todas las reservaciones realizadas
- * - Buscar y filtrar reservaciones por cliente, fecha, estado
- * - Ver detalles de cada reservacion
- * - Editar informacion de reservaciones existentes
- * 
- * FUNCIONALIDADES PLANEADAS:
- * - Tabla con todas las reservaciones
- * - Filtros por estado (pendiente, confirmado, pagado)
- * - Busqueda por nombre del cliente o evento
- * - Acciones: ver detalles, editar, cancelar
- */
-</script>
+import { onMounted } from 'vue'
+import type { QTableColumn } from 'quasar'
+import { useReservacionesStore } from '@/stores/reservaciones'
 
+const store = useReservacionesStore()
+onMounted(() => store.cargar())
+
+const columns: QTableColumn[] = [
+  { name: 'nombre_cliente', label: 'CLIENTE', field: 'nombre_cliente', align: 'left', sortable: true },
+  { name: 'fecha_evento', label: 'FECHA', field: 'fecha_evento', align: 'left', sortable: true },
+  { name: 'estado', label: 'ESTADO', field: 'estado', align: 'left', sortable: true },
+  { name: 'precio_total', label: 'TOTAL', field: 'precio_total', align: 'left' },
+  { name: 'saldo_pendiente', label: 'SALDO', field: 'saldo_pendiente', align: 'left' },
+  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+]
+</script>

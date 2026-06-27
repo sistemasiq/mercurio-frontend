@@ -178,7 +178,7 @@
             label="+ Nueva Reserva"
             class="full-width"
             style="border-radius: 8px; font-weight: 700;"
-            @click="$router.push({ name: 'reservaciones' })"
+            @click="$router.push({ name: 'nueva-reservacion' })"
           />
         </div>
       </div>
@@ -231,77 +231,73 @@
 </template>
 
 <script setup lang="ts">
-/**
- * LAYOUT PRINCIPAL DE ADMINISTRACIÓN
- * 
- * ESTRUCTURA DE COMPONENTES:
- * Este layout define la estructura general de toda la aplicación con:
- * 1. SIDEBAR IZQUIERDO - Navegación principal y menú expandible
- * 2. HEADER SUPERIOR - Buscador, notificaciones, info del usuario
- * 3. CONTENEDOR DE PÁGINAS - Área donde se renderizan las páginas
- * 
- * CARACTERÍSTICAS PRINCIPALES:
- * - Menú expandible de Reservaciones con submenu
- * - Navbar con búsqueda y usuario info
- * - Estados dinámicos según la ruta actual
- * - Soporte para diferentes roles (Admin vs Cajero)
- * 
- * FUNCIONAMIENTO:
- * El layout se mantiene visible mientras navegas entre páginas,
- * y solo el contenido dentro de <router-view /> cambia.
- */
-
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-
-interface Reservacion {
-  id: number
-  nombre: string
-  fecha: string
-  status: 'pending' | 'confirmed' | 'paid'
-}
+import { useAuthStore } from '@/stores/auth'
+import { useReservacionesStore } from '@/stores/reservaciones'
 
 const route = useRoute()
+const auth = useAuthStore()
+const resStore = useReservacionesStore()
 const searchQuery = ref('')
-
 const reservacionesOpen = ref(false)
+
+onMounted(() => {
+  if (!resStore.reservaciones.length) resStore.cargar()
+})
 
 const isReservacionesActive = computed(() =>
   ['reservaciones', 'nueva-reservacion'].includes(route.name as string)
 )
 
-// Abre automáticamente el submenu cuando estás en una página de reservaciones
 watch(isReservacionesActive, (val) => {
   if (val) reservacionesOpen.value = true
 }, { immediate: true })
 
-// Alterna entre abrir/cerrar el submenu de reservaciones
 const toggleReservaciones = () => {
   reservacionesOpen.value = !reservacionesOpen.value
 }
 
-// Lista de reservaciones recientes para mostrar en el submenu
-const recentReservaciones: Reservacion[] = [
-  { id: 1, nombre: 'Graduación Preescolar', fecha: '12 Oct',  status: 'pending' },
-  { id: 2, nombre: 'Cumpleaños Sofía',      fecha: '15 Oct',  status: 'pending' },
-  { id: 3, nombre: 'Pool Party - Mateo',    fecha: '10 Oct',  status: 'paid' },
-  { id: 4, nombre: 'Boda Civil - Ruiz',     fecha: '20 Oct',  status: 'confirmed' },
-]
+function statusDot(estado: string): 'pending' | 'confirmed' | 'paid' {
+  if (estado === 'completada') return 'paid'
+  if (estado === 'confirmada' || estado === 'en_curso') return 'confirmed'
+  return 'pending'
+}
 
-// Determina si el usuario actual es un cajero o administrador
-// Basado en la página actual que está visitando
-const isCajero = computed(() =>
-  ['nueva-reservacion', 'reservaciones'].includes(route.name as string)
+const recentReservaciones = computed(() =>
+  resStore.reservaciones
+    .slice()
+    .sort((a, b) => {
+      const da = a.creado ? new Date(a.creado).getTime() : 0
+      const db = b.creado ? new Date(b.creado).getTime() : 0
+      return db - da
+    })
+    .slice(0, 4)
+    .map(r => ({
+      id: r.id,
+      nombre: r.nombre_festejado || `${r.nombre_cliente} ${r.apellidos_cliente || ''}`.trim(),
+      fecha: new Date(r.fecha_evento + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }),
+      status: statusDot(r.estado),
+    }))
 )
 
-// Título del rol que se muestra en el sidebar
-const roleTitle    = computed(() => isCajero.value ? 'FEC Cajero' : 'FEC Admin')
-// Nombre del usuario actual (datos de ejemplo)
-const userName     = computed(() => isCajero.value ? 'Cajero Staff' : 'Admin EVE-01')
-// Rol del usuario (descripción del puesto/turno)
-const userRole     = computed(() => isCajero.value ? 'TURNO TARDE' : 'SUPER ADMINISTRADOR')
-// Iniciales del usuario para mostrar en el avatar
-const userInitials = computed(() => isCajero.value ? 'CS' : 'AE')
+const roleTitle = computed(() => {
+  const role = auth.primaryRole
+  if (role === 'Cajero') return 'FEC Cajero'
+  if (role === 'Cocina') return 'FEC Cocina'
+  return 'FEC Admin'
+})
+
+const userName = computed(() => auth.currentUser?.name ?? '—')
+const userRole = computed(() => auth.primaryRole ?? '—')
+const userInitials = computed(() =>
+  (auth.currentUser?.name ?? '')
+    .split(' ')
+    .slice(0, 2)
+    .map(n => n[0] ?? '')
+    .join('')
+    .toUpperCase()
+)
 </script>
 
 <style lang="scss" scoped>

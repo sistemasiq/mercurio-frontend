@@ -6,7 +6,7 @@
         <div class="stat-card">
           <div>
             <div class="stat-card__label">Eventos Próximos</div>
-            <div class="stat-card__value">24</div>
+            <div class="stat-card__value">{{ store.loading ? '—' : eventosPróximos }}</div>
           </div>
           <div class="stat-card__icon stat-card__icon--blue">
             <q-icon name="event" />
@@ -17,7 +17,7 @@
         <div class="stat-card">
           <div>
             <div class="stat-card__label">Eventos Confirmados</div>
-            <div class="stat-card__value text-positive">156</div>
+            <div class="stat-card__value text-positive">{{ store.loading ? '—' : eventosConfirmados }}</div>
           </div>
           <div class="stat-card__icon stat-card__icon--green">
             <q-icon name="check_circle_outline" />
@@ -27,9 +27,8 @@
       <div class="col">
         <div class="stat-card">
           <div>
-            <div class="stat-card__label">Ingresos Recientes</div>
-            <div class="stat-card__value">$4.2k</div>
-            <div class="stat-card__badge">▲ +8%</div>
+            <div class="stat-card__label">Ingresos del Mes</div>
+            <div class="stat-card__value">{{ store.loading ? '—' : ingresosDelMes }}</div>
           </div>
           <div class="stat-card__icon stat-card__icon--orange">
             <q-icon name="trending_up" />
@@ -65,8 +64,10 @@
             row-key="id"
             flat
             class="fec-table"
+            :loading="store.loading"
             hide-pagination
             :rows-per-page-options="[0]"
+            no-data-label="No hay eventos próximos"
           >
             <template #body-cell-nombre="props">
               <q-td :props="props">
@@ -75,7 +76,7 @@
             </template>
             <template #body-cell-pendiente="props">
               <q-td :props="props">
-                <span :class="props.row.pendiente === '$0.00' ? 'amount-paid' : 'amount-pending'">
+                <span :class="props.row.pendienteNum === 0 ? 'amount-paid' : 'amount-pending'">
                   {{ props.row.pendiente }}
                 </span>
               </q-td>
@@ -93,16 +94,16 @@
           </div>
           <div class="mini-calendar">
             <div class="mini-calendar__header">
-              <q-btn flat dense round icon="chevron_left" size="sm" color="grey-7" />
-              <span class="month-label">Octubre 2026</span>
-              <q-btn flat dense round icon="chevron_right" size="sm" color="grey-7" />
+              <q-btn flat dense round icon="chevron_left" size="sm" color="grey-7" @click="prevMonth" />
+              <span class="month-label">{{ monthLabel }}</span>
+              <q-btn flat dense round icon="chevron_right" size="sm" color="grey-7" @click="nextMonth" />
             </div>
 
             <div class="mini-calendar__grid">
               <div v-for="(dow, di) in daysOfWeek" :key="di" class="mini-calendar__dow">{{ dow }}</div>
               <div
-                v-for="day in calendarDays"
-                :key="`${day.month}-${day.day}`"
+                v-for="(day, idx) in calendarDays"
+                :key="idx"
                 class="mini-calendar__day"
                 :class="{
                   'mini-calendar__day--today': day.isToday,
@@ -135,7 +136,9 @@
               Próximos Eventos Este Mes
             </h3>
           </div>
-          <div>
+          <div v-if="store.loading" class="q-pa-sm text-grey">Cargando...</div>
+          <div v-else-if="upcomingThisMonth.length === 0" class="q-pa-sm text-grey">Sin eventos este mes</div>
+          <div v-else>
             <div
               v-for="event in upcomingThisMonth"
               :key="event.id"
@@ -148,45 +151,84 @@
                   {{ event.horario }}
                 </div>
               </div>
-              <div class="event-item__badge">Oct {{ event.dia }}</div>
+              <div class="event-item__badge">{{ event.mesCorto }} {{ event.dia }}</div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    
+
   </q-page>
 </template>
 
 <script setup lang="ts">
+import { onMounted, computed, ref } from 'vue'
 import type { QTableColumn } from 'quasar'
+import { useReservacionesStore } from '@/stores/reservaciones'
 
-interface Evento {
-  id: number
-  nombre: string
-  fecha: string
-  monto: string
-  contacto: string
-  pendiente: string
+const store = useReservacionesStore()
+onMounted(() => store.cargar())
+
+// Fecha actual normalizada a medianoche (hora local)
+const today = new Date()
+today.setHours(0, 0, 0, 0)
+
+// Estado del calendario (mes visible, navegable)
+const calendarCursor = ref(new Date(today.getFullYear(), today.getMonth(), 1))
+
+const calendarYear = computed(() => calendarCursor.value.getFullYear())
+const calendarMonth = computed(() => calendarCursor.value.getMonth())
+const monthLabel = computed(() =>
+  calendarCursor.value.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })
+)
+
+function prevMonth() {
+  calendarCursor.value = new Date(calendarYear.value, calendarMonth.value - 1, 1)
+}
+function nextMonth() {
+  calendarCursor.value = new Date(calendarYear.value, calendarMonth.value + 1, 1)
 }
 
-interface EventoMes {
-  id: number
-  nombre: string
-  horario: string
-  dia: number
+// Parsea "YYYY-MM-DD" como fecha local para evitar desfase de zona horaria
+function parseLocalDate(str: string): Date {
+  const [y, m, d] = str.split('-').map(Number)
+  return new Date(y, m - 1, d)
 }
 
-interface CalendarDay {
-  day: number | ''
-  month: number
-  isToday: boolean
-  isPending: boolean
-  isConfirmed: boolean
-  isOtherMonth: boolean
+function formatCurrency(value: string | null | undefined): string {
+  const num = parseFloat(value ?? '0')
+  if (isNaN(num)) return '$0.00'
+  return `$${num.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-const daysOfWeek = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
+function nombreEvento(r: (typeof store.reservaciones)[0]): string {
+  return r.nombre_festejado || `${r.nombre_cliente}${r.apellidos_cliente ? ' ' + r.apellidos_cliente : ''}`.trim()
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+
+const eventosPróximos = computed(() =>
+  store.reservaciones.filter(r => parseLocalDate(r.fecha_evento) >= today && r.estado !== 'cancelada').length
+)
+
+const eventosConfirmados = computed(() =>
+  store.reservaciones.filter(r => r.estado === 'confirmada').length
+)
+
+const ingresosDelMes = computed(() => {
+  const y = today.getFullYear()
+  const m = today.getMonth()
+  const total = store.reservaciones
+    .filter(r => {
+      const d = parseLocalDate(r.fecha_evento)
+      return d.getFullYear() === y && d.getMonth() === m
+    })
+    .reduce((sum, r) => sum + parseFloat(r.anticipo || '0'), 0)
+  if (total >= 1000) return `$${(total / 1000).toFixed(1)}k`
+  return formatCurrency(String(total))
+})
+
+// ── Tabla de eventos próximos ─────────────────────────────────────────────────
 
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE DEL EVENTO', field: 'nombre', align: 'left' },
@@ -196,42 +238,100 @@ const columns: QTableColumn[] = [
   { name: 'pendiente', label: 'PENDIENTE', field: 'pendiente', align: 'left' },
 ]
 
-const upcomingEvents: Evento[] = [
-  { id: 1, nombre: 'Graduación Preescolar', fecha: '12 Oct 2026', monto: '$2,500.00', contacto: '55 1234-5678', pendiente: '$1,250.00' },
-  { id: 2, nombre: 'Cumpleaños Sofía',      fecha: '15 Oct 2026', monto: '$1,800.00', contacto: '55 8765-4321', pendiente: '$1,300.00' },
-  { id: 3, nombre: 'Pool Party - Mateo',    fecha: '10 Oct 2026', monto: '$3,200.00', contacto: '55 1122-3344', pendiente: '$0.00' },
-  { id: 4, nombre: 'Boda Civil - Ruiz',     fecha: '20 Oct 2026', monto: '$5,000.00', contacto: '55 9988-7766', pendiente: '$0.00' },
-]
+const upcomingEvents = computed(() =>
+  store.reservaciones
+    .filter(r => parseLocalDate(r.fecha_evento) >= today && r.estado !== 'cancelada')
+    .sort((a, b) => parseLocalDate(a.fecha_evento).getTime() - parseLocalDate(b.fecha_evento).getTime())
+    .slice(0, 10)
+    .map(r => ({
+      id: r.id,
+      nombre: nombreEvento(r),
+      fecha: parseLocalDate(r.fecha_evento).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }),
+      monto: formatCurrency(r.precio_total),
+      contacto: r.telefono_cliente,
+      pendiente: formatCurrency(r.saldo_pendiente),
+      pendienteNum: parseFloat(r.saldo_pendiente || '0'),
+    }))
+)
 
-// Construye la grilla del calendario para octubre 2026
-// Se generan 42 celdas (6 semanas x 7 dias)
-const calendarDays: CalendarDay[] = []
-const startOffset = 4 // Octubre 2026 comienza en jueves (indice 4)
-const prevDays = [28, 29, 30]
-prevDays.forEach(d => calendarDays.push({ day: d, month: 9, isToday: false, isPending: false, isConfirmed: false, isOtherMonth: true }))
+// ── Calendario mini ───────────────────────────────────────────────────────────
 
-// Agrega los dias de octubre (1-31)
-for (let d = 1; d <= 31; d++) {
-  calendarDays.push({
-    day: d,
-    month: 10,
-    isToday: d === 2,
-    isPending: [4, 12].includes(d),
-    isConfirmed: [10, 11, 12].includes(d),
-    isOtherMonth: false,
+interface CalendarDay {
+  day: number
+  isToday: boolean
+  isPending: boolean
+  isConfirmed: boolean
+  isOtherMonth: boolean
+}
+
+const daysOfWeek = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
+
+const calendarDays = computed((): CalendarDay[] => {
+  const y = calendarYear.value
+  const m = calendarMonth.value
+  const firstWeekday = new Date(y, m, 1).getDay()
+  const daysInMonth = new Date(y, m + 1, 0).getDate()
+  const daysInPrevMonth = new Date(y, m, 0).getDate()
+
+  const pendingDays = new Set<number>()
+  const confirmedDays = new Set<number>()
+  store.reservaciones.forEach(r => {
+    const d = parseLocalDate(r.fecha_evento)
+    if (d.getFullYear() === y && d.getMonth() === m) {
+      const day = d.getDate()
+      if (parseFloat(r.saldo_pendiente || '0') > 0) {
+        pendingDays.add(day)
+      } else {
+        confirmedDays.add(day)
+      }
+    }
   })
-}
 
-// Completa las celdas restantes con dias de noviembre
-const remaining = 42 - calendarDays.length
-for (let d = 1; d <= remaining; d++) {
-  calendarDays.push({ day: d, month: 11, isToday: false, isPending: false, isConfirmed: false, isOtherMonth: true })
-}
+  const days: CalendarDay[] = []
 
-// Eventos proximos del mes actual para mostrar en el listado
-const upcomingThisMonth: EventoMes[] = [
-  { id: 1, nombre: 'Pool Party - Mateo',    horario: '14:00 – 18:00', dia: 10 },
-  { id: 2, nombre: 'Graduación Preescolar', horario: '19:00 – 23:00', dia: 12 },
-  { id: 3, nombre: 'Boda Civil - Ruiz',     horario: '12:00 – 17:00', dia: 20 },
-]
+  for (let i = firstWeekday - 1; i >= 0; i--) {
+    days.push({ day: daysInPrevMonth - i, isToday: false, isPending: false, isConfirmed: false, isOtherMonth: true })
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const thisDate = new Date(y, m, d)
+    days.push({
+      day: d,
+      isToday: thisDate.getTime() === today.getTime(),
+      isPending: pendingDays.has(d),
+      isConfirmed: confirmedDays.has(d),
+      isOtherMonth: false,
+    })
+  }
+
+  const remaining = 42 - days.length
+  for (let d = 1; d <= remaining; d++) {
+    days.push({ day: d, isToday: false, isPending: false, isConfirmed: false, isOtherMonth: true })
+  }
+
+  return days
+})
+
+// ── Próximos eventos este mes ─────────────────────────────────────────────────
+
+const upcomingThisMonth = computed(() => {
+  const y = today.getFullYear()
+  const m = today.getMonth()
+  return store.reservaciones
+    .filter(r => {
+      const d = parseLocalDate(r.fecha_evento)
+      return d.getFullYear() === y && d.getMonth() === m && d >= today && r.estado !== 'cancelada'
+    })
+    .sort((a, b) => parseLocalDate(a.fecha_evento).getTime() - parseLocalDate(b.fecha_evento).getTime())
+    .map(r => {
+      const d = parseLocalDate(r.fecha_evento)
+      return {
+        id: r.id,
+        nombre: nombreEvento(r),
+        horario: `${r.hora_inicio.slice(0, 5)} – ${r.hora_fin.slice(0, 5)}`,
+        mesCorto: d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''),
+        dia: d.getDate(),
+      }
+    })
+})
 </script>

@@ -2,6 +2,9 @@ import { apiClient } from '@/api/axiosClient'
 import type { Pagos_reservacion, Pagos_reservacion_create, Pagos_reservacion_update } from '@/types/pagos_reservacion'
 
 export const pagosReservacionApi = {
+  listar: () =>
+    apiClient.get<Pagos_reservacion[]>('/pagos-reservacion').then((r) => r.data),
+
   listarPorReservacion: (reservacion_id: string) =>
     apiClient
       .get<Pagos_reservacion[]>(`/pagos-reservacion/reservacion/${reservacion_id}`)
