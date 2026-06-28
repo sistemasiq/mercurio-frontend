@@ -30,6 +30,11 @@ function printVoucher() {
   window.print()
   document.title = originalTitle
 }
+
+function getBraceletLabel(braceletId: string) {
+  const bracelet = store.pulseras.find((p) => p.id === braceletId)
+  return bracelet?.pulsera_rfid ?? braceletId
+}
 </script>
 
 <template>
@@ -81,7 +86,13 @@ function printVoucher() {
         <div class="col text-weight-medium" style="font-size: 14px">{{ child.name }}</div>
         <div style="width: 50px" class="text-center text-body2">{{ child.age }}</div>
         <div style="width: 80px" class="text-right">
-          <q-chip dense color="blue-2" text-color="black-9" :label="child.rfidBracelet" size="md" />
+          <q-chip
+            dense
+            color="blue-2"
+            text-color="black-9"
+            :label="getBraceletLabel(child.rfidBracelet)"
+            size="md"
+          />
         </div>
       </div>
 

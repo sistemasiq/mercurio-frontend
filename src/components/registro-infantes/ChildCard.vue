@@ -107,7 +107,7 @@ function limitAgeInput(value: number | string | null) {
       <div class="row q-col-gutter-sm q-mb-sm">
         <div class="col-12 col-sm-7">
           <q-input
-            v-model="child.name"
+            v-model="store.children[index].name"
             label="Nombre del Niño"
             placeholder="Nombre completo"
             outlined
@@ -125,7 +125,7 @@ function limitAgeInput(value: number | string | null) {
         </div>
         <div class="col-12 col-sm-5">
           <q-input
-            v-model.number="child.age"
+            v-model.number="store.children[index].age"
             label="Edad"
             type="number"
             min="1"
@@ -148,7 +148,7 @@ function limitAgeInput(value: number | string | null) {
       </div>
 
       <q-input
-        v-model="child.notes"
+        v-model="store.children[index].notes"
         label="Notas / Alergias"
         placeholder="Ej. alérgico al maní"
         outlined

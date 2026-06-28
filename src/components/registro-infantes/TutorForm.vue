@@ -17,6 +17,9 @@ const TIME_OPTIONS = ['1 hr', '2 hr', '3 hr']
 const showInePreview = ref(false)
 const showArrivalPreview = ref(false)
 
+const inePreviewUrl = ref<string>()
+const arrivalPreviewUrl = ref<string>()
+
 const cameraActive = ref(false)
 const videoRef = ref<HTMLVideoElement | null>(null)
 let streamInstance: MediaStream | null = null
@@ -62,31 +65,50 @@ function capturePhoto() {
   const ctx = canvas.getContext('2d')
   if (ctx) {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-    const base64Image = canvas.toDataURL('image/jpeg')
 
-    if (currentPhotoTarget === 'ine') {
-      store.tutor.inePhoto = base64Image
-    } else {
-      store.tutor.arrivalPhoto = base64Image
-    }
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return
+
+        const previewUrl = URL.createObjectURL(blob)
+
+        if (currentPhotoTarget === 'ine') {
+          store.tutor.inePhoto = blob
+          if (inePreviewUrl.value) URL.revokeObjectURL(inePreviewUrl.value)
+          inePreviewUrl.value = previewUrl
+        } else {
+          store.tutor.arrivalPhoto = blob
+          if (arrivalPreviewUrl.value) URL.revokeObjectURL(arrivalPreviewUrl.value)
+          arrivalPreviewUrl.value = previewUrl
+        }
+
+        stopCamera()
+      },
+      'image/jpeg',
+      0.95,
+    )
   }
-
-  stopCamera()
 }
 
 function retakeIne() {
   store.tutor.inePhoto = null
+  if (inePreviewUrl.value) URL.revokeObjectURL(inePreviewUrl.value)
+  inePreviewUrl.value = undefined
   startCamera('ine')
 }
 
 function retakeArrival() {
   store.tutor.arrivalPhoto = null
+  if (arrivalPreviewUrl.value) URL.revokeObjectURL(arrivalPreviewUrl.value)
+  arrivalPreviewUrl.value = undefined
   startCamera('arrival')
 }
 
-// Limpieza de recursos por seguridad si se cierra el componente inesperadamente
 onBeforeUnmount(() => {
   stopCamera()
+  // Limpiar URLs temporales para no dejar fugas de memoria si se destruye el componente
+  if (inePreviewUrl.value) URL.revokeObjectURL(inePreviewUrl.value)
+  if (arrivalPreviewUrl.value) URL.revokeObjectURL(arrivalPreviewUrl.value)
 })
 </script>
 
@@ -157,7 +179,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div v-else class="photo-preview-box">
-            <img :src="store.tutor.inePhoto" class="photo-thumb" @click="showInePreview = true" />
+            <img :src="inePreviewUrl" class="photo-thumb" @click="showInePreview = true" />
             <div class="row q-col-gutter-xs q-mt-xs">
               <div class="col-6">
                 <q-btn
@@ -199,11 +221,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div v-else class="photo-preview-box">
-            <img
-              :src="store.tutor.arrivalPhoto"
-              class="photo-thumb"
-              @click="showArrivalPreview = true"
-            />
+            <img :src="arrivalPreviewUrl" class="photo-thumb" @click="showArrivalPreview = true" />
             <div class="row q-col-gutter-xs q-mt-xs">
               <div class="col-6">
                 <q-btn
@@ -286,7 +304,7 @@ onBeforeUnmount(() => {
         <q-btn v-close-popup icon="close" flat round dense />
       </q-card-section>
       <q-card-section>
-        <img :src="store.tutor.inePhoto ?? ''" style="width: 100%; border-radius: 8px" />
+        <img :src="inePreviewUrl" style="width: 100%; border-radius: 8px" />
       </q-card-section>
     </q-card>
   </q-dialog>
@@ -300,7 +318,7 @@ onBeforeUnmount(() => {
         <q-btn v-close-popup icon="close" flat round dense />
       </q-card-section>
       <q-card-section>
-        <img :src="store.tutor.arrivalPhoto ?? ''" style="width: 100%; border-radius: 8px" />
+        <img :src="arrivalPreviewUrl" style="width: 100%; border-radius: 8px" />
       </q-card-section>
     </q-card>
   </q-dialog>

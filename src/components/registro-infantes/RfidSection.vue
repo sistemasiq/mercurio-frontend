@@ -1,33 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
 
-interface BraceletOption {
-  id: string
-  label: string
-  inUse: boolean
-}
-
 const store = useRegistrationStore()
-const filteredOptions = ref<Record<string, BraceletOption[]>>({})
 
-function filterFn(val: string, update: (callback: () => void) => void, childId: string) {
-  const allAvailable = store.availableBraceletsForChild(childId)
-
-  if (val === '') {
-    update(() => {
-      filteredOptions.value[childId] = allAvailable
-    })
-    return
-  }
-
-  update(() => {
-    const needle = val.toLowerCase()
-    // Filtramos la lista buscando coincidencias por el texto o etiqueta de la pulsera
-    filteredOptions.value[childId] = allAvailable.filter(
-      (v) => v.label.toLowerCase().indexOf(needle) > -1,
-    )
-  })
+function availableOptions(childId: string) {
+  return store.availableBraceletsForChild(childId)
 }
 </script>
 
@@ -71,16 +48,12 @@ function filterFn(val: string, update: (callback: () => void) => void, childId: 
         <div style="width: 180px">
           <q-select
             v-model="child.rfidBracelet"
-            use-input
-            hide-selected
-            fill-input
-            input-debounce="0"
-            :options="filteredOptions[child.id] || store.availableBraceletsForChild(child.id)"
+            :options="availableOptions(child.id)"
             option-value="id"
-            option-label="label"
+            option-label="pulsera_rfid"
             emit-value
             map-options
-            label="Escribe o escanea..."
+            label="Pulsera"
             outlined
             dense
             clearable
@@ -90,15 +63,9 @@ function filterFn(val: string, update: (callback: () => void) => void, childId: 
                 (val !== null && val !== undefined && val !== '') || 'La pulsera es obligatoria',
             ]"
             :color="child.rfidBracelet ? 'positive' : 'primary'"
-            @filter="(val, update) => filterFn(val, update, child.id)"
           >
             <template #prepend>
               <q-icon name="nfc" size="16px" :color="child.rfidBracelet ? 'positive' : 'grey-6'" />
-            </template>
-            <template #no-option>
-              <q-item>
-                <q-item-section class="text-grey"> No disponible o no existe </q-item-section>
-              </q-item>
             </template>
           </q-select>
         </div>

@@ -1,5 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import {
+  fetchProductos,
+  fetchPulseras,
+  postOnboarding,
+  SUCURSAL_ID,
+  METODO_PAGO_ID,
+  type ProductoDto,
+  type PulseraDto,
+  type OnboardingDetalle,
+} from '@/api/onboardingClient'
 
 export interface Child {
   id: string
@@ -14,26 +24,15 @@ export interface TutorData {
   fullName: string
   relationship: string
   phone: string
-  inePhoto: string | null
-  arrivalPhoto: string | null
+  inePhoto: File | Blob | null
+  arrivalPhoto: File | Blob | null
   estimatedTime: string
 }
 
-// Hardcoded available bracelets
-export const AVAILABLE_BRACELETS = [
-  { id: 'B-8821', label: 'B-8821', inUse: false },
-  { id: 'B-8822', label: 'B-8822', inUse: false },
-  { id: 'B-8823', label: 'B-8823', inUse: false },
-  { id: 'B-8824', label: 'B-8824', inUse: false },
-  { id: 'B-8825', label: 'B-8825', inUse: false },
-  { id: 'B-9001', label: 'B-9001', inUse: false },
-  { id: 'B-9002', label: 'B-9002', inUse: false },
-]
-
-const PRICE_PER_HOUR: Record<string, number> = {
-  '1 hr': 150,
-  '2 hr': 270,
-  '3 hr': 360,
+const HOUR_OPTIONS: Record<string, number> = {
+  '1 hr': 1,
+  '2 hr': 2,
+  '3 hr': 3,
 }
 
 export type RegistrationStep = 'form' | 'rfid' | 'complete'
@@ -53,6 +52,18 @@ export const useRegistrationStore = defineStore('registration', () => {
   const children = ref<Child[]>([createChild()])
   const currentChildIndex = ref(0)
   const folioId = ref('')
+
+  const productoBase = ref<ProductoDto | null>(null)
+  const pulseras = ref<PulseraDto[]>([])
+  const isLoadingCatalog = ref(false)
+  const isLoadingPulseras = ref(false)
+  const isSubmitting = ref(false)
+  const submitError = ref<string | null>(null)
+
+  const registroId = ref('')
+  const totalFromServer = ref<number | null>(null)
+  const pagadoFromServer = ref<number | null>(null)
+  const estadoFromServer = ref('')
 
   function createChild(): Child {
     return {
@@ -87,9 +98,41 @@ export const useRegistrationStore = defineStore('registration', () => {
     children.value[index].saved = false
   }
 
+  async function loadProductos() {
+    isLoadingCatalog.value = true
+    submitError.value = null
+    try {
+      const productos = await fetchProductos(SUCURSAL_ID)
+      productoBase.value = productos[0] ?? null
+    } catch (err) {
+      submitError.value = 'No se pudo cargar el catálogo de precios.'
+      console.error(err)
+    } finally {
+      isLoadingCatalog.value = false
+    }
+  }
+
+  async function loadPulseras() {
+    isLoadingPulseras.value = true
+    submitError.value = null
+    try {
+      pulseras.value = await fetchPulseras(SUCURSAL_ID)
+    } catch (err) {
+      submitError.value = 'No se pudo cargar el catálogo de pulseras.'
+      console.error(err)
+    } finally {
+      isLoadingPulseras.value = false
+    }
+  }
+
   const savedChildren = computed(() => children.value.filter((c) => c.saved))
 
-  const pricePerChild = computed(() => PRICE_PER_HOUR[tutor.value.estimatedTime] ?? 150)
+  const hours = computed(() => HOUR_OPTIONS[tutor.value.estimatedTime] ?? 1)
+
+  const pricePerChild = computed(() => {
+    if (!productoBase.value) return 0
+    return productoBase.value.precio_unitario * hours.value
+  })
 
   const total = computed(() => savedChildren.value.length * pricePerChild.value)
 
@@ -97,13 +140,20 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   const availableBraceletsForChild = (childId: string) => {
     const child = children.value.find((c) => c.id === childId)
-    return AVAILABLE_BRACELETS.filter(
-      (b) => !usedBracelets.value.includes(b.id) || b.id === child?.rfidBracelet,
+    return pulseras.value.filter(
+      (p) => !usedBracelets.value.includes(p.id) || p.id === child?.rfidBracelet,
     )
   }
 
   const allChildrenHaveBracelet = computed(
     () => savedChildren.value.length > 0 && savedChildren.value.every((c) => c.rfidBracelet),
+  )
+
+  // Cuántos niños se pueden registrar según las pulseras disponibles en la sucursal
+  const maxChildrenAllowed = computed(() => pulseras.value.length)
+
+  const reachedBraceletLimit = computed(
+    () => maxChildrenAllowed.value > 0 && children.value.length >= maxChildrenAllowed.value,
   )
 
   const canProceedToRFID = computed(() => {
@@ -132,15 +182,56 @@ export const useRegistrationStore = defineStore('registration', () => {
     )
   })
 
-  function proceedToRFID() {
-    if (!canProceedToRFID.value) return
-
+  async function proceedToRFID() {
     step.value = 'rfid'
-    folioId.value = `#KC-${Math.floor(10000 + Math.random() * 89999)}-DP`
+    await loadPulseras()
   }
 
-  function completeRegistration() {
-    step.value = 'complete'
+  async function completeRegistration() {
+    if (!productoBase.value) {
+      submitError.value = 'No hay catálogo de productos cargado.'
+      return
+    }
+
+    isSubmitting.value = true
+    submitError.value = null
+
+    const detalles: OnboardingDetalle[] = savedChildren.value.map((child) => ({
+      nino: { nombreCompleto: child.name, edad: child.age ?? 0, notas: child.notes },
+      productoId: productoBase.value!.id,
+      cantidad: hours.value,
+      pulseraId: child.rfidBracelet,
+    }))
+
+    const payload = {
+      sucursalId: SUCURSAL_ID,
+      tutor: {
+        nombreCompleto: tutor.value.fullName,
+        telefono: tutor.value.phone,
+      },
+      parentesco: tutor.value.relationship,
+      detalles,
+      pagos: [{ metodoPagoId: METODO_PAGO_ID, monto: total.value }],
+    }
+
+    try {
+      const response = await postOnboarding(
+        payload,
+        tutor.value.inePhoto!,
+        tutor.value.arrivalPhoto!,
+      )
+
+      registroId.value = response.registroId
+      totalFromServer.value = response.total
+      pagadoFromServer.value = response.pagado
+      estadoFromServer.value = response.estado
+      step.value = 'complete'
+    } catch (err) {
+      submitError.value = 'No se pudo completar el registro. Intenta de nuevo.'
+      console.error(err)
+    } finally {
+      isSubmitting.value = false
+    }
   }
 
   function reset() {
@@ -164,13 +255,26 @@ export const useRegistrationStore = defineStore('registration', () => {
     children,
     currentChildIndex,
     folioId,
+    productoBase,
+    pulseras,
+    isLoadingCatalog,
+    isLoadingPulseras,
+    isSubmitting,
+    submitError,
+    registroId,
+    totalFromServer,
+    pagadoFromServer,
+    estadoFromServer,
     savedChildren,
+    hours,
     pricePerChild,
     total,
     usedBracelets,
     availableBraceletsForChild,
     allChildrenHaveBracelet,
     canProceedToRFID,
+    maxChildrenAllowed,
+    reachedBraceletLimit,
     addChild,
     removeChild,
     saveChild,
@@ -178,5 +282,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     proceedToRFID,
     completeRegistration,
     reset,
+    loadProductos,
+    loadPulseras,
   }
 })

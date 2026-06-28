@@ -68,13 +68,28 @@ function getChildFirstName(child: Child, index: number) {
           color="primary"
           size="md"
           class="q-ml-md"
-          :disable="store.step !== 'form'"
-          @click="
-            store.addChild()
-            store.currentChildIndex = store.children.length - 1
-          "
+          :disable="store.step !== 'form' || store.reachedBraceletLimit"
+          @click="(store.addChild(), (store.currentChildIndex = store.children.length - 1))"
         />
       </div>
+
+      <!-- Aviso de límite de pulseras -->
+      <q-banner
+        v-if="store.reachedBraceletLimit"
+        dense
+        rounded
+        class="bg-orange-1 text-orange-9 q-mb-sm"
+        style="font-size: 12px"
+      >
+        <template #avatar>
+          <q-icon name="warning" color="orange-9" size="18px" />
+        </template>
+        Solo hay {{ store.maxChildrenAllowed }} pulsera{{
+          store.maxChildrenAllowed === 1 ? '' : 's'
+        }}
+        disponible{{ store.maxChildrenAllowed === 1 ? '' : 's' }} en este momento. No puedes
+        registrar más niños.
+      </q-banner>
 
       <!-- Show only the current child -->
       <ChildCard :index="store.currentChildIndex" />

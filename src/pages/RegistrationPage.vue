@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onUnmounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
+import { useRouter } from 'vue-router'
 import TutorForm from '@/components/registro-infantes/TutorForm.vue'
 import ChildrenSection from '@/components/registro-infantes/ChildrenSection.vue'
 import OrderSummary from '@/components/registro-infantes/OrderSummary.vue'
@@ -8,8 +9,13 @@ import RfidSection from '@/components/registro-infantes/RfidSection.vue'
 import PrintVoucher from '@/components/registro-infantes/PrintVoucher.vue'
 
 const store = useRegistrationStore()
+const router = useRouter()
 
-// Reset on page leave
+onMounted(() => {
+  store.loadProductos()
+  store.loadPulseras()
+})
+
 onUnmounted(() => {
   store.reset()
 })
@@ -17,7 +23,6 @@ onUnmounted(() => {
 
 <template>
   <q-page class="registration-page q-pa-lg">
-    <!-- Page header -->
     <div class="row items-center q-mb-lg">
       <div class="page-icon-wrap q-mr-md">
         <q-icon name="how_to_reg" size="26px" color="primary" />
@@ -29,7 +34,6 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Step indicator -->
       <q-space />
       <div class="row q-gutter-sm items-center">
         <q-chip
@@ -60,26 +64,20 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Voucher shown on complete -->
     <div v-if="store.step === 'complete'" class="q-mb-lg">
       <PrintVoucher />
       <div class="text-center q-mt-md">
-        <q-btn flat color="primary" icon="add" label="Nuevo registro" @click="store.reset()" />
+        <q-btn flat color="primary" icon="add" label="Volver" @click="router.back()" />
       </div>
     </div>
 
-    <!-- Main form layout -->
     <div v-else class="row q-col-gutter-lg">
-      <!-- Left column -->
       <div class="col-12 col-md-8">
         <TutorForm />
         <ChildrenSection v-if="store.step === 'form'" />
-
-        <!-- RFID Section appears after payment -->
         <RfidSection v-if="store.step === 'rfid'" />
       </div>
 
-      <!-- Right column: summary -->
       <div class="col-12 col-md-4">
         <OrderSummary />
       </div>
