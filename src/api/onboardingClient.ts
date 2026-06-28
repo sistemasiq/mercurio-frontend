@@ -100,9 +100,9 @@ export interface CheckoutResponse {
 
 //Llamadas a la api
 
-// GET /productos/${sucursalId} para obtener el costo por hora
+// GET /estancias/productos/${sucursalId} para obtener el costo por hora
 export async function fetchProductos(sucursalId: string = SUCURSAL_ID): Promise<ProductoDto[]> {
-  const { data } = await onboardingClient.get<ProductoDto[]>(`/productos/${sucursalId}`)
+  const { data } = await onboardingClient.get<ProductoDto[]>(`/estancias/productos/${sucursalId}`)
   return data
 }
 
