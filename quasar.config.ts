@@ -2,15 +2,11 @@ import { defineConfig } from '#q-app/wrappers'
 
 export default defineConfig((/* ctx */) => {
   return {
-    boot: ['pinia'],
+    boot: [],
 
     css: ['app.scss'],
 
-    extras: [
-      'roboto-font',
-      'material-icons',
-      'mdi-v7',
-    ],
+    extras: ['roboto-font', 'material-icons', 'mdi-v7'],
 
     build: {
       target: {
@@ -39,7 +35,7 @@ export default defineConfig((/* ctx */) => {
           negative: '#d32f2f',
           info: '#29b6f6',
           warning: '#ffa000',
-        }
+        },
       },
       plugins: ['Notify', 'Dialog', 'Loading'],
     },
