@@ -1,3 +1,4 @@
+// src/router/index.ts
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import type { UserRole } from '@/types/auth'
@@ -49,6 +50,18 @@ const routes: RouteRecordRaw[] = [
         name: 'home-kitchen',
         component: () => import('@/pages/home/KitchenHomePage.vue'),
         meta: { requiresAuth: true, roles: ['Cocina'] as UserRole[] },
+      },
+      {
+        path: 'cocina',
+        name: 'cocina',
+        component: () => import('@/components/comandas/VisorCocina.vue'),
+        meta: { requiresAuth: true, roles: ['Cocina'] as UserRole[], title: 'Visor Cocina' },
+      },
+      {
+        path: 'caja',
+        name: 'caja',
+        component: () => import('@/components/DashboardComponent.vue'),
+        meta: { requiresAuth: true, roles: ['Cajero'] as UserRole[], title: 'Caja' },
       },
     ],
   },
