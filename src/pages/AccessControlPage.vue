@@ -38,7 +38,7 @@ function scrollByCards(direction: 1 | -1) {
 }
 
 function goToNewRegistration() {
-  //Aqui navegacion al registration Page
+  //Poner aqui la navegacion al registro
 }
 </script>
 

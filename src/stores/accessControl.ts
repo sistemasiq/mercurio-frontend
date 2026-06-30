@@ -21,6 +21,16 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   const error = ref<string | null>(null)
   const lastUpdated = ref<Date | null>(null)
 
+  const checkoutChild = ref<ActiveChild | null>(null)
+
+  function setCheckoutChild(child: ActiveChild) {
+    checkoutChild.value = child
+  }
+
+  function clearCheckoutChild() {
+    checkoutChild.value = null
+  }
+
   let refreshTimer: ReturnType<typeof setInterval> | null = null
 
   function computeStatus(item: ActivoDto): ActiveChild {
@@ -121,6 +131,9 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     isLoading,
     error,
     lastUpdated,
+    checkoutChild,
+    setCheckoutChild,
+    clearCheckoutChild,
     totalActivos,
     porExpirar,
     excedidos,
