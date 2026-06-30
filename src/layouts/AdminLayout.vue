@@ -20,8 +20,8 @@
           <!-- Dashboard -->
           <div
             class="sidebar__item"
-            :class="{ 'sidebar__item--active': $route.name === 'dashboard' }"
-            @click="$router.push({ name: 'dashboard' })"
+            :class="{ 'sidebar__item--active': route.name === 'dashboard' }"
+            @click="router.push({ name: 'dashboard' })"
           >
             <q-icon name="dashboard" />
             Dashboard
@@ -49,8 +49,8 @@
                 <!-- Nueva Reservación -->
                 <div
                   class="sidebar__subitem sidebar__subitem--new"
-                  :class="{ 'sidebar__subitem--active': $route.name === 'nueva-reservacion' }"
-                  @click="$router.push({ name: 'nueva-reservacion' })"
+                  :class="{ 'sidebar__subitem--active': route.name === 'nueva-reservacion' }"
+                  @click="router.push({ name: 'nueva-reservacion' })"
                 >
                   <q-icon name="add_circle_outline" size="14px" />
                   Nueva Reservación
@@ -64,7 +64,7 @@
                   v-for="res in recentReservaciones"
                   :key="res.id"
                   class="sidebar__subitem"
-                  @click="$router.push({ name: 'reservaciones' })"
+                  @click="router.push({ name: 'reservaciones' })"
                 >
                   <span
                     class="sidebar__res-dot"
@@ -79,7 +79,7 @@
                 <!-- Ver todas -->
                 <div
                   class="sidebar__subitem sidebar__subitem--all"
-                  @click="$router.push({ name: 'reservaciones' })"
+                  @click="router.push({ name: 'reservaciones' })"
                 >
                   <q-icon name="list_alt" size="14px" />
                   Ver todas
@@ -91,8 +91,8 @@
           <!-- Calendario -->
           <div
             class="sidebar__item"
-            :class="{ 'sidebar__item--active': $route.name === 'calendario' }"
-            @click="$router.push({ name: 'calendario' })"
+            :class="{ 'sidebar__item--active': route.name === 'calendario' }"
+            @click="router.push({ name: 'calendario' })"
           >
             <q-icon name="calendar_today" />
             Calendario
@@ -101,8 +101,8 @@
           <!-- Pagos -->
           <div
             class="sidebar__item"
-            :class="{ 'sidebar__item--active': $route.name === 'pagos' }"
-            @click="$router.push({ name: 'pagos' })"
+            :class="{ 'sidebar__item--active': route.name === 'pagos' }"
+            @click="router.push({ name: 'pagos' })"
           >
             <q-icon name="payment" />
             Pagos
@@ -111,8 +111,8 @@
           <!-- Clientes -->
           <div
             class="sidebar__item"
-            :class="{ 'sidebar__item--active': $route.name === 'clientes' }"
-            @click="$router.push({ name: 'clientes' })"
+            :class="{ 'sidebar__item--active': route.name === 'clientes' }"
+            @click="router.push({ name: 'clientes' })"
           >
             <q-icon name="group" />
             Clientes
@@ -123,8 +123,8 @@
 
           <div
             class="sidebar__item"
-            :class="{ 'sidebar__item--active': $route.name === 'extras' }"
-            @click="$router.push({ name: 'extras' })"
+            :class="{ 'sidebar__item--active': route.name === 'extras' }"
+            @click="router.push({ name: 'extras' })"
           >
             <q-icon name="add_box" />
             Extras
@@ -132,8 +132,8 @@
 
           <div
             class="sidebar__item"
-            :class="{ 'sidebar__item--active': $route.name === 'paquetes' }"
-            @click="$router.push({ name: 'paquetes' })"
+            :class="{ 'sidebar__item--active': route.name === 'paquetes' }"
+            @click="router.push({ name: 'paquetes' })"
           >
             <q-icon name="inventory_2" />
             Paquetes
@@ -144,8 +144,8 @@
 
           <div
             class="sidebar__item"
-            :class="{ 'sidebar__item--active': $route.name === 'sucursales' }"
-            @click="$router.push({ name: 'sucursales' })"
+            :class="{ 'sidebar__item--active': route.name === 'sucursales' }"
+            @click="router.push({ name: 'sucursales' })"
           >
             <q-icon name="store" />
             Sucursales
@@ -153,8 +153,8 @@
 
           <div
             class="sidebar__item"
-            :class="{ 'sidebar__item--active': $route.name === 'tipos-evento' }"
-            @click="$router.push({ name: 'tipos-evento' })"
+            :class="{ 'sidebar__item--active': route.name === 'tipos-evento' }"
+            @click="router.push({ name: 'tipos-evento' })"
           >
             <q-icon name="category" />
             Tipos de Evento
@@ -162,8 +162,8 @@
 
           <div
             class="sidebar__item"
-            :class="{ 'sidebar__item--active': $route.name === 'metodos-pago' }"
-            @click="$router.push({ name: 'metodos-pago' })"
+            :class="{ 'sidebar__item--active': route.name === 'metodos-pago' }"
+            @click="router.push({ name: 'metodos-pago' })"
           >
             <q-icon name="credit_card" />
             Métodos de Pago
@@ -178,7 +178,7 @@
             label="+ Nueva Reserva"
             class="full-width"
             style="border-radius: 8px; font-weight: 700;"
-            @click="$router.push({ name: 'nueva-reservacion' })"
+            @click="router.push({ name: 'nueva-reservacion' })"
           />
         </div>
       </div>
@@ -232,11 +232,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useReservacionesStore } from '@/stores/reservaciones'
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 const resStore = useReservacionesStore()
 const searchQuery = ref('')

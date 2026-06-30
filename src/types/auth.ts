@@ -1,4 +1,4 @@
-export type UserRole = 'Administrador' | 'Cajero' | 'Cocina'
+export type UserRole = 'AdministradorSistema' | 'Administrador' | 'Cajero' | 'Cocina'
 
 export interface LoginRequest {
   branchId: string
@@ -8,15 +8,16 @@ export interface LoginRequest {
 }
 
 export interface User {
-  id: number
+  id: string
   name: string
   email: string
-  roles: UserRole[]
+  role: UserRole
+  branch_id?: string | null
 }
 
 export interface LoginResponse {
   token: string
-  tokenType: string
+  refreshToken: string
   expiresIn: number
   user: User
 }

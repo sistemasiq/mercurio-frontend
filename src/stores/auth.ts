@@ -20,10 +20,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   const currentUser = computed<User | null>(() => user.value)
 
-  const primaryRole = computed<UserRole | null>(() => user.value?.roles[0] ?? null)
+  const primaryRole = computed<UserRole | null>(() => user.value?.role ?? null)
 
   function hasRole(role: UserRole): boolean {
-    return user.value?.roles.includes(role) ?? false
+    return user.value?.role === role
   }
 
   async function login(credentials: LoginRequest): Promise<void> {

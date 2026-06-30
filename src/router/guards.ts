@@ -11,13 +11,13 @@ export function setupRouterGuards(router: Router): void {
     }
 
     if (to.meta.publicOnly && auth.isAuthenticated) {
-      return { name: getRoleHome(auth.currentUser?.roles ?? []) }
+      return { name: getRoleHome(auth.currentUser?.role) }
     }
 
     if (to.meta.roles?.length && auth.currentUser) {
       const allowed = to.meta.roles.some((r) => auth.hasRole(r))
       if (!allowed) {
-        return { name: getRoleHome(auth.currentUser.roles) }
+        return { name: getRoleHome(auth.currentUser.role) }
       }
     }
   })

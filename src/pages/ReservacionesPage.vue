@@ -3,7 +3,7 @@
     <div class="row items-center q-mb-md">
       <div class="text-h5 text-weight-bold">Reservaciones</div>
       <q-space />
-      <q-btn color="primary" icon="add" label="Nueva Reservación" unelevated no-caps @click="$router.push({ name: 'nueva-reservacion' })" />
+      <q-btn color="primary" icon="add" label="Nueva Reservación" unelevated no-caps @click="router.push({ name: 'nueva-reservacion' })" />
     </div>
     <q-card flat bordered>
       <q-table
@@ -21,9 +21,11 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import type { QTableColumn } from 'quasar'
 import { useReservacionesStore } from '@/stores/reservaciones'
 
+const router = useRouter()
 const store = useReservacionesStore()
 onMounted(() => store.cargar())
 
