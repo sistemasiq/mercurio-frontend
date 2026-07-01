@@ -210,7 +210,7 @@
           <q-btn flat round dense icon="help_outline" color="grey-7" />
 
           <!-- User Info -->
-          <div class="top-header__user">
+          <div class="top-header__user cursor-pointer">
             <div class="text-right">
               <div class="user-name">{{ userName }}</div>
               <div class="user-role">{{ userRole }}</div>
@@ -218,6 +218,17 @@
             <q-avatar size="36px" color="primary" text-color="white">
               <span>{{ userInitials }}</span>
             </q-avatar>
+
+            <q-menu anchor="bottom right" self="top right">
+              <q-list style="min-width: 180px">
+                <q-item v-close-popup clickable @click="handleLogout">
+                  <q-item-section avatar>
+                    <q-icon name="logout" color="negative" />
+                  </q-item-section>
+                  <q-item-section>Cerrar sesión</q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
           </div>
         </div>
       </div>
@@ -246,6 +257,11 @@ const reservacionesOpen = ref(false)
 onMounted(() => {
   if (!resStore.reservaciones.length) resStore.cargar()
 })
+
+async function handleLogout(): Promise<void> {
+  await auth.logout()
+  router.push({ name: 'login' })
+}
 
 const isReservacionesActive = computed(() =>
   ['reservaciones', 'nueva-reservacion'].includes(route.name as string)
