@@ -5,15 +5,8 @@ import { useAuthForm } from '@/composables/useAuthForm'
 
 const formRef = ref<InstanceType<typeof QForm> | null>(null)
 
-const {
-  credentials,
-  showPassword,
-  branchIdRules,
-  emailRules,
-  passwordRules,
-  isLoading,
-  handleLogin,
-} = useAuthForm()
+const { credentials, showPassword, emailRules, passwordRules, isLoading, handleLogin } =
+  useAuthForm()
 
 async function onSubmit(): Promise<void> {
   const valid = await formRef.value?.validate()
@@ -25,16 +18,10 @@ async function onSubmit(): Promise<void> {
 <template>
   <q-page class="auth-page">
     <aside class="auth-left">
-      <img
-        src="/screen-login.png"
-        alt=""
-        class="auth-left__illustration"
-        aria-hidden="true"
-      />
+      <img src="/screen-login.png" alt="" class="auth-left__illustration" aria-hidden="true" />
     </aside>
 
     <section class="auth-right">
-
       <!-- Header del panel -->
       <header class="auth-header">
         <div class="auth-brand">
@@ -52,32 +39,7 @@ async function onSubmit(): Promise<void> {
         <h1 class="auth-title">Bienvenido de nuevo</h1>
         <p class="auth-subtitle">Ingrese sus credenciales corporativas para continuar.</p>
 
-        <q-form
-          ref="formRef"
-          class="auth-form"
-          greedy
-          @submit.prevent="onSubmit"
-        >
-          <!-- ID de Sucursal -->
-          <div class="field-wrap">
-            <label class="field-label">ID de Sucursal</label>
-            <q-input
-              v-model="credentials.branchId"
-              outlined
-              dense
-              placeholder="Ej. BR-4092"
-              :rules="branchIdRules"
-              lazy-rules
-              :disable="isLoading()"
-              no-error-icon
-              class="field-input"
-            >
-              <template #prepend>
-                <q-icon name="store" color="grey-5" size="16px" />
-              </template>
-            </q-input>
-          </div>
-
+        <q-form ref="formRef" class="auth-form" greedy @submit.prevent="onSubmit">
           <!-- Usuario / Email -->
           <div class="field-wrap">
             <label class="field-label">Usuario o Correo Electrónico</label>
@@ -142,11 +104,7 @@ async function onSubmit(): Promise<void> {
               color="primary"
               class="auth-remember"
             />
-            <a
-              href="#"
-              class="auth-forgot"
-              @click.prevent
-            >¿Olvidaste tu contraseña?</a>
+            <a href="#" class="auth-forgot" @click.prevent>¿Olvidaste tu contraseña?</a>
           </div>
 
           <!-- Botón de envío -->
@@ -177,7 +135,6 @@ async function onSubmit(): Promise<void> {
           <a href="#" class="auth-footer__link auth-footer__lang" @click.prevent>EN</a>
         </div>
       </footer>
-
     </section>
   </q-page>
 </template>

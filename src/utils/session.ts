@@ -1,12 +1,15 @@
 import type { StoredSession, User } from '@/types/auth'
+import { decodeToken } from '@/utils/tokenUtils'
 
 const SESSION_KEY = 'auth_session'
 
 export const sessionStorage = {
-  save(token: string, expiresIn: number, user: User): void {
+  save(token: string, refreshToken: string, user: User): void {
+    const payload = decodeToken(token)
     const session: StoredSession = {
       token,
-      tokenExpiry: Date.now() + expiresIn * 1000,
+      tokenExpiry: payload?.exp ? payload.exp * 1000 : 0,
+      refreshToken,
       user,
     }
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
@@ -16,13 +19,7 @@ export const sessionStorage = {
     try {
       const raw = localStorage.getItem(SESSION_KEY)
       if (!raw) return null
-
-      const session: StoredSession = JSON.parse(raw)
-      if (Date.now() > session.tokenExpiry) {
-        localStorage.removeItem(SESSION_KEY)
-        return null
-      }
-      return session
+      return JSON.parse(raw) as StoredSession
     } catch {
       localStorage.removeItem(SESSION_KEY)
       return null

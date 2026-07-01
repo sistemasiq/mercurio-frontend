@@ -1,28 +1,40 @@
+export type UserRole = 'Administrador' | 'Cajero' | 'Cocina' | 'AdministradorSistema'
+
+export interface TokenPayload {
+  sub: string
+  email: string
+  role: UserRole
+  branch_id: string | null
+  iat: number
+  exp: number
+}
+
 export interface LoginRequest {
-  branchId: string
   email: string
   password: string
   rememberMe?: boolean
 }
 
 export interface User {
-  id: number
+  id: string
   name: string
   email: string
-  roles: string[]
+  roles: UserRole[]
+  branchId: string | null
 }
 
 export interface LoginResponse {
   token: string
   tokenType: string
   expiresIn: number
+  refreshToken: string
+  refreshExpiresIn: number
   user: User
 }
 
 export interface AuthState {
   user: User | null
   token: string | null
-  tokenExpiry: number | null
   isAuthenticated: boolean
   loading: boolean
   error: string | null
@@ -31,6 +43,7 @@ export interface AuthState {
 export interface StoredSession {
   token: string
   tokenExpiry: number
+  refreshToken: string
   user: User
 }
 
