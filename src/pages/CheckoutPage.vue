@@ -14,7 +14,7 @@ const child = computed(() => store.checkoutChild)
 
 // Si alguien navega directo aqui sin pasar por una card, lo mandamos de regreso
 if (!child.value) {
-  //Navegamos aqui al dashboard
+  router.push({ name: 'control-acceso' })
 }
 
 const isLoading = ref(false)
@@ -35,9 +35,9 @@ const statusColor = computed(() => {
 const tiempoRestanteLabel = computed(() => {
   if (!child.value) return '—'
   if (child.value.status === 'excedido') {
-    return `-${Math.abs(child.value.minutosRestantes)} min`
+    return `${child.value.minutosRestantes} min`
   }
-  return `${child.value.minutosRestantes} min`
+  return `0 min`
 })
 
 const tiempoRestanteColor = computed(() => {
@@ -108,9 +108,6 @@ function cancelar() {
   <q-page v-if="child" class="checkout-page q-pa-lg">
     <!-- Header -->
     <div class="row items-center q-mb-lg">
-      <div class="page-icon-wrap q-mr-md">
-        <q-icon name="logout" size="26px" color="primary" />
-      </div>
       <div>
         <div class="text-h5 text-weight-bold">Checkout de estancia</div>
         <div class="text-caption text-grey-6">Revisión final antes de procesar la salida.</div>
@@ -166,7 +163,7 @@ function cancelar() {
                     <div class="text-caption text-grey-6">Parentesco: {{ child.parentesco }}</div>
                   </div>
                   <div>
-                    <div class="info-label">NÚMERO DE TUTOR</div>
+                    <div class="info-label">NÚMERO DE TELEFONO DEL TUTOR</div>
                     <div class="text-subtitle2 text-weight-bold">{{ child.telefono }}</div>
                   </div>
                 </div>
@@ -180,9 +177,9 @@ function cancelar() {
               <div class="col-4">
                 <q-card flat class="tiempo-card text-center">
                   <q-card-section>
-                    <div class="info-label q-mb-sm">TIEMPO CONTRATADO</div>
+                    <div class="info-label q-mb-sm">TIEMPO PREPAGADO</div>
                     <div class="text-h6 text-weight-bold text-grey-8">
-                      {{ child.minutos_pagados }} min
+                      {{ child.minutos_pagados / 60 }} hr
                     </div>
                   </q-card-section>
                 </q-card>
@@ -200,7 +197,7 @@ function cancelar() {
               <div class="col-4">
                 <q-card flat class="tiempo-card text-center">
                   <q-card-section>
-                    <div class="info-label q-mb-sm">TIEMPO RESTANTE</div>
+                    <div class="info-label q-mb-sm">TIEMPO EXCEDIDO</div>
                     <div class="text-h6 text-weight-bold" :class="`text-${tiempoRestanteColor}`">
                       {{ tiempoRestanteLabel }}
                     </div>
@@ -238,7 +235,7 @@ function cancelar() {
               <q-icon name="info" color="orange-9" size="20px" class="q-mr-sm q-mt-xs" />
               <div class="col text-caption text-grey-8" style="line-height: 1.6">
                 La información mostrada es informativa. El monto final se calculará al confirmar la
-                salida considerando recargos por tiempo excedente o servicios adicionales.
+                salida considerando recargos por tiempo excedente.
               </div>
             </div>
           </q-card-section>

@@ -224,10 +224,22 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
     children: [
       {
+        path: 'registro-infantes',
+        name: 'registro-infantes',
+        component: () => import('@/pages/RegistrationPage.vue'),
+        meta: { permissions: ['estancias:checkin'], title: 'Registro de Entrada' },
+      },
+      {
         path: 'control-acceso',
         name: 'control-acceso',
         component: () => import('@/pages/AccessControlPage.vue'),
         meta: { permissions: ['estancias:ver_activos'], title: 'Control de Acceso' },
+      },
+      {
+        path: 'checkout',
+        name: 'checkout',
+        component: () => import('@/pages/CheckoutPage.vue'),
+        meta: { permissions: ['estancias:checkout'], title: 'Checkout' },
       },
     ],
   },

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
 import StatCard from '@/components/control-acceso/StatCard.vue'
 import ActiveChildCard from '@/components/control-acceso/ActiveChildCard.vue'
 
 const store = useAccessControlStore()
+const router = useRouter()
 
 const scrollContainer = ref<HTMLElement | null>(null)
 
@@ -38,7 +40,7 @@ function scrollByCards(direction: 1 | -1) {
 }
 
 function goToNewRegistration() {
-  //Poner aqui la navegacion al registro
+  router.push({ name: 'registro-infantes' })
 }
 </script>
 
