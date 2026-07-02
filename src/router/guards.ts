@@ -1,6 +1,5 @@
 import type { Router } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { getRoleHome } from '@/utils/roleHome'
 
 export function setupRouterGuards(router: Router): void {
   router.beforeEach(async (to) => {
@@ -14,13 +13,13 @@ export function setupRouterGuards(router: Router): void {
     }
 
     if (to.meta.publicOnly && auth.isAuthenticated) {
-      return { name: getRoleHome(auth.currentUser?.roles ?? []) }
+      return { name: 'home' }
     }
 
-    if (to.meta.roles?.length && auth.currentUser) {
-      const allowed = to.meta.roles.some((r) => auth.hasRole(r))
+    if (to.meta.permissions?.length && auth.currentUser) {
+      const allowed = to.meta.permissions.some((p) => auth.hasPermission(p))
       if (!allowed) {
-        return { name: getRoleHome(auth.currentUser.roles) }
+        return { name: 'home' }
       }
     }
   })

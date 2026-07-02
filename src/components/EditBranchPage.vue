@@ -29,7 +29,7 @@ const originalValues = ref<{
 onMounted(async () => {
   const branchId = route.params.id as string
   if (!branchId) {
-    router.push({ name: 'sysadmin-branches' })
+    router.push({ name: 'sucursales-listar' })
     return
   }
 
@@ -44,7 +44,7 @@ onMounted(async () => {
     branchClave.value = branchData.value.clave ?? ''
   } else {
     Notify.create({ type: 'negative', message: 'Error al cargar la sucursal.' })
-    router.push({ name: 'sysadmin-branches' })
+    router.push({ name: 'sucursales-listar' })
     loading.value = false
     return
   }
@@ -119,7 +119,7 @@ async function saveChanges() {
       administrador_name: administrador.value?.label ?? null,
     })
     Notify.create({ type: 'positive', message: 'Sucursal actualizada con éxito.' })
-    router.push({ name: 'sysadmin-branches' })
+    router.push({ name: 'sucursales-listar' })
   } catch {
     Notify.create({ type: 'negative', message: 'Error al guardar los cambios.' })
   } finally {
@@ -143,7 +143,7 @@ function cancelEdit() {
       color="primary"
       label="Volver al listado"
       class="q-mt-md"
-      @click="router.push({ name: 'sysadmin-branches' })"
+      @click="router.push({ name: 'sucursales-listar' })"
     />
   </q-page>
 
@@ -153,7 +153,7 @@ function cancelEdit() {
         <q-breadcrumbs class="text-grey-7 q-mb-sm" active-color="dark">
           <q-breadcrumbs-el label="Inicio" />
           <q-breadcrumbs-el label="Administración" />
-          <q-breadcrumbs-el label="Sucursales" :to="{ name: 'sysadmin-branches' }" />
+          <q-breadcrumbs-el label="Sucursales" :to="{ name: 'sucursales-listar' }" />
           <q-breadcrumbs-el :label="branch.nombre" />
           <q-breadcrumbs-el label="Editar" class="text-weight-bold" />
         </q-breadcrumbs>
@@ -315,7 +315,7 @@ function cancelEdit() {
                   icon="person_add"
                   label="+ Crear Administrador"
                   class="full-width btn-new-manager"
-                  @click="router.push({ name: 'sysadmin-users-new' })"
+                  @click="router.push({ name: 'usuarios-crear' })"
                 />
               </div>
             </div>

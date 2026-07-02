@@ -5,6 +5,7 @@ export interface TokenPayload {
   email: string
   role: UserRole
   branch_id: string | null
+  permissions: string[]
   iat: number
   exp: number
 }
@@ -21,6 +22,7 @@ export interface User {
   email: string
   roles: UserRole[]
   branchId: string | null
+  permissions: string[]
 }
 
 export interface LoginResponse {

@@ -164,7 +164,7 @@ onMounted(() => {
 })
 
 function crearNuevaSucursal() {
-  router.push({ name: 'sysadmin-branches-new' })
+  router.push({ name: 'sucursales-crear' })
 }
 
 function eliminarSucursal(sucursal: Sucursal) {

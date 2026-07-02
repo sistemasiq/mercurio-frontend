@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 const props = defineProps<{ collapsed?: boolean }>()
 const emit = defineEmits<{
@@ -24,11 +27,17 @@ const toggle = () => {
   emit('update:collapsed', internalCollapsed.value)
 }
 
-const links = [
-  { label: 'Caja', icon: 'store', name: 'dashboard' },
-  { label: 'Cocina', icon: 'restaurant', name: 'cocina' },
-  { label: 'Historial', icon: 'history', name: 'debug-historial' },
+const allLinks = [
+  { label: 'Caja', icon: 'store', name: 'pos-caja', permission: 'pos:acceder' },
+  {
+    label: 'Cocina',
+    icon: 'restaurant',
+    name: 'pos-cocina',
+    permission: 'restaurante:gestionar_cocina',
+  },
 ]
+
+const links = computed(() => allLinks.filter((link) => auth.hasPermission(link.permission)))
 
 const isActive = (name?: string) => {
   if (!name) return false

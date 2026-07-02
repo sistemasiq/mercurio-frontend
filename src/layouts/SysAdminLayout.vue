@@ -10,11 +10,23 @@ const route = useRoute()
 
 const leftOpen = ref(true)
 
-const navMain = [
-  { label: 'Dashboard', icon: 'dashboard', routeName: 'sysadmin-dashboard' },
-  { label: 'Sucursales', icon: 'store', routeName: 'sysadmin-branches' },
-  { label: 'Usuarios', icon: 'group', routeName: 'sysadmin-users' },
+const navItems = [
+  {
+    label: 'Dashboard',
+    icon: 'dashboard',
+    routeName: 'reportes-dashboard',
+    permission: 'reportes:dashboard',
+  },
+  {
+    label: 'Sucursales',
+    icon: 'store',
+    routeName: 'sucursales-listar',
+    permission: 'sucursales:listar',
+  },
+  { label: 'Usuarios', icon: 'group', routeName: 'usuarios-listar', permission: 'usuarios:listar' },
 ]
+
+const navMain = computed(() => navItems.filter((item) => auth.hasPermission(item.permission)))
 
 const navExtra = [
   { label: 'Logs', icon: 'article' },
@@ -28,7 +40,8 @@ const userColor = computed(() => getAvatarColor(auth.currentUser?.name ?? ''))
 const userName = computed(() => auth.currentUser?.name ?? auth.currentUser?.email ?? '')
 
 function isActive(routeName: string): boolean {
-  return (route.name?.toString() ?? '').startsWith(routeName)
+  const module = routeName.split('-')[0]
+  return (route.name?.toString() ?? '').startsWith(`${module}-`)
 }
 
 async function handleLogout(): Promise<void> {
