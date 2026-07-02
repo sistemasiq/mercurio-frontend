@@ -49,33 +49,33 @@ const navGroups: NavGroup[] = [
     label: 'EVENTOS',
     items: [
       {
-        label: 'Dashboard',
+        label: 'Resumen',
         icon: 'dashboard',
-        routeName: 'dashboard',
+        routeName: 'eventos-resumen',
         permission: 'reservaciones:listar',
       },
       {
         label: 'Reservaciones',
         icon: 'event_note',
-        routeName: 'reservaciones',
+        routeName: 'eventos-reservaciones',
         permission: 'reservaciones:listar',
       },
       {
         label: 'Nueva Reservación',
         icon: 'add_circle_outline',
-        routeName: 'nueva-reservacion',
+        routeName: 'eventos-reservaciones-crear',
         permission: 'reservaciones:crear',
       },
       {
         label: 'Calendario',
         icon: 'calendar_today',
-        routeName: 'calendario',
+        routeName: 'eventos-calendario',
         permission: 'reservaciones:listar',
       },
       {
         label: 'Pagos',
         icon: 'payment',
-        routeName: 'pagos',
+        routeName: 'eventos-pagos',
         permission: 'reservaciones:gestionar_pagos',
       },
     ],
@@ -83,23 +83,28 @@ const navGroups: NavGroup[] = [
   {
     label: 'CATÁLOGO',
     items: [
-      { label: 'Extras', icon: 'add_box', routeName: 'extras', permission: 'extras:listar' },
+      {
+        label: 'Extras',
+        icon: 'add_box',
+        routeName: 'extras-listar',
+        permission: 'extras:listar',
+      },
       {
         label: 'Paquetes',
         icon: 'inventory_2',
-        routeName: 'paquetes',
+        routeName: 'paquetes-listar',
         permission: 'paquetes:listar',
       },
       {
         label: 'Tipos de Evento',
         icon: 'category',
-        routeName: 'tipos-evento',
+        routeName: 'tipos-evento-listar',
         permission: 'tipos_evento:listar',
       },
       {
         label: 'Métodos de Pago',
         icon: 'credit_card',
-        routeName: 'metodos-pago',
+        routeName: 'metodos-pago-listar',
         permission: 'metodos_pago:listar',
       },
     ],
