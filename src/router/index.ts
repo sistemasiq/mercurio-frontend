@@ -164,6 +164,43 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/PagosPage.vue'),
         meta: { title: 'Pagos' },
       },
+      {
+        path: 'extras',
+        name: 'extras',
+        component: () => import('@/pages/ExtrasPage.vue'),
+        meta: { permissions: ['extras:listar'], title: 'Extras' },
+      },
+      {
+        path: 'paquetes',
+        name: 'paquetes',
+        component: () => import('@/pages/PaquetesPage.vue'),
+        meta: { permissions: ['paquetes:listar'], title: 'Paquetes' },
+      },
+      {
+        path: 'tipos-evento',
+        name: 'tipos-evento',
+        component: () => import('@/pages/TiposEventoPage.vue'),
+        meta: { permissions: ['tipos_evento:listar'], title: 'Tipos de Evento' },
+      },
+      {
+        path: 'metodos-pago',
+        name: 'metodos-pago',
+        component: () => import('@/pages/MetodosPagoPage.vue'),
+        meta: { permissions: ['metodos_pago:listar'], title: 'Métodos de Pago' },
+      },
+    ],
+  },
+  {
+    path: '/estancias',
+    component: () => import('@/layouts/MainLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'control-acceso',
+        name: 'control-acceso',
+        component: () => import('@/pages/AccessControlPage.vue'),
+        meta: { permissions: ['estancias:ver_activos'], title: 'Control de Acceso' },
+      },
     ],
   },
   {

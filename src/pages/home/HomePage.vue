@@ -56,6 +56,14 @@ const cards: HomeCard[] = [
     title: 'Reportes',
     description: 'Panel general de indicadores.',
   },
+  {
+    permission: 'estancias:ver_activos',
+    routeName: 'control-acceso',
+    icon: 'badge',
+    color: 'orange',
+    title: 'Control de Acceso',
+    description: 'Monitoreo de niños en estancia activa.',
+  },
 ]
 
 const visibleCards = computed(() => cards.filter((card) => auth.hasPermission(card.permission)))

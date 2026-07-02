@@ -135,11 +135,20 @@
 
           <div
             class="sidebar__item"
-            :class="{ 'sidebar__item--active': route.name === 'sucursales' }"
-            @click="router.push({ name: 'sucursales' })"
+            :class="{ 'sidebar__item--active': route.name === 'sucursales-listar' }"
+            @click="router.push({ name: 'sucursales-listar' })"
           >
             <q-icon name="store" />
             Sucursales
+          </div>
+
+          <div
+            class="sidebar__item"
+            :class="{ 'sidebar__item--active': route.name === 'control-acceso' }"
+            @click="router.push({ name: 'control-acceso' })"
+          >
+            <q-icon name="badge" />
+            Control de Acceso
           </div>
 
           <div
