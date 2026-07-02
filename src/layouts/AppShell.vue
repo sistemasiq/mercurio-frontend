@@ -48,11 +48,36 @@ const navGroups: NavGroup[] = [
   {
     label: 'EVENTOS',
     items: [
-      { label: 'Dashboard', icon: 'dashboard', routeName: 'dashboard' },
-      { label: 'Reservaciones', icon: 'event_note', routeName: 'reservaciones' },
-      { label: 'Nueva Reservación', icon: 'add_circle_outline', routeName: 'nueva-reservacion' },
-      { label: 'Calendario', icon: 'calendar_today', routeName: 'calendario' },
-      { label: 'Pagos', icon: 'payment', routeName: 'pagos' },
+      {
+        label: 'Dashboard',
+        icon: 'dashboard',
+        routeName: 'dashboard',
+        permission: 'reservaciones:listar',
+      },
+      {
+        label: 'Reservaciones',
+        icon: 'event_note',
+        routeName: 'reservaciones',
+        permission: 'reservaciones:listar',
+      },
+      {
+        label: 'Nueva Reservación',
+        icon: 'add_circle_outline',
+        routeName: 'nueva-reservacion',
+        permission: 'reservaciones:crear',
+      },
+      {
+        label: 'Calendario',
+        icon: 'calendar_today',
+        routeName: 'calendario',
+        permission: 'reservaciones:listar',
+      },
+      {
+        label: 'Pagos',
+        icon: 'payment',
+        routeName: 'pagos',
+        permission: 'reservaciones:gestionar_pagos',
+      },
     ],
   },
   {
