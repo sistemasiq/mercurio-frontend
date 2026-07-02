@@ -30,7 +30,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/home',
-    component: () => import('@/layouts/MainLayout.vue'),
+    component: () => import('@/layouts/AppShell.vue'),
     children: [
       {
         path: '',
@@ -42,7 +42,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/pos',
-    component: () => import('@/layouts/MainLayout.vue'),
+    component: () => import('@/layouts/AppShell.vue'),
     meta: { requiresAuth: true },
     children: [
       {
@@ -61,7 +61,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/usuarios',
-    component: () => import('@/layouts/SysAdminLayout.vue'),
+    component: () => import('@/layouts/AppShell.vue'),
     meta: { requiresAuth: true },
     children: [
       {
@@ -86,7 +86,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/sucursales',
-    component: () => import('@/layouts/SysAdminLayout.vue'),
+    component: () => import('@/layouts/AppShell.vue'),
     meta: { requiresAuth: true },
     children: [
       {
@@ -117,7 +117,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/reportes',
-    component: () => import('@/layouts/SysAdminLayout.vue'),
+    component: () => import('@/layouts/AppShell.vue'),
     meta: { requiresAuth: true },
     children: [
       {
@@ -130,7 +130,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/admin',
-    component: () => import('@/layouts/AdminLayout.vue'),
+    component: () => import('@/layouts/AppShell.vue'),
     meta: { requiresAuth: true },
     children: [
       { path: '', redirect: '/admin/dashboard' },
@@ -192,7 +192,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/estancias',
-    component: () => import('@/layouts/MainLayout.vue'),
+    component: () => import('@/layouts/AppShell.vue'),
     meta: { requiresAuth: true },
     children: [
       {
