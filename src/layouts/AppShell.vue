@@ -4,44 +4,123 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
 
+interface NavItem {
+  label: string
+  icon: string
+  routeName: string
+  permission?: string
+}
+
+interface NavGroup {
+  label: string | null
+  items: NavItem[]
+}
+
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
 const leftOpen = ref(true)
 
-const navItems = [
+const navGroups: NavGroup[] = [
   {
-    label: 'Dashboard',
-    icon: 'dashboard',
-    routeName: 'reportes-dashboard',
-    permission: 'reportes:dashboard',
+    label: null,
+    items: [{ label: 'Inicio', icon: 'home', routeName: 'home' }],
   },
   {
-    label: 'Sucursales',
-    icon: 'store',
-    routeName: 'sucursales-listar',
-    permission: 'sucursales:listar',
+    label: 'OPERACIÓN',
+    items: [
+      { label: 'Caja', icon: 'point_of_sale', routeName: 'pos-caja', permission: 'pos:acceder' },
+      {
+        label: 'Cocina',
+        icon: 'restaurant',
+        routeName: 'pos-cocina',
+        permission: 'restaurante:gestionar_cocina',
+      },
+      {
+        label: 'Control de Acceso',
+        icon: 'badge',
+        routeName: 'control-acceso',
+        permission: 'estancias:ver_activos',
+      },
+    ],
   },
-  { label: 'Usuarios', icon: 'group', routeName: 'usuarios-listar', permission: 'usuarios:listar' },
+  {
+    label: 'EVENTOS',
+    items: [
+      { label: 'Dashboard', icon: 'dashboard', routeName: 'dashboard' },
+      { label: 'Reservaciones', icon: 'event_note', routeName: 'reservaciones' },
+      { label: 'Nueva Reservación', icon: 'add_circle_outline', routeName: 'nueva-reservacion' },
+      { label: 'Calendario', icon: 'calendar_today', routeName: 'calendario' },
+      { label: 'Pagos', icon: 'payment', routeName: 'pagos' },
+    ],
+  },
+  {
+    label: 'CATÁLOGO',
+    items: [
+      { label: 'Extras', icon: 'add_box', routeName: 'extras', permission: 'extras:listar' },
+      {
+        label: 'Paquetes',
+        icon: 'inventory_2',
+        routeName: 'paquetes',
+        permission: 'paquetes:listar',
+      },
+      {
+        label: 'Tipos de Evento',
+        icon: 'category',
+        routeName: 'tipos-evento',
+        permission: 'tipos_evento:listar',
+      },
+      {
+        label: 'Métodos de Pago',
+        icon: 'credit_card',
+        routeName: 'metodos-pago',
+        permission: 'metodos_pago:listar',
+      },
+    ],
+  },
+  {
+    label: 'ADMINISTRACIÓN',
+    items: [
+      {
+        label: 'Sucursales',
+        icon: 'store',
+        routeName: 'sucursales-listar',
+        permission: 'sucursales:listar',
+      },
+      {
+        label: 'Usuarios',
+        icon: 'group',
+        routeName: 'usuarios-listar',
+        permission: 'usuarios:listar',
+      },
+      {
+        label: 'Reportes',
+        icon: 'query_stats',
+        routeName: 'reportes-dashboard',
+        permission: 'reportes:dashboard',
+      },
+    ],
+  },
 ]
 
-const navMain = computed(() => navItems.filter((item) => auth.hasPermission(item.permission)))
+function isVisible(item: NavItem): boolean {
+  return !item.permission || auth.hasPermission(item.permission)
+}
 
-const navExtra = [
-  { label: 'Logs', icon: 'article' },
-  { label: 'Network', icon: 'lan' },
-  { label: 'Security', icon: 'security' },
-  { label: 'Settings', icon: 'settings' },
-]
+const visibleGroups = computed(() =>
+  navGroups
+    .map((group) => ({ ...group, items: group.items.filter(isVisible) }))
+    .filter((group) => group.items.length > 0),
+)
 
 const userInitials = computed(() => getInitials(auth.currentUser?.name ?? ''))
 const userColor = computed(() => getAvatarColor(auth.currentUser?.name ?? ''))
 const userName = computed(() => auth.currentUser?.name ?? auth.currentUser?.email ?? '')
+const userRole = computed(() => auth.primaryRole ?? '')
 
 function isActive(routeName: string): boolean {
-  const module = routeName.split('-')[0]
-  return (route.name?.toString() ?? '').startsWith(`${module}-`)
+  return route.name === routeName
 }
 
 async function handleLogout(): Promise<void> {
@@ -56,7 +135,7 @@ async function handleLogout(): Promise<void> {
     <q-drawer
       v-model="leftOpen"
       side="left"
-      :width="220"
+      :width="230"
       :breakpoint="0"
       show-if-above
       class="sb-drawer"
@@ -68,52 +147,33 @@ async function handleLogout(): Promise<void> {
             <q-icon name="apps" size="16px" color="white" />
           </div>
           <div>
-            <div class="sb-brand">TEC-FS</div>
-            <div class="sb-sub">Admin Console</div>
+            <div class="sb-brand">Mercurio</div>
+            <div class="sb-sub">Panel de control</div>
           </div>
         </div>
 
-        <!-- Nav label -->
-        <div class="sb-section-label">MENÚ PRINCIPAL</div>
-
-        <!-- Nav principal -->
-        <q-list class="sb-nav" padding>
-          <q-item
-            v-for="item in navMain"
-            :key="item.routeName"
-            v-ripple
-            clickable
-            class="sb-item"
-            :class="{ 'sb-item--active': isActive(item.routeName) }"
-            @click="router.push({ name: item.routeName })"
-          >
-            <q-item-section avatar>
-              <q-icon :name="item.icon" size="18px" />
-            </q-item-section>
-            <q-item-section>{{ item.label }}</q-item-section>
-          </q-item>
-        </q-list>
-
-        <!-- Nav extra -->
-        <div class="sb-section-label">SISTEMA</div>
-        <q-list class="sb-nav sb-nav--extra" padding>
-          <q-item
-            v-for="item in navExtra"
-            :key="item.label"
-            v-ripple
-            clickable
-            disable
-            class="sb-item sb-item--disabled"
-          >
-            <q-item-section avatar>
-              <q-icon :name="item.icon" size="18px" />
-            </q-item-section>
-            <q-item-section>{{ item.label }}</q-item-section>
-            <q-item-section side>
-              <span class="coming-soon">Pronto</span>
-            </q-item-section>
-          </q-item>
-        </q-list>
+        <!-- Nav -->
+        <div class="sb-nav-scroll">
+          <template v-for="group in visibleGroups" :key="group.label ?? 'root'">
+            <div v-if="group.label" class="sb-section-label">{{ group.label }}</div>
+            <q-list class="sb-nav" padding>
+              <q-item
+                v-for="item in group.items"
+                :key="item.routeName"
+                v-ripple
+                clickable
+                class="sb-item"
+                :class="{ 'sb-item--active': isActive(item.routeName) }"
+                @click="router.push({ name: item.routeName })"
+              >
+                <q-item-section avatar>
+                  <q-icon :name="item.icon" size="18px" />
+                </q-item-section>
+                <q-item-section>{{ item.label }}</q-item-section>
+              </q-item>
+            </q-list>
+          </template>
+        </div>
 
         <div class="sb-spacer" />
 
@@ -124,7 +184,7 @@ async function handleLogout(): Promise<void> {
           </div>
           <div class="sb-user-info">
             <div class="sb-user-name">{{ userName }}</div>
-            <div class="sb-user-role">Admin Sistema</div>
+            <div class="sb-user-role">{{ userRole }}</div>
           </div>
         </div>
       </div>
@@ -133,47 +193,36 @@ async function handleLogout(): Promise<void> {
     <!-- ── Header ─────────────────────────────────────────── -->
     <q-header class="app-header">
       <q-toolbar class="app-toolbar">
-        <!-- Left: current section title -->
         <q-toolbar-title class="header-brand">
           <q-icon name="apps" size="16px" color="primary" class="q-mr-xs" />
-          TEC-FS
-          <span class="header-brand-sub">Admin</span>
+          Mercurio
         </q-toolbar-title>
 
         <q-space />
 
-        <!-- Right: actions -->
         <div class="header-actions">
-          <!-- Notifications -->
           <q-btn flat round dense class="action-btn" aria-label="Notificaciones">
             <q-icon name="notifications_none" size="20px" />
-            <q-badge color="red" floating rounded label="3" style="font-size: 9px" />
           </q-btn>
-
-          <!-- Settings -->
           <q-btn flat round dense class="action-btn" aria-label="Configuración">
             <q-icon name="settings" size="20px" />
           </q-btn>
-
-          <!-- Help -->
           <q-btn flat round dense class="action-btn" aria-label="Ayuda">
             <q-icon name="help_outline" size="20px" />
           </q-btn>
 
           <div class="header-divider" />
 
-          <!-- User info -->
           <div class="header-user">
             <div class="header-avatar" :style="{ background: userColor }">
               {{ userInitials }}
             </div>
             <div class="header-user-info">
               <div class="header-user-name">{{ userName }}</div>
-              <div class="header-user-role">Admin Sistema</div>
+              <div class="header-user-role">{{ userRole }}</div>
             </div>
           </div>
 
-          <!-- Logout -->
           <q-btn
             flat
             round
@@ -210,7 +259,6 @@ async function handleLogout(): Promise<void> {
   height: 100%;
 }
 
-/* Logo area */
 .sb-logo {
   display: flex;
   align-items: center;
@@ -247,24 +295,21 @@ async function handleLogout(): Promise<void> {
   line-height: 1.3;
 }
 
-/* Section labels */
+.sb-nav-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .sb-section-label {
   font-size: 10px;
   font-weight: 700;
   color: #94a3b8;
   letter-spacing: 0.08em;
   padding: 16px 20px 6px;
-  flex-shrink: 0;
 }
 
-/* Nav */
 .sb-nav {
   padding: 0 8px !important;
-  flex-shrink: 0;
-}
-
-.sb-nav--extra {
-  flex: 1;
 }
 
 .sb-item {
@@ -306,25 +351,8 @@ async function handleLogout(): Promise<void> {
   color: #2563eb !important;
 }
 
-.sb-item--disabled {
-  opacity: 0.45 !important;
-}
-
-.coming-soon {
-  font-size: 9.5px;
-  font-weight: 600;
-  color: #94a3b8;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  padding: 1px 5px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
 .sb-spacer {
-  flex: 1;
-  min-height: 16px;
+  flex: 0 0 8px;
 }
 
 /* User footer */
@@ -357,7 +385,7 @@ async function handleLogout(): Promise<void> {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 128px;
+  max-width: 140px;
   line-height: 1.3;
 }
 
@@ -390,13 +418,6 @@ async function handleLogout(): Promise<void> {
   gap: 4px;
 }
 
-.header-brand-sub {
-  color: #94a3b8;
-  font-weight: 400;
-  margin-left: 4px;
-}
-
-/* Actions cluster */
 .header-actions {
   display: flex;
   align-items: center;
