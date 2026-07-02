@@ -9,7 +9,7 @@
         label="Nueva Reservación"
         unelevated
         no-caps
-        @click="router.push({ name: 'nueva-reservacion' })"
+        @click="router.push({ name: 'eventos-reservaciones-crear' })"
       />
     </div>
     <q-card flat bordered>

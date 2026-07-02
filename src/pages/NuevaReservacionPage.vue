@@ -942,7 +942,7 @@ const confirmarReservacion = async () => {
       message: 'Reservación confirmada exitosamente',
       position: 'top-right',
     })
-    router.push({ name: 'reservaciones' })
+    router.push({ name: 'eventos-reservaciones' })
   } catch (err: unknown) {
     const apiErr = err as { message?: string; statusCode?: number }
     const msg = apiErr?.message || 'Error al guardar la reservación'
