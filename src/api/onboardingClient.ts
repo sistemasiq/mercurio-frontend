@@ -1,4 +1,4 @@
-import axios from 'axios'
+import { apiClient } from '@/api/axiosClient'
 
 // Hardcoded sucursal ID temporal
 export const SUCURSAL_ID = '905ea5cf-6951-43f1-9766-75f7e61fde07'
@@ -9,11 +9,7 @@ export const METODO_PAGO_ID = 'b827363b-6453-40e4-9536-f7a004711f91'
 
 const ONBOARDING_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000'
 
-const onboardingClient = axios.create({
-  baseURL: ONBOARDING_BASE_URL,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
+const onboardingClient = apiClient
 
 const UPLOADS_BASE_URL = ONBOARDING_BASE_URL.replace(/\/api\/?$/, '')
 
