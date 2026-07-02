@@ -1,13 +1,12 @@
 // src/router/index.ts
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import type { UserRole } from '@/types/auth'
 
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     publicOnly?: boolean
-    roles?: UserRole[]
+    permissions?: string[]
     title?: string
   }
 }
@@ -34,81 +33,98 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/layouts/MainLayout.vue'),
     children: [
       {
-        path: 'admin',
-        name: 'home-admin',
-        component: () => import('@/pages/home/AdminHomePage.vue'),
-        meta: { requiresAuth: true, roles: ['Administrador'] as UserRole[] },
-      },
-      {
-        path: 'cashier',
-        name: 'home-cashier',
-        component: () => import('@/pages/home/CashierHomePage.vue'),
-        meta: { requiresAuth: true, roles: ['Cajero'] as UserRole[] },
-      },
-      {
-        path: 'kitchen',
-        name: 'home-kitchen',
-        component: () => import('@/pages/home/KitchenHomePage.vue'),
-        meta: { requiresAuth: true, roles: ['Cocina'] as UserRole[] },
-      },
-      {
-        path: 'cocina',
-        name: 'cocina',
-        component: () => import('@/components/comandas/VisorCocina.vue'),
-        meta: { requiresAuth: true, roles: ['Cocina'] as UserRole[], title: 'Visor Cocina' },
-      },
-      {
-        path: 'caja',
-        name: 'caja',
-        component: () => import('@/components/DashboardComponent.vue'),
-        meta: { requiresAuth: true, roles: ['Cajero'] as UserRole[], title: 'Caja' },
+        path: '',
+        name: 'home',
+        component: () => import('@/pages/home/HomePage.vue'),
+        meta: { requiresAuth: true, title: 'Inicio' },
       },
     ],
   },
   {
-    path: '/sysadmin',
+    path: '/pos',
+    component: () => import('@/layouts/MainLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'caja',
+        name: 'pos-caja',
+        component: () => import('@/components/DashboardComponent.vue'),
+        meta: { permissions: ['pos:acceder'], title: 'Caja' },
+      },
+      {
+        path: 'cocina',
+        name: 'pos-cocina',
+        component: () => import('@/components/comandas/VisorCocina.vue'),
+        meta: { permissions: ['restaurante:gestionar_cocina'], title: 'Visor Cocina' },
+      },
+    ],
+  },
+  {
+    path: '/usuarios',
     component: () => import('@/layouts/SysAdminLayout.vue'),
-    meta: { requiresAuth: true, roles: ['AdministradorSistema'] as UserRole[] },
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'usuarios-listar',
+        component: () => import('@/pages/sysadmin/UsersPage.vue'),
+        meta: { permissions: ['usuarios:listar'] },
+      },
+      {
+        path: 'nuevo',
+        name: 'usuarios-crear',
+        component: () => import('@/pages/sysadmin/UserRegisterPage.vue'),
+        meta: { permissions: ['usuarios:crear'] },
+      },
+      {
+        path: ':id/editar',
+        name: 'usuarios-editar',
+        component: () => import('@/pages/sysadmin/UserEditPage.vue'),
+        meta: { permissions: ['usuarios:editar'] },
+      },
+    ],
+  },
+  {
+    path: '/sucursales',
+    component: () => import('@/layouts/SysAdminLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'sucursales-listar',
+        component: () => import('@/pages/locations/SucursalesPage.vue'),
+        meta: { permissions: ['sucursales:listar'] },
+      },
+      {
+        path: 'nueva',
+        name: 'sucursales-crear',
+        component: () => import('@/components/NewBranchPage.vue'),
+        meta: { permissions: ['sucursales:crear'] },
+      },
+      {
+        path: ':id/editar',
+        name: 'sucursales-editar',
+        component: () => import('@/components/EditBranchPage.vue'),
+        meta: { permissions: ['sucursales:editar'] },
+      },
+      {
+        path: ':id',
+        name: 'sucursales-detalle',
+        component: () => import('@/components/DetailBranchPage.vue'),
+        meta: { permissions: ['sucursales:ver'] },
+      },
+    ],
+  },
+  {
+    path: '/reportes',
+    component: () => import('@/layouts/SysAdminLayout.vue'),
+    meta: { requiresAuth: true },
     children: [
       {
         path: 'dashboard',
-        name: 'sysadmin-dashboard',
+        name: 'reportes-dashboard',
         component: () => import('@/pages/sysadmin/SysAdminDashboardPage.vue'),
-      },
-      {
-        path: 'users',
-        name: 'sysadmin-users',
-        component: () => import('@/pages/sysadmin/UsersPage.vue'),
-      },
-      {
-        path: 'users/new',
-        name: 'sysadmin-users-new',
-        component: () => import('@/pages/sysadmin/UserRegisterPage.vue'),
-      },
-      {
-        path: 'users/:id/edit',
-        name: 'sysadmin-users-edit',
-        component: () => import('@/pages/sysadmin/UserEditPage.vue'),
-      },
-      {
-        path: 'branches',
-        name: 'sysadmin-branches',
-        component: () => import('@/pages/locations/SucursalesPage.vue'),
-      },
-      {
-        path: 'branches/new',
-        name: 'sysadmin-branches-new',
-        component: () => import('@/components/NewBranchPage.vue'),
-      },
-      {
-        path: 'branches/:id/edit',
-        name: 'sysadmin-branches-edit',
-        component: () => import('@/components/EditBranchPage.vue'),
-      },
-      {
-        path: 'branches/:id',
-        name: 'sysadmin-branches-detail',
-        component: () => import('@/components/DetailBranchPage.vue'),
+        meta: { permissions: ['reportes:dashboard'] },
       },
     ],
   },

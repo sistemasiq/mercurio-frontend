@@ -2,7 +2,6 @@ import { reactive, ref } from 'vue'
 import { Notify } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
-import { getRoleHome } from '@/utils/roleHome'
 import { inactivityTimer } from '@/utils/inactivityTimer'
 import type { LoginRequest, ApiError } from '@/types/auth'
 
@@ -41,7 +40,7 @@ export function useAuthForm() {
       })
 
       const redirect = route.query.redirect as string | undefined
-      await router.push(redirect ?? { name: getRoleHome(auth.currentUser!.roles) })
+      await router.push(redirect ?? { name: 'home' })
     } catch (err) {
       Notify.create({
         type: 'negative',

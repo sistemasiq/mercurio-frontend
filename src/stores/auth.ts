@@ -22,8 +22,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   const currentBranchId = computed<string | null>(() => user.value?.branchId ?? null)
 
+  const permissions = computed<string[]>(() => user.value?.permissions ?? [])
+
   function hasRole(role: UserRole): boolean {
     return user.value?.roles.includes(role) ?? false
+  }
+
+  function hasPermission(code: string): boolean {
+    return permissions.value.includes(code)
   }
 
   async function login(credentials: LoginRequest): Promise<void> {
@@ -118,7 +124,9 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser,
     primaryRole,
     currentBranchId,
+    permissions,
     hasRole,
+    hasPermission,
     login,
     logout,
     restoreSession,

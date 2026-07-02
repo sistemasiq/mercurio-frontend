@@ -8,6 +8,7 @@ interface BackendUser {
   email: string
   role: UserRole
   branch_id: string | null
+  permissions: string[]
 }
 
 interface BackendLoginResponse {
@@ -26,6 +27,7 @@ function mapUser(raw: BackendUser, payload: TokenPayload | null): User {
     email: raw.email,
     roles: [payload?.role ?? raw.role],
     branchId: payload?.branch_id ?? raw.branch_id,
+    permissions: payload?.permissions ?? raw.permissions,
   }
 }
 

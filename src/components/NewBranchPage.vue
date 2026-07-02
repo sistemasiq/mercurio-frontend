@@ -65,7 +65,7 @@ async function createBranch() {
       administrador_name: administrador.value?.label ?? null,
     })
     Notify.create({ type: 'positive', message: 'Sucursal creada con éxito.' })
-    router.push({ name: 'sysadmin-branches' })
+    router.push({ name: 'sucursales-listar' })
   } catch {
     Notify.create({ type: 'negative', message: 'Error al crear la sucursal.' })
   } finally {
@@ -85,7 +85,7 @@ function cancelCreation() {
         <q-breadcrumbs class="text-grey-7 q-mb-sm" active-color="dark">
           <q-breadcrumbs-el label="Inicio" />
           <q-breadcrumbs-el label="Administración" />
-          <q-breadcrumbs-el label="Sucursales" :to="{ name: 'sysadmin-branches' }" />
+          <q-breadcrumbs-el label="Sucursales" :to="{ name: 'sucursales-listar' }" />
           <q-breadcrumbs-el label="Nueva Sucursal" class="text-weight-bold" />
         </q-breadcrumbs>
         <h1 class="text-h4 text-weight-bold q-my-none text-dark">Registro de Nueva Sucursal</h1>
@@ -239,7 +239,7 @@ function cancelCreation() {
                   icon="person_add"
                   label="+ Crear Administrador"
                   class="full-width btn-nuevo-administrador"
-                  @click="router.push({ name: 'sysadmin-users-new' })"
+                  @click="router.push({ name: 'usuarios-crear' })"
                 />
               </div>
             </div>

@@ -70,7 +70,7 @@ async function handleSubmit(): Promise<void> {
       branchId: requiresBranch.value ? form.branchId : null,
     })
     $q.notify({ type: 'positive', message: 'Usuario registrado correctamente.' })
-    router.push({ name: 'sysadmin-users' })
+    router.push({ name: 'usuarios-listar' })
   } catch (err) {
     $q.notify({ type: 'negative', message: resolveErrorMessage(err as ApiError) })
   } finally {
@@ -90,7 +90,7 @@ onMounted(async () => {
 <template>
   <q-page padding>
     <div class="flex items-center q-mb-lg q-gutter-sm">
-      <q-btn flat round dense icon="arrow_back" @click="router.push({ name: 'sysadmin-users' })" />
+      <q-btn flat round dense icon="arrow_back" @click="router.push({ name: 'usuarios-listar' })" />
       <div class="text-h5 text-weight-bold">Registrar usuario</div>
     </div>
 
@@ -184,7 +184,7 @@ onMounted(async () => {
               flat
               label="Cancelar"
               :disable="loading"
-              @click="router.push({ name: 'sysadmin-users' })"
+              @click="router.push({ name: 'usuarios-listar' })"
             />
             <q-btn type="submit" color="primary" label="Registrar" :loading="loading" />
           </div>
