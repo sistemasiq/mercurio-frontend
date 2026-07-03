@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { fetchActivos, fetchPulseras, SUCURSAL_ID, type ActivoDto } from '@/api/onboardingClient'
+import { fetchActivos, fetchPulseras, type ActivoDto } from '@/api/onboardingClient'
+import { useAuthStore } from '@/stores/auth'
 
 export type StayStatus = 'activo' | 'por_expirar' | 'excedido'
 
@@ -14,6 +15,7 @@ const EXPIRING_THRESHOLD_MINUTES = 15
 const REFRESH_INTERVAL_MS = 60_000 // 1 minute
 
 export const useAccessControlStore = defineStore('accessControl', () => {
+  const authStore = useAuthStore()
   const rawActivos = ref<ActivoDto[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -55,12 +57,16 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   })
 
   async function loadActivos() {
+    if (!authStore.currentBranchId) {
+      error.value = 'No hay una sucursal activa en la sesión.'
+      return
+    }
     isLoading.value = true
     error.value = null
     try {
       const [activosData, pulserasData] = await Promise.all([
-        fetchActivos(SUCURSAL_ID),
-        fetchPulseras(SUCURSAL_ID),
+        fetchActivos(authStore.currentBranchId),
+        fetchPulseras(authStore.currentBranchId),
       ])
       rawActivos.value = activosData
       pulserasLibres.value = pulserasData.length

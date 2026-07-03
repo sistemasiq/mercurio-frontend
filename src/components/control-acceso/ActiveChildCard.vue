@@ -7,13 +7,14 @@ import {
   getFotoLlegadaUrl,
   checkout,
   pagarExtra,
-  SUCURSAL_ID,
   METODO_PAGO_ID,
 } from '@/api/onboardingClient'
+import { useAuthStore } from '@/stores/auth'
 import { Notify, Dialog } from 'quasar'
 
 const props = defineProps<{ child: ActiveChild }>()
 const store = useAccessControlStore()
+const authStore = useAuthStore()
 
 const showDetails = ref(false)
 
@@ -85,7 +86,11 @@ async function handleCheckout() {
 
         //Se modificara esta logica para abrir aqui el pago multimodal y hacer el cobro correspondiente
 
-        await pagarExtra(props.child.registro_id, SUCURSAL_ID, [
+        if (!authStore.currentBranchId) {
+          throw new Error('No hay una sucursal activa en la sesión.')
+        }
+
+        await pagarExtra(props.child.registro_id, authStore.currentBranchId, [
           {
             metodoPagoId: METODO_PAGO_ID,
             monto: result.totalExtra,

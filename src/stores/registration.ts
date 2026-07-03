@@ -4,12 +4,12 @@ import {
   fetchProductos,
   fetchPulseras,
   postOnboarding,
-  SUCURSAL_ID,
   METODO_PAGO_ID,
   type ProductoDto,
   type PulseraDto,
   type OnboardingDetalle,
 } from '@/api/onboardingClient'
+import { useAuthStore } from '@/stores/auth'
 
 export interface Child {
   id: string
@@ -38,6 +38,7 @@ const HOUR_OPTIONS: Record<string, number> = {
 export type RegistrationStep = 'form' | 'rfid' | 'complete'
 
 export const useRegistrationStore = defineStore('registration', () => {
+  const authStore = useAuthStore()
   const step = ref<RegistrationStep>('form')
 
   const tutor = ref<TutorData>({
@@ -99,10 +100,14 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   async function loadProductos() {
+    if (!authStore.currentBranchId) {
+      submitError.value = 'No hay una sucursal activa en la sesión.'
+      return
+    }
     isLoadingCatalog.value = true
     submitError.value = null
     try {
-      const productos = await fetchProductos(SUCURSAL_ID)
+      const productos = await fetchProductos(authStore.currentBranchId)
       productoBase.value = productos[0] ?? null
     } catch (err) {
       submitError.value = 'No se pudo cargar el catálogo de precios.'
@@ -113,10 +118,14 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   async function loadPulseras() {
+    if (!authStore.currentBranchId) {
+      submitError.value = 'No hay una sucursal activa en la sesión.'
+      return
+    }
     isLoadingPulseras.value = true
     submitError.value = null
     try {
-      pulseras.value = await fetchPulseras(SUCURSAL_ID)
+      pulseras.value = await fetchPulseras(authStore.currentBranchId)
     } catch (err) {
       submitError.value = 'No se pudo cargar el catálogo de pulseras.'
       console.error(err)
@@ -193,6 +202,11 @@ export const useRegistrationStore = defineStore('registration', () => {
       return
     }
 
+    if (!authStore.currentBranchId) {
+      submitError.value = 'No hay una sucursal activa en la sesión.'
+      return
+    }
+
     isSubmitting.value = true
     submitError.value = null
 
@@ -204,7 +218,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     }))
 
     const payload = {
-      sucursalId: SUCURSAL_ID,
+      sucursalId: authStore.currentBranchId,
       tutor: {
         nombreCompleto: tutor.value.fullName,
         telefono: tutor.value.phone,
