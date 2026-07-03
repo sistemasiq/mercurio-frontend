@@ -1,3 +1,5 @@
+import type { TipoProducto } from './producto'
+
 export type EstadoComanda = 'pendiente' | 'en_proceso' | 'listo' | 'entregado'
 
 export interface IItemComanda {
@@ -25,14 +27,12 @@ export type EstadoActualComanda = 'P' | 'E' | 'L'
 
 export interface DetalleComanda {
   id: string
-  nombre: string
+  producto_id: string
+  producto_nombre: string | null
+  producto_tipo?: TipoProducto | null
   cantidad: number
   precio_unitario: number
-  observaciones?: string
-  notas_especiales?: string
-  producto?: {
-    nombre: string
-  }
+  notas_especiales?: string | null
 }
 
 export interface Comanda {
@@ -43,7 +43,7 @@ export interface Comanda {
   mesa?: string
   notas_generales?: string
   estado_actual: EstadoActualComanda
-  detalles_comanda: DetalleComanda[]
+  detalles: DetalleComanda[]
   created_at?: string
   updated_at?: string
 }

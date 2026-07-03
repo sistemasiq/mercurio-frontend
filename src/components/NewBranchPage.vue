@@ -32,30 +32,21 @@ onMounted(async () => {
 })
 
 const isFormValid = computed(() => {
-  return (
-    nombre.value.trim() !== '' &&
-    telefono.value.trim() !== '' &&
-    clave.value.trim() !== '' &&
-    administrador.value !== null
-  )
+  return nombre.value.trim() !== '' && telefono.value.trim() !== '' && clave.value.trim() !== ''
 })
 
 const nombreTouched = ref(false)
 const telefonoTouched = ref(false)
 const claveTouched = ref(false)
-const administradorTouched = ref(false)
 
 const nombreError = computed(() => nombreTouched.value && nombre.value.trim() === '')
 const telefonoError = computed(() => telefonoTouched.value && telefono.value.trim() === '')
 const claveError = computed(() => claveTouched.value && clave.value.trim() === '')
-const administradorError = computed(
-  () => administradorTouched.value && administrador.value === null,
-)
 
 async function createBranch() {
   loading.value = true
   try {
-    await branchService.createBranch({
+    const nuevaSucursal = await branchService.createBranch({
       nombre: nombre.value,
       direccion: direccion.value || null,
       telefono: telefono.value || null,
@@ -64,8 +55,21 @@ async function createBranch() {
       administrador_id: administrador.value?.id ?? null,
       administrador_name: administrador.value?.label ?? null,
     })
-    Notify.create({ type: 'positive', message: 'Sucursal creada con éxito.' })
-    router.push({ name: 'sucursales-listar' })
+
+    if (administrador.value) {
+      Notify.create({ type: 'positive', message: 'Sucursal creada con éxito.' })
+      router.push({ name: 'sucursales-listar' })
+      return
+    }
+
+    Notify.create({
+      type: 'positive',
+      message: 'Sucursal creada. Ahora da de alta a su administrador.',
+    })
+    router.push({
+      name: 'usuarios-crear',
+      query: { branchId: nuevaSucursal.id, branchName: nuevaSucursal.nombre },
+    })
   } catch {
     Notify.create({ type: 'negative', message: 'Error al crear la sucursal.' })
   } finally {
@@ -206,9 +210,12 @@ function cancelCreation() {
           </q-card-section>
           <q-separator />
           <q-card-section class="q-pt-lg">
-            <div class="field-label">
-              Administrador Responsable <span class="text-negative">*</span>
-            </div>
+            <div class="field-label">Administrador Responsable</div>
+            <p class="text-caption text-grey-7 q-mb-sm">
+              Opcional. Si la sucursal es nueva y aún no tiene administrador, deja este campo vacío:
+              al guardar podrás dar de alta al administrador y quedará asignado automáticamente a
+              esta sucursal.
+            </p>
             <div class="row q-col-gutter-md items-center">
               <div class="col-12 col-md-8">
                 <q-select
@@ -219,28 +226,15 @@ function cancelCreation() {
                   input-debounce="0"
                   option-value="id"
                   option-label="label"
-                  placeholder="Buscar por nombre..."
+                  placeholder="Buscar por nombre (opcional)..."
                   :options="adminOptions"
                   :loading="adminLoading"
                   clearable
                   class="field-input"
-                  :error="administradorError"
-                  error-message="Se requiere un administrador responsable"
-                  @blur="administradorTouched = true"
                 >
                   <template #prepend><q-icon name="search" color="grey-6" /></template>
                   <template #no-option> </template>
                 </q-select>
-              </div>
-              <div class="col-12 col-md-4">
-                <q-btn
-                  outline
-                  color="primary"
-                  icon="person_add"
-                  label="+ Crear Administrador"
-                  class="full-width btn-nuevo-administrador"
-                  @click="router.push({ name: 'usuarios-crear' })"
-                />
               </div>
             </div>
           </q-card-section>

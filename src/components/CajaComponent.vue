@@ -22,15 +22,15 @@
       >
         <q-btn
           v-for="categoria in listaCategorias"
-          :key="categoria"
-          :label="categoria"
-          :color="categoriaSeleccionada === categoria ? 'primary' : 'grey-2'"
-          :text-color="categoriaSeleccionada === categoria ? 'white' : 'grey-8'"
+          :key="categoria.value"
+          :label="categoria.label"
+          :color="categoriaSeleccionada === categoria.value ? 'primary' : 'grey-2'"
+          :text-color="categoriaSeleccionada === categoria.value ? 'white' : 'grey-8'"
           rounded
           unelevated
           no-caps
           class="text-weight-bold q-px-md"
-          @click="seleccionarCategoria(categoria)"
+          @click="seleccionarCategoria(categoria.value)"
         />
       </div>
 
@@ -254,7 +254,7 @@ import { useComandasStore } from '@/stores/comandaStore'
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
 import { obtenerProductos } from '@/services/productoService'
 import { crearComanda } from '@/services/comandaService'
-import type { Producto } from '@/types/producto'
+import type { Producto, TipoProducto } from '@/types/producto'
 import type { CrearComandaRequest, DetalleComandaRequest } from '@/types/comanda'
 
 // === INICIALIZACIÓN ===
@@ -270,16 +270,17 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const abortController = new AbortController()
 
-const listaCategorias = [
-  'Todos',
-  'Hamburguesas',
-  'Alitas',
-  'Bebidas',
-  'Complementos',
-  'Postres',
-  'Promociones',
+// El backend clasifica los productos con el enum tipo_producto: A (Alimento),
+// B (Bebida), S (Servicio), E (Estancia). No hay subcategorías más finas
+// (p. ej. "Hamburguesas" vs "Alitas") en el modelo de datos actual.
+const listaCategorias: { value: TipoProducto | 'Todos'; label: string }[] = [
+  { value: 'Todos', label: 'Todos' },
+  { value: 'A', label: 'Alimentos' },
+  { value: 'B', label: 'Bebidas' },
+  { value: 'S', label: 'Servicios' },
+  { value: 'E', label: 'Estancias' },
 ]
-const categoriaSeleccionada = ref('Todos')
+const categoriaSeleccionada = ref<TipoProducto | 'Todos'>('Todos')
 
 const productos = ref<Producto[]>([])
 
@@ -365,7 +366,7 @@ const obtenerDetalleError = (err: unknown): string => {
 }
 
 // === FUNCIONES ===
-const seleccionarCategoria = (categoria: string) => {
+const seleccionarCategoria = (categoria: TipoProducto | 'Todos') => {
   categoriaSeleccionada.value = categoria
 }
 

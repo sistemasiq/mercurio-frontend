@@ -1,8 +1,5 @@
 import { apiClient } from '@/api/axiosClient'
 
-// Hardcoded sucursal ID temporal
-export const SUCURSAL_ID = '905ea5cf-6951-43f1-9766-75f7e61fde07'
-
 // Hardcoded simulated payment method
 // A la espera de tener el componente de pago para esto
 export const METODO_PAGO_ID = 'b827363b-6453-40e4-9536-f7a004711f91'
@@ -97,13 +94,13 @@ export interface CheckoutResponse {
 //Llamadas a la api
 
 // GET /estancias/productos/${sucursalId} para obtener el costo por hora
-export async function fetchProductos(sucursalId: string = SUCURSAL_ID): Promise<ProductoDto[]> {
+export async function fetchProductos(sucursalId: string): Promise<ProductoDto[]> {
   const { data } = await onboardingClient.get<ProductoDto[]>(`/estancias/productos/${sucursalId}`)
   return data
 }
 
 // GET /pulseras/{sucursalId}
-export async function fetchPulseras(sucursalId: string = SUCURSAL_ID): Promise<PulseraDto[]> {
+export async function fetchPulseras(sucursalId: string): Promise<PulseraDto[]> {
   const { data } = await onboardingClient.get<PulseraDto[]>(`/pulseras/${sucursalId}`)
   return data
 }
@@ -131,7 +128,7 @@ export async function postOnboarding(
 }
 // GET /estancias/activos/{sucursalId}
 
-export async function fetchActivos(sucursalId: string = SUCURSAL_ID): Promise<ActivoDto[]> {
+export async function fetchActivos(sucursalId: string): Promise<ActivoDto[]> {
   const { data } = await onboardingClient.get<ActivoDto[]>(`/estancias/activos/${sucursalId}`)
   return data
 }

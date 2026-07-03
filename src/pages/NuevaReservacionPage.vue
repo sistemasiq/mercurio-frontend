@@ -164,6 +164,13 @@
                           <q-input v-model="form.horaFin" dense outlined type="time" />
                         </div>
                       </div>
+                      <div
+                        v-if="form.horaInicio && form.horaFin && !horarioValido"
+                        class="text-negative q-mt-xs"
+                        style="font-size: 0.75rem"
+                      >
+                        La hora de fin debe ser mayor a la hora de inicio.
+                      </div>
                     </div>
                     <div>
                       <div class="field-label">HORA SELECCIONADA</div>
@@ -184,6 +191,7 @@
                   unelevated
                   style="border-radius: 8px; font-weight: 600"
                   no-caps
+                  :disable="!paso1Valido"
                   @click="step = 2"
                 />
               </q-stepper-navigation>
@@ -712,6 +720,22 @@ const tipoEventoNombre = computed(
   () => tiposEventoStore.activos.find((t) => t.id === form.value.tipoEvento)?.nombre ?? '—',
 )
 
+// ── Validación paso 1 ────────────────────────────────────────────────────────
+
+const horarioValido = computed(
+  () =>
+    !!form.value.horaInicio && !!form.value.horaFin && form.value.horaFin > form.value.horaInicio,
+)
+
+const paso1Valido = computed(
+  () =>
+    form.value.nombre.trim().length > 0 &&
+    form.value.telefono.trim().length > 0 &&
+    !!form.value.tipoEvento &&
+    form.value.selectedDay !== null &&
+    horarioValido.value,
+)
+
 // ── Calendario ────────────────────────────────────────────────────────────────
 
 const today = new Date()
@@ -895,10 +919,25 @@ const confirmarReservacion = async () => {
     ? `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     : null
 
-  if (!fecha || !form.value.tipoEvento || !form.value.selectedPackage) {
+  if (
+    !form.value.nombre.trim() ||
+    !form.value.telefono.trim() ||
+    !fecha ||
+    !form.value.tipoEvento ||
+    !form.value.selectedPackage
+  ) {
     $q.notify({
       type: 'warning',
       message: 'Completa todos los datos requeridos',
+      position: 'top-right',
+    })
+    return
+  }
+
+  if (!horarioValido.value) {
+    $q.notify({
+      type: 'warning',
+      message: 'La hora de fin debe ser mayor a la hora de inicio',
       position: 'top-right',
     })
     return

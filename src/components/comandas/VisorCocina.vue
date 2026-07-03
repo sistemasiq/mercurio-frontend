@@ -3,6 +3,11 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { cambiarEstadoComanda, obtenerComandas } from '@/services/comandaService'
 import type { Comanda, EstadoActualComanda } from '@/types/comanda'
+import type { TipoProducto } from '@/types/producto'
+
+// Tipos de producto que no se preparan en cocina (Servicios, Estancias):
+// se excluyen de las tarjetas del KDS.
+const TIPOS_NO_CONSUMIBLES: TipoProducto[] = ['S', 'E']
 
 const $q = useQuasar()
 
@@ -23,19 +28,17 @@ const totalListos = computed(
 )
 
 const obtenerDetallesComanda = (comanda: Comanda) => {
-  return (
-    comanda.detalles_comanda ??
-    (comanda as Comanda & { detalles?: Comanda['detalles_comanda'] }).detalles ??
-    []
+  return (comanda.detalles ?? []).filter(
+    (detalle) => !detalle.producto_tipo || !TIPOS_NO_CONSUMIBLES.includes(detalle.producto_tipo),
   )
 }
 
-const obtenerNombreDetalle = (detalle: Comanda['detalles_comanda'][number]) => {
-  return detalle.nombre || detalle.producto?.nombre || 'Producto sin nombre'
+const obtenerNombreDetalle = (detalle: Comanda['detalles'][number]) => {
+  return detalle.producto_nombre || 'Producto sin nombre'
 }
 
-const obtenerNotasDetalle = (detalle: Comanda['detalles_comanda'][number]) => {
-  return detalle.notas_especiales || detalle.observaciones || ''
+const obtenerNotasDetalle = (detalle: Comanda['detalles'][number]) => {
+  return detalle.notas_especiales || ''
 }
 
 const limpiarRequestActiva = () => {
