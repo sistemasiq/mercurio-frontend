@@ -250,16 +250,22 @@
 import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
-import { useComandasStore } from '@/stores/comandaStore'
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
 import { obtenerProductos } from '@/services/productoService'
-import { crearComanda } from '@/services/comandaService'
+import { crearComanda, obtenerComandas } from '@/services/comandaService'
+import { useComandasSocket } from '@/composables/useComandasSocket'
+import { useAuthStore } from '@/stores/auth'
 import type { Producto, TipoProducto } from '@/types/producto'
-import type { CrearComandaRequest, DetalleComandaRequest } from '@/types/comanda'
+import type {
+  Comanda,
+  ComandaWsMessage,
+  CrearComandaRequest,
+  DetalleComandaRequest,
+} from '@/types/comanda'
 
 // === INICIALIZACIÓN ===
-const store = useComandasStore()
 const $q = useQuasar()
+const authStore = useAuthStore()
 
 // Props
 const props = defineProps<{ searchTerm?: string }>()
@@ -309,7 +315,24 @@ const productosFiltrados = computed(() => {
 })
 
 const totalProductos = computed(() => productos.value.length)
-const totalComandasActivas = computed(() => store.comandasActivas.length)
+
+// Comandas activas (P, E, L) de esta sucursal, alimentado en vivo por el
+// mismo canal WS que usa el KDS.
+const comandasActivas = ref<Comanda[]>([])
+const totalComandasActivas = computed(() => comandasActivas.value.length)
+
+function handleMensajeSocket(msg: ComandaWsMessage) {
+  const idx = comandasActivas.value.findIndex((c) => c.id === msg.comanda.id)
+  if (idx === -1) {
+    comandasActivas.value = [...comandasActivas.value, msg.comanda]
+  } else {
+    comandasActivas.value = comandasActivas.value.map((c) =>
+      c.id === msg.comanda.id ? msg.comanda : c,
+    )
+  }
+}
+
+useComandasSocket(handleMensajeSocket)
 
 // Total directo
 const total = computed(() => {
@@ -427,10 +450,19 @@ const procesarPago = async () => {
     return
   }
 
+  if (!authStore.currentBranchId) {
+    $q.notify({
+      type: 'negative',
+      message: 'No hay una sucursal activa en la sesión.',
+      position: 'top-right',
+    })
+    return
+  }
+
   const payload: CrearComandaRequest = {
     ticket_numero: generarTicketNumero(),
     total_final: total.value,
-    sucursal_id: 'c9bf9e57-1685-4c89-bafb-ff5af830be8a',
+    sucursal_id: authStore.currentBranchId,
     estado_actual: 'P',
     detalles_comanda: construirDetallesComanda(),
   }
@@ -462,8 +494,19 @@ const procesarPago = async () => {
   }
 }
 
+const cargarComandasActivas = async () => {
+  try {
+    comandasActivas.value = await obtenerComandas(abortController.signal)
+  } catch (err) {
+    if (!abortController.signal.aborted) {
+      console.error('[CajaComponent] Error al cargar comandas activas:', err)
+    }
+  }
+}
+
 onMounted(() => {
   void cargarProductos()
+  void cargarComandasActivas()
 })
 
 onBeforeUnmount(() => {

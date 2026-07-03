@@ -1,21 +1,26 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { cambiarEstadoComanda, obtenerComandas } from '@/services/comandaService'
-import type { Comanda, EstadoActualComanda } from '@/types/comanda'
+import { useComandasSocket } from '@/composables/useComandasSocket'
+import type { Comanda, ComandaWsMessage, EstadoActualComanda } from '@/types/comanda'
 import type { TipoProducto } from '@/types/producto'
 
 // Tipos de producto que no se preparan en cocina (Servicios, Estancias):
 // se excluyen de las tarjetas del KDS.
 const TIPOS_NO_CONSUMIBLES: TipoProducto[] = ['S', 'E']
 
+// Red de seguridad si el WebSocket no logra conectar: mismo intervalo que el
+// polling original.
+const POLLING_FALLBACK_MS = 10000
+
 const $q = useQuasar()
 
 const comandas = ref<Comanda[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
-const intervaloId = ref<ReturnType<typeof setInterval> | null>(null)
 const requestController = ref<AbortController | null>(null)
+const fallbackIntervalId = ref<ReturnType<typeof setInterval> | null>(null)
 
 const totalPendientes = computed(
   () => comandas.value.filter((comanda) => comanda.estado_actual === 'P').length,
@@ -84,8 +89,9 @@ const cambiarEstado = async (comandaId: string, nuevoEstado: Exclude<EstadoActua
   const controller = new AbortController()
 
   try {
+    // No hace falta refrescar manualmente: el backend transmite el cambio por
+    // WebSocket (comanda_actualizada) a todos los clientes, incluido este.
     await cambiarEstadoComanda(comandaId, nuevoEstado, controller.signal)
-    await fetchComandas()
   } catch (err) {
     console.error('[VisorCocina] Error al cambiar estado:', err)
     $q.notify({
@@ -98,19 +104,38 @@ const cambiarEstado = async (comandaId: string, nuevoEstado: Exclude<EstadoActua
   }
 }
 
+function handleMensajeSocket(msg: ComandaWsMessage) {
+  const idx = comandas.value.findIndex((c) => c.id === msg.comanda.id)
+  if (idx === -1) {
+    comandas.value = [...comandas.value, msg.comanda]
+  } else {
+    comandas.value = comandas.value.map((c) => (c.id === msg.comanda.id ? msg.comanda : c))
+  }
+}
+
+const socket = useComandasSocket(handleMensajeSocket)
+
+watch(socket.estado, (nuevoEstado) => {
+  if (nuevoEstado === 'caido' && fallbackIntervalId.value === null) {
+    fallbackIntervalId.value = window.setInterval(() => {
+      void fetchComandas()
+    }, POLLING_FALLBACK_MS)
+  } else if (nuevoEstado !== 'caido' && fallbackIntervalId.value !== null) {
+    window.clearInterval(fallbackIntervalId.value)
+    fallbackIntervalId.value = null
+  }
+})
+
 onMounted(() => {
   void fetchComandas()
-  intervaloId.value = window.setInterval(() => {
-    void fetchComandas()
-  }, 10000)
 })
 
 onBeforeUnmount(() => {
   limpiarRequestActiva()
 
-  if (intervaloId.value !== null) {
-    window.clearInterval(intervaloId.value)
-    intervaloId.value = null
+  if (fallbackIntervalId.value !== null) {
+    window.clearInterval(fallbackIntervalId.value)
+    fallbackIntervalId.value = null
   }
 })
 </script>

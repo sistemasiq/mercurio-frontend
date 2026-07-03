@@ -1,28 +1,5 @@
 import type { TipoProducto } from './producto'
 
-export type EstadoComanda = 'pendiente' | 'en_proceso' | 'listo' | 'entregado'
-
-export interface IItemComanda {
-  id: string
-  nombre: string
-  cantidad: number
-  precioUnitario: number
-  observaciones?: string
-}
-
-export interface IComanda {
-  id: string
-  folio: string
-  mesa: string
-  meseroId: string
-  meseroNombre: string
-  estado: EstadoComanda
-  items: IItemComanda[]
-  notasGenerales?: string
-  createdAt: string
-  updatedAt: string
-}
-
 export type EstadoActualComanda = 'P' | 'E' | 'L'
 
 export interface DetalleComanda {
@@ -47,6 +24,10 @@ export interface Comanda {
   created_at?: string
   updated_at?: string
 }
+
+export type ComandaWsMessage =
+  | { type: 'comanda_creada'; comanda: Comanda }
+  | { type: 'comanda_actualizada'; comanda: Comanda }
 
 export interface CrearComandaRequest {
   ticket_numero: string
