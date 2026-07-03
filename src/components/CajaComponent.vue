@@ -254,6 +254,7 @@ import ProductoCard from '@/components/comandas/ProductoCard.vue'
 import { obtenerProductos } from '@/services/productoService'
 import { crearComanda, obtenerComandas } from '@/services/comandaService'
 import { useComandasSocket } from '@/composables/useComandasSocket'
+import { useAuthStore } from '@/stores/auth'
 import type { Producto, TipoProducto } from '@/types/producto'
 import type {
   Comanda,
@@ -264,6 +265,7 @@ import type {
 
 // === INICIALIZACIÓN ===
 const $q = useQuasar()
+const authStore = useAuthStore()
 
 // Props
 const props = defineProps<{ searchTerm?: string }>()
@@ -448,10 +450,19 @@ const procesarPago = async () => {
     return
   }
 
+  if (!authStore.currentBranchId) {
+    $q.notify({
+      type: 'negative',
+      message: 'No hay una sucursal activa en la sesión.',
+      position: 'top-right',
+    })
+    return
+  }
+
   const payload: CrearComandaRequest = {
     ticket_numero: generarTicketNumero(),
     total_final: total.value,
-    sucursal_id: 'c9bf9e57-1685-4c89-bafb-ff5af830be8a',
+    sucursal_id: authStore.currentBranchId,
     estado_actual: 'P',
     detalles_comanda: construirDetallesComanda(),
   }
