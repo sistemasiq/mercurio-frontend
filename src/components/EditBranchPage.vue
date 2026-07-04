@@ -76,7 +76,7 @@ const isFormValid = computed(() => {
   const n = branch.value?.nombre || ''
   const t = branch.value?.telefono || ''
   const c = branchClave.value || ''
-  return n.trim() !== '' && t.trim() !== '' && c.trim() !== '' && administrador.value !== null
+  return n.trim() !== '' && t.trim() !== '' && c.trim() !== ''
 })
 
 const hasChanges = computed(() => {
@@ -94,16 +94,12 @@ const hasChanges = computed(() => {
 const nombreTouched = ref(false)
 const telefonoTouched = ref(false)
 const claveTouched = ref(false)
-const administradorTouched = ref(false)
 
 const nombreError = computed(() => nombreTouched.value && !(branch.value?.nombre ?? '').trim())
 const telefonoError = computed(
   () => telefonoTouched.value && !(branch.value?.telefono ?? '').trim(),
 )
 const claveError = computed(() => claveTouched.value && !branchClave.value.trim())
-const administradorError = computed(
-  () => administradorTouched.value && administrador.value === null,
-)
 
 async function saveChanges() {
   if (!branch.value) return
@@ -116,7 +112,6 @@ async function saveChanges() {
       correo: branchEmail.value || null,
       clave: branchClave.value || null, // <--- ¡FALTABA ESTO!
       administrador_id: administrador.value?.id ?? null,
-      administrador_name: administrador.value?.label ?? null,
     })
     Notify.create({ type: 'positive', message: 'Sucursal actualizada con éxito.' })
     router.push({ name: 'sucursales-listar' })
@@ -275,9 +270,11 @@ function cancelEdit() {
           </q-card-section>
           <q-separator />
           <q-card-section class="q-pt-lg">
-            <div class="field-label">
-              Administrador Responsable <span class="text-negative">*</span>
-            </div>
+            <div class="field-label">Administrador Responsable</div>
+            <p class="text-caption text-grey-7 q-mb-sm">
+              Opcional. Puedes dejar la sucursal sin administrador asignado; se puede asignar
+              después. Un mismo administrador puede estar a cargo de varias sucursales.
+            </p>
             <div class="row q-col-gutter-md items-center">
               <div class="col-12 col-md-8">
                 <q-select
@@ -288,15 +285,12 @@ function cancelEdit() {
                   input-debounce="0"
                   option-value="id"
                   option-label="label"
-                  placeholder="Buscar por nombre..."
+                  placeholder="Buscar por nombre (opcional)..."
                   :options="adminOptions"
                   :loading="adminLoading"
                   clearable
                   class="field-input"
                   map-options
-                  :error="administradorError"
-                  error-message="Se requiere un administrador responsable"
-                  @blur="administradorTouched = true"
                 >
                   <template #prepend><q-icon name="search" color="grey-6" /></template>
                   <template #no-option>
