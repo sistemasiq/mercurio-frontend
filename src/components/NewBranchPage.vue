@@ -46,30 +46,17 @@ const claveError = computed(() => claveTouched.value && clave.value.trim() === '
 async function createBranch() {
   loading.value = true
   try {
-    const nuevaSucursal = await branchService.createBranch({
+    await branchService.createBranch({
       nombre: nombre.value,
       direccion: direccion.value || null,
       telefono: telefono.value || null,
       correo: email.value || null,
       clave: clave.value || null,
       administrador_id: administrador.value?.id ?? null,
-      administrador_name: administrador.value?.label ?? null,
     })
 
-    if (administrador.value) {
-      Notify.create({ type: 'positive', message: 'Sucursal creada con éxito.' })
-      router.push({ name: 'sucursales-listar' })
-      return
-    }
-
-    Notify.create({
-      type: 'positive',
-      message: 'Sucursal creada. Ahora da de alta a su administrador.',
-    })
-    router.push({
-      name: 'usuarios-crear',
-      query: { branchId: nuevaSucursal.id, branchName: nuevaSucursal.nombre },
-    })
+    Notify.create({ type: 'positive', message: 'Sucursal creada con éxito.' })
+    router.push({ name: 'sucursales-listar' })
   } catch {
     Notify.create({ type: 'negative', message: 'Error al crear la sucursal.' })
   } finally {
@@ -212,9 +199,8 @@ function cancelCreation() {
           <q-card-section class="q-pt-lg">
             <div class="field-label">Administrador Responsable</div>
             <p class="text-caption text-grey-7 q-mb-sm">
-              Opcional. Si la sucursal es nueva y aún no tiene administrador, deja este campo vacío:
-              al guardar podrás dar de alta al administrador y quedará asignado automáticamente a
-              esta sucursal.
+              Opcional. Si no asignas un administrador ahora, podrás hacerlo después editando la
+              sucursal. Un mismo administrador puede estar a cargo de varias sucursales.
             </p>
             <div class="row q-col-gutter-md items-center">
               <div class="col-12 col-md-8">
