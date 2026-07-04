@@ -14,7 +14,17 @@ export interface LoginRequest {
   email: string
   password: string
   rememberMe?: boolean
+  sucursalId?: string | null
 }
+
+export interface BranchOption {
+  id: string
+  nombre: string
+}
+
+export type LoginResult =
+  | { kind: 'success'; data: LoginResponse }
+  | { kind: 'selection_required'; sucursales: BranchOption[] }
 
 export interface User {
   id: string
