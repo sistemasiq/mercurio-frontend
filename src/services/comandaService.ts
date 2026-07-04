@@ -8,7 +8,7 @@ export async function obtenerComandas(signal?: AbortSignal): Promise<Comanda[]> 
 
 export async function cambiarEstadoComanda(
   comandaId: string,
-  nuevoEstado: Exclude<EstadoActualComanda, 'P'>,
+  nuevoEstado: EstadoActualComanda,
   signal?: AbortSignal,
 ): Promise<void> {
   await apiClient.patch(
