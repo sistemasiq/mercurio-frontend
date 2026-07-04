@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { userService } from '@/services/userService'
 import { branchService } from '@/services/branchService'
@@ -9,24 +9,19 @@ import type { Branch } from '@/types/branch'
 
 const $q = useQuasar()
 const router = useRouter()
-const route = useRoute()
 
 const loading = ref(false)
 const showPassword = ref(false)
 const showConfirm = ref(false)
 const branches = ref<Branch[]>([])
 
-const prefilledBranchId = typeof route.query.branchId === 'string' ? route.query.branchId : null
-const prefilledBranchName =
-  typeof route.query.branchName === 'string' ? route.query.branchName : null
-
 const form = reactive({
   name: '',
   email: '',
   password: '',
   confirmPassword: '',
-  role: (prefilledBranchId ? 'Administrador' : null) as UserRole | null,
-  branchId: prefilledBranchId,
+  role: null as UserRole | null,
+  branchId: null as string | null,
 })
 
 const roleOptions: { label: string; value: UserRole }[] = [
@@ -36,18 +31,14 @@ const roleOptions: { label: string; value: UserRole }[] = [
   { label: 'Cocina', value: 'Cocina' },
 ]
 
-const branchOptions = computed(() => {
-  const activas = branches.value
-    .filter((b) => b.isActive)
-    .map((b) => ({ label: b.nombre, value: b.id }))
-  const yaIncluida = activas.some((b) => b.value === prefilledBranchId)
-  if (prefilledBranchId && prefilledBranchName && !yaIncluida) {
-    return [{ label: prefilledBranchName, value: prefilledBranchId }, ...activas]
-  }
-  return activas
-})
+const branchOptions = computed(() =>
+  branches.value.filter((b) => b.isActive).map((b) => ({ label: b.nombre, value: b.id })),
+)
 
-const requiresBranch = computed(() => form.role !== null && form.role !== 'AdministradorSistema')
+// Solo Cajero/Cocina operan una sola sucursal fija. Un Administrador ya no se
+// asigna a una sucursal desde aquí: eso se hace al crear/editar la sucursal,
+// donde un mismo administrador puede quedar asignado a varias.
+const requiresBranch = computed(() => form.role === 'Cajero' || form.role === 'Cocina')
 
 const nameRules = [(v: string) => !!v.trim() || 'El nombre es requerido']
 const emailRules = [
@@ -81,18 +72,6 @@ async function handleSubmit(): Promise<void> {
       role: form.role!,
       branchId: requiresBranch.value ? form.branchId : null,
     })
-    if (prefilledBranchId) {
-      $q.notify({
-        type: 'positive',
-        message: 'Usuario registrado. Puedes agregar otro usuario a esta sucursal o salir.',
-      })
-      form.name = ''
-      form.email = ''
-      form.password = ''
-      form.confirmPassword = ''
-      form.role = null
-      return
-    }
     $q.notify({ type: 'positive', message: 'Usuario registrado correctamente.' })
     router.push({ name: 'usuarios-listar' })
   } catch (err) {
@@ -117,19 +96,6 @@ onMounted(async () => {
       <q-btn flat round dense icon="arrow_back" @click="router.push({ name: 'usuarios-listar' })" />
       <div class="text-h5 text-weight-bold">Registrar usuario</div>
     </div>
-
-    <q-banner
-      v-if="prefilledBranchName"
-      dense
-      rounded
-      class="bg-blue-1 text-blue-9 q-mb-md"
-      style="max-width: 560px"
-    >
-      <template #avatar><q-icon name="store" color="blue-8" /></template>
-      Dando de alta personal para <strong>{{ prefilledBranchName }}</strong
-      >. Puedes registrar varios usuarios (administrador, cajero, cocina) seguidos para esta
-      sucursal.
-    </q-banner>
 
     <q-card flat bordered style="max-width: 560px">
       <q-card-section>

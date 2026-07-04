@@ -36,7 +36,9 @@ const branchOptions = computed(() =>
   branches.value.filter((b) => b.isActive).map((b) => ({ label: b.nombre, value: b.id })),
 )
 
-const requiresBranch = computed(() => form.role !== null && form.role !== 'AdministradorSistema')
+// Solo Cajero/Cocina operan una sola sucursal fija. Un Administrador se
+// asigna a sucursales desde el formulario de sucursal, no aquí.
+const requiresBranch = computed(() => form.role === 'Cajero' || form.role === 'Cocina')
 
 const nameRules = [(v: string) => !!v.trim() || 'El nombre es requerido']
 const emailRules = [
