@@ -1,5 +1,13 @@
 import { apiClient, rawApiClient } from '@/api/axiosClient'
-import type { LoginRequest, LoginResponse, TokenPayload, User, UserRole } from '@/types/auth'
+import type {
+  BranchOption,
+  LoginRequest,
+  LoginResponse,
+  LoginResult,
+  TokenPayload,
+  User,
+  UserRole,
+} from '@/types/auth'
 import { decodeToken } from '@/utils/tokenUtils'
 
 interface BackendUser {
@@ -12,6 +20,7 @@ interface BackendUser {
 }
 
 interface BackendLoginResponse {
+  requires_branch_selection: false
   token: string
   token_type: string
   expires_in: number
@@ -19,6 +28,13 @@ interface BackendLoginResponse {
   refresh_expires_in: number
   user: BackendUser
 }
+
+interface BackendBranchSelectionRequired {
+  requires_branch_selection: true
+  sucursales: BranchOption[]
+}
+
+type BackendLoginRawResponse = BackendLoginResponse | BackendBranchSelectionRequired
 
 function mapUser(raw: BackendUser, payload: TokenPayload | null): User {
   return {
@@ -44,9 +60,12 @@ function mapLoginResponse(raw: BackendLoginResponse): LoginResponse {
 }
 
 export const authService = {
-  async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const { data } = await rawApiClient.post<BackendLoginResponse>('/auth/login', credentials)
-    return mapLoginResponse(data)
+  async login(credentials: LoginRequest): Promise<LoginResult> {
+    const { data } = await rawApiClient.post<BackendLoginRawResponse>('/auth/login', credentials)
+    if (data.requires_branch_selection) {
+      return { kind: 'selection_required', sucursales: data.sucursales }
+    }
+    return { kind: 'success', data: mapLoginResponse(data) }
   },
 
   async me(): Promise<User> {

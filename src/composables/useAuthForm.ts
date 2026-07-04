@@ -28,19 +28,36 @@ export function useAuthForm() {
     (v: string) => v.length >= 6 || 'La contraseña debe tener al menos 6 caracteres.',
   ]
 
+  async function afterLogin(): Promise<void> {
+    inactivityTimer.start()
+
+    Notify.create({
+      type: 'positive',
+      message: '¡Bienvenido!',
+      icon: 'check_circle',
+    })
+
+    const redirect = route.query.redirect as string | undefined
+    await router.push(redirect ?? { name: 'home' })
+  }
+
   async function handleLogin(): Promise<void> {
     try {
-      await auth.login({ ...credentials })
-      inactivityTimer.start()
-
+      const loggedIn = await auth.login({ ...credentials })
+      if (loggedIn) await afterLogin()
+    } catch (err) {
       Notify.create({
-        type: 'positive',
-        message: '¡Bienvenido!',
-        icon: 'check_circle',
+        type: 'negative',
+        message: (err as ApiError).message ?? auth.error ?? 'Error al iniciar sesión.',
+        icon: 'error',
       })
+    }
+  }
 
-      const redirect = route.query.redirect as string | undefined
-      await router.push(redirect ?? { name: 'home' })
+  async function confirmBranchSelection(sucursalId: string): Promise<void> {
+    try {
+      const loggedIn = await auth.selectBranchAndLogin(sucursalId)
+      if (loggedIn) await afterLogin()
     } catch (err) {
       Notify.create({
         type: 'negative',
@@ -56,6 +73,9 @@ export function useAuthForm() {
     emailRules,
     passwordRules,
     isLoading: () => auth.loading,
+    pendingBranchSelection: () => auth.pendingBranchSelection,
     handleLogin,
+    confirmBranchSelection,
+    cancelBranchSelection: auth.cancelBranchSelection,
   }
 }

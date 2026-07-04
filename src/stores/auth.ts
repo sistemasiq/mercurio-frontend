@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { AuthState, LoginRequest, User, UserRole } from '@/types/auth'
+import type { AuthState, BranchOption, LoginRequest, User, UserRole } from '@/types/auth'
 import { authService } from '@/services/authService'
 import { sessionStorage } from '@/utils/session'
 import { resolveErrorMessage } from '@/utils/errorHandler'
@@ -13,6 +13,8 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<AuthState['token']>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const pendingBranchSelection = ref<BranchOption[] | null>(null)
+  const pendingCredentials = ref<LoginRequest | null>(null)
 
   const isAuthenticated = computed(() => !!token.value && !isTokenExpired(token.value))
 
@@ -32,23 +34,44 @@ export const useAuthStore = defineStore('auth', () => {
     return permissions.value.includes(code)
   }
 
-  async function login(credentials: LoginRequest): Promise<void> {
+  /** true si la sesión quedó iniciada; false si falta elegir sucursal activa. */
+  async function login(credentials: LoginRequest): Promise<boolean> {
     loading.value = true
     error.value = null
 
     try {
-      const response = await authService.login(credentials)
+      const result = await authService.login(credentials)
 
-      token.value = response.token
-      user.value = response.user
+      if (result.kind === 'selection_required') {
+        pendingCredentials.value = credentials
+        pendingBranchSelection.value = result.sucursales
+        return false
+      }
 
-      sessionStorage.save(response.token, response.refreshToken, response.user)
+      pendingCredentials.value = null
+      pendingBranchSelection.value = null
+      token.value = result.data.token
+      user.value = result.data.user
+
+      sessionStorage.save(result.data.token, result.data.refreshToken, result.data.user)
+      return true
     } catch (err) {
       error.value = resolveErrorMessage(err as ApiError)
       throw err
     } finally {
       loading.value = false
     }
+  }
+
+  /** Reintenta el login guardado con la sucursal elegida en el selector. */
+  async function selectBranchAndLogin(sucursalId: string): Promise<boolean> {
+    if (!pendingCredentials.value) return false
+    return login({ ...pendingCredentials.value, sucursalId })
+  }
+
+  function cancelBranchSelection(): void {
+    pendingBranchSelection.value = null
+    pendingCredentials.value = null
   }
 
   async function logout(): Promise<void> {
@@ -120,6 +143,7 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     loading,
     error,
+    pendingBranchSelection,
     isAuthenticated,
     currentUser,
     primaryRole,
@@ -128,6 +152,8 @@ export const useAuthStore = defineStore('auth', () => {
     hasRole,
     hasPermission,
     login,
+    selectBranchAndLogin,
+    cancelBranchSelection,
     logout,
     restoreSession,
     tryRefresh,
