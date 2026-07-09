@@ -3,8 +3,8 @@ import { ref, computed } from 'vue'
 import {
   fetchProductos,
   fetchPulseras,
+  fetchMetodoPagoPorDefecto,
   postOnboarding,
-  METODO_PAGO_ID,
   type ProductoDto,
   type PulseraDto,
   type OnboardingDetalle,
@@ -56,6 +56,7 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   const productoBase = ref<ProductoDto | null>(null)
   const pulseras = ref<PulseraDto[]>([])
+  const metodoPagoId = ref<string | null>(null)
   const isLoadingCatalog = ref(false)
   const isLoadingPulseras = ref(false)
   const isSubmitting = ref(false)
@@ -134,6 +135,15 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
   }
 
+  async function loadMetodoPago() {
+    try {
+      metodoPagoId.value = await fetchMetodoPagoPorDefecto()
+    } catch (err) {
+      submitError.value = 'No se pudo cargar el método de pago.'
+      console.error(err)
+    }
+  }
+
   const savedChildren = computed(() => children.value.filter((c) => c.saved))
 
   const hours = computed(() => HOUR_OPTIONS[tutor.value.estimatedTime] ?? 1)
@@ -198,7 +208,13 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   async function completeRegistration() {
     if (!productoBase.value) {
-      submitError.value = 'No hay catálogo de productos cargado.'
+      submitError.value =
+        'No hay un producto tipo "Estancia" configurado para esta sucursal. Créalo en Productos.'
+      return
+    }
+
+    if (!metodoPagoId.value) {
+      submitError.value = 'No hay métodos de pago configurados. Crea uno en Métodos de Pago.'
       return
     }
 
@@ -225,7 +241,7 @@ export const useRegistrationStore = defineStore('registration', () => {
       },
       parentesco: tutor.value.relationship,
       detalles,
-      pagos: [{ metodoPagoId: METODO_PAGO_ID, monto: total.value }],
+      pagos: [{ metodoPagoId: metodoPagoId.value, monto: total.value }],
     }
 
     try {
@@ -271,6 +287,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     folioId,
     productoBase,
     pulseras,
+    metodoPagoId,
     isLoadingCatalog,
     isLoadingPulseras,
     isSubmitting,
@@ -298,5 +315,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     reset,
     loadProductos,
     loadPulseras,
+    loadMetodoPago,
   }
 })

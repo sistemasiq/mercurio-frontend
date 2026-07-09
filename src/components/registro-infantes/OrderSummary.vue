@@ -13,6 +13,19 @@ function formatCurrency(value: number) {
     <q-card-section>
       <div class="text-subtitle1 text-weight-bold q-mb-md">Resumen</div>
 
+      <q-banner
+        v-if="store.submitError"
+        dense
+        rounded
+        class="bg-red-1 text-red-9 q-mb-md"
+        style="font-size: 12px"
+      >
+        <template #avatar>
+          <q-icon name="error_outline" color="negative" />
+        </template>
+        {{ store.submitError }}
+      </q-banner>
+
       <div
         v-if="store.savedChildren.length === 0"
         class="text-caption text-grey-6 text-center q-py-md"
@@ -71,6 +84,7 @@ function formatCurrency(value: number) {
           class="full-width"
           label="Completar registro e Imprimir Comprobante"
           icon="print"
+          :loading="store.isSubmitting"
           :disable="!store.allChildrenHaveBracelet"
           @click="store.completeRegistration()"
         />

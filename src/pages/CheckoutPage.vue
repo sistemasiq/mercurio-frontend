@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { useAuthStore } from '@/stores/auth'
-import { checkout, pagarExtra, METODO_PAGO_ID } from '@/api/onboardingClient'
+import { checkout, pagarExtra, fetchMetodoPagoPorDefecto } from '@/api/onboardingClient'
 import { Notify } from 'quasar'
 
 const store = useAccessControlStore()
@@ -14,7 +14,7 @@ const child = computed(() => store.checkoutChild)
 
 // Si alguien navega directo aqui sin pasar por una card, lo mandamos de regreso
 if (!child.value) {
-  router.push({ name: 'control-acceso' })
+  router.push({ name: 'estancias-control-acceso' })
 }
 
 const isLoading = ref(false)
@@ -67,8 +67,12 @@ async function confirmarSalida() {
       if (!authStore.currentBranchId) {
         throw new Error('No hay una sucursal activa en la sesión.')
       }
+      const metodoPagoId = await fetchMetodoPagoPorDefecto()
+      if (!metodoPagoId) {
+        throw new Error('No hay métodos de pago configurados.')
+      }
       await pagarExtra(child.value.registro_id, authStore.currentBranchId, [
-        { metodoPagoId: METODO_PAGO_ID, monto: result.totalExtra },
+        { metodoPagoId, monto: result.totalExtra },
       ])
       Notify.create({
         type: 'warning',
