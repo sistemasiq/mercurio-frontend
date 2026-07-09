@@ -151,7 +151,7 @@ onMounted(async () => {
             label="Ver todas"
             icon-right="arrow_forward"
             size="sm"
-            @click="router.push({ name: 'sysadmin-branches' })"
+            @click="router.push({ name: 'sucursales-listar' })"
           />
         </div>
 
@@ -168,7 +168,7 @@ onMounted(async () => {
             label="Agregar sucursal"
             size="sm"
             dense
-            @click="router.push({ name: 'sysadmin-branches-new' })"
+            @click="router.push({ name: 'sucursales-crear' })"
           />
         </div>
 
@@ -200,25 +200,25 @@ onMounted(async () => {
         <div class="panel panel--compact">
           <div class="panel__title" style="margin-bottom: 12px">Accesos rápidos</div>
           <div class="quick-actions">
-            <button class="quick-btn" @click="router.push({ name: 'sysadmin-users-new' })">
+            <button class="quick-btn" @click="router.push({ name: 'usuarios-crear' })">
               <div class="quick-btn__icon quick-btn__icon--blue">
                 <q-icon name="person_add" size="18px" />
               </div>
               <span>Nuevo usuario</span>
             </button>
-            <button class="quick-btn" @click="router.push({ name: 'sysadmin-branches-new' })">
+            <button class="quick-btn" @click="router.push({ name: 'sucursales-crear' })">
               <div class="quick-btn__icon quick-btn__icon--green">
                 <q-icon name="add_business" size="18px" />
               </div>
               <span>Nueva sucursal</span>
             </button>
-            <button class="quick-btn" @click="router.push({ name: 'sysadmin-users' })">
+            <button class="quick-btn" @click="router.push({ name: 'usuarios-listar' })">
               <div class="quick-btn__icon quick-btn__icon--purple">
                 <q-icon name="manage_accounts" size="18px" />
               </div>
               <span>Gestionar usuarios</span>
             </button>
-            <button class="quick-btn" @click="router.push({ name: 'sysadmin-branches' })">
+            <button class="quick-btn" @click="router.push({ name: 'sucursales-listar' })">
               <div class="quick-btn__icon quick-btn__icon--amber">
                 <q-icon name="storefront" size="18px" />
               </div>

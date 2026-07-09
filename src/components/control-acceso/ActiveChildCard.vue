@@ -1,19 +1,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import type { ActiveChild } from '@/stores/accessControl'
 import { useAccessControlStore } from '@/stores/accessControl'
-import {
-  getFotoIneUrl,
-  getFotoLlegadaUrl,
-  checkout,
-  pagarExtra,
-  SUCURSAL_ID,
-  METODO_PAGO_ID,
-} from '@/api/onboardingClient'
-import { Notify, Dialog } from 'quasar'
+import { getFotoIneUrl, getFotoLlegadaUrl } from '@/api/onboardingClient'
 
 const props = defineProps<{ child: ActiveChild }>()
 const store = useAccessControlStore()
+const router = useRouter()
 
 const showDetails = ref(false)
 
@@ -62,58 +56,9 @@ const statusConfig = computed(() => {
   }
 })
 
-const loadingCheckout = ref(false)
-
-async function handleCheckout() {
-  Dialog.create({
-    title: 'Confirmar checkout',
-    message: `¿Seguro que quieres realizar el checkout de ${props.child.nino}?`,
-    cancel: true,
-    persistent: true,
-  }).onOk(async () => {
-    try {
-      loadingCheckout.value = true
-
-      const result = await checkout(props.child.detalle_id)
-
-      if (result.totalExtra > 0) {
-        Notify.create({
-          type: 'warning',
-          message: `Se generó un cargo extra de $${result.totalExtra}.`,
-          icon: 'payments',
-        })
-
-        //Se modificara esta logica para abrir aqui el pago multimodal y hacer el cobro correspondiente
-
-        await pagarExtra(props.child.registro_id, SUCURSAL_ID, [
-          {
-            metodoPagoId: METODO_PAGO_ID,
-            monto: result.totalExtra,
-          },
-        ])
-        await store.loadActivos()
-        return
-      }
-
-      Notify.create({
-        type: 'positive',
-        message: 'Checkout realizado correctamente.',
-        icon: 'check_circle',
-      })
-
-      await store.loadActivos()
-    } catch (error) {
-      console.error(error)
-
-      Notify.create({
-        type: 'negative',
-        message: 'Error al realizar checkout.',
-        icon: 'error',
-      })
-    } finally {
-      loadingCheckout.value = false
-    }
-  })
+function handleCheckout() {
+  store.setCheckoutChild(props.child)
+  router.push({ name: 'estancias-checkout' })
 }
 
 const fotoIneUrl = computed(() => getFotoIneUrl(props.child.registro_id))
@@ -157,7 +102,10 @@ const fotoLlegadaError = ref(false)
               </div>
               <div class="row items-center text-caption text-grey-7 q-mt-xs">
                 <q-icon name="person_outline" size="14px" class="q-mr-xs" />
-                {{ child.tutor }} ({{ child.parentesco }})
+                {{ child.tutor }}
+              </div>
+              <div class="row items-center text-caption text-grey-7 q-mt-xs">
+                {{ child.parentesco }}
               </div>
             </div>
 
@@ -205,7 +153,6 @@ const fotoLlegadaError = ref(false)
             label="Checkout"
             no-caps
             dense
-            :loading="loadingCheckout"
             @click="handleCheckout"
           />
         </div>

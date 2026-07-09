@@ -164,6 +164,13 @@
                           <q-input v-model="form.horaFin" dense outlined type="time" />
                         </div>
                       </div>
+                      <div
+                        v-if="form.horaInicio && form.horaFin && !horarioValido"
+                        class="text-negative q-mt-xs"
+                        style="font-size: 0.75rem"
+                      >
+                        La hora de fin debe ser mayor a la hora de inicio.
+                      </div>
                     </div>
                     <div>
                       <div class="field-label">HORA SELECCIONADA</div>
@@ -184,6 +191,7 @@
                   unelevated
                   style="border-radius: 8px; font-weight: 600"
                   no-caps
+                  :disable="!paso1Valido"
                   @click="step = 2"
                 />
               </q-stepper-navigation>
@@ -577,10 +585,6 @@
                 <span>Servicios Adicionales</span>
                 <span class="amount">{{ extraServicesNum > 0 ? extraServicesTotal : '—' }}</span>
               </div>
-              <div class="payment-card__row">
-                <span>IVA (16%)</span>
-                <span class="amount">{{ selectedPkg ? ivaAmount : '—' }}</span>
-              </div>
               <div class="payment-card__row payment-card__row--total">
                 <span>Total</span>
                 <span class="total-amount">{{ selectedPkg ? totalAmount : '—' }}</span>
@@ -658,7 +662,7 @@ import { useExtrasStore } from '@/stores/extras'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
-import { useSucursalesStore } from '@/stores/sucursales'
+import { useAuthStore } from '@/stores/auth'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
 
 const router = useRouter()
@@ -668,15 +672,14 @@ const extrasStore = useExtrasStore()
 const tiposEventoStore = useTiposEventoStore()
 const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
-const sucursalesStore = useSucursalesStore()
+const authStore = useAuthStore()
 const pagosStore = usePagosReservacionesStore()
 
 onMounted(() => {
-  paquetesStore.cargar()
-  extrasStore.cargar()
+  paquetesStore.cargar(authStore.currentBranchId ?? undefined)
+  extrasStore.cargar(authStore.currentBranchId ?? undefined)
   tiposEventoStore.cargar()
   metodosPagoStore.cargar()
-  sucursalesStore.cargar()
   if (!resStore.reservaciones.length) resStore.cargar()
 })
 
@@ -710,6 +713,22 @@ const tiposEventoOptions = computed(() =>
 
 const tipoEventoNombre = computed(
   () => tiposEventoStore.activos.find((t) => t.id === form.value.tipoEvento)?.nombre ?? '—',
+)
+
+// ── Validación paso 1 ────────────────────────────────────────────────────────
+
+const horarioValido = computed(
+  () =>
+    !!form.value.horaInicio && !!form.value.horaFin && form.value.horaFin > form.value.horaInicio,
+)
+
+const paso1Valido = computed(
+  () =>
+    form.value.nombre.trim().length > 0 &&
+    form.value.telefono.trim().length > 0 &&
+    !!form.value.tipoEvento &&
+    form.value.selectedDay !== null &&
+    horarioValido.value,
 )
 
 // ── Calendario ────────────────────────────────────────────────────────────────
@@ -867,14 +886,12 @@ const extraServicesNum = computed(() =>
 )
 
 const subtotal = computed(() => packagePriceNum.value + extraServicesNum.value)
-const ivaNum = computed(() => Math.round(subtotal.value * 0.16))
-const totalNum = computed(() => subtotal.value + ivaNum.value)
+const totalNum = computed(() => subtotal.value)
 const advanceNum = computed(() => Math.round(totalNum.value * 0.3))
 const remainingNum = computed(() => totalNum.value - advanceNum.value)
 
 const packagePrice = computed(() => fmt(packagePriceNum.value))
 const extraServicesTotal = computed(() => fmt(extraServicesNum.value))
-const ivaAmount = computed(() => fmt(ivaNum.value))
 const totalAmount = computed(() => fmt(totalNum.value))
 const advanceAmount = computed(() => fmt(advanceNum.value))
 const remainingAmount = computed(() => fmt(remainingNum.value))
@@ -884,9 +901,13 @@ const remainingAmount = computed(() => fmt(remainingNum.value))
 const confirmando = ref(false)
 
 const confirmarReservacion = async () => {
-  const sucursalId = sucursalesStore.activas[0]?.id
+  const sucursalId = authStore.currentBranchId
   if (!sucursalId) {
-    $q.notify({ type: 'warning', message: 'No hay sucursales disponibles', position: 'top-right' })
+    $q.notify({
+      type: 'warning',
+      message: 'No hay una sucursal activa en la sesión.',
+      position: 'top-right',
+    })
     return
   }
 
@@ -895,10 +916,25 @@ const confirmarReservacion = async () => {
     ? `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     : null
 
-  if (!fecha || !form.value.tipoEvento || !form.value.selectedPackage) {
+  if (
+    !form.value.nombre.trim() ||
+    !form.value.telefono.trim() ||
+    !fecha ||
+    !form.value.tipoEvento ||
+    !form.value.selectedPackage
+  ) {
     $q.notify({
       type: 'warning',
       message: 'Completa todos los datos requeridos',
+      position: 'top-right',
+    })
+    return
+  }
+
+  if (!horarioValido.value) {
+    $q.notify({
+      type: 'warning',
+      message: 'La hora de fin debe ser mayor a la hora de inicio',
       position: 'top-right',
     })
     return
@@ -942,7 +978,7 @@ const confirmarReservacion = async () => {
       message: 'Reservación confirmada exitosamente',
       position: 'top-right',
     })
-    router.push({ name: 'reservaciones' })
+    router.push({ name: 'eventos-reservaciones' })
   } catch (err: unknown) {
     const apiErr = err as { message?: string; statusCode?: number }
     const msg = apiErr?.message || 'Error al guardar la reservación'

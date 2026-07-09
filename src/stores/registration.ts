@@ -3,13 +3,13 @@ import { ref, computed } from 'vue'
 import {
   fetchProductos,
   fetchPulseras,
+  fetchMetodoPagoPorDefecto,
   postOnboarding,
-  SUCURSAL_ID,
-  METODO_PAGO_ID,
   type ProductoDto,
   type PulseraDto,
   type OnboardingDetalle,
 } from '@/api/onboardingClient'
+import { useAuthStore } from '@/stores/auth'
 
 export interface Child {
   id: string
@@ -38,6 +38,7 @@ const HOUR_OPTIONS: Record<string, number> = {
 export type RegistrationStep = 'form' | 'rfid' | 'complete'
 
 export const useRegistrationStore = defineStore('registration', () => {
+  const authStore = useAuthStore()
   const step = ref<RegistrationStep>('form')
 
   const tutor = ref<TutorData>({
@@ -55,6 +56,7 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   const productoBase = ref<ProductoDto | null>(null)
   const pulseras = ref<PulseraDto[]>([])
+  const metodoPagoId = ref<string | null>(null)
   const isLoadingCatalog = ref(false)
   const isLoadingPulseras = ref(false)
   const isSubmitting = ref(false)
@@ -99,10 +101,14 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   async function loadProductos() {
+    if (!authStore.currentBranchId) {
+      submitError.value = 'No hay una sucursal activa en la sesión.'
+      return
+    }
     isLoadingCatalog.value = true
     submitError.value = null
     try {
-      const productos = await fetchProductos(SUCURSAL_ID)
+      const productos = await fetchProductos(authStore.currentBranchId)
       productoBase.value = productos[0] ?? null
     } catch (err) {
       submitError.value = 'No se pudo cargar el catálogo de precios.'
@@ -113,15 +119,28 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   async function loadPulseras() {
+    if (!authStore.currentBranchId) {
+      submitError.value = 'No hay una sucursal activa en la sesión.'
+      return
+    }
     isLoadingPulseras.value = true
     submitError.value = null
     try {
-      pulseras.value = await fetchPulseras(SUCURSAL_ID)
+      pulseras.value = await fetchPulseras(authStore.currentBranchId)
     } catch (err) {
       submitError.value = 'No se pudo cargar el catálogo de pulseras.'
       console.error(err)
     } finally {
       isLoadingPulseras.value = false
+    }
+  }
+
+  async function loadMetodoPago() {
+    try {
+      metodoPagoId.value = await fetchMetodoPagoPorDefecto()
+    } catch (err) {
+      submitError.value = 'No se pudo cargar el método de pago.'
+      console.error(err)
     }
   }
 
@@ -189,7 +208,18 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   async function completeRegistration() {
     if (!productoBase.value) {
-      submitError.value = 'No hay catálogo de productos cargado.'
+      submitError.value =
+        'No hay un producto tipo "Estancia" configurado para esta sucursal. Créalo en Productos.'
+      return
+    }
+
+    if (!metodoPagoId.value) {
+      submitError.value = 'No hay métodos de pago configurados. Crea uno en Métodos de Pago.'
+      return
+    }
+
+    if (!authStore.currentBranchId) {
+      submitError.value = 'No hay una sucursal activa en la sesión.'
       return
     }
 
@@ -204,14 +234,14 @@ export const useRegistrationStore = defineStore('registration', () => {
     }))
 
     const payload = {
-      sucursalId: SUCURSAL_ID,
+      sucursalId: authStore.currentBranchId,
       tutor: {
         nombreCompleto: tutor.value.fullName,
         telefono: tutor.value.phone,
       },
       parentesco: tutor.value.relationship,
       detalles,
-      pagos: [{ metodoPagoId: METODO_PAGO_ID, monto: total.value }],
+      pagos: [{ metodoPagoId: metodoPagoId.value, monto: total.value }],
     }
 
     try {
@@ -257,6 +287,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     folioId,
     productoBase,
     pulseras,
+    metodoPagoId,
     isLoadingCatalog,
     isLoadingPulseras,
     isSubmitting,
@@ -284,5 +315,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     reset,
     loadProductos,
     loadPulseras,
+    loadMetodoPago,
   }
 })

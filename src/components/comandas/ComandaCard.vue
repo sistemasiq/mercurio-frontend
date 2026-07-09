@@ -1,221 +1,311 @@
+<template>
+  <article class="kds-card" :class="cardClass">
+    <div class="kds-card-header" :class="headerClass">
+      <div>
+        <span class="kds-status-label" :class="statusLabelClass">
+          {{ estadoLabel(comanda.estado_actual) }}
+        </span>
+        <h3 class="kds-ticket-number">#{{ comanda.ticket_numero ?? comanda.id }}</h3>
+      </div>
+      <div class="kds-time-container">
+        <div class="kds-time" :class="esEnProceso ? 'text-alerta' : 'text-normal'">
+          <q-icon name="schedule" size="28px" />
+          <span>{{ tiempoDesde(comanda.fecha_hora) }}</span>
+        </div>
+        <span class="kds-order-type">{{ tipoEntrega }}</span>
+      </div>
+    </div>
+
+    <div class="kds-card-body">
+      <div v-for="item in detallesConsumibles" :key="item.id" class="kds-item">
+        <div class="kds-qty">{{ item.cantidad }}</div>
+        <div class="kds-item-details">
+          <p class="kds-item-name">{{ item.producto_nombre ?? '—' }}</p>
+          <p class="kds-item-price">
+            ${{ Number(item.precio_unitario * item.cantidad).toFixed(2) }}
+          </p>
+          <p v-if="item.notas_especiales" class="kds-item-warning">
+            <q-icon name="warning" size="18px" />
+            {{ item.notas_especiales }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="kds-card-footer">
+      <button
+        v-if="esPendiente"
+        class="kds-btn btn-pendiente"
+        @click="emit('cambiar-estado', comanda.id, 'E')"
+      >
+        <q-icon name="play_arrow" size="24px" /> Comenzar Preparación
+      </button>
+      <button
+        v-else-if="esEnProceso"
+        class="kds-btn btn-accion"
+        @click="emit('cambiar-estado', comanda.id, 'L')"
+      >
+        <q-icon name="check_circle" size="24px" /> Listo para Entregar
+      </button>
+      <button
+        v-else-if="esListo"
+        class="kds-btn btn-entregar"
+        @click="emit('cambiar-estado', comanda.id, 'T')"
+      >
+        <q-icon name="done_all" size="24px" /> Entregar Pedido
+      </button>
+    </div>
+  </article>
+</template>
+
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Comanda, EstadoActualComanda } from '@/types/comanda'
+import type { TipoProducto } from '@/types/producto'
 
-const props = defineProps<{
-  comanda: Comanda
-}>()
+const TIPOS_NO_CONSUMIBLES: TipoProducto[] = ['S', 'E']
 
+const props = defineProps<{ comanda: Comanda }>()
 const emit = defineEmits<{
-  (e: 'cambiar-estado', comandaId: string, nuevoEstado: Exclude<EstadoActualComanda, 'P'>): void
+  (e: 'cambiar-estado', comandaId: string, nuevoEstado: EstadoActualComanda): void
 }>()
 
-const configEstilo = computed(() => {
-  const estadoActual = props.comanda.estado_actual
-
-  if (estadoActual === 'P') {
-    return {
-      cardBg: '#ffffff',
-      statusBar: 'bg-grey-5',
-      labelUpper: 'PENDIENTE',
-      badgeColor: 'grey-3',
-      badgeTextColor: 'grey-9',
-      badgeLabel: 'Pendiente',
-      actionLabel: 'Comenzar Preparación',
-      actionIcon: 'play_arrow',
-      actionColor: 'grey-3',
-      actionTextColor: 'text-grey-9',
-      targetState: 'E' as Exclude<EstadoActualComanda, 'P'>,
-      showBadge: false,
-      showAction: true,
-    }
+const estadoLabel = (estado: EstadoActualComanda): string => {
+  const labels: Record<EstadoActualComanda, string> = {
+    P: 'PENDIENTE',
+    E: 'EN PREPARACIÓN',
+    L: 'LISTO PARA ENTREGA',
+    T: 'ENTREGADO',
   }
+  return labels[estado] ?? estado
+}
 
-  if (estadoActual === 'E') {
-    return {
-      cardBg: '#fffaf7',
-      statusBar: 'bg-orange-7',
-      labelUpper: 'EN PREPARACIÓN',
-      badgeColor: 'orange-1',
-      badgeTextColor: 'orange-10',
-      badgeLabel: 'En preparación',
-      actionLabel: 'Marcar como Listo',
-      actionIcon: 'check_circle',
-      actionColor: 'primary',
-      actionTextColor: 'text-white',
-      targetState: 'L' as Exclude<EstadoActualComanda, 'P'>,
-      showBadge: false,
-      showAction: true,
-    }
-  }
+// Si la fecha no está disponible o la orden acaba de entrar, muestra '--'
+// para no generar presión visual prematura.
+const tiempoDesde = (fechaISO: string | null | undefined): string => {
+  if (!fechaISO) return '--'
+  const diff = Math.floor((Date.now() - new Date(fechaISO).getTime()) / 60000)
+  if (diff < 1) return '--'
+  return diff === 1 ? '1 min' : `${diff} min`
+}
 
-  return {
-    cardBg: '#f4fbf7',
-    statusBar: 'bg-green-6',
-    labelUpper: 'LISTO PARA ENTREGA',
-    badgeColor: 'green-1',
-    badgeTextColor: 'green-10',
-    badgeLabel: 'Listo',
-    actionLabel: '',
-    actionIcon: '',
-    actionColor: 'positive',
-    actionTextColor: 'text-white',
-    targetState: 'L' as Exclude<EstadoActualComanda, 'P'>,
-    showBadge: true,
-    showAction: false,
-  }
-})
+const detallesConsumibles = computed(() =>
+  (props.comanda.detalles ?? []).filter(
+    (d) => !d.producto_tipo || !TIPOS_NO_CONSUMIBLES.includes(d.producto_tipo as TipoProducto),
+  ),
+)
 
-const subtotal = computed(() => {
-  return props.comanda.detalles_comanda.reduce(
-    (suma, detalle) => suma + detalle.precio_unitario * detalle.cantidad,
-    0,
-  )
-})
+const esPendiente = computed(() => props.comanda.estado_actual === 'P')
+const esEnProceso = computed(() => props.comanda.estado_actual === 'E')
+const esListo = computed(() => props.comanda.estado_actual === 'L')
 
-const tiempoTranscurrido = computed(() => {
-  if (!props.comanda.notas_generales) return '1 min'
-  return props.comanda.notas_generales.includes('•')
-    ? props.comanda.notas_generales.split('•')[0].trim()
-    : '1 min'
-})
+const cardClass = computed(() => ({
+  'card-proceso': esEnProceso.value,
+  'card-pendiente': esPendiente.value,
+  'card-listo': esListo.value,
+}))
 
-const tipoServicio = computed(() => {
-  if (!props.comanda.notas_generales) return 'MOSTRADOR'
-  return props.comanda.notas_generales.includes('•')
-    ? props.comanda.notas_generales.split('•')[1].trim()
-    : props.comanda.notas_generales
-})
+const headerClass = computed(() => ({
+  'header-bg-proceso': esEnProceso.value,
+  'header-bg-pendiente': esPendiente.value,
+  'header-bg-listo': esListo.value,
+}))
 
-const tieneAccion = computed(() => configEstilo.value.showAction)
+const statusLabelClass = computed(() => ({
+  'text-proceso': esEnProceso.value,
+  'text-pendiente': esPendiente.value,
+  'text-listo': esListo.value,
+}))
+
+const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
 </script>
 
-<template>
-  <q-card class="kds-card flat bordered" :style="{ backgroundColor: configEstilo.cardBg }">
-    <div class="status-bar" :class="configEstilo.statusBar"></div>
-
-    <div class="full-width q-pa-md row column justify-between">
-      <div>
-        <div class="row justify-between items-start q-mb-sm">
-          <div>
-            <span
-              class="text-caption text-weight-bolder text-grey-6 block uppercase tracking-wider"
-            >
-              {{ configEstilo.labelUpper }}
-            </span>
-            <div class="text-h5 text-weight-bolder text-dark">#{{ comanda.folio }}</div>
-          </div>
-          <div class="text-right">
-            <div class="row items-center text-weight-bold text-grey-9 justify-end">
-              <q-icon name="schedule" size="xs" class="q-mr-xs" />
-              {{ tiempoTranscurrido }}
-            </div>
-            <span class="text-caption text-weight-bolder text-primary block text-uppercase">
-              {{ tipoServicio }}
-            </span>
-          </div>
-        </div>
-
-        <div class="q-mt-md order-items-container">
-          <div v-for="item in comanda.detalles_comanda" :key="item.id" class="product-row q-py-sm">
-            <div class="row items-start no-wrap">
-              <div class="qty-box text-weight-bolder text-grey-8 text-center q-mr-md">
-                {{ item.cantidad }}
-              </div>
-
-              <div class="full-width">
-                <div class="text-subtitle1 text-weight-bold text-grey-9 lh-sm">
-                  {{ item.nombre }}
-                </div>
-
-                <div class="text-caption text-grey-6 q-mt-xs">
-                  ${{ (item.precio_unitario * item.cantidad).toFixed(2) }}
-                </div>
-
-                <div v-if="item.observaciones" class="q-mt-xs">
-                  <q-badge
-                    outline
-                    color="negative"
-                    class="observacion-badge q-pa-xs text-weight-bold"
-                  >
-                    <q-icon name="report_problem" size="10px" class="q-mr-xs" />
-                    {{ item.observaciones }}
-                  </q-badge>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="q-mt-md text-right text-caption text-grey-7">
-          Subtotal: ${{ subtotal.toFixed(2) }}
-        </div>
-      </div>
-
-      <div class="q-mt-lg">
-        <q-badge
-          v-if="configEstilo.showBadge"
-          rounded
-          :color="configEstilo.badgeColor"
-          :text-color="configEstilo.badgeTextColor"
-          class="q-pa-sm text-weight-bold full-width justify-center"
-        >
-          {{ configEstilo.badgeLabel }}
-        </q-badge>
-
-        <q-btn
-          v-else-if="tieneAccion"
-          class="full-width text-weight-bold action-btn"
-          :color="configEstilo.actionColor"
-          :class="configEstilo.actionTextColor"
-          unelevated
-          no-caps
-          @click="emit('cambiar-estado', comanda.id, configEstilo.targetState)"
-        >
-          <q-icon :name="configEstilo.actionIcon" class="q-mr-xs" size="xs" />
-          {{ configEstilo.actionLabel }}
-        </q-btn>
-      </div>
-    </div>
-  </q-card>
-</template>
-
-<style scoped>
+<style lang="scss" scoped>
 .kds-card {
-  width: 100%;
-  max-width: 360px;
-  min-width: 300px;
-  height: 400px;
+  background-color: #fff;
   border-radius: 12px;
   display: flex;
-  position: relative;
+  flex-direction: column;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
-.status-bar {
-  width: 6px;
-  height: 100%;
-  position: absolute;
-  left: 0;
-  top: 0;
+.card-proceso {
+  border-left: 12px solid #fd8b00;
 }
-.qty-box {
-  background-color: #f1f5f9;
-  padding: 4px 12px;
-  border-radius: 6px;
-  min-width: 36px;
+.card-pendiente {
+  border-left: 12px solid #c1c6d7;
+  opacity: 0.9;
 }
-.observacion-badge {
-  background-color: #fef2f2 !important;
-  border: 1px solid #fee2e2;
+.card-listo {
+  border-left: 12px solid #006a35;
 }
-.action-btn {
-  border-radius: 8px;
-  padding: 12px 0;
-  font-size: 15px;
+
+.kds-card-header {
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid #e1e3e4;
 }
-.order-items-container {
-  max-height: 230px;
+.header-bg-proceso {
+  background-color: rgba(255, 220, 195, 0.3);
+}
+.header-bg-pendiente {
+  background-color: #f3f4f5;
+}
+.header-bg-listo {
+  background-color: rgba(107, 254, 156, 0.15);
+}
+
+.kds-status-label {
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+}
+.text-proceso {
+  color: #904d00;
+}
+.text-pendiente {
+  color: #414754;
+}
+.text-listo {
+  color: #006a35;
+}
+
+.kds-ticket-number {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  margin: 4px 0 0 0;
+}
+
+.kds-time-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.kds-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+}
+.text-alerta {
+  color: #ba1a1a;
+}
+.text-normal {
+  color: #191c1d;
+}
+
+.kds-order-type {
+  font-size: 14px;
+  font-weight: 500;
+  color: #414754;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kds-card-body {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
   overflow-y: auto;
+}
+.kds-item {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  align-items: flex-start;
+}
+.kds-qty {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background-color: #e1e3e4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.kds-item-details {
+  flex: 1;
+}
+.kds-item-name {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+.kds-item-price {
+  font-size: 14px;
+  color: #64748b;
+  margin: 2px 0 0 0;
+}
+.kds-item-warning {
+  font-size: 16px;
+  color: #ba1a1a;
+  background-color: rgba(255, 218, 214, 0.5);
+  padding: 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0 0;
+}
+
+.kds-card-footer {
+  padding: 16px;
+  background-color: #fff;
+  border-top: 1px solid #e1e3e4;
+  margin-top: auto;
+}
+.kds-btn {
+  width: 100%;
+  min-height: 64px;
+  border-radius: 12px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border: none;
+}
+.btn-accion {
+  background-color: #0059bb;
+  color: #fff;
+}
+.btn-accion:hover {
+  background-color: #0070ea;
+}
+.btn-pendiente {
+  background-color: #edeeef;
+  color: #191c1d;
+  border: 2px solid #c1c6d7;
+}
+.btn-pendiente:hover {
+  background-color: #e1e3e4;
+}
+.btn-entregar {
+  background-color: #006a35;
+  color: #fff;
+}
+.btn-entregar:hover {
+  background-color: #008645;
 }
 </style>

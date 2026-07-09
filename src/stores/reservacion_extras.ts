@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { reservacionExtrasApi } from '@/api/reservacion_extras'
+import { reservacionExtrasApi } from '@/api/reservacionExtrasApi'
 import type {
   Reservacion_extras,
   Reservacion_extras_create,

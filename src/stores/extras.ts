@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { extrasApi } from '@/api/extras.ts'
+import { extrasApi } from '@/api/extrasApi'
 import type { Extras, ExtrasUpdate, ExtrasCreate } from '@/types/extras.ts'
 
 interface ExtrasState {

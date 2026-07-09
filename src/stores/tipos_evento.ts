@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { tiposEventoApi } from '@/api/tipos_evento'
+import { tiposEventoApi } from '@/api/tiposEventoApi'
 import type { Tipos_evento, Tipos_evento_create, Tipos_evento_update } from '@/types/tipos_evento'
 
 interface TiposEventoState {

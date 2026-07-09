@@ -1,28 +1,16 @@
-import axios from 'axios'
-
-// Hardcoded sucursal ID temporal
-export const SUCURSAL_ID = '905ea5cf-6951-43f1-9766-75f7e61fde07'
-
-// Hardcoded simulated payment method
-// A la espera de tener el componente de pago para esto
-export const METODO_PAGO_ID = 'b827363b-6453-40e4-9536-f7a004711f91'
+import { apiClient } from '@/api/axiosClient'
+import { metodosPagoApi } from '@/api/metodosPagoApi'
 
 const ONBOARDING_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000'
 
-const onboardingClient = axios.create({
-  baseURL: ONBOARDING_BASE_URL,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-const UPLOADS_BASE_URL = ONBOARDING_BASE_URL.replace(/\/api\/?$/, '')
+const onboardingClient = apiClient
 
 export function getFotoIneUrl(registroId: string): string {
-  return `${UPLOADS_BASE_URL}/uploads/identificaciones/${registroId}.jpg`
+  return `${ONBOARDING_BASE_URL}/uploads/identificaciones/${registroId}.jpg`
 }
 
 export function getFotoLlegadaUrl(registroId: string): string {
-  return `${UPLOADS_BASE_URL}/uploads/llegadas/${registroId}.jpg`
+  return `${ONBOARDING_BASE_URL}/uploads/llegadas/${registroId}.jpg`
 }
 
 export interface FotosUploadResponse {
@@ -100,15 +88,23 @@ export interface CheckoutResponse {
 
 //Llamadas a la api
 
+// Método de pago por defecto para cobros de estancia (check-in y cargos extra
+// de checkout), hasta que exista un selector de método de pago en la UI.
+export async function fetchMetodoPagoPorDefecto(): Promise<string | null> {
+  const metodos = await metodosPagoApi.listar()
+  const activo = metodos.find((m) => m.activo)
+  return activo?.id ?? null
+}
+
 // GET /estancias/productos/${sucursalId} para obtener el costo por hora
-export async function fetchProductos(sucursalId: string = SUCURSAL_ID): Promise<ProductoDto[]> {
+export async function fetchProductos(sucursalId: string): Promise<ProductoDto[]> {
   const { data } = await onboardingClient.get<ProductoDto[]>(`/estancias/productos/${sucursalId}`)
   return data
 }
 
-// GET /pulseras/{sucursalId}
-export async function fetchPulseras(sucursalId: string = SUCURSAL_ID): Promise<PulseraDto[]> {
-  const { data } = await onboardingClient.get<PulseraDto[]>(`/pulseras/${sucursalId}`)
+// GET /pulseras/sucursal/{sucursalId}
+export async function fetchPulseras(sucursalId: string): Promise<PulseraDto[]> {
+  const { data } = await onboardingClient.get<PulseraDto[]>(`/pulseras/sucursal/${sucursalId}`)
   return data
 }
 
@@ -135,14 +131,14 @@ export async function postOnboarding(
 }
 // GET /estancias/activos/{sucursalId}
 
-export async function fetchActivos(sucursalId: string = SUCURSAL_ID): Promise<ActivoDto[]> {
+export async function fetchActivos(sucursalId: string): Promise<ActivoDto[]> {
   const { data } = await onboardingClient.get<ActivoDto[]>(`/estancias/activos/${sucursalId}`)
   return data
 }
 
-// POST /estancias/checkout/{detalleId}
+// POST /estancias/{detalleId}/checkout
 export async function checkout(detalleId: string): Promise<CheckoutResponse> {
-  const { data } = await onboardingClient.post(`/estancias/checkout/${detalleId}`)
+  const { data } = await onboardingClient.post(`/estancias/${detalleId}/checkout`)
 
   return data
 }

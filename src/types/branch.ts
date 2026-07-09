@@ -23,7 +23,6 @@ export interface CreateBranchPayload {
   correo?: string | null
   clave?: string | null
   administrador_id?: string | null
-  administrador_name?: string | null
 }
 
 export interface UpdateBranchPayload {
@@ -33,5 +32,4 @@ export interface UpdateBranchPayload {
   correo?: string | null
   clave?: string | null
   administrador_id?: string | null
-  administrador_name?: string | null
 }

@@ -4,18 +4,24 @@ import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { userService } from '@/services/userService'
 import { branchService } from '@/services/branchService'
+import { useAuthStore } from '@/stores/auth'
 import type { UserRole, ApiError } from '@/types/auth'
 import type { Branch } from '@/types/branch'
 
 const $q = useQuasar()
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 
 const id = route.params.id as string
 const loading = ref(false)
 const loadingData = ref(true)
 const showPassword = ref(false)
 const branches = ref<Branch[]>([])
+
+// Un Administrador de sucursal solo puede editar Cajero/Cocina de su propia
+// sucursal — nunca otro Administrador ni un AdministradorSistema.
+const isBranchAdmin = computed(() => authStore.hasRole('Administrador'))
 
 const form = reactive({
   name: '',
@@ -25,18 +31,30 @@ const form = reactive({
   password: '',
 })
 
-const roleOptions: { label: string; value: UserRole }[] = [
+const ALL_ROLE_OPTIONS: { label: string; value: UserRole }[] = [
   { label: 'Administrador Sistema', value: 'AdministradorSistema' },
   { label: 'Administrador', value: 'Administrador' },
   { label: 'Cajero', value: 'Cajero' },
   { label: 'Cocina', value: 'Cocina' },
 ]
 
+const roleOptions = computed(() =>
+  isBranchAdmin.value
+    ? ALL_ROLE_OPTIONS.filter((o) => o.value === 'Cajero' || o.value === 'Cocina')
+    : ALL_ROLE_OPTIONS,
+)
+
 const branchOptions = computed(() =>
   branches.value.filter((b) => b.isActive).map((b) => ({ label: b.nombre, value: b.id })),
 )
 
-const requiresBranch = computed(() => form.role !== null && form.role !== 'AdministradorSistema')
+// Solo Cajero/Cocina operan una sola sucursal fija. Un Administrador se
+// asigna a sucursales desde el formulario de sucursal, no aquí.
+const requiresBranch = computed(() => form.role === 'Cajero' || form.role === 'Cocina')
+
+// Un Administrador de sucursal siempre edita usuarios de su propia sucursal:
+// no tiene sentido pedirle que la seleccione.
+const showBranchSelector = computed(() => requiresBranch.value && !isBranchAdmin.value)
 
 const nameRules = [(v: string) => !!v.trim() || 'El nombre es requerido']
 const emailRules = [
@@ -64,11 +82,15 @@ async function handleSubmit(): Promise<void> {
       name: form.name.trim(),
       email: form.email.trim(),
       role: form.role!,
-      branchId: requiresBranch.value ? form.branchId : null,
+      branchId: requiresBranch.value
+        ? isBranchAdmin.value
+          ? authStore.currentBranchId
+          : form.branchId
+        : null,
       password: form.password || null,
     })
     $q.notify({ type: 'positive', message: 'Usuario actualizado correctamente.' })
-    router.push({ name: 'sysadmin-users' })
+    router.push({ name: 'usuarios-listar' })
   } catch (err) {
     $q.notify({ type: 'negative', message: resolveErrorMessage(err as ApiError) })
   } finally {
@@ -88,7 +110,7 @@ function confirmDelete(): void {
     try {
       await userService.deleteUser(id)
       $q.notify({ type: 'positive', message: 'Usuario eliminado.' })
-      router.push({ name: 'sysadmin-users' })
+      router.push({ name: 'usuarios-listar' })
     } catch {
       $q.notify({ type: 'negative', message: 'No se pudo eliminar el usuario.' })
       loading.value = false
@@ -109,7 +131,7 @@ onMounted(async () => {
     form.branchId = user.branchId
   } catch {
     $q.notify({ type: 'negative', message: 'No se pudo cargar el usuario.' })
-    router.push({ name: 'sysadmin-users' })
+    router.push({ name: 'usuarios-listar' })
   } finally {
     loadingData.value = false
   }
@@ -119,7 +141,7 @@ onMounted(async () => {
 <template>
   <q-page padding>
     <div class="flex items-center q-mb-lg q-gutter-sm">
-      <q-btn flat round dense icon="arrow_back" @click="router.push({ name: 'sysadmin-users' })" />
+      <q-btn flat round dense icon="arrow_back" @click="router.push({ name: 'usuarios-listar' })" />
       <div class="text-h5 text-weight-bold">Editar usuario</div>
     </div>
 
@@ -160,7 +182,7 @@ onMounted(async () => {
           />
 
           <q-select
-            v-if="requiresBranch"
+            v-if="showBranchSelector"
             v-model="form.branchId"
             :options="branchOptions"
             option-label="label"
@@ -206,7 +228,7 @@ onMounted(async () => {
                 flat
                 label="Cancelar"
                 :disable="loading"
-                @click="router.push({ name: 'sysadmin-users' })"
+                @click="router.push({ name: 'usuarios-listar' })"
               />
               <q-btn type="submit" color="primary" label="Guardar" :loading="loading" />
             </div>

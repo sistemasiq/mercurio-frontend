@@ -14,6 +14,7 @@ const router = useRouter()
 onMounted(() => {
   store.loadProductos()
   store.loadPulseras()
+  store.loadMetodoPago()
 })
 
 onUnmounted(() => {

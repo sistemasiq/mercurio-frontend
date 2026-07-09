@@ -5,13 +5,34 @@ import { useAuthForm } from '@/composables/useAuthForm'
 
 const formRef = ref<InstanceType<typeof QForm> | null>(null)
 
-const { credentials, showPassword, emailRules, passwordRules, isLoading, handleLogin } =
-  useAuthForm()
+const {
+  credentials,
+  showPassword,
+  emailRules,
+  passwordRules,
+  isLoading,
+  pendingBranchSelection,
+  handleLogin,
+  confirmBranchSelection,
+  cancelBranchSelection,
+} = useAuthForm()
+
+const sucursalSeleccionada = ref<string | null>(null)
 
 async function onSubmit(): Promise<void> {
   const valid = await formRef.value?.validate()
   if (!valid) return
   await handleLogin()
+}
+
+async function onConfirmSucursal(): Promise<void> {
+  if (!sucursalSeleccionada.value) return
+  await confirmBranchSelection(sucursalSeleccionada.value)
+}
+
+function onCancelSucursal(): void {
+  sucursalSeleccionada.value = null
+  cancelBranchSelection()
 }
 </script>
 
@@ -136,6 +157,41 @@ async function onSubmit(): Promise<void> {
         </div>
       </footer>
     </section>
+
+    <q-dialog :model-value="pendingBranchSelection() !== null" persistent>
+      <q-card style="min-width: 320px">
+        <q-card-section>
+          <div class="text-h6">Elige tu sucursal</div>
+          <p class="text-body2 text-grey-7 q-mb-none">
+            Tu cuenta tiene acceso a varias sucursales. Elige con cuál quieres trabajar en esta
+            sesión.
+          </p>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-select
+            v-model="sucursalSeleccionada"
+            outlined
+            dense
+            :options="pendingBranchSelection() ?? []"
+            option-value="id"
+            option-label="nombre"
+            emit-value
+            map-options
+            label="Sucursal"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancelar" :disable="isLoading()" @click="onCancelSucursal" />
+          <q-btn
+            color="primary"
+            label="Continuar"
+            :loading="isLoading()"
+            :disable="!sucursalSeleccionada"
+            @click="onConfirmSucursal"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 

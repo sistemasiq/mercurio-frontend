@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { reservacionesApi } from '@/api/reservaciones'
+import { reservacionesApi } from '@/api/reservacionesApi'
 import type { Reservaciones, ReservacionesCreate, ReservacionesUpdate } from '@/types/reservaciones'
 
 interface ReservacionesState {

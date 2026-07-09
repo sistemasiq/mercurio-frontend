@@ -40,30 +40,30 @@ function mapBranch(raw: BackendBranchResponse): Branch {
 }
 export const branchesApi = {
   async list(): Promise<Branch[]> {
-    const { data } = await apiClient.get<BackendBranchResponse[]>('/branches')
+    const { data } = await apiClient.get<BackendBranchResponse[]>('/sucursales')
     return data.map(mapBranch)
   },
 
   async getById(id: string): Promise<Branch> {
-    const { data } = await apiClient.get<BackendBranchResponse>(`/branches/${id}`)
+    const { data } = await apiClient.get<BackendBranchResponse>(`/sucursales/${id}`)
     return mapBranch(data)
   },
 
   async create(payload: CreateBranchPayload): Promise<Branch> {
-    const { data } = await apiClient.post<BackendBranchResponse>('/branches', payload)
+    const { data } = await apiClient.post<BackendBranchResponse>('/sucursales', payload)
     return mapBranch(data)
   },
 
   async update(id: string, payload: UpdateBranchPayload): Promise<Branch> {
-    const { data } = await apiClient.put<BackendBranchResponse>(`/branches/${id}`, payload)
+    const { data } = await apiClient.put<BackendBranchResponse>(`/sucursales/${id}`, payload)
     return mapBranch(data)
   },
 
   async remove(id: string): Promise<void> {
-    await apiClient.patch(`/branches/${id}/deactivate`)
+    await apiClient.patch(`/sucursales/${id}/deactivate`)
   },
 
   async restore(id: string): Promise<void> {
-    await apiClient.patch(`/branches/${id}/reactivate`)
+    await apiClient.patch(`/sucursales/${id}/reactivate`)
   },
 }

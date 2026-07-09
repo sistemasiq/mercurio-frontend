@@ -24,17 +24,17 @@ function mapUser(raw: BackendUserResponse): UserListItem {
 
 export const usersApi = {
   async list(): Promise<UserListItem[]> {
-    const { data } = await apiClient.get<BackendUserResponse[]>('/users')
+    const { data } = await apiClient.get<BackendUserResponse[]>('/usuarios')
     return data.map(mapUser)
   },
 
   async getById(id: string): Promise<UserListItem> {
-    const { data } = await apiClient.get<BackendUserResponse>(`/users/${id}`)
+    const { data } = await apiClient.get<BackendUserResponse>(`/usuarios/${id}`)
     return mapUser(data)
   },
 
   async create(payload: CreateUserPayload): Promise<UserListItem> {
-    const { data } = await apiClient.post<BackendUserResponse>('/users', {
+    const { data } = await apiClient.post<BackendUserResponse>('/usuarios', {
       full_name: payload.name,
       email: payload.email,
       password: payload.password,
@@ -45,7 +45,7 @@ export const usersApi = {
   },
 
   async update(id: string, payload: UpdateUserPayload): Promise<UserListItem> {
-    const { data } = await apiClient.put<BackendUserResponse>(`/users/${id}`, {
+    const { data } = await apiClient.put<BackendUserResponse>(`/usuarios/${id}`, {
       full_name: payload.name,
       email: payload.email,
       role: payload.role,
@@ -56,6 +56,6 @@ export const usersApi = {
   },
 
   async remove(id: string): Promise<void> {
-    await apiClient.delete(`/users/${id}`)
+    await apiClient.delete(`/usuarios/${id}`)
   },
 }

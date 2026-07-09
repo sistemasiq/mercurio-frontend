@@ -22,7 +22,7 @@ onMounted(async () => {
   try {
     branch.value = await branchService.getBranch(id.value)
   } catch {
-    router.push({ name: 'sysadmin-branches' })
+    router.push({ name: 'sucursales-listar' })
   } finally {
     loading.value = false
   }
@@ -96,7 +96,7 @@ const metadata = computed(() => {
 })
 
 function handleEdit(): void {
-  router.push({ name: 'sysadmin-branches-edit', params: { id: id.value } })
+  router.push({ name: 'sucursales-editar', params: { id: id.value } })
 }
 </script>
 
@@ -111,7 +111,7 @@ function handleEdit(): void {
       color="primary"
       label="Volver al listado"
       class="q-mt-md"
-      @click="router.push({ name: 'sysadmin-branches' })"
+      @click="router.push({ name: 'sucursales-listar' })"
     />
   </q-page>
 
@@ -121,7 +121,7 @@ function handleEdit(): void {
         <q-breadcrumbs class="text-grey-7 q-mb-sm" active-color="dark">
           <q-breadcrumbs-el label="Inicio" />
           <q-breadcrumbs-el label="Administración" />
-          <q-breadcrumbs-el label="Sucursales" :to="{ name: 'sysadmin-branches' }" />
+          <q-breadcrumbs-el label="Sucursales" :to="{ name: 'sucursales-listar' }" />
           <q-breadcrumbs-el :label="branch.nombre" />
           <q-breadcrumbs-el label="Información" class="text-weight-bold" />
         </q-breadcrumbs>

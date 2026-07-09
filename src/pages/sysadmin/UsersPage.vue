@@ -111,7 +111,7 @@ onMounted(fetchUsers)
         color="primary"
         icon="person_add"
         label="Registrar usuario"
-        @click="router.push({ name: 'sysadmin-users-new' })"
+        @click="router.push({ name: 'usuarios-crear' })"
       />
     </div>
 
@@ -245,7 +245,7 @@ onMounted(fetchUsers)
               color="grey-6"
               size="sm"
               title="Editar"
-              @click="router.push({ name: 'sysadmin-users-edit', params: { id: row.id } })"
+              @click="router.push({ name: 'usuarios-editar', params: { id: row.id } })"
             />
           </q-td>
         </template>

@@ -90,11 +90,11 @@ export function useSucursales() {
   }
 
   async function editar(id: string) {
-    await router.push({ name: 'sysadmin-branches-edit', params: { id } })
+    await router.push({ name: 'sucursales-editar', params: { id } })
   }
 
   async function verDetalle(id: string) {
-    await router.push({ name: 'sysadmin-branches-detail', params: { id } })
+    await router.push({ name: 'sucursales-detalle', params: { id } })
   }
 
   function cambiarPagina(nuevaPagina: number) {

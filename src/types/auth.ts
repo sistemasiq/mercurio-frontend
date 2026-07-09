@@ -5,6 +5,7 @@ export interface TokenPayload {
   email: string
   role: UserRole
   branch_id: string | null
+  permissions: string[]
   iat: number
   exp: number
 }
@@ -13,7 +14,17 @@ export interface LoginRequest {
   email: string
   password: string
   rememberMe?: boolean
+  sucursalId?: string | null
 }
+
+export interface BranchOption {
+  id: string
+  nombre: string
+}
+
+export type LoginResult =
+  | { kind: 'success'; data: LoginResponse }
+  | { kind: 'selection_required'; sucursales: BranchOption[] }
 
 export interface User {
   id: string
@@ -21,6 +32,7 @@ export interface User {
   email: string
   roles: UserRole[]
   branchId: string | null
+  permissions: string[]
 }
 
 export interface LoginResponse {

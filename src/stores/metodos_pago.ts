@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { metodosPagoApi } from '@/api/metodos_pago'
+import { metodosPagoApi } from '@/api/metodosPagoApi'
 import type { MetodosPago, MetodosPagoCreate, MetodosPagoUpdate } from '@/types/metodos_pago'
 
 interface MetodosPagoState {
