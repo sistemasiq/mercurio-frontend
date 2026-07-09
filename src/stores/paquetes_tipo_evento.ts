@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { paquetesTipoEventoApi } from '@/api/paquetes_tipo_evento'
+import { paquetesTipoEventoApi } from '@/api/paquetesTipoEventoApi'
 import type {
   Paquetes_tipo_evento,
   Paquetes_tipo_evento_create,

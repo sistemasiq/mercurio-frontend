@@ -1,9 +1,8 @@
-import { apiClient } from '@/api/axiosClient'
+import { comandasApi } from '@/api/comandasApi'
 import type { Comanda, CrearComandaRequest, EstadoActualComanda } from '@/types/comanda'
 
 export async function obtenerComandas(signal?: AbortSignal): Promise<Comanda[]> {
-  const response = await apiClient.get<Comanda[]>('/comandas/', { signal })
-  return response.data
+  return comandasApi.listar(signal)
 }
 
 export async function cambiarEstadoComanda(
@@ -11,19 +10,12 @@ export async function cambiarEstadoComanda(
   nuevoEstado: EstadoActualComanda,
   signal?: AbortSignal,
 ): Promise<void> {
-  await apiClient.patch(
-    `/comandas/${comandaId}/estado`,
-    {
-      estado_actual: nuevoEstado,
-    },
-    { signal },
-  )
+  return comandasApi.cambiarEstado(comandaId, nuevoEstado, signal)
 }
 
 export async function crearComanda(
   payload: CrearComandaRequest,
   signal?: AbortSignal,
 ): Promise<Comanda> {
-  const response = await apiClient.post<Comanda>('/comandas/', payload, { signal })
-  return response.data
+  return comandasApi.crear(payload, signal)
 }

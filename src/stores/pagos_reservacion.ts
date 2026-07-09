@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { pagosReservacionApi } from '@/api/pagos_reservacion.ts'
+import { pagosReservacionApi } from '@/api/pagosReservacionApi'
 import type {
   Pagos_reservacion,
   Pagos_reservacion_update,

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { paquetesApi } from '@/api/paquetes.ts'
+import { paquetesApi } from '@/api/paquetesApi'
 import type { Paquetes, PaquetesCreate, PaquetesUpdate } from '@/types/paquetes.ts'
 
 interface PaquetesState {
