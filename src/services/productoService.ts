@@ -1,10 +1,29 @@
-import { apiClient } from '@/api/axiosClient'
-import type { Producto } from '@/types/producto'
+import { productosApi } from '@/api/productosApi'
+import type { Producto, ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
 
 export async function obtenerProductos(signal?: AbortSignal): Promise<Producto[]> {
-  const response = await apiClient.get<Producto[]>('/productos/', { signal })
-  return response.data.map((producto) => ({
+  const productos = await productosApi.listar(signal)
+  return productos.map((producto) => ({
     ...producto,
     precio_unitario: Number(producto.precio_unitario),
   }))
+}
+
+export async function listarProductosAdmin(sucursalId: string): Promise<ProductoAdmin[]> {
+  return productosApi.listarAdmin(sucursalId)
+}
+
+export async function crearProducto(body: ProductoCreate): Promise<ProductoAdmin> {
+  return productosApi.crear(body)
+}
+
+export async function actualizarProducto(
+  productoId: string,
+  body: ProductoUpdate,
+): Promise<ProductoAdmin> {
+  return productosApi.actualizar(productoId, body)
+}
+
+export async function eliminarProducto(productoId: string): Promise<void> {
+  return productosApi.eliminar(productoId)
 }
