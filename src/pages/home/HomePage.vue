@@ -58,7 +58,7 @@ const cards: HomeCard[] = [
   },
   {
     permission: 'estancias:ver_activos',
-    routeName: 'control-acceso',
+    routeName: 'estancias-control-acceso',
     icon: 'badge',
     color: 'orange',
     title: 'Control de Acceso',

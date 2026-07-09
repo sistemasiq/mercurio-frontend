@@ -40,7 +40,7 @@ function scrollByCards(direction: 1 | -1) {
 }
 
 function goToNewRegistration() {
-  router.push({ name: 'registro-infantes' })
+  router.push({ name: 'estancias-registro-infantes' })
 }
 </script>
 

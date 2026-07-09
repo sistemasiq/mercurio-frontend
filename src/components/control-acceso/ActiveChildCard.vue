@@ -58,7 +58,7 @@ const statusConfig = computed(() => {
 
 function handleCheckout() {
   store.setCheckoutChild(props.child)
-  router.push({ name: 'checkout' })
+  router.push({ name: 'estancias-checkout' })
 }
 
 const fotoIneUrl = computed(() => getFotoIneUrl(props.child.registro_id))

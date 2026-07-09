@@ -40,8 +40,14 @@ const navGroups: NavGroup[] = [
       {
         label: 'Control de Acceso',
         icon: 'badge',
-        routeName: 'control-acceso',
+        routeName: 'estancias-control-acceso',
         permission: 'estancias:ver_activos',
+      },
+      {
+        label: 'Pulseras',
+        icon: 'sensors',
+        routeName: 'estancias-pulseras',
+        permission: 'pulseras:listar',
       },
     ],
   },
@@ -87,25 +93,34 @@ const navGroups: NavGroup[] = [
         label: 'Extras',
         icon: 'add_box',
         routeName: 'extras-listar',
-        permission: 'extras:listar',
+        // :crear (no :listar): esta pantalla administra el catálogo. Cajero
+        // tiene :listar solo para leerlo al hacer una reservación, no debe
+        // ver esta sección de gestión.
+        permission: 'extras:crear',
       },
       {
         label: 'Paquetes',
         icon: 'inventory_2',
         routeName: 'paquetes-listar',
-        permission: 'paquetes:listar',
+        permission: 'paquetes:crear',
       },
       {
         label: 'Tipos de Evento',
         icon: 'category',
         routeName: 'tipos-evento-listar',
-        permission: 'tipos_evento:listar',
+        permission: 'tipos_evento:crear',
       },
       {
         label: 'Métodos de Pago',
         icon: 'credit_card',
         routeName: 'metodos-pago-listar',
-        permission: 'metodos_pago:listar',
+        permission: 'metodos_pago:crear',
+      },
+      {
+        label: 'Productos',
+        icon: 'liquor',
+        routeName: 'productos-listar',
+        permission: 'inventario:gestionar_productos',
       },
     ],
   },
