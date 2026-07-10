@@ -24,8 +24,10 @@ export interface TutorData {
   fullName: string
   relationship: string
   phone: string
-  inePhoto: File | Blob | null
-  arrivalPhoto: File | Blob | null
+  secondaryGuardian: string | null
+  braceletGuardianId: string
+  inePhoto: File | null
+  arrivalPhoto: File | null
   estimatedTime: string
 }
 
@@ -33,6 +35,8 @@ const HOUR_OPTIONS: Record<string, number> = {
   '1 hr': 1,
   '2 hr': 2,
   '3 hr': 3,
+  '4 hr': 4,
+  '5 hr': 5,
 }
 
 export type RegistrationStep = 'form' | 'rfid' | 'complete'
@@ -45,6 +49,8 @@ export const useRegistrationStore = defineStore('registration', () => {
     fullName: '',
     relationship: 'Padre / Madre',
     phone: '',
+    secondaryGuardian: '',
+    braceletGuardianId: '',
     inePhoto: null,
     arrivalPhoto: null,
     estimatedTime: '1 hr',
@@ -135,12 +141,12 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   const savedChildren = computed(() => children.value.filter((c) => c.saved))
-
+  const tutorHasBracelet = computed(() => tutor.value.braceletGuardianId !== '')
   const hours = computed(() => HOUR_OPTIONS[tutor.value.estimatedTime] ?? 1)
 
   const pricePerChild = computed(() => {
     if (!productoBase.value) return 0
-    return productoBase.value.precio_unitario * hours.value
+    return productoBase.value.precioUnitario * hours.value
   })
 
   const total = computed(() => savedChildren.value.length * pricePerChild.value)
@@ -155,7 +161,10 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   const allChildrenHaveBracelet = computed(
-    () => savedChildren.value.length > 0 && savedChildren.value.every((c) => c.rfidBracelet),
+    () =>
+      tutor.value.braceletGuardianId !== '' &&
+      savedChildren.value.length > 0 &&
+      savedChildren.value.every((c) => c.rfidBracelet !== ''),
   )
 
   // Cuántos niños se pueden registrar según las pulseras disponibles en la sucursal
@@ -223,6 +232,8 @@ export const useRegistrationStore = defineStore('registration', () => {
         nombreCompleto: tutor.value.fullName,
         telefono: tutor.value.phone,
       },
+      nombreSegundoTutor: tutor.value.secondaryGuardian || null,
+      pulseraTutorId: tutor.value.braceletGuardianId,
       parentesco: tutor.value.relationship,
       detalles,
       pagos: [{ metodoPagoId: METODO_PAGO_ID, monto: total.value }],
@@ -254,6 +265,8 @@ export const useRegistrationStore = defineStore('registration', () => {
       fullName: '',
       relationship: 'Padre / Madre',
       phone: '',
+      secondaryGuardian: '',
+      braceletGuardianId: '',
       inePhoto: null,
       arrivalPhoto: null,
       estimatedTime: '1 hr',
@@ -289,6 +302,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     canProceedToRFID,
     maxChildrenAllowed,
     reachedBraceletLimit,
+    tutorHasBracelet,
     addChild,
     removeChild,
     saveChild,

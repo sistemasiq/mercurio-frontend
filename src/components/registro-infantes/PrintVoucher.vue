@@ -33,7 +33,7 @@ function printVoucher() {
 
 function getBraceletLabel(braceletId: string) {
   const bracelet = store.pulseras.find((p) => p.id === braceletId)
-  return bracelet?.pulsera_rfid ?? braceletId
+  return bracelet?.pulseraRfid ?? braceletId
 }
 </script>
 

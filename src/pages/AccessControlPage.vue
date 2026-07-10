@@ -73,7 +73,7 @@ function goToNewRegistration() {
           icon="groups"
           icon-color="primary"
           icon-bg="#e8f0fe"
-          caption="+5 última hora"
+          caption="+ 15 min restantes"
           caption-color="positive"
           caption-icon="trending_up"
         />
@@ -107,8 +107,8 @@ function goToNewRegistration() {
           icon="lock_open"
           icon-color="primary"
           icon-bg="#e8f0fe"
-          caption="Capacidad segura"
-          caption-color="grey-7"
+          :caption="`${store.pulserasLibres} pulseras libres`"
+          caption-color="black-1"
         />
       </div>
     </div>
@@ -158,7 +158,7 @@ function goToNewRegistration() {
 
         <!-- Fila horizontal con scroll -->
         <div v-else ref="scrollContainer" class="horizontal-scroll q-pb-sm">
-          <div v-for="child in store.activos" :key="child.detalle_id" class="scroll-item">
+          <div v-for="child in store.activos" :key="child.detalleId" class="scroll-item">
             <ActiveChildCard :child="child" />
           </div>
         </div>
@@ -167,7 +167,7 @@ function goToNewRegistration() {
         <div v-if="store.activos.length > 1" class="row q-gutter-sm q-mt-md">
           <q-chip
             v-for="(child, i) in store.activos"
-            :key="child.detalle_id"
+            :key="child.detalleId"
             clickable
             :color="
               child.status === 'excedido'
@@ -213,13 +213,12 @@ function goToNewRegistration() {
 
 .horizontal-scroll {
   display: flex;
-  gap: 28px;
+  gap: 80px;
   overflow-x: auto;
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
-  padding: 4px 4px 12px 4px;
+  padding: 4px 16px 12px 16px;
 }
-
 .horizontal-scroll::-webkit-scrollbar {
   height: 6px;
 }

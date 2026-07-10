@@ -34,10 +34,10 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   let refreshTimer: ReturnType<typeof setInterval> | null = null
 
   function computeStatus(item: ActivoDto): ActiveChild {
-    const minutosRestantes = item.minutos_pagados - item.minutos_transcurridos
+    const minutosRestantes = item.minutosPagados - item.minutosTranscurridos
     const progressPercent = Math.min(
       100,
-      Math.round((item.minutos_transcurridos / item.minutos_pagados) * 100),
+      Math.round((item.minutosTranscurridos / item.minutosPagados) * 100),
     )
 
     let status: StayStatus = 'activo'
@@ -104,13 +104,13 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   }
 
   function formatMinutosLabel(item: ActiveChild): string {
-    const transcurridoH = Math.floor(item.minutos_transcurridos / 60)
-    const transcurridoM = item.minutos_transcurridos % 60
-    const pagadoH = Math.floor(item.minutos_pagados / 60)
+    const transcurridoH = Math.floor(item.minutosTranscurridos / 60)
+    const transcurridoM = item.minutosTranscurridos % 60
+    const pagadoH = Math.floor(item.minutosPagados / 60)
 
     const transcurridoStr =
       transcurridoH > 0 ? `${transcurridoH}h ${transcurridoM}m` : `${transcurridoM}m`
-    const pagadoStr = pagadoH > 0 ? `${pagadoH}h` : `${item.minutos_pagados}m`
+    const pagadoStr = pagadoH > 0 ? `${pagadoH}h` : `${item.minutosPagados}m`
 
     return `${transcurridoStr} / ${pagadoStr}`
   }
@@ -118,8 +118,8 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   function formatRemainingLabel(item: ActiveChild): string {
     if (item.status === 'excedido') {
       const exceededBy = Math.abs(item.minutosRestantes)
-      const h = Math.floor(item.minutos_pagados / 60)
-      const hLabel = h > 0 ? `${h}h` : `${item.minutos_pagados}m`
+      const h = Math.floor(item.minutosPagados / 60)
+      const hLabel = h > 0 ? `${h}h` : `${item.minutosPagados}m`
       return `+${exceededBy}m (${hLabel})`
     }
     return `< ${item.minutosRestantes} min`
