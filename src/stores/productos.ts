@@ -39,7 +39,7 @@ export const useProductosStore = defineStore('productos', {
     async actualizar(id: string, body: ProductoUpdate) {
       const actualizado = await actualizarProducto(id, body)
       const idx = this.productos.findIndex((p) => p.id === id)
-      if (idx !== -1) this.productos[idx] = actualizado
+      if (idx !== -1) this.productos.splice(idx, 1, actualizado)
       return actualizado
     },
     async eliminar(id: string) {
