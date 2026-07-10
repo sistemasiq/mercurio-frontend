@@ -320,6 +320,7 @@ import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useProductosStore } from '@/stores/productos'
 import type { ComboItemCreate, ProductoAdmin, TipoProducto } from '@/types/producto'
+import { apiClient } from '@/api/axiosClient.ts'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -430,15 +431,37 @@ const abrirCrear = () => {
   dialogOpen.value = true
 }
 
-const abrirEditar = (row: ProductoAdmin) => {
+const abrirEditar = async (row: ProductoAdmin) => {
   editando.value = row
+  let productosComboCargados: ComboItemCreate[] = []
+
+  if (row.tipo === 'C') {
+    try {
+      const { data } = await apiClient.get<ProductoAdmin>(`/productos/${row.id}`)
+      if (data && data.productos_combo) {
+        productosComboCargados = data.productos_combo.map((item) => ({
+          producto_id: item.producto_id,
+          cantidad: item.cantidad,
+        }))
+      }
+    } catch {
+      $q.notify({
+        type: 'negative',
+        message: 'No se pudieron recuperar los productos del combo desde el servidor.',
+        position: 'top-right',
+      })
+      return
+    }
+  }
+
   formDialog.value = {
     nombre: row.nombre,
     tipo: row.tipo,
     precio_unitario: Number(row.precio_unitario),
     descripcion: row.descripcion ?? '',
-    productos_combo: row.productos_combo ? [...row.productos_combo] : [],
+    productos_combo: productosComboCargados,
   }
+
   productoComboTemporal.value = { producto_id: '', cantidad: 1 }
   dialogOpen.value = true
 }
@@ -458,17 +481,15 @@ const guardar = async () => {
     if (formDialog.value.productos_combo.length < 2) {
       $q.notify({
         type: 'warning',
-        message: 'Un combo debe incluir un mínimo de 2 productos agregados.',
+        message: 'Un combo debe incluir un mínimo de 2 productos.',
         position: 'top-right',
       })
       return
     }
-
     if (productoComboTemporal.value.producto_id) {
       $q.notify({
         type: 'warning',
-        message:
-          'Tienes un producto seleccionado en el menú. Presiona el botón "+" para confirmarlo antes de guardar.',
+        message: 'Tienes un producto seleccionado. Confírmalo con "+" antes de guardar.',
         position: 'top-right',
       })
       return
@@ -483,6 +504,7 @@ const guardar = async () => {
         tipo: formDialog.value.tipo,
         precio_unitario: String(formDialog.value.precio_unitario),
         descripcion: formDialog.value.descripcion.trim() || null,
+        productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
       })
       $q.notify({ type: 'positive', message: 'Producto actualizado', position: 'top-right' })
     } else {
