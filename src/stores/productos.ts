@@ -4,6 +4,7 @@ import {
   crearProducto,
   eliminarProducto,
   listarProductosAdmin,
+  reactivarProducto,
 } from '@/services/productoService'
 import type { ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
 
@@ -46,6 +47,12 @@ export const useProductosStore = defineStore('productos', {
       await eliminarProducto(id)
       const idx = this.productos.findIndex((p) => p.id === id)
       if (idx !== -1) this.productos[idx] = { ...this.productos[idx]!, activo: false }
+    },
+    async reactivar(id: string) {
+      const reactivado = await reactivarProducto(id)
+      const idx = this.productos.findIndex((p) => p.id === id)
+      if (idx !== -1) this.productos.splice(idx, 1, reactivado)
+      return reactivado
     },
   },
 })
