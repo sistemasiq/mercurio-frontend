@@ -289,7 +289,7 @@ function handleEdit(): void {
   word-break: break-word;
 }
 .contact-item__value--accent {
-  color: #2563eb;
+  color: #025fe0;
 }
 .location-section {
   display: flex;
