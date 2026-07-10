@@ -43,18 +43,6 @@ function onCancelSucursal(): void {
     </aside>
 
     <section class="auth-right">
-      <!-- Header del panel -->
-      <header class="auth-header">
-        <div class="auth-brand">
-          <img src="/woow-kids-mascot.png" alt="Woow Kids" class="auth-brand__icon" />
-          <span class="auth-brand__text">Woow Kids</span>
-        </div>
-        <div class="auth-header__icons">
-          <q-btn flat round dense icon="language" color="grey-6" size="sm" />
-          <q-btn flat round dense icon="help_outline" color="grey-6" size="sm" />
-        </div>
-      </header>
-
       <!-- Contenido principal centrado -->
       <main class="auth-main">
         <h1 class="auth-title">Bienvenido de nuevo</h1>
@@ -149,12 +137,6 @@ function onCancelSucursal(): void {
       <!-- Footer -->
       <footer class="auth-footer">
         <span class="auth-footer__copy">© 2026 Woow Kids.</span>
-        <div class="auth-footer__links">
-          <a href="#" class="auth-footer__link" @click.prevent>Soporte Técnico</a>
-          <span class="auth-footer__sep">·</span>
-          <a href="#" class="auth-footer__link auth-footer__lang active" @click.prevent>ES</a>
-          <a href="#" class="auth-footer__link auth-footer__lang" @click.prevent>EN</a>
-        </div>
       </footer>
     </section>
 
@@ -212,7 +194,7 @@ function onCancelSucursal(): void {
 .auth-left {
   flex: 0 0 56%;
   overflow: hidden;
-  background: #0b1450;
+  background: #011463;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,41 +216,6 @@ function onCancelSucursal(): void {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-/* ── Header ─────────────────────────────────────────────── */
-.auth-header {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 32px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.auth-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.auth-brand__icon {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  object-fit: cover;
-}
-
-.auth-brand__text {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1e293b;
-  letter-spacing: -0.01em;
-}
-
-.auth-header__icons {
-  display: flex;
-  gap: 4px;
 }
 
 /* ── Contenido central ───────────────────────────────────── */
@@ -377,7 +324,7 @@ function onCancelSucursal(): void {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 12px 32px;
   border-top: 1px solid #f1f5f9;
 }
@@ -385,36 +332,6 @@ function onCancelSucursal(): void {
 .auth-footer__copy {
   font-size: 12px;
   color: #94a3b8;
-}
-
-.auth-footer__links {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.auth-footer__link {
-  font-size: 12px;
-  color: #94a3b8;
-  text-decoration: none;
-  transition: color 0.15s;
-}
-
-.auth-footer__link:hover {
-  color: #64748b;
-}
-
-.auth-footer__sep {
-  color: #cbd5e1;
-  font-size: 12px;
-}
-
-.auth-footer__lang {
-  font-weight: 500;
-}
-
-.auth-footer__lang.active {
-  color: #1e293b;
 }
 
 /* ── Responsive ──────────────────────────────────────────── */
@@ -428,15 +345,8 @@ function onCancelSucursal(): void {
     max-width: 100%;
   }
 
-  .auth-header {
-    padding: 14px 24px;
-  }
-
   .auth-footer {
     padding: 12px 24px;
-    flex-direction: column;
-    gap: 6px;
-    text-align: center;
   }
 }
 </style>
