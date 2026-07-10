@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
+import { branchService } from '@/services/branchService'
 
 interface NavItem {
   label: string
@@ -164,6 +165,23 @@ const userColor = computed(() => getAvatarColor(auth.currentUser?.name ?? ''))
 const userName = computed(() => auth.currentUser?.name ?? auth.currentUser?.email ?? '')
 const userRole = computed(() => auth.primaryRole ?? '')
 
+const branchName = ref('')
+
+async function loadBranchName(branchId: string | null): Promise<void> {
+  if (!branchId) {
+    branchName.value = ''
+    return
+  }
+  try {
+    const branch = await branchService.getBranch(branchId)
+    branchName.value = branch.nombre
+  } catch {
+    branchName.value = ''
+  }
+}
+
+watch(() => auth.currentBranchId, loadBranchName, { immediate: true })
+
 function isActive(routeName: string): boolean {
   return route.name === routeName
 }
@@ -222,15 +240,10 @@ async function handleLogout(): Promise<void> {
         <q-space />
 
         <div class="header-actions">
-          <q-btn flat round dense class="action-btn" aria-label="Notificaciones">
-            <q-icon name="notifications_none" size="20px" />
-          </q-btn>
-          <q-btn flat round dense class="action-btn" aria-label="Configuración">
-            <q-icon name="settings" size="20px" />
-          </q-btn>
-          <q-btn flat round dense class="action-btn" aria-label="Ayuda">
-            <q-icon name="help_outline" size="20px" />
-          </q-btn>
+          <div v-if="branchName" class="header-branch">
+            <q-icon name="store" size="18px" />
+            <span>{{ branchName }}</span>
+          </div>
 
           <div class="header-divider" />
 
@@ -371,6 +384,19 @@ async function handleLogout(): Promise<void> {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.header-branch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .action-btn {
