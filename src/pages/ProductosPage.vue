@@ -161,6 +161,102 @@
               :rules="[(v) => v > 0 || 'El precio debe ser mayor a 0']"
             />
           </div>
+          <div
+            v-if="formDialog.tipo === 'C'"
+            class="q-p-sm bg-grey-1 rounded-borders q-mt-md"
+            style="border: 1px dashed #ccc; border-radius: 8px; padding: 12px"
+          >
+            <div class="text-subtitle2 text-weight-bold q-mb-sm text-primary">
+              PRODUCTOS DEL COMBO
+            </div>
+
+            <div class="row q-col-gutter-sm items-end">
+              <div class="col-7">
+                <div class="field-label">Seleccionar Producto</div>
+                <q-select
+                  v-model="productoComboTemporal.producto_id"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  option-value="id"
+                  option-label="nombre"
+                  :options="productosDisponiblesParaCombo"
+                  placeholder="Elige un producto"
+                />
+              </div>
+              <div class="col-3">
+                <div class="field-label">Cant.</div>
+                <q-input
+                  v-model.number="productoComboTemporal.cantidad"
+                  dense
+                  outlined
+                  type="number"
+                  min="1"
+                />
+              </div>
+              <div class="col-2 flex flex-center">
+                <q-btn
+                  color="primary"
+                  icon="add"
+                  unelevated
+                  style="height: 40px; border-radius: 8px"
+                  @click="agregarItemAlCombo"
+                >
+                  <q-tooltip>Agregar al combo</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+
+            <div class="q-mt-md">
+              <div
+                v-if="formDialog.productos_combo.length === 0"
+                class="text-caption text-grey-6 text-center q-py-sm"
+              >
+                No has añadido productos a este combo todavía.
+              </div>
+
+              <q-list
+                v-else
+                separator
+                dense
+                class="bg-white rounded-borders"
+                style="border: 1px solid #e2e8f0"
+              >
+                <q-item
+                  v-for="(item, index) in formDialog.productos_combo"
+                  :key="item.producto_id"
+                  class="q-py-sm"
+                >
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">{{
+                      obtenerNombreProducto(item.producto_id)
+                    }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <div class="row items-center q-gutter-sm">
+                      <q-badge
+                        color="blue-2"
+                        text-color="blue-9"
+                        :label="`x${item.cantidad}`"
+                        class="text-weight-bold"
+                        style="padding: 4px 8px; border-radius: 6px"
+                      />
+                      <q-btn
+                        flat
+                        round
+                        dense
+                        icon="delete"
+                        color="negative"
+                        size="sm"
+                        @click="removerItemDelCombo(index)"
+                      />
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+          </div>
           <div>
             <div class="field-label">DESCRIPCIÓN (opcional)</div>
             <q-input
@@ -218,12 +314,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useProductosStore } from '@/stores/productos'
-import type { ProductoAdmin, TipoProducto } from '@/types/producto'
+import type { ComboItemCreate, ProductoAdmin, TipoProducto } from '@/types/producto'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -234,11 +330,13 @@ const TIPO_LABELS: Record<TipoProducto, string> = {
   B: 'Bebida',
   E: 'Estancia',
   S: 'Servicio',
+  C: 'Combo',
 }
 
 const TIPO_OPTIONS = [
   { label: 'Alimento', value: 'A' },
   { label: 'Bebida', value: 'B' },
+  { label: 'Combo', value: 'C' },
   { label: 'Estancia', value: 'E' },
   { label: 'Servicio', value: 'S' },
 ]
@@ -264,6 +362,41 @@ const columns: QTableColumn[] = [
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
 
+const productosDisponiblesParaCombo = computed(() => {
+  return store.productos.filter((p) => p.tipo !== 'C' && p.activo)
+})
+
+const agregarItemAlCombo = () => {
+  const { producto_id, cantidad } = productoComboTemporal.value
+
+  if (!producto_id || cantidad <= 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'Selecciona un producto y una cantidad válida.',
+      position: 'top-right',
+    })
+    return
+  }
+  const existente = formDialog.value.productos_combo.find(
+    (item) => item.producto_id === producto_id,
+  )
+  if (existente) {
+    existente.cantidad += cantidad
+  } else {
+    formDialog.value.productos_combo.push({ producto_id, cantidad })
+  }
+  productoComboTemporal.value = { producto_id: '', cantidad: 1 }
+}
+
+const removerItemDelCombo = (index: number) => {
+  formDialog.value.productos_combo.splice(index, 1)
+}
+
+const obtenerNombreProducto = (id: string) => {
+  const prod = store.productos.find((p) => p.id === id)
+  return prod ? prod.nombre : 'Producto no encontrado'
+}
+
 // ── Estado del dialog ─────────────────────────────────────────────────────────
 
 const dialogOpen = ref(false)
@@ -276,11 +409,24 @@ const formDialog = ref({
   tipo: 'A' as TipoProducto,
   precio_unitario: 0,
   descripcion: '',
+  productos_combo: [] as ComboItemCreate[],
+})
+
+const productoComboTemporal = ref({
+  producto_id: '',
+  cantidad: 1,
 })
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', tipo: 'A', precio_unitario: 0, descripcion: '' }
+  formDialog.value = {
+    nombre: '',
+    tipo: 'A',
+    precio_unitario: 0,
+    descripcion: '',
+    productos_combo: [],
+  }
+  productoComboTemporal.value = { producto_id: '', cantidad: 1 }
   dialogOpen.value = true
 }
 
@@ -291,7 +437,9 @@ const abrirEditar = (row: ProductoAdmin) => {
     tipo: row.tipo,
     precio_unitario: Number(row.precio_unitario),
     descripcion: row.descripcion ?? '',
+    productos_combo: row.productos_combo ? [...row.productos_combo] : [],
   }
+  productoComboTemporal.value = { producto_id: '', cantidad: 1 }
   dialogOpen.value = true
 }
 
@@ -305,6 +453,28 @@ const guardar = async () => {
     nombreRef.value?.validate()
     return
   }
+
+  if (formDialog.value.tipo === 'C') {
+    if (formDialog.value.productos_combo.length < 2) {
+      $q.notify({
+        type: 'warning',
+        message: 'Un combo debe incluir un mínimo de 2 productos agregados.',
+        position: 'top-right',
+      })
+      return
+    }
+
+    if (productoComboTemporal.value.producto_id) {
+      $q.notify({
+        type: 'warning',
+        message:
+          'Tienes un producto seleccionado en el menú. Presiona el botón "+" para confirmarlo antes de guardar.',
+        position: 'top-right',
+      })
+      return
+    }
+  }
+
   guardando.value = true
   try {
     if (editando.value) {
@@ -323,6 +493,7 @@ const guardar = async () => {
         precio_unitario: String(formDialog.value.precio_unitario),
         descripcion: formDialog.value.descripcion.trim() || null,
         sucursal_id: authStore.currentBranchId,
+        productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
       })
       $q.notify({ type: 'positive', message: 'Producto creado', position: 'top-right' })
     }
