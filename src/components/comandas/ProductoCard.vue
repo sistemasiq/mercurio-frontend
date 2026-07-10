@@ -1,7 +1,7 @@
 <template>
   <div class="producto-card" @click="$emit('agregar', producto)">
     <div class="producto-card__img-wrap">
-      <q-img :src="producto.imagen" height="100px" class="producto-card__img">
+      <q-img :src="producto.imagen ?? undefined" height="100px" class="producto-card__img">
         <template #error>
           <div class="absolute-full flex flex-center bg-grey-3">
             <q-icon name="fastfood" size="28px" color="grey-5" />

@@ -1,16 +1,18 @@
 import { apiClient } from '@/api/axiosClient'
-import type { Producto, ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
+import type { ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
+
+async function fetchProductosCatalogo(signal?: AbortSignal): Promise<ProductoAdmin[]> {
+  const { data } = await apiClient.get<ProductoAdmin[]>('/productos/catalogo', { signal })
+  return data
+}
 
 export const productosApi = {
-  async listar(signal?: AbortSignal): Promise<Producto[]> {
-    const { data } = await apiClient.get<Producto[]>('/productos', { signal })
-    return data
+  async listarCatalogo(signal?: AbortSignal): Promise<ProductoAdmin[]> {
+    return fetchProductosCatalogo(signal)
   },
 
-  async listarAdmin(sucursalId: string): Promise<ProductoAdmin[]> {
-    const { data } = await apiClient.get<ProductoAdmin[]>('/productos/admin', {
-      params: { sucursal_id: sucursalId },
-    })
+  async listarAdmin(signal?: AbortSignal): Promise<ProductoAdmin[]> {
+    const { data } = await apiClient.get<ProductoAdmin[]>('/productos/admin', { signal })
     return data
   },
 
