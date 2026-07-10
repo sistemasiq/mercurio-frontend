@@ -295,10 +295,7 @@ onBeforeUnmount(() => {
           icon="close"
           label="Quitar"
           color="grey-7"
-          @click="
-            showSegundoTutor = false
-            store.tutor.secondaryGuardian = null
-          "
+          @click="((showSegundoTutor = false), (store.tutor.secondaryGuardian = null))"
         />
       </div>
 

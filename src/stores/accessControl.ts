@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { fetchActivos, fetchPulseras, type ActivoDto } from '@/api/onboardingClient'
+import {
+  fetchActivos,
+  fetchPulseras,
+  type ActivoDto,
+  type PulseraDto,
+} from '@/api/onboardingClient'
 import { useAuthStore } from '@/stores/auth'
 
 export type StayStatus = 'activo' | 'por_expirar' | 'excedido'
@@ -12,7 +17,6 @@ export interface ActiveChild extends ActivoDto {
 }
 
 const EXPIRING_THRESHOLD_MINUTES = 15
-const REFRESH_INTERVAL_MS = 60_000 // 1 minute
 
 export const useAccessControlStore = defineStore('accessControl', () => {
   const authStore = useAuthStore()
@@ -20,6 +24,23 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const lastUpdated = ref<Date | null>(null)
+  const now = ref(Date.now())
+
+  let tickTimer: ReturnType<typeof setInterval> | null = null
+
+  function startTicking() {
+    stopTicking()
+    tickTimer = setInterval(() => {
+      now.value = Date.now()
+    }, 60_000)
+  }
+
+  function stopTicking() {
+    if (tickTimer) {
+      clearInterval(tickTimer)
+      tickTimer = null
+    }
+  }
 
   const checkoutChild = ref<ActiveChild | null>(null)
 
@@ -31,13 +52,15 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     checkoutChild.value = null
   }
 
-  let refreshTimer: ReturnType<typeof setInterval> | null = null
-
   function computeStatus(item: ActivoDto): ActiveChild {
-    const minutosRestantes = item.minutosPagados - item.minutosTranscurridos
+    const elapsedMs = lastUpdated.value ? now.value - lastUpdated.value.getTime() : 0
+    const elapsedMinutes = Math.max(0, Math.floor(elapsedMs / 60_000))
+    const minutosTranscurridos = item.minutosTranscurridos + elapsedMinutes
+
+    const minutosRestantes = item.minutosPagados - minutosTranscurridos
     const progressPercent = Math.min(
       100,
-      Math.round((item.minutosTranscurridos / item.minutosPagados) * 100),
+      Math.round((minutosTranscurridos / item.minutosPagados) * 100),
     )
 
     let status: StayStatus = 'activo'
@@ -47,7 +70,7 @@ export const useAccessControlStore = defineStore('accessControl', () => {
       status = 'por_expirar'
     }
 
-    return { ...item, status, minutosRestantes, progressPercent }
+    return { ...item, minutosTranscurridos, status, minutosRestantes, progressPercent }
   }
 
   const activos = computed<ActiveChild[]>(() => rawActivos.value.map(computeStatus))
@@ -58,7 +81,8 @@ export const useAccessControlStore = defineStore('accessControl', () => {
 
   const excedidos = computed(() => activos.value.filter((a) => a.status === 'excedido').length)
 
-  const pulserasLibres = ref(0)
+  const pulserasDisponibles = ref<PulseraDto[]>([])
+  const pulserasLibres = computed(() => pulserasDisponibles.value.length)
   const capacidadTotal = computed(() => totalActivos.value + pulserasLibres.value)
 
   const disponibilidadPercent = computed(() => {
@@ -79,27 +103,13 @@ export const useAccessControlStore = defineStore('accessControl', () => {
         fetchPulseras(authStore.currentBranchId),
       ])
       rawActivos.value = activosData
-      pulserasLibres.value = pulserasData.length
+      pulserasDisponibles.value = pulserasData
       lastUpdated.value = new Date()
     } catch (err) {
       error.value = 'No se pudo cargar la lista de niños activos.'
       console.error(err)
     } finally {
       isLoading.value = false
-    }
-  }
-
-  function startAutoRefresh() {
-    stopAutoRefresh()
-    refreshTimer = setInterval(() => {
-      loadActivos()
-    }, REFRESH_INTERVAL_MS)
-  }
-
-  function stopAutoRefresh() {
-    if (refreshTimer) {
-      clearInterval(refreshTimer)
-      refreshTimer = null
     }
   }
 
@@ -131,6 +141,8 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     isLoading,
     error,
     lastUpdated,
+    startTicking,
+    stopTicking,
     checkoutChild,
     setCheckoutChild,
     clearCheckoutChild,
@@ -139,10 +151,9 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     excedidos,
     disponibilidadPercent,
     pulserasLibres,
+    pulserasDisponibles,
     capacidadTotal,
     loadActivos,
-    startAutoRefresh,
-    stopAutoRefresh,
     formatMinutosLabel,
     formatRemainingLabel,
   }

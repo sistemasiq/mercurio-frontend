@@ -12,11 +12,11 @@ const scrollContainer = ref<HTMLElement | null>(null)
 
 onMounted(() => {
   store.loadActivos()
-  store.startAutoRefresh()
+  store.startTicking()
 })
 
 onUnmounted(() => {
-  store.stopAutoRefresh()
+  store.stopTicking()
 })
 
 function getChildFirstName(nino: string, index: number) {

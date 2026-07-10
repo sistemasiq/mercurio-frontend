@@ -2,14 +2,13 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
   fetchProductos,
-  fetchPulseras,
   postOnboarding,
   METODO_PAGO_ID,
   type ProductoDto,
-  type PulseraDto,
   type OnboardingDetalle,
 } from '@/api/onboardingClient'
 import { useAuthStore } from '@/stores/auth'
+import { useAccessControlStore } from '@/stores/accessControl'
 
 export interface Child {
   id: string
@@ -43,6 +42,7 @@ export type RegistrationStep = 'form' | 'rfid' | 'complete'
 
 export const useRegistrationStore = defineStore('registration', () => {
   const authStore = useAuthStore()
+  const accessControlStore = useAccessControlStore()
   const step = ref<RegistrationStep>('form')
 
   const tutor = ref<TutorData>({
@@ -61,9 +61,8 @@ export const useRegistrationStore = defineStore('registration', () => {
   const folioId = ref('')
 
   const productoBase = ref<ProductoDto | null>(null)
-  const pulseras = ref<PulseraDto[]>([])
+  const pulseras = computed(() => accessControlStore.pulserasDisponibles)
   const isLoadingCatalog = ref(false)
-  const isLoadingPulseras = ref(false)
   const isSubmitting = ref(false)
   const submitError = ref<string | null>(null)
 
@@ -120,23 +119,6 @@ export const useRegistrationStore = defineStore('registration', () => {
       console.error(err)
     } finally {
       isLoadingCatalog.value = false
-    }
-  }
-
-  async function loadPulseras() {
-    if (!authStore.currentBranchId) {
-      submitError.value = 'No hay una sucursal activa en la sesión.'
-      return
-    }
-    isLoadingPulseras.value = true
-    submitError.value = null
-    try {
-      pulseras.value = await fetchPulseras(authStore.currentBranchId)
-    } catch (err) {
-      submitError.value = 'No se pudo cargar el catálogo de pulseras.'
-      console.error(err)
-    } finally {
-      isLoadingPulseras.value = false
     }
   }
 
@@ -202,7 +184,6 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   async function proceedToRFID() {
     step.value = 'rfid'
-    await loadPulseras()
   }
 
   async function completeRegistration() {
@@ -285,7 +266,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     productoBase,
     pulseras,
     isLoadingCatalog,
-    isLoadingPulseras,
     isSubmitting,
     submitError,
     registroId,
@@ -311,6 +291,5 @@ export const useRegistrationStore = defineStore('registration', () => {
     completeRegistration,
     reset,
     loadProductos,
-    loadPulseras,
   }
 })
