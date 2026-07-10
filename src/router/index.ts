@@ -244,6 +244,12 @@ const routes: RouteRecordRaw[] = [
         meta: { permissions: ['estancias:checkout'], title: 'Checkout' },
       },
       {
+        path: 'pulseras/registro',
+        name: 'estancias-pulseras-registro',
+        component: () => import('@/pages/RegistroPulserasPage.vue'),
+        meta: { permissions: ['pulseras:crear'], title: 'Registro de Pulseras' },
+      },
+      {
         path: 'pulseras',
         name: 'estancias-pulseras',
         component: () => import('@/pages/PulserasPage.vue'),
