@@ -56,7 +56,6 @@ export type ComandaWsMessage =
 export interface CrearComandaRequest {
   ticket_numero: string
   total_final: number
-  sucursal_id: string
   estado_actual: EstadoActualComanda
   detalles_comanda: DetalleComandaRequest[]
 }

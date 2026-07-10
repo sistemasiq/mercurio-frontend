@@ -272,7 +272,6 @@ const procesarPago = async () => {
   const payload: CrearComandaRequest = {
     ticket_numero: `TICK-${String(Date.now() % 10000).padStart(4, '0')}`,
     total_final: itemsTicket.value.reduce((s, i) => s + i.producto.precio_unitario * i.cantidad, 0),
-    sucursal_id: authStore.currentBranchId,
     estado_actual: 'P',
     detalles_comanda: detalles,
   }
