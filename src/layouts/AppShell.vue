@@ -189,10 +189,10 @@ async function handleLogout(): Promise<void> {
         <!-- Logo -->
         <div class="sb-logo">
           <div class="sb-logo-icon">
-            <q-icon name="apps" size="16px" color="white" />
+            <img src="/woow-kids-mascot.png" alt="Woow Kids" class="sb-logo-img" />
           </div>
           <div>
-            <div class="sb-brand">Mercurio</div>
+            <div class="sb-brand">Woow Kids</div>
             <div class="sb-sub">Panel de control</div>
           </div>
         </div>
@@ -239,8 +239,8 @@ async function handleLogout(): Promise<void> {
     <q-header class="app-header">
       <q-toolbar class="app-toolbar">
         <q-toolbar-title class="header-brand">
-          <q-icon name="apps" size="16px" color="primary" class="q-mr-xs" />
-          Mercurio
+          <img src="/woow-kids-mascot.png" alt="Woow Kids" class="header-brand-img" />
+          Woow Kids
         </q-toolbar-title>
 
         <q-space />
@@ -317,11 +317,18 @@ async function handleLogout(): Promise<void> {
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: #2563eb;
+  background: #025fe0;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.sb-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .sb-brand {
@@ -386,14 +393,14 @@ async function handleLogout(): Promise<void> {
 
 .sb-item--active {
   background: #eff6ff !important;
-  color: #2563eb !important;
+  color: #025fe0 !important;
   font-weight: 600 !important;
-  border-left: 3px solid #2563eb;
+  border-left: 3px solid #025fe0;
   padding-left: 7px !important;
 }
 
 .sb-item--active :deep(.q-icon) {
-  color: #2563eb !important;
+  color: #025fe0 !important;
 }
 
 .sb-spacer {
@@ -460,7 +467,14 @@ async function handleLogout(): Promise<void> {
   font-weight: 700;
   color: #0f172a;
   flex: 0 0 auto;
-  gap: 4px;
+  gap: 8px;
+}
+
+.header-brand-img {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 .header-actions {

@@ -39,15 +39,15 @@ function onCancelSucursal(): void {
 <template>
   <q-page class="auth-page">
     <aside class="auth-left">
-      <img src="/screen-login.png" alt="" class="auth-left__illustration" aria-hidden="true" />
+      <img src="/woow-kids-logo.png" alt="" class="auth-left__illustration" aria-hidden="true" />
     </aside>
 
     <section class="auth-right">
       <!-- Header del panel -->
       <header class="auth-header">
         <div class="auth-brand">
-          <q-icon name="apps" color="primary" size="20px" />
-          <span class="auth-brand__text">TEC-FS</span>
+          <img src="/woow-kids-mascot.png" alt="Woow Kids" class="auth-brand__icon" />
+          <span class="auth-brand__text">Woow Kids</span>
         </div>
         <div class="auth-header__icons">
           <q-btn flat round dense icon="language" color="grey-6" size="sm" />
@@ -70,7 +70,7 @@ function onCancelSucursal(): void {
               inputmode="email"
               outlined
               dense
-              placeholder="usuario@kinetic.com"
+              placeholder="usuario@woowkids.com"
               autocomplete="username"
               :rules="emailRules"
               lazy-rules
@@ -148,7 +148,7 @@ function onCancelSucursal(): void {
 
       <!-- Footer -->
       <footer class="auth-footer">
-        <span class="auth-footer__copy">© 2026 TecNM La Piedad - Fabrica de software.</span>
+        <span class="auth-footer__copy">© 2026 Woow Kids.</span>
         <div class="auth-footer__links">
           <a href="#" class="auth-footer__link" @click.prevent>Soporte Técnico</a>
           <span class="auth-footer__sep">·</span>
@@ -212,12 +212,17 @@ function onCancelSucursal(): void {
 .auth-left {
   flex: 0 0 56%;
   overflow: hidden;
+  background: #0b1450;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
 }
 
 .auth-left__illustration {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   display: block;
 }
@@ -245,6 +250,13 @@ function onCancelSucursal(): void {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.auth-brand__icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 .auth-brand__text {
