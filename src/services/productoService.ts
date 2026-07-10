@@ -27,3 +27,7 @@ export async function actualizarProducto(
 export async function eliminarProducto(productoId: string): Promise<void> {
   return productosApi.eliminar(productoId)
 }
+
+export async function reactivarProducto(productoId: string): Promise<ProductoAdmin> {
+  return productosApi.reactivar(productoId)
+}

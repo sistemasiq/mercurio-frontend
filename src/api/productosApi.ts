@@ -27,4 +27,11 @@ export const productosApi = {
   async eliminar(productoId: string): Promise<void> {
     await apiClient.delete(`/productos/${productoId}`)
   },
+
+  async reactivar(productoId: string): Promise<ProductoAdmin> {
+    const { data } = await apiClient.patch<ProductoAdmin>(`/productos/${productoId}`, {
+      activo: true,
+    })
+    return data
+  },
 }
