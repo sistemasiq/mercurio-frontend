@@ -96,16 +96,28 @@
                 <q-tooltip>Editar</q-tooltip>
               </q-btn>
               <q-btn
+                v-if="props.row.activo"
                 flat
                 round
                 dense
                 icon="delete_outline"
                 color="negative"
                 size="sm"
-                :disable="!props.row.activo"
                 @click="confirmarEliminar(props.row)"
               >
                 <q-tooltip>Eliminar</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-else
+                flat
+                round
+                dense
+                icon="restore"
+                color="gray"
+                size="sm"
+                @click="confirmarReactivar(props.row)"
+              >
+                <q-tooltip>Reactivar</q-tooltip>
               </q-btn>
             </q-td>
           </template>
@@ -306,6 +318,30 @@
             style="border-radius: 8px; font-weight: 600"
             :loading="eliminando"
             @click="ejecutarEliminar"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="dialogReactivar">
+      <q-card style="min-width: 360px; border-radius: 12px">
+        <q-card-section>
+          <div class="text-h6 text-weight-bold">Reactivar producto</div>
+          <div class="q-mt-sm text-body2 text-grey-8">
+            ¿Deseas reactivar <strong>{{ filaReactivar?.nombre }}</strong
+            >? Volverá a estar disponible en el catálogo.
+          </div>
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-md q-pt-xs">
+          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
+          <q-btn
+            unelevated
+            no-caps
+            color="positive"
+            label="Reactivar"
+            style="border-radius: 8px; font-weight: 600"
+            :loading="reactivando"
+            @click="ejecutarReactivar"
           />
         </q-card-actions>
       </q-card>
@@ -557,6 +593,33 @@ const ejecutarEliminar = async () => {
     })
   } finally {
     eliminando.value = false
+  }
+}
+
+const dialogReactivar = ref(false)
+const filaReactivar = ref<ProductoAdmin | null>(null)
+const reactivando = ref(false)
+
+const confirmarReactivar = (row: ProductoAdmin) => {
+  filaReactivar.value = row
+  dialogReactivar.value = true
+}
+
+const ejecutarReactivar = async () => {
+  if (!filaReactivar.value) return
+  reactivando.value = true
+  try {
+    await store.reactivar(filaReactivar.value.id)
+    $q.notify({ type: 'positive', message: 'Producto reactivado', position: 'top-right' })
+    dialogReactivar.value = false
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'No se pudo reactivar. Intenta de nuevo.',
+      position: 'top-right',
+    })
+  } finally {
+    reactivando.value = false
   }
 }
 </script>
