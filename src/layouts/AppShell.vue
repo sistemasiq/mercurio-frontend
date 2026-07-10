@@ -186,17 +186,6 @@ async function handleLogout(): Promise<void> {
       class="sb-drawer"
     >
       <div class="sb-root">
-        <!-- Logo -->
-        <div class="sb-logo">
-          <div class="sb-logo-icon">
-            <img src="/woow-kids-mascot.png" alt="Woow Kids" class="sb-logo-img" />
-          </div>
-          <div>
-            <div class="sb-brand">Woow Kids</div>
-            <div class="sb-sub">Panel de control</div>
-          </div>
-        </div>
-
         <!-- Nav -->
         <div class="sb-nav-scroll">
           <template v-for="group in visibleGroups" :key="group.label ?? 'root'">
@@ -218,19 +207,6 @@ async function handleLogout(): Promise<void> {
               </q-item>
             </q-list>
           </template>
-        </div>
-
-        <div class="sb-spacer" />
-
-        <!-- Usuario -->
-        <div class="sb-user">
-          <div class="sb-avatar" :style="{ background: userColor }">
-            {{ userInitials }}
-          </div>
-          <div class="sb-user-info">
-            <div class="sb-user-name">{{ userName }}</div>
-            <div class="sb-user-role">{{ userRole }}</div>
-          </div>
         </div>
       </div>
     </q-drawer>
@@ -304,52 +280,10 @@ async function handleLogout(): Promise<void> {
   height: 100%;
 }
 
-.sb-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 16px 18px;
-  border-bottom: 1px solid #f1f5f9;
-  flex-shrink: 0;
-}
-
-.sb-logo-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: #025fe0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.sb-logo-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.sb-brand {
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f172a;
-  line-height: 1.2;
-  letter-spacing: 0.01em;
-}
-
-.sb-sub {
-  font-size: 10px;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  line-height: 1.3;
-}
-
 .sb-nav-scroll {
   flex: 1;
   overflow-y: auto;
+  padding-top: 8px;
 }
 
 .sb-section-label {
@@ -401,50 +335,6 @@ async function handleLogout(): Promise<void> {
 
 .sb-item--active :deep(.q-icon) {
   color: #025fe0 !important;
-}
-
-.sb-spacer {
-  flex: 0 0 8px;
-}
-
-/* User footer */
-.sb-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 18px;
-  border-top: 1px solid #f1f5f9;
-  flex-shrink: 0;
-}
-
-.sb-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.sb-user-name {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #1e293b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 140px;
-  line-height: 1.3;
-}
-
-.sb-user-role {
-  font-size: 10.5px;
-  color: #94a3b8;
-  line-height: 1.3;
 }
 
 /* ── Header ─────────────────────────────────────────────── */
