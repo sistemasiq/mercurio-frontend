@@ -152,17 +152,18 @@ const notasDialog = ref(false)
 const notasTemp = ref('')
 const itemEditando = ref<ItemTicket | null>(null)
 
-// La caja solo muestra A (Alimento) y B (Bebida).
+// La caja solo muestra A (Alimento), B (Bebida) y C (Combo).
 const listaCategorias: { value: TipoProducto | 'Todos'; label: string }[] = [
   { value: 'Todos', label: 'Todos' },
   { value: 'A', label: 'Alimentos' },
   { value: 'B', label: 'Bebidas' },
+  { value: 'C', label: 'Combos' },
 ]
 const categoriaSeleccionada = ref<TipoProducto | 'Todos'>('Todos')
 
 const productosFiltrados = computed(() => {
   const term = (props.searchTerm ?? '').trim().toLowerCase()
-  let base = productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B')
+  let base = productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B' || p.tipo === 'C')
   if (categoriaSeleccionada.value !== 'Todos') {
     base = base.filter((p) => p.tipo === categoriaSeleccionada.value)
   }
@@ -175,7 +176,7 @@ const productosFiltrados = computed(() => {
 })
 
 const totalProductos = computed(
-  () => productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B').length,
+  () => productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B' || p.tipo === 'C').length,
 )
 const totalComandasActivas = computed(() => comandasActivas.value.length)
 
