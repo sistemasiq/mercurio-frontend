@@ -94,7 +94,7 @@
                 v-if="props.row.activo"
                 flat
                 dense
-                color="negative"
+                color="grey-8"
                 size="sm"
                 class="action-btn"
                 @click="confirmarEliminar(props.row)"
@@ -255,7 +255,7 @@
                           flat
                           round
                           dense
-                          color="negative"
+                          color="grey-8"
                           size="sm"
                           @click="removerItemDelCombo(index)"
                         >
