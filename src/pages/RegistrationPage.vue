@@ -13,8 +13,6 @@ const router = useRouter()
 
 onMounted(() => {
   store.loadProductos()
-  store.loadPulseras()
-  store.loadMetodoPago()
 })
 
 onUnmounted(() => {
@@ -51,7 +49,7 @@ onUnmounted(() => {
           "
           :text-color="['rfid', 'complete'].includes(store.step) ? 'white' : 'grey-7'"
           icon="nfc"
-          label="2. RFID"
+          label="2. Pulseras"
           dense
         />
         <q-icon name="chevron_right" color="grey-4" />

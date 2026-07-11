@@ -12,6 +12,36 @@ const router = useRouter()
 
 const child = computed(() => store.checkoutChild)
 
+const checkoutScanActive = ref(false)
+const checkoutScanInput = ref('')
+const checkoutScanError = ref('')
+const checkoutScanRef = ref<HTMLInputElement | null>(null)
+const tutorVerified = ref(false)
+
+function activateCheckoutScan() {
+  checkoutScanActive.value = true
+  checkoutScanError.value = ''
+  checkoutScanInput.value = ''
+  setTimeout(() => checkoutScanRef.value?.focus(), 100)
+}
+
+function onCheckoutScanEnter() {
+  const scanned = checkoutScanInput.value.trim()
+  if (!scanned) return
+
+  if (scanned === child.value?.pulseraTutorRfid) {
+    tutorVerified.value = true
+    checkoutScanActive.value = false
+    checkoutScanError.value = ''
+    checkoutScanInput.value = ''
+  } else {
+    checkoutScanError.value = 'Pulsera incorrecta. Debe ser la pulsera del tutor registrado.'
+    checkoutScanInput.value = ''
+    // re-enfocar para que pueda intentar de nuevo sin tocar nada
+    setTimeout(() => checkoutScanRef.value?.focus(), 100)
+  }
+}
+
 // Si alguien navega directo aqui sin pasar por una card, lo mandamos de regreso
 if (!child.value) {
   router.push({ name: 'estancias-control-acceso' })
@@ -58,7 +88,7 @@ async function confirmarSalida() {
 
   isLoading.value = true
   try {
-    const result = await checkout(child.value.detalle_id)
+    const result = await checkout(child.value.detalleId, child.value.pulseraTutorId)
 
     if (result.totalExtra > 0) {
       /* Aqui dentro de este if tiene que ir ya el pago multimodal ya que deberia de dejarlo salir
@@ -67,12 +97,16 @@ async function confirmarSalida() {
       if (!authStore.currentBranchId) {
         throw new Error('No hay una sucursal activa en la sesión.')
       }
-      const metodoPagoId = await fetchMetodoPagoPorDefecto()
+
+      const metodoPagoId =
+        (await fetchMetodoPagoPorDefecto()) ?? 'b827363b-6453-40e4-9536-f7a004711f91'
       if (!metodoPagoId) {
+        //Esto para hacer pruebas
         throw new Error('No hay métodos de pago configurados.')
       }
-      await pagarExtra(child.value.registro_id, authStore.currentBranchId, [
-        { metodoPagoId, monto: result.totalExtra },
+
+      await pagarExtra(child.value.registroId, authStore.currentBranchId, [
+        { metodoPagoId: metodoPagoId, monto: result.totalExtra },
       ])
       Notify.create({
         type: 'warning',
@@ -162,9 +196,16 @@ function cancelar() {
               <div class="col">
                 <div class="row q-col-gutter-lg">
                   <div>
-                    <div class="info-label">RESPONSABLE</div>
+                    <div class="info-label">TUTOR</div>
                     <div class="text-subtitle2 text-weight-bold">{{ child.tutor }}</div>
                     <div class="text-caption text-grey-6">Parentesco: {{ child.parentesco }}</div>
+                  </div>
+                  <div>
+                    <div class="info-label">SEGUNDO TUTOR</div>
+                    <div v-if="child.nombreSegundoTutor" class="text-subtitle2 text-weight-bold">
+                      {{ child.nombreSegundoTutor }}
+                    </div>
+                    <div v-else class="text-subtitle2 text-weight-bold">No hay segundo tutor</div>
                   </div>
                   <div>
                     <div class="info-label">NÚMERO DE TELEFONO DEL TUTOR</div>
@@ -183,7 +224,7 @@ function cancelar() {
                   <q-card-section>
                     <div class="info-label q-mb-sm">TIEMPO PREPAGADO</div>
                     <div class="text-h6 text-weight-bold text-grey-8">
-                      {{ child.minutos_pagados / 60 }} hr
+                      {{ child.minutosPagados / 60 }} hr
                     </div>
                   </q-card-section>
                 </q-card>
@@ -193,7 +234,7 @@ function cancelar() {
                   <q-card-section>
                     <div class="info-label q-mb-sm">TIEMPO TRANSCURRIDO</div>
                     <div class="text-h6 text-weight-bold" :class="`text-${statusColor}`">
-                      {{ child.minutos_transcurridos }} min
+                      {{ child.minutosTranscurridos }} min
                     </div>
                   </q-card-section>
                 </q-card>
@@ -238,10 +279,85 @@ function cancelar() {
             <div class="row items-start">
               <q-icon name="info" color="orange-9" size="20px" class="q-mr-sm q-mt-xs" />
               <div class="col text-caption text-grey-8" style="line-height: 1.6">
-                La información mostrada es informativa. El monto final se calculará al confirmar la
+                Los detalles mostrados son informativos. El monto final se calculará al confirmar la
                 salida considerando recargos por tiempo excedente.
               </div>
             </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Verificación RFID del tutor -->
+        <q-card flat bordered class="checkout-card q-mb-md">
+          <q-card-section>
+            <div class="info-label q-mb-sm">VERIFICACIÓN DE SALIDA</div>
+
+            <!-- Ya verificado -->
+            <div v-if="tutorVerified" class="row items-center q-gutter-sm">
+              <q-icon name="check_circle" color="positive" size="22px" />
+              <span class="text-body2 text-positive text-weight-medium"
+                >Pulsera del tutor verificada</span
+              >
+            </div>
+
+            <!-- Sin verificar -->
+            <template v-else>
+              <div class="text-caption text-grey-7 q-mb-sm">
+                Escanea la pulsera del tutor para habilitar la salida.
+              </div>
+
+              <!-- Input invisible — captura el lector en segundo plano -->
+              <input
+                v-if="checkoutScanActive"
+                :ref="
+                  (el) => {
+                    if (el) checkoutScanRef = el as HTMLInputElement
+                  }
+                "
+                v-model="checkoutScanInput"
+                class="hidden-scan-input"
+                autocomplete="off"
+                @keydown.enter.prevent="onCheckoutScanEnter"
+              />
+
+              <!-- Botón: cambia según estado de escaneo -->
+              <q-btn
+                v-if="!checkoutScanActive"
+                unelevated
+                color="blue-8"
+                icon="nfc"
+                label="Escanear pulsera del tutor"
+                no-caps
+                dense
+                class="full-width"
+                @click="activateCheckoutScan"
+              />
+              <div v-else class="row items-center justify-between">
+                <q-chip
+                  dense
+                  color="blue-8"
+                  text-color="white"
+                  icon="sensors"
+                  label="Esperando escaneo..."
+                  size="sm"
+                  class="scanning-pulse"
+                />
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="close"
+                  size="xs"
+                  color="grey-6"
+                  @click="checkoutScanActive = false"
+                />
+              </div>
+
+              <!-- Error de verificación -->
+              <div v-if="checkoutScanError" class="row items-center q-mt-sm">
+                <q-icon name="error_outline" color="negative" size="16px" class="q-mr-xs" />
+                <span class="text-caption text-negative">{{ checkoutScanError }}</span>
+              </div>
+            </template>
           </q-card-section>
         </q-card>
 
@@ -253,6 +369,7 @@ function cancelar() {
           size="md"
           no-caps
           :loading="isLoading"
+          :disable="!tutorVerified"
           @click="confirmarSalida"
         />
         <q-btn
@@ -302,5 +419,28 @@ function cancelar() {
   border: 1px solid #f0f0f0;
   border-radius: 10px;
   background: #fafafa;
+}
+
+.hidden-scan-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+@keyframes pulse-opacity {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.scanning-pulse {
+  animation: pulse-opacity 1.2s ease-in-out infinite;
 }
 </style>

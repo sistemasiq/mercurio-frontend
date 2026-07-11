@@ -2,14 +2,13 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
   fetchProductos,
-  fetchPulseras,
-  fetchMetodoPagoPorDefecto,
   postOnboarding,
+  fetchMetodoPagoPorDefecto,
   type ProductoDto,
-  type PulseraDto,
   type OnboardingDetalle,
 } from '@/api/onboardingClient'
 import { useAuthStore } from '@/stores/auth'
+import { useAccessControlStore } from '@/stores/accessControl'
 
 export interface Child {
   id: string
@@ -24,8 +23,10 @@ export interface TutorData {
   fullName: string
   relationship: string
   phone: string
-  inePhoto: File | Blob | null
-  arrivalPhoto: File | Blob | null
+  secondaryGuardian: string | null
+  braceletGuardianId: string
+  inePhoto: File | null
+  arrivalPhoto: File | null
   estimatedTime: string
 }
 
@@ -33,18 +34,23 @@ const HOUR_OPTIONS: Record<string, number> = {
   '1 hr': 1,
   '2 hr': 2,
   '3 hr': 3,
+  '4 hr': 4,
+  '5 hr': 5,
 }
 
 export type RegistrationStep = 'form' | 'rfid' | 'complete'
 
 export const useRegistrationStore = defineStore('registration', () => {
   const authStore = useAuthStore()
+  const accessControlStore = useAccessControlStore()
   const step = ref<RegistrationStep>('form')
 
   const tutor = ref<TutorData>({
     fullName: '',
     relationship: 'Padre / Madre',
     phone: '',
+    secondaryGuardian: '',
+    braceletGuardianId: '',
     inePhoto: null,
     arrivalPhoto: null,
     estimatedTime: '1 hr',
@@ -55,10 +61,9 @@ export const useRegistrationStore = defineStore('registration', () => {
   const folioId = ref('')
 
   const productoBase = ref<ProductoDto | null>(null)
-  const pulseras = ref<PulseraDto[]>([])
+  const pulseras = computed(() => accessControlStore.pulserasDisponibles)
   const metodoPagoId = ref<string | null>(null)
   const isLoadingCatalog = ref(false)
-  const isLoadingPulseras = ref(false)
   const isSubmitting = ref(false)
   const submitError = ref<string | null>(null)
 
@@ -118,23 +123,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
   }
 
-  async function loadPulseras() {
-    if (!authStore.currentBranchId) {
-      submitError.value = 'No hay una sucursal activa en la sesión.'
-      return
-    }
-    isLoadingPulseras.value = true
-    submitError.value = null
-    try {
-      pulseras.value = await fetchPulseras(authStore.currentBranchId)
-    } catch (err) {
-      submitError.value = 'No se pudo cargar el catálogo de pulseras.'
-      console.error(err)
-    } finally {
-      isLoadingPulseras.value = false
-    }
-  }
-
   async function loadMetodoPago() {
     try {
       metodoPagoId.value = await fetchMetodoPagoPorDefecto()
@@ -145,12 +133,12 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   const savedChildren = computed(() => children.value.filter((c) => c.saved))
-
+  const tutorHasBracelet = computed(() => tutor.value.braceletGuardianId !== '')
   const hours = computed(() => HOUR_OPTIONS[tutor.value.estimatedTime] ?? 1)
 
   const pricePerChild = computed(() => {
     if (!productoBase.value) return 0
-    return productoBase.value.precio_unitario * hours.value
+    return productoBase.value.precioUnitario * hours.value
   })
 
   const total = computed(() => savedChildren.value.length * pricePerChild.value)
@@ -165,7 +153,10 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   const allChildrenHaveBracelet = computed(
-    () => savedChildren.value.length > 0 && savedChildren.value.every((c) => c.rfidBracelet),
+    () =>
+      tutor.value.braceletGuardianId !== '' &&
+      savedChildren.value.length > 0 &&
+      savedChildren.value.every((c) => c.rfidBracelet !== ''),
   )
 
   // Cuántos niños se pueden registrar según las pulseras disponibles en la sucursal
@@ -203,19 +194,20 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   async function proceedToRFID() {
     step.value = 'rfid'
-    await loadPulseras()
   }
 
   async function completeRegistration() {
     if (!productoBase.value) {
-      submitError.value =
-        'No hay un producto tipo "Estancia" configurado para esta sucursal. Créalo en Productos.'
+      submitError.value = 'No hay catálogo de productos cargado.'
       return
     }
 
     if (!metodoPagoId.value) {
-      submitError.value = 'No hay métodos de pago configurados. Crea uno en Métodos de Pago.'
-      return
+      //Hasta no tener componente para hacer pruebas se tomara este
+      metodoPagoId.value = 'b827363b-6453-40e4-9536-f7a004711f91'
+      //console.log("No hay nada")
+      //submitError.value = 'No hay métodos de pago configurados. Crea uno en Métodos de Pago.'
+      //return
     }
 
     if (!authStore.currentBranchId) {
@@ -239,6 +231,8 @@ export const useRegistrationStore = defineStore('registration', () => {
         nombreCompleto: tutor.value.fullName,
         telefono: tutor.value.phone,
       },
+      nombreSegundoTutor: tutor.value.secondaryGuardian || null,
+      pulseraTutorId: tutor.value.braceletGuardianId,
       parentesco: tutor.value.relationship,
       detalles,
       pagos: [{ metodoPagoId: metodoPagoId.value, monto: total.value }],
@@ -270,6 +264,8 @@ export const useRegistrationStore = defineStore('registration', () => {
       fullName: '',
       relationship: 'Padre / Madre',
       phone: '',
+      secondaryGuardian: '',
+      braceletGuardianId: '',
       inePhoto: null,
       arrivalPhoto: null,
       estimatedTime: '1 hr',
@@ -287,9 +283,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     folioId,
     productoBase,
     pulseras,
-    metodoPagoId,
     isLoadingCatalog,
-    isLoadingPulseras,
     isSubmitting,
     submitError,
     registroId,
@@ -306,6 +300,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     canProceedToRFID,
     maxChildrenAllowed,
     reachedBraceletLimit,
+    tutorHasBracelet,
     addChild,
     removeChild,
     saveChild,
@@ -314,7 +309,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     completeRegistration,
     reset,
     loadProductos,
-    loadPulseras,
     loadMetodoPago,
   }
 })

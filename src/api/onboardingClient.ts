@@ -21,13 +21,13 @@ export interface FotosUploadResponse {
 export interface ProductoDto {
   id: string
   nombre: string
-  precio_unitario: number
+  precioUnitario: number
   descripcion: string
 }
 
 export interface PulseraDto {
   id: string
-  pulsera_rfid: string
+  pulseraRfid: string
 }
 
 export interface OnboardingDetalle {
@@ -52,6 +52,8 @@ export interface OnboardingPayload {
     nombreCompleto: string
     telefono: string
   }
+  nombreSegundoTutor: string | null
+  pulseraTutorId: string
   parentesco: string
   detalles: OnboardingDetalle[]
   pagos: OnboardingPago[]
@@ -65,8 +67,11 @@ export interface OnboardingResponse {
 }
 
 export interface ActivoDto {
-  registro_id: string
-  detalle_id: string
+  registroId: string
+  nombreSegundoTutor: string | null
+  pulseraTutorId: string
+  pulseraTutorRfid: string
+  detalleId: string
   nino: string
   notas: string | null
   edad: number
@@ -74,8 +79,8 @@ export interface ActivoDto {
   telefono: string
   parentesco: string
   pulsera: string
-  minutos_pagados: number
-  minutos_transcurridos: number
+  minutosPagados: number
+  minutosTranscurridos: number
 }
 
 export interface CheckoutResponse {
@@ -129,16 +134,21 @@ export async function postOnboarding(
 
   return data
 }
-// GET /estancias/activos/{sucursalId}
 
+// GET /estancias/activos/{sucursalId}
 export async function fetchActivos(sucursalId: string): Promise<ActivoDto[]> {
   const { data } = await onboardingClient.get<ActivoDto[]>(`/estancias/activos/${sucursalId}`)
   return data
 }
 
 // POST /estancias/{detalleId}/checkout
-export async function checkout(detalleId: string): Promise<CheckoutResponse> {
-  const { data } = await onboardingClient.post(`/estancias/${detalleId}/checkout`)
+export async function checkout(
+  detalleId: string,
+  pulseraTutorId: string,
+): Promise<CheckoutResponse> {
+  const { data } = await onboardingClient.post(`/estancias/${detalleId}/checkout`, {
+    pulseraTutorId: pulseraTutorId,
+  })
 
   return data
 }
