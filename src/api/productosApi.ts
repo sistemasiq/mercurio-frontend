@@ -1,10 +1,10 @@
 import { apiClient } from '@/api/axiosClient'
 import type { Producto, ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000/api'
 
 export function getProductoImagenUrl(imagen?: string | null): string | undefined {
-  return imagen ? `${API_BASE_URL}/api/${imagen}` : undefined
+  return imagen ? `${API_BASE_URL}/${imagen}` : undefined
 }
 
 export const productosApi = {
