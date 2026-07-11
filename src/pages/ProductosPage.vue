@@ -1,6 +1,6 @@
 <template>
   <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 900px; margin: 0 auto">
+    <div>
       <!-- Encabezado -->
       <div class="row items-center q-mb-lg">
         <div>
@@ -13,7 +13,7 @@
         <q-btn
           color="primary"
           icon="add"
-          label="Nuevo Producto"
+          label="Nuevo producto"
           unelevated
           no-caps
           :disable="!authStore.currentBranchId"
@@ -67,7 +67,7 @@
 
           <template #body-cell-tipo="props">
             <q-td :props="props">
-              {{ TIPO_LABELS[props.row.tipo as TipoProducto] }}
+              <ProductoBadgeTipo :tipo="props.row.tipo as TipoProducto" />
             </q-td>
           </template>
 
@@ -85,12 +85,11 @@
             <q-td :props="props" class="text-right">
               <q-btn
                 flat
-                round
                 dense
                 icon="edit"
-                color="primary"
+                color="grey-8"
                 size="sm"
-                class="q-mr-xs"
+                class="action-btn q-mr-xs"
                 @click="abrirEditar(props.row)"
               >
                 <q-tooltip>Editar</q-tooltip>
@@ -98,11 +97,11 @@
               <q-btn
                 v-if="props.row.activo"
                 flat
-                round
                 dense
                 icon="delete_outline"
                 color="negative"
                 size="sm"
+                class="action-btn"
                 @click="confirmarEliminar(props.row)"
               >
                 <q-tooltip>Eliminar</q-tooltip>
@@ -110,11 +109,11 @@
               <q-btn
                 v-else
                 flat
-                round
                 dense
                 icon="restore"
-                color="gray"
+                color="grey-8"
                 size="sm"
+                class="action-btn"
                 @click="confirmarReactivar(props.row)"
               >
                 <q-tooltip>Reactivar</q-tooltip>
@@ -127,18 +126,20 @@
 
     <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
     <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 420px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
+      <q-card class="producto-dialog-card" style="border-radius: 12px">
+        <q-card-section class="q-pb-sm row items-center" style="flex-shrink: 0">
           <div class="text-h6 text-weight-bold">
-            {{ editando ? 'Editar Producto' : 'Nuevo Producto' }}
+            {{ editando ? 'Editar producto' : 'Nuevo producto' }}
           </div>
+          <q-space />
+          <q-btn flat round dense icon="close" color="grey-7" @click="cerrarDialog" />
         </q-card-section>
 
         <q-separator />
 
-        <q-card-section class="q-gutter-md q-pt-md">
+        <q-card-section class="q-gutter-md q-pt-md producto-dialog-body">
           <div>
-            <div class="field-label">NOMBRE</div>
+            <div class="field-label">Nombre</div>
             <q-input
               ref="nombreRef"
               v-model="formDialog.nombre"
@@ -150,7 +151,7 @@
             />
           </div>
           <div>
-            <div class="field-label">TIPO</div>
+            <div class="field-label">Tipo</div>
             <q-select
               v-model="formDialog.tipo"
               dense
@@ -161,7 +162,7 @@
             />
           </div>
           <div>
-            <div class="field-label">PRECIO UNITARIO</div>
+            <div class="field-label">Precio unitario</div>
             <q-input
               v-model.number="formDialog.precio_unitario"
               dense
@@ -184,7 +185,7 @@
 
             <div class="row q-col-gutter-sm items-end">
               <div class="col-7">
-                <div class="field-label">Seleccionar Producto</div>
+                <div class="field-label">Seleccionar producto</div>
                 <q-select
                   v-model="productoComboTemporal.producto_id"
                   dense
@@ -277,7 +278,7 @@
             </div>
           </div>
           <div>
-            <div class="field-label">DESCRIPCIÓN (opcional)</div>
+            <div class="field-label">Descripción opcional</div>
             <q-input
               v-model="formDialog.descripcion"
               dense
@@ -289,7 +290,7 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
+        <q-card-actions align="right" class="q-pa-md q-pt-sm" style="flex-shrink: 0">
           <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
           <q-btn
             unelevated
@@ -365,18 +366,11 @@ import { useAuthStore } from '@/stores/auth'
 import { useProductosStore } from '@/stores/productos'
 import type { ComboItemCreate, ProductoAdmin, TipoProducto } from '@/types/producto'
 import { apiClient } from '@/api/axiosClient.ts'
+import ProductoBadgeTipo from '@/components/productos/ProductoBadgeTipo.vue'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
 const store = useProductosStore()
-
-const TIPO_LABELS: Record<TipoProducto, string> = {
-  A: 'Alimento',
-  B: 'Bebida',
-  E: 'Estancia',
-  S: 'Servicio',
-  C: 'Combo',
-}
 
 const TIPO_OPTIONS = [
   { label: 'Alimento', value: 'A' },
@@ -642,11 +636,27 @@ const ejecutarReactivar = async () => {
 
 <style scoped>
 .field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 6px;
+}
+
+.action-btn {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.producto-dialog-card {
+  width: 460px;
+  height: 620px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.producto-dialog-body {
+  flex: 1;
+  overflow-y: auto;
 }
 </style>

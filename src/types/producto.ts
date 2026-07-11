@@ -2,6 +2,14 @@
 // S (Servicio), E (Estancia), C (Combo).
 export type TipoProducto = 'A' | 'B' | 'S' | 'E' | 'C'
 
+export const TIPO_LABELS: Record<TipoProducto, string> = {
+  A: 'Alimento',
+  B: 'Bebida',
+  E: 'Estancia',
+  S: 'Servicio',
+  C: 'Combo',
+}
+
 export interface ComboItemCreate {
   producto_id: string
   cantidad: number
