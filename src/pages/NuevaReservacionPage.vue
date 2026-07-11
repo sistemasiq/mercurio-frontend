@@ -293,7 +293,7 @@
                         :style="
                           selectedExtraIds.includes(svc.id)
                             ? 'border-radius: 8px; font-weight: 700;'
-                            : 'border: 1px solid #1a237e; border-radius: 8px; font-weight: 600;'
+                            : 'border: 1px solid #025FE0; border-radius: 8px; font-weight: 600;'
                         "
                         @click="toggleService(svc.id)"
                       />
