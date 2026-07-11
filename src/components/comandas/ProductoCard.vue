@@ -1,14 +1,23 @@
 <template>
-  <div class="producto-card" @click="$emit('agregar', producto)">
+  <div
+    class="producto-card"
+    :class="{ 'producto-card--combo': producto.es_combo }"
+    @click="$emit('agregar', producto)"
+  >
     <div class="producto-card__img-wrap">
       <q-img :src="producto.imagen ?? undefined" height="100px" class="producto-card__img">
         <template #error>
           <div class="absolute-full flex flex-center bg-grey-3">
-            <q-icon name="fastfood" size="28px" color="grey-5" />
+            <q-icon
+              :name="producto.es_combo ? 'inventory_2' : 'fastfood'"
+              size="28px"
+              color="grey-5"
+            />
           </div>
         </template>
       </q-img>
       <span class="producto-card__badge">${{ producto.precio_unitario.toFixed(2) }}</span>
+      <span v-if="producto.es_combo" class="producto-card__combo-badge">COMBO</span>
     </div>
 
     <div class="producto-card__body">
@@ -17,7 +26,7 @@
       <div class="producto-card__add">
         <q-btn
           unelevated
-          color="orange-8"
+          :color="producto.es_combo ? 'green-8' : 'orange-8'"
           icon="add"
           size="xs"
           style="border-radius: 8px; width: 30px; height: 30px; min-width: 30px"
@@ -72,6 +81,25 @@ defineEmits<{ (e: 'agregar', producto: Producto): void }>()
   padding: 2px 7px;
   border-radius: 6px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.producto-card__combo-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: #2e7d32;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.producto-card--combo {
+  border-color: #a5d6a7;
+  border-width: 1.5px;
 }
 
 .producto-card__body {

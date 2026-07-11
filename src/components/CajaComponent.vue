@@ -162,20 +162,22 @@ const categoriaSeleccionada = ref<TipoProducto | 'Todos'>('Todos')
 
 const productosFiltrados = computed(() => {
   const term = (props.searchTerm ?? '').trim().toLowerCase()
-  let base = productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B')
+  let base = productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B' || p.es_combo)
   if (categoriaSeleccionada.value !== 'Todos') {
     base = base.filter((p) => p.tipo === categoriaSeleccionada.value)
   }
-  if (!term) return base
-  return base.filter(
-    (p) =>
-      (p.nombre ?? '').toLowerCase().includes(term) ||
-      (p.descripcion ?? '').toLowerCase().includes(term),
-  )
+  if (term) {
+    base = base.filter(
+      (p) =>
+        (p.nombre ?? '').toLowerCase().includes(term) ||
+        (p.descripcion ?? '').toLowerCase().includes(term),
+    )
+  }
+  return base
 })
 
 const totalProductos = computed(
-  () => productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B').length,
+  () => productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B' || p.es_combo).length,
 )
 const totalComandasActivas = computed(() => comandasActivas.value.length)
 
@@ -303,6 +305,10 @@ const procesarPago = async () => {
 
 // Carga inicial
 const cargarProductos = async () => {
+  if (!authStore.currentBranchId) {
+    error.value = 'No hay una sucursal activa en la sesión.'
+    return
+  }
   loading.value = true
   error.value = null
   try {

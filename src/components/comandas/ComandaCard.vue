@@ -17,16 +17,22 @@
     </div>
 
     <div class="kds-card-body">
-      <div v-for="item in detallesConsumibles" :key="item.id" class="kds-item">
-        <div class="kds-qty">{{ item.cantidad }}</div>
+      <div
+        v-for="detalle in comanda.detalles ?? []"
+        :key="detalle.id"
+        class="kds-item"
+        :class="{ 'kds-item--hijo': esHijoCombo(detalle) }"
+      >
+        <div class="kds-qty">{{ detalle.cantidad }}</div>
         <div class="kds-item-details">
-          <p class="kds-item-name">{{ item.producto_nombre ?? '—' }}</p>
-          <p class="kds-item-price">
-            ${{ Number(item.precio_unitario * item.cantidad).toFixed(2) }}
-          </p>
-          <p v-if="item.notas_especiales" class="kds-item-warning">
+          <div v-if="esHijoCombo(detalle)" class="kds-item-badge">
+            <q-icon name="subdirectory_arrow_right" size="16px" />
+            {{ detalle.nombre_combo_padre || 'Combo' }}
+          </div>
+          <p class="kds-item-name">{{ detalle.nombre }}</p>
+          <p v-if="detalle.notas_especiales" class="kds-item-warning">
             <q-icon name="warning" size="18px" />
-            {{ item.notas_especiales }}
+            {{ detalle.notas_especiales }}
           </p>
         </div>
       </div>
@@ -60,12 +66,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Comanda, EstadoActualComanda } from '@/types/comanda'
-import type { TipoProducto } from '@/types/producto'
+import type { Comanda, DetalleComanda, EstadoActualComanda } from '@/types/comanda'
 
-const TIPOS_NO_CONSUMIBLES: TipoProducto[] = ['S', 'E']
-
-const props = defineProps<{ comanda: Comanda }>()
+const { comanda } = defineProps<{ comanda: Comanda }>()
 const emit = defineEmits<{
   (e: 'cambiar-estado', comandaId: string, nuevoEstado: EstadoActualComanda): void
 }>()
@@ -89,15 +92,12 @@ const tiempoDesde = (fechaISO: string | null | undefined): string => {
   return diff === 1 ? '1 min' : `${diff} min`
 }
 
-const detallesConsumibles = computed(() =>
-  (props.comanda.detalles ?? []).filter(
-    (d) => !d.producto_tipo || !TIPOS_NO_CONSUMIBLES.includes(d.producto_tipo as TipoProducto),
-  ),
-)
+const esHijoCombo = (detalle: DetalleComanda): boolean =>
+  Boolean(detalle.es_hijo_de) || detalle.es_hijo_combo === true
 
-const esPendiente = computed(() => props.comanda.estado_actual === 'P')
-const esEnProceso = computed(() => props.comanda.estado_actual === 'E')
-const esListo = computed(() => props.comanda.estado_actual === 'L')
+const esPendiente = computed(() => comanda.estado_actual === 'P')
+const esEnProceso = computed(() => comanda.estado_actual === 'E')
+const esListo = computed(() => comanda.estado_actual === 'L')
 
 const cardClass = computed(() => ({
   'card-proceso': esEnProceso.value,
@@ -117,7 +117,7 @@ const statusLabelClass = computed(() => ({
   'text-listo': esListo.value,
 }))
 
-const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
+const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 </script>
 
 <style lang="scss" scoped>
@@ -227,6 +227,10 @@ const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
   border-radius: 8px;
   align-items: flex-start;
 }
+.kds-item--hijo {
+  margin-left: 12px;
+  background-color: rgba(255, 237, 213, 0.4);
+}
 .kds-qty {
   width: 48px;
   height: 48px;
@@ -243,15 +247,24 @@ const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
 .kds-item-details {
   flex: 1;
 }
+.kds-item-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background-color: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 .kds-item-name {
   font-size: 20px;
   font-weight: 600;
   margin: 0;
-}
-.kds-item-price {
-  font-size: 14px;
-  color: #64748b;
-  margin: 2px 0 0 0;
 }
 .kds-item-warning {
   font-size: 16px;

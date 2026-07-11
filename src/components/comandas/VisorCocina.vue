@@ -124,7 +124,20 @@ function handleMensajeSocket(msg: ComandaWsMessage) {
   if (idx === -1) {
     comandas.value = [...comandas.value, msg.comanda]
   } else {
-    comandas.value = comandas.value.map((c) => (c.id === msg.comanda.id ? msg.comanda : c))
+    const anterior = comandas.value[idx]
+    const detallesPrevios = new Map(
+      (anterior.detalles ?? []).map((detalle) => [detalle.id, detalle]),
+    )
+
+    const comandaFusionada = {
+      ...msg.comanda,
+      detalles: (msg.comanda.detalles ?? []).map((detalle) => ({
+        ...detallesPrevios.get(detalle.id),
+        ...detalle,
+      })),
+    }
+
+    comandas.value = comandas.value.map((c) => (c.id === msg.comanda.id ? comandaFusionada : c))
   }
 }
 

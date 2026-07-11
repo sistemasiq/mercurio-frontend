@@ -64,7 +64,10 @@ defineEmits<{
 }>()
 
 const total = computed(() =>
-  props.items.reduce((suma, item) => suma + item.producto.precio_unitario * item.cantidad, 0),
+  props.items.reduce(
+    (suma, item) => suma + Number(item.subtotal ?? item.producto.precio_unitario * item.cantidad),
+    0,
+  ),
 )
 </script>
 

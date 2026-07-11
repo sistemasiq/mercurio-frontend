@@ -1,11 +1,13 @@
 <template>
-  <div class="ticket-item">
+  <div class="ticket-item" :class="{ 'ticket-item--hijo': esHijoCombo }">
     <div class="ticket-item__top">
       <div class="ticket-item__info">
+        <div v-if="esHijoCombo" class="ticket-item__badge">
+          <q-icon name="subdirectory_arrow_right" size="16px" />
+          {{ item.nombre_combo_padre ?? 'Combo' }}
+        </div>
         <h4 class="ticket-item__nombre">{{ item.producto.nombre }}</h4>
-        <p class="ticket-item__precio">
-          ${{ (item.producto.precio_unitario * item.cantidad).toFixed(2) }}
-        </p>
+        <p class="ticket-item__precio">${{ lineTotal.toFixed(2) }}</p>
       </div>
       <div class="ticket-item__qty">
         <q-btn
@@ -47,19 +49,35 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Producto } from '@/types/producto'
 
 export interface ItemTicket {
   producto: Producto
   cantidad: number
   notas: string
+  subtotal?: number
+  es_hijo_de?: string | null
+  es_hijo_combo?: boolean
+  nombre_combo_padre?: string | null
 }
 
-defineProps<{ item: ItemTicket }>()
+const props = defineProps<{ item: ItemTicket }>()
 defineEmits<{
   (e: 'cambiar-cantidad', item: ItemTicket, delta: number): void
   (e: 'editar-notas', item: ItemTicket): void
 }>()
+
+const esHijoCombo = computed(
+  () =>
+    Boolean(props.item.es_hijo_de) ||
+    props.item.es_hijo_combo === true ||
+    (Number(props.item.producto.precio_unitario) === 0 && Number(props.item.subtotal ?? 0) === 0),
+)
+
+const lineTotal = computed(() =>
+  Number(props.item.subtotal ?? props.item.producto.precio_unitario * props.item.cantidad),
+)
 </script>
 
 <style scoped>
@@ -68,6 +86,11 @@ defineEmits<{
   border-radius: 10px;
   padding: 12px;
   border: 1px solid #f1f5f9;
+}
+
+.ticket-item--hijo {
+  border-left: 4px solid #f59e0b;
+  background: #fffbeb;
 }
 
 .ticket-item__top {
@@ -80,6 +103,21 @@ defineEmits<{
 .ticket-item__info {
   flex: 1;
   min-width: 0;
+}
+
+.ticket-item__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .ticket-item__nombre {

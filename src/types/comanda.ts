@@ -22,13 +22,19 @@ export type EstadoActualComanda = 'P' | 'E' | 'L' | 'T'
 export interface DetalleComanda {
   id: string
   producto_id: string
+  nombre?: string | null
   producto_nombre: string | null
+  nombre_combo_padre?: string | null
   // Viene del JOIN LEFT con public.productos (p.tipo AS producto_tipo)
   // Necesario para que el KDS filtre ítems no consumibles (S, E)
   producto_tipo?: TipoProducto | null
   cantidad: number
   precio_unitario: number
+  subtotal?: number
+  importe?: number
   notas_especiales?: string | null
+  es_hijo_de?: string | null
+  es_hijo_combo?: boolean
 }
 
 // Shape de la comanda tal como la retorna el backend (asdict de models/Comanda)

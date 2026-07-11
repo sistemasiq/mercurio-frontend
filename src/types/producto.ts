@@ -10,6 +10,7 @@ export interface ProductoBase {
   imagen: string | null
   sucursal_id: string
   descripcion: string | null
+  es_combo: boolean
 }
 
 export interface Producto extends Omit<ProductoBase, 'precio_unitario'> {
@@ -31,6 +32,7 @@ export interface ProductoCreate {
   sucursal_id: string
   descripcion?: string | null
   imagen?: string | null
+  es_combo?: boolean
 }
 
 export interface ProductoUpdate {
@@ -40,4 +42,5 @@ export interface ProductoUpdate {
   descripcion?: string | null
   imagen?: string | null
   activo?: boolean
+  es_combo?: boolean
 }
