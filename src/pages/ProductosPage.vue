@@ -195,6 +195,7 @@
                   option-label="nombre"
                   :options="productosDisponiblesParaCombo"
                   placeholder="Elige un producto"
+                  no-options-label="No hay más productos disponibles"
                 />
               </div>
               <div class="col-3">
@@ -226,6 +227,12 @@
                 class="text-caption text-grey-6 text-center q-py-sm"
               >
                 No has añadido productos a este combo todavía.
+              </div>
+              <div
+                v-else-if="formDialog.productos_combo.length === 1"
+                class="text-caption text-orange-8 q-py-xs q-px-sm"
+              >
+                Agrega al menos un producto más para poder guardar.
               </div>
 
               <q-list
@@ -291,6 +298,7 @@
             :label="editando ? 'Guardar cambios' : 'Crear producto'"
             style="border-radius: 8px; font-weight: 600"
             :loading="guardando"
+            :disable="!formularioValido"
             @click="guardar"
           />
         </q-card-actions>
@@ -400,7 +408,15 @@ const columns: QTableColumn[] = [
 ]
 
 const productosDisponiblesParaCombo = computed(() => {
-  return store.productos.filter((p) => p.tipo !== 'C' && p.activo)
+  const yaAgregados = new Set(formDialog.value.productos_combo.map((i) => i.producto_id))
+  return store.productos.filter((p) => p.tipo !== 'C' && p.activo && !yaAgregados.has(p.id))
+})
+
+const formularioValido = computed(() => {
+  const { nombre, precio_unitario, tipo, productos_combo } = formDialog.value
+  if (!nombre.trim() || precio_unitario <= 0) return false
+  if (tipo === 'C' && productos_combo.length < 2) return false
+  return true
 })
 
 const agregarItemAlCombo = () => {
