@@ -228,52 +228,54 @@
               >
                 No has añadido productos a este combo todavía.
               </div>
-              <div
-                v-else-if="formDialog.productos_combo.length === 1"
-                class="text-caption text-orange-8 q-py-xs q-px-sm"
-              >
-                Agrega al menos un producto más para poder guardar.
-              </div>
 
-              <q-list
-                v-else
-                separator
-                dense
-                class="bg-white rounded-borders"
-                style="border: 1px solid #e2e8f0"
-              >
-                <q-item
-                  v-for="(item, index) in formDialog.productos_combo"
-                  :key="item.producto_id"
-                  class="q-py-sm"
+              <template v-else>
+                <div
+                  v-if="formDialog.productos_combo.length === 1"
+                  class="text-caption text-orange-8 q-pb-xs q-px-sm"
                 >
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{
-                      obtenerNombreProducto(item.producto_id)
-                    }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <div class="row items-center q-gutter-sm">
-                      <q-badge
-                        color="blue-2"
-                        text-color="blue-9"
-                        :label="`x${item.cantidad}`"
-                        class="text-weight-bold"
-                        style="padding: 4px 8px; border-radius: 6px"
-                      />
-                      <q-btn
-                        flat
-                        round
-                        dense
-                        icon="delete"
-                        color="negative"
-                        size="sm"
-                        @click="removerItemDelCombo(index)"
-                      />
-                    </div>
-                  </q-item-section>
-                </q-item>
-              </q-list>
+                  Agrega al menos un producto más para poder guardar.
+                </div>
+
+                <q-list
+                  separator
+                  dense
+                  class="bg-white rounded-borders"
+                  style="border: 1px solid #e2e8f0"
+                >
+                  <q-item
+                    v-for="(item, index) in formDialog.productos_combo"
+                    :key="item.producto_id"
+                    class="q-py-sm"
+                  >
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">{{
+                        obtenerNombreProducto(item.producto_id)
+                      }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <div class="row items-center q-gutter-sm">
+                        <q-badge
+                          color="blue-2"
+                          text-color="blue-9"
+                          :label="`x${item.cantidad}`"
+                          class="text-weight-bold"
+                          style="padding: 4px 8px; border-radius: 6px"
+                        />
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          icon="delete"
+                          color="negative"
+                          size="sm"
+                          @click="removerItemDelCombo(index)"
+                        />
+                      </div>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </template>
             </div>
           </div>
           <div>
