@@ -4,7 +4,9 @@ import type { Producto, ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000/api'
 
 export function getProductoImagenUrl(imagen?: string | null): string | undefined {
-  return imagen ? `${API_BASE_URL}/${imagen}` : undefined
+  if (!imagen) return undefined
+  if (/^https?:\/\//i.test(imagen)) return imagen
+  return `${API_BASE_URL}/${imagen}`
 }
 
 export const productosApi = {
