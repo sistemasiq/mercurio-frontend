@@ -73,11 +73,7 @@
 
           <template #body-cell-activo="props">
             <q-td :props="props">
-              <q-badge
-                :color="props.row.activo ? 'positive' : 'grey-5'"
-                :label="props.row.activo ? 'Activo' : 'Inactivo'"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
-              />
+              <ProductoBadgeEstado :activo="props.row.activo" />
             </q-td>
           </template>
 
@@ -86,36 +82,36 @@
               <q-btn
                 flat
                 dense
-                icon="edit"
                 color="grey-8"
                 size="sm"
                 class="action-btn q-mr-xs"
                 @click="abrirEditar(props.row)"
               >
+                <span class="material-symbols-outlined">edit</span>
                 <q-tooltip>Editar</q-tooltip>
               </q-btn>
               <q-btn
                 v-if="props.row.activo"
                 flat
                 dense
-                icon="delete_outline"
                 color="negative"
                 size="sm"
                 class="action-btn"
                 @click="confirmarEliminar(props.row)"
               >
+                <span class="material-symbols-outlined">delete_outline</span>
                 <q-tooltip>Eliminar</q-tooltip>
               </q-btn>
               <q-btn
                 v-else
                 flat
                 dense
-                icon="restore"
                 color="grey-8"
                 size="sm"
                 class="action-btn"
                 @click="confirmarReactivar(props.row)"
               >
+                <span class="material-symbols-outlined">restore</span>
                 <q-tooltip>Reactivar</q-tooltip>
               </q-btn>
             </q-td>
@@ -229,52 +225,53 @@
               >
                 No has añadido productos a este combo todavía.
               </div>
-              <div
-                v-else-if="formDialog.productos_combo.length === 1"
-                class="text-caption text-orange-8 q-py-xs q-px-sm"
-              >
-                Agrega al menos un producto más para poder guardar.
-              </div>
-
-              <q-list
-                v-else
-                separator
-                dense
-                class="bg-white rounded-borders"
-                style="border: 1px solid #e2e8f0"
-              >
-                <q-item
-                  v-for="(item, index) in formDialog.productos_combo"
-                  :key="item.producto_id"
-                  class="q-py-sm"
+              <template v-else>
+                <q-list
+                  separator
+                  dense
+                  class="bg-white rounded-borders"
+                  style="border: 1px solid #e2e8f0"
                 >
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{
-                      obtenerNombreProducto(item.producto_id)
-                    }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <div class="row items-center q-gutter-sm">
-                      <q-badge
-                        color="blue-2"
-                        text-color="blue-9"
-                        :label="`x${item.cantidad}`"
-                        class="text-weight-bold"
-                        style="padding: 4px 8px; border-radius: 6px"
-                      />
-                      <q-btn
-                        flat
-                        round
-                        dense
-                        icon="delete"
-                        color="negative"
-                        size="sm"
-                        @click="removerItemDelCombo(index)"
-                      />
-                    </div>
-                  </q-item-section>
-                </q-item>
-              </q-list>
+                  <q-item
+                    v-for="(item, index) in formDialog.productos_combo"
+                    :key="item.producto_id"
+                    class="q-py-sm"
+                  >
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">{{
+                        obtenerNombreProducto(item.producto_id)
+                      }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <div class="row items-center q-gutter-sm">
+                        <q-badge
+                          color="blue-2"
+                          text-color="blue-9"
+                          :label="`x${item.cantidad}`"
+                          class="text-weight-bold"
+                          style="padding: 4px 8px; border-radius: 6px"
+                        />
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          color="negative"
+                          size="sm"
+                          @click="removerItemDelCombo(index)"
+                        >
+                          <span class="material-symbols-outlined">delete</span>
+                        </q-btn>
+                      </div>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+                <div
+                  v-if="formDialog.productos_combo.length === 1"
+                  class="text-caption text-orange-8 q-mt-xs q-px-sm"
+                >
+                  Agrega al menos un producto más para poder guardar.
+                </div>
+              </template>
             </div>
           </div>
           <div>
@@ -367,6 +364,7 @@ import { useProductosStore } from '@/stores/productos'
 import type { ComboItemCreate, ProductoAdmin, TipoProducto } from '@/types/producto'
 import { apiClient } from '@/api/axiosClient.ts'
 import ProductoBadgeTipo from '@/components/productos/ProductoBadgeTipo.vue'
+import ProductoBadgeEstado from '@/components/productos/ProductoBadgeEstado.vue'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -645,6 +643,17 @@ const ejecutarReactivar = async () => {
 .action-btn {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+  font-size: 20px;
+  line-height: 1;
+  text-transform: none;
 }
 
 .producto-dialog-card {
