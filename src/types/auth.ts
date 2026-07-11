@@ -32,6 +32,7 @@ export interface User {
   email: string
   roles: UserRole[]
   branchId: string | null
+  branchName: string | null
   permissions: string[]
 }
 

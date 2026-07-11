@@ -26,7 +26,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 
 const ROLE_COLORS: Record<UserRole, string> = {
   AdministradorSistema: '#7c3aed',
-  Administrador: '#2563eb',
+  Administrador: '#025FE0',
   Cajero: '#0891b2',
   Cocina: '#d97706',
 }
@@ -361,8 +361,8 @@ onMounted(fetchUsers)
 }
 
 .pill--active {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #025fe0;
+  border-color: #025fe0;
   color: #fff;
 }
 

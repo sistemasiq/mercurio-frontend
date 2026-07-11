@@ -24,6 +24,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const currentBranchId = computed<string | null>(() => user.value?.branchId ?? null)
 
+  const currentBranchName = computed<string | null>(() => user.value?.branchName ?? null)
+
   const permissions = computed<string[]>(() => user.value?.permissions ?? [])
 
   function hasRole(role: UserRole): boolean {
@@ -148,6 +150,7 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser,
     primaryRole,
     currentBranchId,
+    currentBranchName,
     permissions,
     hasRole,
     hasPermission,
