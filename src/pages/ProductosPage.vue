@@ -437,7 +437,9 @@ const columns: QTableColumn[] = [
 
 const productosDisponiblesParaCombo = computed(() => {
   const yaAgregados = new Set(formDialog.value.productos_combo.map((i) => i.producto_id))
-  return store.productos.filter((p) => p.tipo !== 'C' && p.activo && !yaAgregados.has(p.id))
+  return store.productos.filter(
+    (p) => p.tipo !== 'C' && p.tipo !== 'S' && p.tipo !== 'E' && p.activo && !yaAgregados.has(p.id),
+  )
 })
 
 const formularioValido = computed(() => {
