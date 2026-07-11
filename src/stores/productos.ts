@@ -32,13 +32,13 @@ export const useProductosStore = defineStore('productos', {
         this.loading = false
       }
     },
-    async crear(body: ProductoCreate) {
-      const nuevo = await crearProducto(body)
+    async crear(body: ProductoCreate, imagen?: File | null) {
+      const nuevo = await crearProducto(body, imagen)
       this.productos.unshift(nuevo)
       return nuevo
     },
-    async actualizar(id: string, body: ProductoUpdate) {
-      const actualizado = await actualizarProducto(id, body)
+    async actualizar(id: string, body: ProductoUpdate, imagen?: File | null) {
+      const actualizado = await actualizarProducto(id, body, imagen)
       const idx = this.productos.findIndex((p) => p.id === id)
       if (idx !== -1) this.productos.splice(idx, 1, actualizado)
       return actualizado

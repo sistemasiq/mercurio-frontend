@@ -16,15 +16,19 @@ export async function listarProductosAdmin(sucursalId: string): Promise<Producto
   return productosApi.listarAdmin(sucursalId)
 }
 
-export async function crearProducto(body: ProductoCreate): Promise<ProductoAdmin> {
-  return productosApi.crear(body)
+export async function crearProducto(
+  body: ProductoCreate,
+  imagen?: File | null,
+): Promise<ProductoAdmin> {
+  return productosApi.crear(body, imagen)
 }
 
 export async function actualizarProducto(
   productoId: string,
   body: ProductoUpdate,
+  imagen?: File | null,
 ): Promise<ProductoAdmin> {
-  return productosApi.actualizar(productoId, body)
+  return productosApi.actualizar(productoId, body, imagen)
 }
 
 export async function eliminarProducto(productoId: string): Promise<void> {
