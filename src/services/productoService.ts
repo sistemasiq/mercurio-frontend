@@ -1,8 +1,11 @@
 import { productosApi } from '@/api/productosApi'
 import type { Producto, ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
 
-export async function obtenerProductos(signal?: AbortSignal): Promise<Producto[]> {
-  const productos = await productosApi.listar(signal)
+export async function obtenerProductos(
+  sucursalId: string,
+  signal?: AbortSignal,
+): Promise<Producto[]> {
+  const productos = await productosApi.listar(sucursalId, signal)
   return productos.map((producto) => ({
     ...producto,
     precio_unitario: Number(producto.precio_unitario),

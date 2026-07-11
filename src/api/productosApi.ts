@@ -2,8 +2,11 @@ import { apiClient } from '@/api/axiosClient'
 import type { Producto, ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
 
 export const productosApi = {
-  async listar(signal?: AbortSignal): Promise<Producto[]> {
-    const { data } = await apiClient.get<Producto[]>('/productos', { signal })
+  async listar(sucursalId: string, signal?: AbortSignal): Promise<Producto[]> {
+    const { data } = await apiClient.get<Producto[]>('/productos', {
+      params: { sucursal_id: sucursalId },
+      signal,
+    })
     return data
   },
 

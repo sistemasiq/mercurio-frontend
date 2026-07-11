@@ -236,7 +236,8 @@ const guardarNotas = () => {
 const obtenerMensajeError = (err: unknown): string => {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as
-      { detail?: string | string[]; message?: string; error?: string } | undefined
+      | { detail?: string | string[]; message?: string; error?: string }
+      | undefined
     if (typeof data?.detail === 'string') return data.detail
     if (Array.isArray(data?.detail)) return data.detail.join(', ')
     if (data?.message) return data.message
@@ -304,10 +305,11 @@ const procesarPago = async () => {
 
 // Carga inicial
 const cargarProductos = async () => {
+  if (!authStore.currentBranchId) return
   loading.value = true
   error.value = null
   try {
-    const resultado = await obtenerProductos(abortController.signal)
+    const resultado = await obtenerProductos(authStore.currentBranchId, abortController.signal)
     if (!abortController.signal.aborted) productos.value = resultado
   } catch (err) {
     if (!abortController.signal.aborted) {
