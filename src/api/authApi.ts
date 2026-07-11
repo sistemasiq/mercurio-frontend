@@ -7,6 +7,7 @@ export interface BackendUser {
   email: string
   role: UserRole
   branch_id: string | null
+  branch_name: string | null
   permissions: string[]
 }
 

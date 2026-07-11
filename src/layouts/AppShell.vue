@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
-import { branchService } from '@/services/branchService'
 
 interface NavItem {
   label: string
@@ -164,23 +163,7 @@ const userInitials = computed(() => getInitials(auth.currentUser?.name ?? ''))
 const userColor = computed(() => getAvatarColor(auth.currentUser?.name ?? ''))
 const userName = computed(() => auth.currentUser?.name ?? auth.currentUser?.email ?? '')
 const userRole = computed(() => auth.primaryRole ?? '')
-
-const branchName = ref('')
-
-async function loadBranchName(branchId: string | null): Promise<void> {
-  if (!branchId) {
-    branchName.value = ''
-    return
-  }
-  try {
-    const branch = await branchService.getBranch(branchId)
-    branchName.value = branch.nombre
-  } catch {
-    branchName.value = ''
-  }
-}
-
-watch(() => auth.currentBranchId, loadBranchName, { immediate: true })
+const branchName = computed(() => auth.currentBranchName ?? '')
 
 function isActive(routeName: string): boolean {
   return route.name === routeName
