@@ -1,7 +1,7 @@
 <template>
   <div class="producto-card" @click="$emit('agregar', producto)">
     <div class="producto-card__img-wrap">
-      <q-img :src="producto.imagen" height="100px" class="producto-card__img">
+      <q-img :src="getProductoImagenUrl(producto.imagen)" height="100px" class="producto-card__img">
         <template #error>
           <div class="absolute-full flex flex-center bg-grey-3">
             <q-icon name="fastfood" size="28px" color="grey-5" />
@@ -29,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+import { getProductoImagenUrl } from '@/api/productosApi'
 import type { Producto } from '@/types/producto'
 
 defineProps<{ producto: Producto }>()

@@ -170,6 +170,26 @@
               :rules="[(v) => v > 0 || 'El precio debe ser mayor a 0']"
             />
           </div>
+          <div>
+            <div class="field-label">Foto / miniatura (opcional)</div>
+            <div class="row items-center q-gutter-md">
+              <q-avatar square size="64px" class="imagen-preview-avatar">
+                <img v-if="imagenPreviewUrl" :src="imagenPreviewUrl" />
+                <q-icon v-else name="image" size="32px" color="grey-5" />
+              </q-avatar>
+              <q-file
+                v-model="imagenFile"
+                dense
+                outlined
+                clearable
+                accept="image/*"
+                label="Seleccionar imagen"
+                style="flex: 1"
+              >
+                <template #prepend><q-icon name="attach_file" /></template>
+              </q-file>
+            </div>
+          </div>
           <div
             v-if="formDialog.tipo === 'C'"
             class="q-p-sm bg-grey-1 rounded-borders q-mt-md"
@@ -371,13 +391,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useProductosStore } from '@/stores/productos'
 import type { ComboItemCreate, ProductoAdmin, TipoProducto } from '@/types/producto'
 import { apiClient } from '@/api/axiosClient.ts'
+import { getProductoImagenUrl } from '@/api/productosApi'
 import ProductoBadgeTipo from '@/components/productos/ProductoBadgeTipo.vue'
 import ProductoBadgeEstado from '@/components/productos/ProductoBadgeEstado.vue'
 
@@ -484,6 +505,23 @@ const productoComboTemporal = ref({
   cantidad: 1,
 })
 
+const imagenFile = ref<File | null>(null)
+const imagenPreviewLocal = ref<string | null>(null)
+
+watch(imagenFile, (file, _oldFile, onCleanup) => {
+  if (!file) {
+    imagenPreviewLocal.value = null
+    return
+  }
+  const url = URL.createObjectURL(file)
+  imagenPreviewLocal.value = url
+  onCleanup(() => URL.revokeObjectURL(url))
+})
+
+const imagenPreviewUrl = computed(
+  () => imagenPreviewLocal.value ?? getProductoImagenUrl(editando.value?.imagen) ?? null,
+)
+
 const abrirCrear = () => {
   editando.value = null
   formDialog.value = {
@@ -494,6 +532,7 @@ const abrirCrear = () => {
     productos_combo: [],
   }
   productoComboTemporal.value = { producto_id: '', cantidad: 1 }
+  imagenFile.value = null
   dialogOpen.value = true
 }
 
@@ -529,12 +568,14 @@ const abrirEditar = async (row: ProductoAdmin) => {
   }
 
   productoComboTemporal.value = { producto_id: '', cantidad: 1 }
+  imagenFile.value = null
   dialogOpen.value = true
 }
 
 const cerrarDialog = () => {
   dialogOpen.value = false
   editando.value = null
+  imagenFile.value = null
 }
 
 const guardar = async () => {
@@ -565,24 +606,31 @@ const guardar = async () => {
   guardando.value = true
   try {
     if (editando.value) {
-      await store.actualizar(editando.value.id, {
-        nombre: formDialog.value.nombre.trim(),
-        tipo: formDialog.value.tipo,
-        precio_unitario: String(formDialog.value.precio_unitario),
-        descripcion: formDialog.value.descripcion.trim() || null,
-        productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
-      })
+      await store.actualizar(
+        editando.value.id,
+        {
+          nombre: formDialog.value.nombre.trim(),
+          tipo: formDialog.value.tipo,
+          precio_unitario: String(formDialog.value.precio_unitario),
+          descripcion: formDialog.value.descripcion.trim() || null,
+          productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
+        },
+        imagenFile.value,
+      )
       $q.notify({ type: 'positive', message: 'Producto actualizado', position: 'top-right' })
     } else {
       if (!authStore.currentBranchId) return
-      await store.crear({
-        nombre: formDialog.value.nombre.trim(),
-        tipo: formDialog.value.tipo,
-        precio_unitario: String(formDialog.value.precio_unitario),
-        descripcion: formDialog.value.descripcion.trim() || null,
-        sucursal_id: authStore.currentBranchId,
-        productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
-      })
+      await store.crear(
+        {
+          nombre: formDialog.value.nombre.trim(),
+          tipo: formDialog.value.tipo,
+          precio_unitario: String(formDialog.value.precio_unitario),
+          descripcion: formDialog.value.descripcion.trim() || null,
+          sucursal_id: authStore.currentBranchId,
+          productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
+        },
+        imagenFile.value,
+      )
       $q.notify({ type: 'positive', message: 'Producto creado', position: 'top-right' })
     }
     cerrarDialog()
@@ -665,6 +713,19 @@ const ejecutarReactivar = async () => {
 .action-btn {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
+}
+
+.imagen-preview-avatar {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.imagen-preview-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .material-symbols-outlined {
