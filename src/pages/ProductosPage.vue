@@ -225,6 +225,7 @@
               >
                 No has añadido productos a este combo todavía.
               </div>
+
               <template v-else>
                 <q-list
                   separator
@@ -244,13 +245,27 @@
                     </q-item-section>
                     <q-item-section side>
                       <div class="row items-center q-gutter-sm">
-                        <q-badge
-                          color="blue-2"
-                          text-color="blue-9"
-                          :label="`x${item.cantidad}`"
-                          class="text-weight-bold"
-                          style="padding: 4px 8px; border-radius: 6px"
-                        />
+                        <div class="qty-stepper bg-blue-2 text-blue-9">
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            class="qty-btn"
+                            @click="ajustarCantidadCombo(item, -1)"
+                          >
+                            <span class="material-symbols-outlined qty-icon">remove</span>
+                          </q-btn>
+                          <span class="qty-value">{{ item.cantidad }}</span>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            class="qty-btn"
+                            @click="ajustarCantidadCombo(item, 1)"
+                          >
+                            <span class="material-symbols-outlined qty-icon">add</span>
+                          </q-btn>
+                        </div>
                         <q-btn
                           flat
                           round
@@ -407,7 +422,10 @@ const productosDisponiblesParaCombo = computed(() => {
 const formularioValido = computed(() => {
   const { nombre, precio_unitario, tipo, productos_combo } = formDialog.value
   if (!nombre.trim() || precio_unitario <= 0) return false
-  if (tipo === 'C' && productos_combo.length < 2) return false
+  if (tipo === 'C') {
+    if (productos_combo.length < 2) return false
+    if (productos_combo.some((item) => !item.cantidad || item.cantidad <= 0)) return false
+  }
   return true
 })
 
@@ -431,6 +449,10 @@ const agregarItemAlCombo = () => {
     formDialog.value.productos_combo.push({ producto_id, cantidad })
   }
   productoComboTemporal.value = { producto_id: '', cantidad: 1 }
+}
+
+const ajustarCantidadCombo = (item: ComboItemCreate, delta: number) => {
+  item.cantidad = Math.max(1, item.cantidad + delta)
 }
 
 const removerItemDelCombo = (index: number) => {
@@ -667,5 +689,31 @@ const ejecutarReactivar = async () => {
 .producto-dialog-body {
   flex: 1;
   overflow-y: auto;
+}
+
+.qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 999px;
+}
+
+.qty-value {
+  min-width: 16px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.qty-btn {
+  min-height: 22px;
+  min-width: 22px;
+  padding: 0;
+}
+
+.qty-icon {
+  font-size: 14px;
+  line-height: 1;
 }
 </style>
