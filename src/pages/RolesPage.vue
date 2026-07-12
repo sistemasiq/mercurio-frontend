@@ -1,6 +1,6 @@
 <template>
   <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 900px; margin: 0 auto">
+    <div>
       <!-- Encabezado -->
       <div class="row items-center q-mb-lg">
         <div>
@@ -82,7 +82,7 @@
                 flat
                 round
                 dense
-                color="primary"
+                color="grey-7"
                 size="sm"
                 class="q-mr-xs"
                 @click="abrirEditar(props.row)"
@@ -95,7 +95,7 @@
                 flat
                 round
                 dense
-                color="negative"
+                color="grey-7"
                 size="sm"
                 @click="confirmarDesactivar(props.row)"
               >
@@ -577,7 +577,8 @@ const ejecutarReactivar = async () => {
 }
 
 .permiso-checkbox {
-  display: block;
+  display: flex;
+  width: 100%;
 }
 
 .contador-badge {
