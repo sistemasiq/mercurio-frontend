@@ -38,7 +38,7 @@
       </q-banner>
 
       <!-- Tabla -->
-      <q-card flat bordered style="border-radius: 12px; overflow: hidden">
+      <q-card flat bordered style="border-radius: 12px; overflow-x: auto; overflow-y: hidden">
         <q-table
           :rows="store.roles"
           :columns="columns"
@@ -82,12 +82,12 @@
                 flat
                 round
                 dense
-                icon="edit"
                 color="primary"
                 size="sm"
                 class="q-mr-xs"
                 @click="abrirEditar(props.row)"
               >
+                <span class="material-symbols-outlined">edit</span>
                 <q-tooltip>Editar</q-tooltip>
               </q-btn>
               <q-btn
@@ -95,11 +95,11 @@
                 flat
                 round
                 dense
-                icon="delete_outline"
                 color="negative"
                 size="sm"
                 @click="confirmarDesactivar(props.row)"
               >
+                <span class="material-symbols-outlined">delete</span>
                 <q-tooltip>Desactivar</q-tooltip>
               </q-btn>
               <q-btn
@@ -175,29 +175,71 @@
               </span>
             </div>
 
-            <div
-              v-for="grupo in permisosPorModulo"
-              :key="grupo.modulo"
-              class="q-mb-sm permiso-grupo"
+            <q-input
+              v-model="busquedaPermiso"
+              dense
+              outlined
+              clearable
+              placeholder="Buscar permiso..."
+              class="q-mb-sm"
             >
-              <div class="text-caption text-weight-bold text-grey-7 q-mb-xs">
-                {{ grupo.modulo.toUpperCase() }}
-              </div>
-              <q-checkbox
-                v-for="permiso in grupo.permisos"
-                :key="permiso.id"
-                v-model="formDialog.permiso_ids"
-                :val="permiso.id"
-                :label="permiso.nombre"
-                :disable="!!editando && !editando.permisos_editables"
-                dense
-                class="permiso-checkbox"
-              />
+              <template #prepend><q-icon name="search" size="18px" color="grey-6" /></template>
+            </q-input>
+
+            <div
+              v-if="gruposPermisos.length === 0"
+              class="text-caption text-grey-6 text-center q-pa-md"
+            >
+              No se encontraron permisos.
             </div>
+
+            <q-expansion-item
+              v-for="grupo in gruposPermisos"
+              :key="grupo.modulo"
+              :model-value="isModuloExpandido(grupo.modulo)"
+              dense
+              header-class="permiso-grupo__header"
+              class="permiso-grupo"
+              :class="{ 'permiso-grupo--activo': grupo.seleccionados > 0 }"
+              @update:model-value="(val) => toggleModulo(grupo.modulo, val)"
+            >
+              <template #header>
+                <q-item-section class="permiso-grupo__nombre">
+                  {{ grupo.modulo }}
+                </q-item-section>
+                <q-item-section side>
+                  <q-badge
+                    class="contador-badge"
+                    :class="{ 'contador-badge--activo': grupo.seleccionados > 0 }"
+                    :label="`${grupo.seleccionados}/${grupo.total}`"
+                  />
+                </q-item-section>
+              </template>
+
+              <div class="permiso-grupo__body">
+                <q-checkbox
+                  v-for="permiso in grupo.permisos"
+                  :key="permiso.id"
+                  v-model="formDialog.permiso_ids"
+                  :val="permiso.id"
+                  :label="permiso.nombre"
+                  :disable="!!editando && !editando.permisos_editables"
+                  color="positive"
+                  dense
+                  class="permiso-checkbox"
+                />
+              </div>
+            </q-expansion-item>
           </div>
         </q-card-section>
 
-        <q-card-actions align="right" class="q-pa-md q-pt-sm" style="flex-shrink: 0">
+        <q-card-actions class="row items-center q-pa-md q-pt-sm" style="flex-shrink: 0">
+          <q-badge
+            class="contador-badge"
+            :class="{ 'contador-badge--activo': formDialog.permiso_ids.length > 0 }"
+            :label="`${formDialog.permiso_ids.length} permisos seleccionados`"
+          />
+          <q-space />
           <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
           <q-btn
             unelevated
@@ -294,14 +336,53 @@ const columns: QTableColumn[] = [
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
 
-const permisosPorModulo = computed(() => {
+const modulosBase = computed(() => {
+  const vistos = new Set<string>()
+  const orden: string[] = []
+  for (const permiso of store.catalogoPermisos) {
+    if (!vistos.has(permiso.modulo)) {
+      vistos.add(permiso.modulo)
+      orden.push(permiso.modulo)
+    }
+  }
+  return orden
+})
+
+const busquedaPermiso = ref('')
+const modulosExpandido = ref<Set<string>>(new Set())
+
+const isModuloExpandido = (modulo: string) =>
+  busquedaPermiso.value.trim() ? true : modulosExpandido.value.has(modulo)
+
+const toggleModulo = (modulo: string, expandido: boolean) => {
+  if (busquedaPermiso.value.trim()) return
+  const set = new Set(modulosExpandido.value)
+  if (expandido) set.add(modulo)
+  else set.delete(modulo)
+  modulosExpandido.value = set
+}
+
+const gruposPermisos = computed(() => {
   const grupos = new Map<string, typeof store.catalogoPermisos>()
   for (const permiso of store.catalogoPermisos) {
     const lista = grupos.get(permiso.modulo) ?? []
     lista.push(permiso)
     grupos.set(permiso.modulo, lista)
   }
-  return Array.from(grupos.entries()).map(([modulo, permisos]) => ({ modulo, permisos }))
+
+  const termino = busquedaPermiso.value.trim().toLowerCase()
+  const seleccionados = new Set(formDialog.value.permiso_ids)
+
+  return Array.from(grupos.entries())
+    .map(([modulo, permisos]) => ({
+      modulo,
+      permisos: termino
+        ? permisos.filter((p) => p.nombre.toLowerCase().includes(termino))
+        : permisos,
+      total: permisos.length,
+      seleccionados: permisos.filter((p) => seleccionados.has(p.id)).length,
+    }))
+    .filter((grupo) => grupo.permisos.length > 0)
 })
 
 // ── Estado del dialog ─────────────────────────────────────────────────────────
@@ -320,6 +401,8 @@ const formDialog = ref({
 const abrirCrear = () => {
   editando.value = null
   formDialog.value = { nombre: '', descripcion: '', permiso_ids: [] }
+  busquedaPermiso.value = ''
+  modulosExpandido.value = new Set(modulosBase.value.slice(0, 1))
   dialogOpen.value = true
 }
 
@@ -330,6 +413,14 @@ const abrirEditar = (row: RolConPermisos) => {
     descripcion: row.descripcion ?? '',
     permiso_ids: row.permisos.map((p) => p.id),
   }
+  busquedaPermiso.value = ''
+  const idsSeleccionados = new Set(formDialog.value.permiso_ids)
+  const modulosConSeleccion = store.catalogoPermisos
+    .filter((p) => idsSeleccionados.has(p.id))
+    .map((p) => p.modulo)
+  modulosExpandido.value = new Set(
+    modulosConSeleccion.length > 0 ? modulosConSeleccion : modulosBase.value.slice(0, 1),
+  )
   dialogOpen.value = true
 }
 
@@ -434,7 +525,7 @@ const ejecutarReactivar = async () => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .field-label {
   font-size: 0.68rem;
   font-weight: 800;
@@ -458,11 +549,50 @@ const ejecutarReactivar = async () => {
 }
 
 .permiso-grupo {
-  border-top: 1px solid #eef0f4;
-  padding-top: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: background 0.2s ease;
+
+  &--activo {
+    background: rgba(63, 168, 52, 0.05);
+    border-color: rgba(63, 168, 52, 0.25);
+  }
+}
+
+:deep(.permiso-grupo__header) {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.permiso-grupo__nombre {
+  text-transform: capitalize;
+}
+
+.permiso-grupo__body {
+  padding: 0 16px 10px 16px;
+  border-top: 1px solid var(--border-color);
 }
 
 .permiso-checkbox {
   display: block;
+}
+
+.contador-badge {
+  background: var(--bg-main);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+
+  &--activo {
+    background: rgba(63, 168, 52, 0.12);
+    color: #3fa834;
+    border: 1px solid rgba(63, 168, 52, 0.3);
+  }
 }
 </style>
