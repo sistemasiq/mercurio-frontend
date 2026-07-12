@@ -85,6 +85,19 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/roles',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'roles-listar',
+        component: () => import('@/pages/RolesPage.vue'),
+        meta: { permissions: ['permisos:ver'], title: 'Roles' },
+      },
+    ],
+  },
+  {
     path: '/sucursales',
     component: () => import('@/layouts/AppShell.vue'),
     meta: { requiresAuth: true },
