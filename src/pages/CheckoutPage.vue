@@ -42,11 +42,6 @@ function onCheckoutScanEnter() {
   }
 }
 
-// Si alguien navega directo aqui sin pasar por una card, lo mandamos de regreso
-if (!child.value) {
-  router.push({ name: 'estancias-control-acceso' })
-}
-
 const isLoading = ref(false)
 
 const statusColor = computed(() => {
@@ -122,7 +117,6 @@ async function confirmarSalida() {
     }
 
     store.clearCheckoutChild()
-    await store.loadActivos()
     router.back()
   } catch (err) {
     console.error(err)
