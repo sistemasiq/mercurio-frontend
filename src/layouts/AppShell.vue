@@ -157,6 +157,12 @@ const navGroups: NavGroup[] = [
         permission: 'usuarios:listar',
       },
       {
+        label: 'Roles',
+        icon: 'admin_panel_settings',
+        routeName: 'roles-listar',
+        permission: 'permisos:ver',
+      },
+      {
         label: 'Reportes',
         icon: 'query_stats',
         routeName: 'reportes-dashboard',
