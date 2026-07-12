@@ -59,6 +59,7 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   const excedidos = computed(() => activos.value.filter((a) => a.status === 'excedido').length)
 
   const pulserasLibres = ref(0)
+  const puedeVerPulseras = computed(() => authStore.hasPermission('pulseras:listar'))
   const capacidadTotal = computed(() => totalActivos.value + pulserasLibres.value)
 
   const disponibilidadPercent = computed(() => {
@@ -74,18 +75,23 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     isLoading.value = true
     error.value = null
     try {
-      const [activosData, pulserasData] = await Promise.all([
-        fetchActivos(authStore.currentBranchId),
-        fetchPulseras(authStore.currentBranchId),
-      ])
-      rawActivos.value = activosData
-      pulserasLibres.value = pulserasData.length
+      rawActivos.value = await fetchActivos(authStore.currentBranchId)
       lastUpdated.value = new Date()
     } catch (err) {
       error.value = 'No se pudo cargar la lista de niños activos.'
       console.error(err)
     } finally {
       isLoading.value = false
+    }
+
+    // Las pulseras alimentan solo el indicador de disponibilidad; requieren un
+    // permiso aparte (pulseras:listar) y no deben bloquear la lista de activos.
+    if (puedeVerPulseras.value) {
+      try {
+        pulserasLibres.value = (await fetchPulseras(authStore.currentBranchId)).length
+      } catch (err) {
+        console.error(err)
+      }
     }
   }
 
@@ -139,6 +145,7 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     excedidos,
     disponibilidadPercent,
     pulserasLibres,
+    puedeVerPulseras,
     capacidadTotal,
     loadActivos,
     startAutoRefresh,
