@@ -56,6 +56,7 @@
             <span class="stat-value text-orange-9">{{ totalComandasActivas }}</span>
           </div>
         </div>
+
         <q-btn
           v-if="!ticketAbierto"
           unelevated
@@ -78,7 +79,7 @@
         @cancelar="cancelarOrden"
         @cambiar-cantidad="cambiarCantidad"
         @editar-notas="abrirNotasDialog"
-        @pagar="procesarPago"
+        @pagar="abrirModalPago"
       />
     </transition>
 
@@ -111,15 +112,24 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- MODAL DE PAGO MULTIMODAL CON EL TOTAL REAL -->
+    <PaymentModal v-model="modalPagoAbierto" :totalToPay="totalTicket" />
   </div>
 </template>
 
 <script setup lang="ts">
+// 1. IMPORTACIONES FUSIONADAS Y LIMPIAS
 import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
+
+// Componentes
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
 import TicketPanel from '@/components/comandas/TicketPanel.vue'
+import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
+
+// Types, Stores y Services
 import { type ItemTicket } from '@/components/comandas/TicketItem.vue'
 import { obtenerProductos } from '@/services/productoService'
 import { crearComanda, obtenerComandas } from '@/services/comandaService'
@@ -132,6 +142,13 @@ import type {
   CrearComandaRequest,
   DetalleComandaRequest,
 } from '@/types/comanda'
+
+// 2. ESTADO DEL MODAL DE PAGO
+const modalPagoAbierto = ref(false)
+
+const abrirModalPago = () => {
+  modalPagoAbierto.value = true
+}
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -181,7 +198,15 @@ const totalProductos = computed(
 )
 const totalComandasActivas = computed(() => comandasActivas.value.length)
 
-// WebSocket — actualiza el contador de pedidos activos en tiempo real
+// Calcula el total sumando el precio por la cantidad de cada producto en el ticket
+const totalTicket = computed(() => {
+  return itemsTicket.value.reduce(
+    (suma, item) => suma + item.producto.precio_unitario * item.cantidad,
+    0,
+  )
+})
+
+// WebSocket
 function handleMensajeSocket(msg: ComandaWsMessage) {
   const idx = comandasActivas.value.findIndex((c) => c.id === msg.comanda.id)
   if (idx === -1) {
@@ -234,7 +259,7 @@ const guardarNotas = () => {
   notasDialog.value = false
 }
 
-// Pago
+// Pago Original (Para enviar a cocina)
 const obtenerMensajeError = (err: unknown): string => {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as
@@ -248,6 +273,7 @@ const obtenerMensajeError = (err: unknown): string => {
   return err instanceof Error ? err.message : 'No se pudo enviar la comanda.'
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const procesarPago = async () => {
   if (itemsTicket.value.length === 0 || enviando.value) return
 
@@ -274,6 +300,7 @@ const procesarPago = async () => {
   const payload: CrearComandaRequest = {
     ticket_numero: `TICK-${String(Date.now() % 10000).padStart(4, '0')}`,
     total_final: itemsTicket.value.reduce((s, i) => s + i.producto.precio_unitario * i.cantidad, 0),
+    //sucursal_id: authStore.currentBranchId,
     estado_actual: 'P',
     detalles_comanda: detalles,
   }

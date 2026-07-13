@@ -41,7 +41,7 @@
         :loading="enviando"
         @click="$emit('pagar')"
       >
-        Pagar <q-icon name="send" size="sm" class="q-ml-sm" />
+        Cobrar <q-icon name="send" size="sm" class="q-ml-sm" />
       </q-btn>
     </div>
   </div>
