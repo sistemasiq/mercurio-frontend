@@ -68,7 +68,7 @@
                 outlined
                 dense
                 placeholder="Escanee el código ahora..."
-                :disable="!store.formularioHabilitado || store.registrando"
+                :disable="!store.formularioHabilitado || store.enviando"
                 @keydown.enter.prevent="handleScanEnter"
               >
                 <template #append>
@@ -99,8 +99,20 @@
                 :class="{ 'rp-scan-item--error': item.estado === 'error' }"
               >
                 <q-icon
-                  :name="item.estado === 'success' ? 'check_circle' : 'cancel'"
-                  :color="item.estado === 'success' ? 'positive' : 'negative'"
+                  :name="
+                    item.estado === 'success'
+                      ? 'check_circle'
+                      : item.estado === 'error'
+                        ? 'cancel'
+                        : 'schedule'
+                  "
+                  :color="
+                    item.estado === 'success'
+                      ? 'positive'
+                      : item.estado === 'error'
+                        ? 'negative'
+                        : 'grey-5'
+                  "
                   size="20px"
                 />
                 <q-btn
@@ -115,8 +127,20 @@
                 <span class="rp-scan-item__code">{{ item.codigo }}</span>
                 <span v-if="item.mensaje" class="rp-scan-item__msg">{{ item.mensaje }}</span>
                 <q-badge
-                  :color="item.estado === 'success' ? 'positive' : 'negative'"
-                  :label="item.estado === 'success' ? 'SUCCESS' : 'ERROR'"
+                  :color="
+                    item.estado === 'success'
+                      ? 'positive'
+                      : item.estado === 'error'
+                        ? 'negative'
+                        : 'grey-5'
+                  "
+                  :label="
+                    item.estado === 'success'
+                      ? 'SUCCESS'
+                      : item.estado === 'error'
+                        ? 'ERROR'
+                        : 'PENDIENTE'
+                  "
                   class="rp-scan-badge"
                 />
               </div>
@@ -179,7 +203,10 @@
               no-caps
               color="orange"
               label="Finalizar Registro"
-              :disable="!store.formularioHabilitado"
+              :disable="
+                !store.formularioHabilitado || store.totalPendientes === 0 || store.enviando
+              "
+              :loading="store.enviando"
               style="border-radius: 8px; font-weight: 600; flex: 1"
               @click="mostrarModalFinalizar = true"
             />
@@ -233,15 +260,12 @@
             <span class="text-h6 text-weight-bold">Finalizar Registro</span>
           </div>
           <div class="text-body2 text-grey-8">
-            Se registraron
-            <strong>{{ store.totalRegistradas }} pulsera(s)</strong>
+            Se enviarán
+            <strong>{{ store.totalPendientes }} pulsera(s)</strong>
             <span v-if="store.numeroDeLote">
-              en el lote <strong>{{ store.numeroDeLote }}</strong></span
-            >.
-            <span v-if="store.totalErrores > 0" class="text-negative">
-              {{ store.totalErrores }} escaneo(s) fallaron.</span
+              del lote <strong>{{ store.numeroDeLote }}</strong></span
             >
-            ¿Deseas finalizar la sesión de registro?
+            al sistema. ¿Deseas finalizar la sesión de registro?
           </div>
         </q-card-section>
         <q-card-actions align="right" class="q-pa-md q-pt-sm">
@@ -267,12 +291,12 @@
             <span class="text-h6 text-weight-bold">Cancelar Sesión</span>
           </div>
           <div class="text-body2 text-grey-8">
-            <span v-if="store.totalRegistradas > 0">
-              Las <strong>{{ store.totalRegistradas }} pulsera(s)</strong> ya escaneadas han sido
-              guardadas y no se eliminarán.
+            <span v-if="store.escaneos.length > 0">
+              Las <strong>{{ store.escaneos.length }} pulsera(s)</strong> escaneadas aún no han sido
+              guardadas y se perderán.
             </span>
-            <span v-else>No se ha registrado ninguna pulsera en esta sesión.</span>
-            Solo se descartará el contexto de la sesión actual. ¿Deseas continuar?
+            <span v-else>No se ha escaneado ninguna pulsera en esta sesión.</span>
+            ¿Deseas continuar?
           </div>
         </q-card-section>
         <q-card-actions align="right" class="q-pa-md q-pt-sm">
@@ -320,9 +344,9 @@ async function enfocarEscaneo() {
 
 async function handleScanEnter() {
   const codigo = inputEscaneo.value.trim()
-  if (!codigo || !authStore.currentBranchId) return
+  if (!codigo) return
   inputEscaneo.value = ''
-  await store.registrarPulsera(codigo, authStore.currentBranchId)
+  store.registrarPulsera(codigo)
   await nextTick()
   scanInputRef.value?.focus()
 }
@@ -338,13 +362,23 @@ function confirmarEliminar() {
   mostrarModalEliminar.value = false
 }
 
-function confirmarFinalizar() {
+async function confirmarFinalizar() {
+  if (!authStore.currentBranchId) return
   mostrarModalFinalizar.value = false
-  $q.notify({
-    type: 'positive',
-    message: `Registro finalizado: ${store.totalRegistradas} pulsera(s) agregadas al inventario.`,
-    position: 'top-right',
-  })
+  await store.enviarRegistros(authStore.currentBranchId)
+  if (store.totalErrores > 0) {
+    $q.notify({
+      type: 'warning',
+      message: `Registro finalizado: ${store.totalRegistradas} pulsera(s) guardadas, ${store.totalErrores} con error.`,
+      position: 'top-right',
+    })
+  } else {
+    $q.notify({
+      type: 'positive',
+      message: `Registro finalizado: ${store.totalRegistradas} pulsera(s) guardadas correctamente.`,
+      position: 'top-right',
+    })
+  }
   store.limpiarSesion()
   router.push({ name: 'estancias-pulseras' })
 }
