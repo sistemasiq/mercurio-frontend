@@ -41,6 +41,10 @@ export const useRegistroPulserasStore = defineStore('registroPulseras', () => {
     }
   }
 
+  function eliminarEscaneo(index: number) {
+    escaneos.value.splice(index, 1)
+  }
+
   function limpiarSesion() {
     numeroDeLote.value = ''
     estadoInicial.value = 'disponible'
@@ -59,6 +63,7 @@ export const useRegistroPulserasStore = defineStore('registroPulseras', () => {
     totalErrores,
     formularioHabilitado,
     registrarPulsera,
+    eliminarEscaneo,
     limpiarSesion,
   }
 })

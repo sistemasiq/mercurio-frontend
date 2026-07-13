@@ -25,32 +25,18 @@
             </div>
           </div>
 
-          <!-- Campos globales de lote y estado -->
+          <!-- Campos globales de lote -->
           <div class="rp-global-fields">
-            <div class="rp-global-fields__row">
-              <div class="rp-field-group">
-                <div class="field-label">Número de Lote</div>
-                <q-input
-                  v-model="store.numeroDeLote"
-                  outlined
-                  dense
-                  placeholder="ej. LOT-2023-04"
-                  :disable="!authStore.currentBranchId"
-                  @blur="enfocarEscaneo"
-                />
-              </div>
-              <div class="rp-field-group">
-                <div class="field-label">Estado Inicial</div>
-                <q-select
-                  v-model="store.estadoInicial"
-                  outlined
-                  dense
-                  emit-value
-                  map-options
-                  :options="opcionesEstado"
-                  :disable="!store.formularioHabilitado"
-                />
-              </div>
+            <div class="rp-field-group">
+              <div class="field-label">Número de Lote</div>
+              <q-input
+                v-model="store.numeroDeLote"
+                outlined
+                dense
+                placeholder="ej. LOT-2023-04"
+                :disable="!authStore.currentBranchId"
+                @blur="enfocarEscaneo"
+              />
             </div>
             <div
               v-if="!store.formularioHabilitado && authStore.currentBranchId"
@@ -117,6 +103,15 @@
                   :color="item.estado === 'success' ? 'positive' : 'negative'"
                   size="20px"
                 />
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="delete_outline"
+                  color="red"
+                  size="m"
+                  @click="pedirConfirmacionEliminar(item.codigo, i)"
+                />
                 <span class="rp-scan-item__code">{{ item.codigo }}</span>
                 <span v-if="item.mensaje" class="rp-scan-item__msg">{{ item.mensaje }}</span>
                 <q-badge
@@ -126,23 +121,6 @@
                 />
               </div>
             </div>
-          </div>
-
-          <q-separator class="q-my-md" />
-
-          <!-- Botón Registrar Otra -->
-          <div class="rp-actions">
-            <q-btn
-              unelevated
-              no-caps
-              color="primary"
-              icon="add_circle_outline"
-              label="Registrar Otra"
-              :disable="!store.formularioHabilitado || store.registrando"
-              :loading="store.registrando"
-              style="border-radius: 8px; font-weight: 600"
-              @click="registrarOtra"
-            />
           </div>
         </div>
       </div>
@@ -217,6 +195,34 @@
         </div>
       </div>
     </div>
+
+    <!-- ── Modal Eliminar Escaneo ───────────────────────────────────────────── -->
+    <q-dialog v-model="mostrarModalEliminar" backdrop-filter="blur(3px) brightness(0.6)">
+      <q-card style="min-width: 360px; border-radius: 12px">
+        <q-card-section class="q-pb-sm">
+          <div class="row items-center q-gutter-sm q-mb-xs">
+            <q-icon name="delete_outline" color="negative" size="28px" />
+            <span class="text-h6 text-weight-bold">Eliminar registro</span>
+          </div>
+          <div class="text-body2 text-grey-8">
+            ¿Quieres eliminar el registro de la pulsera
+            <strong>{{ codigoAEliminar }}</strong
+            >?
+          </div>
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-md q-pt-sm">
+          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
+          <q-btn
+            unelevated
+            no-caps
+            color="negative"
+            label="Sí, eliminar"
+            style="border-radius: 8px; font-weight: 600"
+            @click="confirmarEliminar"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- ── Modal Finalizar Registro ──────────────────────────────────────────── -->
     <q-dialog v-model="mostrarModalFinalizar" backdrop-filter="blur(3px) brightness(0.6)">
@@ -301,11 +307,9 @@ const inputEscaneo = ref('')
 const scanInputRef = ref<QInput | null>(null)
 const mostrarModalFinalizar = ref(false)
 const mostrarModalCancelar = ref(false)
-
-const opcionesEstado = [
-  { label: 'Disponible', value: 'disponible' },
-  { label: 'En revisión', value: 'en_revision' },
-]
+const mostrarModalEliminar = ref(false)
+const codigoAEliminar = ref('')
+const indiceAEliminar = ref(-1)
 
 async function enfocarEscaneo() {
   if (store.formularioHabilitado) {
@@ -323,10 +327,15 @@ async function handleScanEnter() {
   scanInputRef.value?.focus()
 }
 
-async function registrarOtra() {
-  inputEscaneo.value = ''
-  await nextTick()
-  scanInputRef.value?.focus()
+function pedirConfirmacionEliminar(codigo: string, index: number) {
+  codigoAEliminar.value = codigo
+  indiceAEliminar.value = index
+  mostrarModalEliminar.value = true
+}
+
+function confirmarEliminar() {
+  store.eliminarEscaneo(indiceAEliminar.value)
+  mostrarModalEliminar.value = false
 }
 
 function confirmarFinalizar() {
@@ -408,12 +417,6 @@ onUnmounted(() => {
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 24px;
-}
-
-.rp-global-fields__row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
 }
 
 .rp-hint-lote {
@@ -550,12 +553,6 @@ onUnmounted(() => {
   letter-spacing: 0.5px;
   padding: 3px 10px;
   border-radius: 20px;
-}
-
-/* ── Botones izquierda ──────────────────────────────────────────────────────── */
-.rp-actions {
-  display: flex;
-  align-items: center;
 }
 
 /* ── Field labels ───────────────────────────────────────────────────────────── */
