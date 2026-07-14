@@ -114,7 +114,11 @@
     </q-dialog>
 
     <!-- MODAL DE PAGO MULTIMODAL CON EL TOTAL REAL -->
-    <PaymentModal v-model="modalPagoAbierto" :totalToPay="totalTicket" />
+    <PaymentModal
+      v-model="modalPagoAbierto"
+      :total-to-pay="totalTicket"
+      @pago-exitoso="limpiarCaja"
+    />
   </div>
 </template>
 
@@ -205,6 +209,14 @@ const totalTicket = computed(() => {
     0,
   )
 })
+
+const limpiarCaja = () => {
+  // Vaciamos la lista de lo que se le cobró al cliente
+  itemsTicket.value = []
+
+  // Opcional: Si usas esta variable para saber si hay una venta activa, la regresamos a falso
+  ticketAbierto.value = false
+}
 
 // WebSocket
 function handleMensajeSocket(msg: ComandaWsMessage) {

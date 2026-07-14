@@ -1,8 +1,8 @@
 <template>
   <q-dialog
     :model-value="modelValue"
-    @update:model-value="$emit('update:modelValue', $event)"
     persistent
+    @update:model-value="$emit('update:modelValue', $event)"
   >
     <q-card
       style="
@@ -34,8 +34,8 @@
               flat
               round
               dense
-              @click="$emit('update:modelValue', false)"
               class="bg-grey-2"
+              @click="$emit('update:modelValue', false)"
             />
             <span class="text-h6 text-weight-bold">Pago Multimodal</span>
           </div>
@@ -59,7 +59,7 @@
             <span class="text-grey-7 text-caption">Método: {{ metodoSeleccionado }}</span>
           </div>
 
-          <PaymentKeypad class="full-width" @add-payment="iniciarAbono" style="flex-grow: 1" />
+          <PaymentKeypad class="full-width" style="flex-grow: 1" @add-payment="iniciarAbono" />
         </div>
       </div>
 
@@ -154,7 +154,7 @@
       <q-card-section class="bg-primary text-white row items-center q-pb-sm">
         <div class="text-subtitle1 text-weight-bold">Detalles de Tarjeta</div>
         <q-space />
-        <q-btn icon="close" flat round dense v-close-popup @click="limpiarModalTarjeta" />
+        <q-btn v-close-popup icon="close" flat round dense @click="limpiarModalTarjeta" />
       </q-card-section>
 
       <q-card-section class="q-pt-md">
@@ -181,14 +181,14 @@
       </q-card-section>
 
       <q-card-actions align="right" class="text-primary bg-grey-1 border-top">
-        <q-btn flat label="Cancelar" color="grey-7" v-close-popup @click="limpiarModalTarjeta" />
+        <q-btn v-close-popup flat label="Cancelar" color="grey-7" @click="limpiarModalTarjeta" />
         <q-btn
+          v-close-popup
           color="primary"
           label="Agregar Pago"
           unelevated
-          v-close-popup
-          @click="confirmarPagoTarjeta"
           :disable="!tarjetaTipo || !tarjetaAutorizacion"
+          @click="confirmarPagoTarjeta"
         />
       </q-card-actions>
     </q-card>
@@ -207,6 +207,7 @@ import AppliedPaymentsList from './AppliedPaymentsList.vue'
 const props = defineProps<PaymentProps & { modelValue: boolean }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
+  (e: 'pago-exitoso'): void
 }>()
 
 const $q = useQuasar()
@@ -292,6 +293,8 @@ const eliminarPago = (id: string) => {
 
 const finalizarPago = () => {
   $q.notify({ type: 'positive', message: '¡Transacción completada!', position: 'top' })
+  // Le avisamos a la caja que ya terminamos de cobrar
+  emit('pago-exitoso')
   emit('update:modelValue', false)
   pagosAplicados.value = []
 }
