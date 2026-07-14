@@ -68,6 +68,7 @@
                 outlined
                 dense
                 placeholder="Escanee el código ahora..."
+                maxlength="10"
                 :disable="!store.formularioHabilitado || store.enviando"
                 @keydown.enter.prevent="handleScanEnter"
               >
