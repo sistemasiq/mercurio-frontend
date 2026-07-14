@@ -75,7 +75,7 @@ export const useAccessControlStore = defineStore('accessControl', () => {
 
   const activos = computed<ActiveChild[]>(() => rawActivos.value.map(computeStatus))
 
-  const totalActivos = computed(() => activos.value.length)
+  const totalActivos = computed(() => activos.value.filter((a) => a.status === 'activo').length)
 
   const porExpirar = computed(() => activos.value.filter((a) => a.status === 'por_expirar').length)
 
@@ -83,12 +83,6 @@ export const useAccessControlStore = defineStore('accessControl', () => {
 
   const pulserasDisponibles = ref<PulseraDto[]>([])
   const pulserasLibres = computed(() => pulserasDisponibles.value.length)
-  const capacidadTotal = computed(() => totalActivos.value + pulserasLibres.value)
-
-  const disponibilidadPercent = computed(() => {
-    if (capacidadTotal.value === 0) return 0
-    return Math.round((pulserasLibres.value / capacidadTotal.value) * 100)
-  })
 
   async function loadActivos() {
     if (!authStore.currentBranchId) {
@@ -138,6 +132,7 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   return {
     rawActivos,
     activos,
+    totalActivos,
     isLoading,
     error,
     lastUpdated,
@@ -146,13 +141,10 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     checkoutChild,
     setCheckoutChild,
     clearCheckoutChild,
-    totalActivos,
     porExpirar,
     excedidos,
-    disponibilidadPercent,
     pulserasLibres,
     pulserasDisponibles,
-    capacidadTotal,
     loadActivos,
     formatMinutosLabel,
     formatRemainingLabel,

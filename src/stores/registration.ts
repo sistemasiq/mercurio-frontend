@@ -160,11 +160,17 @@ export const useRegistrationStore = defineStore('registration', () => {
   )
 
   // Cuántos niños se pueden registrar según las pulseras disponibles en la sucursal
-  const maxChildrenAllowed = computed(() => pulseras.value.length)
+  // Esto calculando la pulsera del tutor como una reservada por defecto
+  const maxChildrenAllowed = computed(() => pulseras.value.length - 1)
 
-  const reachedBraceletLimit = computed(
-    () => maxChildrenAllowed.value > 0 && children.value.length >= maxChildrenAllowed.value,
-  )
+  const reachedBraceletLimit = computed(() => children.value.length >= maxChildrenAllowed.value)
+
+  const showBraceletLimitBanner = computed(() => {
+    if (maxChildrenAllowed.value === 1) {
+      return true
+    }
+    return savedChildren.value.length >= 2 && savedChildren.value.length >= maxChildrenAllowed.value
+  })
 
   const canProceedToRFID = computed(() => {
     const hasValidName = tutor.value.fullName.trim().length > 3
@@ -301,6 +307,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     maxChildrenAllowed,
     reachedBraceletLimit,
     tutorHasBracelet,
+    showBraceletLimitBanner,
     addChild,
     removeChild,
     saveChild,

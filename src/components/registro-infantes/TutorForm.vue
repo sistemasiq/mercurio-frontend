@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRegistrationStore } from '@/stores/registration'
+import { allowOnlyLettersKeydown } from '@/utils/validators'
 import { ref, onBeforeUnmount } from 'vue'
 
 const store = useRegistrationStore()
@@ -139,8 +140,8 @@ onBeforeUnmount(() => {
           (val) => !!val || 'El nombre completo es obligatorio',
           (val) =>
             val.trim().split(/\s+/).length >= 2 || 'Por favor, introduce nombre y primer apellido',
-          (val) => /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(val) || 'El nombre solo puede contener letras',
         ]"
+        @keydown="allowOnlyLettersKeydown"
       />
 
       <!-- Relationship + Phone -->
@@ -310,8 +311,8 @@ onBeforeUnmount(() => {
         :rules="[
           (val) => !!val || 'El nombre es obligatorio',
           (val) => val.trim().split(/\s+/).length >= 2 || 'Introduce nombre y apellido',
-          (val) => /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(val) || 'Solo letras',
         ]"
+        @keydown="allowOnlyLettersKeydown"
       />
     </q-card-section>
   </q-card>
