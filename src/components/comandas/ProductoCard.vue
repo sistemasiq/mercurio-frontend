@@ -5,7 +5,7 @@
     @click="$emit('agregar', producto)"
   >
     <div class="producto-card__img-wrap">
-      <q-img :src="producto.imagen ?? undefined" height="100px" class="producto-card__img">
+      <q-img v-if="imagenSrc" :src="imagenSrc" height="100px" class="producto-card__img">
         <template #error>
           <div class="absolute-full flex flex-center bg-grey-3">
             <q-icon
@@ -16,6 +16,9 @@
           </div>
         </template>
       </q-img>
+      <div v-else class="producto-card__img producto-card__placeholder">
+        <q-icon :name="producto.es_combo ? 'inventory_2' : 'fastfood'" size="28px" color="grey-5" />
+      </div>
       <span class="producto-card__badge">${{ producto.precio_unitario.toFixed(2) }}</span>
       <span v-if="producto.es_combo" class="producto-card__combo-badge">COMBO</span>
     </div>
@@ -38,10 +41,20 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Producto } from '@/types/producto'
 
-defineProps<{ producto: Producto }>()
+const props = defineProps<{ producto: Producto }>()
 defineEmits<{ (e: 'agregar', producto: Producto): void }>()
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL as string
+
+const imagenSrc = computed(() => {
+  const img = props.producto.imagen
+  if (!img) return ''
+  if (img.startsWith('http://') || img.startsWith('https://')) return img
+  return `${API_BASE}/${img}`
+})
 </script>
 
 <style scoped>
@@ -68,6 +81,13 @@ defineEmits<{ (e: 'agregar', producto: Producto): void }>()
 .producto-card__img {
   display: block;
   width: 100%;
+}
+.producto-card__placeholder {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
 }
 
 .producto-card__badge {

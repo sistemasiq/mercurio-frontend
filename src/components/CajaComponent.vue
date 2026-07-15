@@ -379,6 +379,8 @@ const procesarPago = async (pagos: AppliedPayment[]) => {
       })),
     }
 
+    console.log('[CajaComponent] payload pago_request:', JSON.parse(JSON.stringify(payload)))
+
     const comanda = await pagosApi.completarPago(payload)
 
     $q.notify({
@@ -391,6 +393,12 @@ const procesarPago = async (pagos: AppliedPayment[]) => {
     })
     cancelarTicket()
   } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.data) {
+      console.error(
+        '[CajaComponent] backend error detail:',
+        err.response.data.detail ?? err.response.data,
+      )
+    }
     $q.notify({
       type: 'negative',
       message: 'Error al procesar el pago',

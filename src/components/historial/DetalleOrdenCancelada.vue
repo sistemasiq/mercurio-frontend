@@ -1,6 +1,41 @@
 <!-- src/components/historial/DetalleOrdenCancelada.vue -->
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { obtenerDetalleOrden } from '@/services/historialService'
+import type { DetalleOrden } from '@/api/historialApi'
+
+const props = defineProps<{ idTransaccion: string }>()
 defineEmits(['close'])
+
+const isLoading = ref(true)
+const orden = ref<DetalleOrden | null>(null)
+
+onMounted(async () => {
+  try {
+    orden.value = await obtenerDetalleOrden(props.idTransaccion)
+  } finally {
+    isLoading.value = false
+  }
+})
+
+function metodoIcono(nombre: string): string {
+  const n = nombre.toLowerCase()
+  if (n.includes('tarjeta') || n.includes('credito') || n.includes('debito')) return 'credit_card'
+  if (n.includes('efectivo') || n.includes('cash')) return 'payments'
+  return 'account_balance_wallet'
+}
+
+function formatearFecha(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 const ejecutarImpresion = () => {
   window.print()
@@ -10,126 +45,114 @@ const ejecutarImpresion = () => {
 <template>
   <div class="modal-backdrop-blur">
     <div class="order-detail-card">
-      <!-- Header -->
-      <div class="order-detail-header">
-        <div class="header-left">
-          <div class="title-row">
-            <h2 class="order-title">Detalle de Orden #0042</h2>
-            <span class="badge badge-cancelado">CANCELADO</span>
-          </div>
-          <p class="order-meta">12 Oct 2023, 14:25 • Terminal 01</p>
-        </div>
-
-        <button type="button" class="btn-close-x" @click="$emit('close')">
-          <q-icon name="close" size="xs" />
-        </button>
+      <!-- Loading -->
+      <div v-if="isLoading" class="loading-container">
+        <q-spinner size="32px" color="primary" />
+        <p class="loading-text">Cargando detalle...</p>
       </div>
 
-      <!-- Info Blocks -->
-      <div class="info-blocks-grid">
-        <div class="info-block">
-          <span class="info-label">CLIENTE</span>
-          <p class="info-value">Pedido 12</p>
-        </div>
-        <div class="info-block">
-          <span class="info-label">ATENDIDO POR</span>
-          <div class="user-row">
-            <q-icon name="person" size="xs" class="user-icon" />
-            <p class="info-value">Sarah J.</p>
-          </div>
-        </div>
-      </div>
-
-      <!--  Cancel Alert Banner -->
-      <div class="cancel-alert-banner">
-        <q-icon name="error_outline" size="sm" class="alert-icon" />
-        <div class="alert-content">
-          <span class="alert-label">MOTIVO DE CANCELLACIÓN</span>
-          <p class="alert-reason-text">Error en pedido - Duplicado</p>
-        </div>
-      </div>
-
-      <!-- Productos List -->
-      <div class="products-section">
-        <h3 class="section-subtitle">Productos</h3>
-        <div class="products-list">
-          <div class="product-item">
-            <div class="product-qty-box">2x</div>
-            <div class="product-details">
-              <p class="product-name">Classic Burger</p>
-              <p class="product-unit-price">$8.50 c/u</p>
+      <!-- Contenido -->
+      <template v-else-if="orden">
+        <!-- Header -->
+        <div class="order-detail-header">
+          <div class="header-left">
+            <div class="title-row">
+              <h2 class="order-title">Detalle de Orden #{{ orden.ticket_numero }}</h2>
+              <span class="badge badge-cancelado">CANCELADO</span>
             </div>
-            <p class="product-total-price">$17.00</p>
+            <p class="order-meta">{{ formatearFecha(orden.fecha_hora) }}</p>
           </div>
+          <button type="button" class="btn-close-x" @click="$emit('close')">
+            <q-icon name="close" size="xs" />
+          </button>
+        </div>
 
-          <div class="product-item">
-            <div class="product-qty-box">1x</div>
-            <div class="product-details">
-              <p class="product-name">Large Fries</p>
-              <p class="product-unit-price">$9.00 c/u</p>
-            </div>
-            <p class="product-total-price">$9.00</p>
+        <!-- Info Blocks -->
+        <div class="info-blocks-grid">
+          <div class="info-block">
+            <span class="info-label">TICKET</span>
+            <p class="info-value">{{ orden.ticket_numero }}</p>
           </div>
-
-          <div class="product-item">
-            <div class="product-qty-box">1x</div>
-            <div class="product-details">
-              <p class="product-name">Fountain Drink</p>
-              <p class="product-unit-price">$2.50 c/u</p>
+          <div class="info-block">
+            <span class="info-label">ATENDIDO POR</span>
+            <div class="user-row">
+              <q-icon name="person" size="xs" class="user-icon" />
+              <p class="info-value">{{ orden.creado_por_nombre ?? '—' }}</p>
             </div>
-            <p class="product-total-price">$2.50</p>
           </div>
         </div>
-      </div>
 
-      <!-- Payment & Summary -->
-      <div class="summary-section bg-gray-light">
-        <div class="summary-layout">
-          <div class="payment-method-block">
-            <span class="info-label">MÉTODO DE PAGO</span>
-            <div class="payment-card-box">
-              <q-icon name="credit_card" size="sm" class="card-icon" />
-              <div class="card-info">
-                <p class="card-type-text">Tarjeta de Crédito</p>
-                <p class="card-digits-text">terminación **** 4432</p>
+        <!-- Cancel Alert Banner -->
+        <div class="cancel-alert-banner">
+          <q-icon name="error_outline" size="sm" class="alert-icon" />
+          <div class="alert-content">
+            <span class="alert-label">MOTIVO DE CANCELLACIÓN</span>
+            <p class="alert-reason-text">{{ orden.pago_notas ?? 'Sin motivo registrado' }}</p>
+          </div>
+        </div>
+
+        <!-- Productos List -->
+        <div class="products-section">
+          <h3 class="section-subtitle">Productos</h3>
+          <div class="products-list">
+            <div v-for="(item, idx) in orden.detalles" :key="idx" class="product-item">
+              <div class="product-qty-box">{{ item.cantidad }}x</div>
+              <div class="product-details">
+                <p class="product-name">
+                  {{ item.producto_nombre }}
+                  <span v-if="item.nombre_combo_padre" class="combo-tag">
+                    ({{ item.nombre_combo_padre }})
+                  </span>
+                </p>
+                <p class="product-unit-price">${{ Number(item.precio_unitario).toFixed(2) }} c/u</p>
+              </div>
+              <p class="product-total-price">${{ Number(item.importe).toFixed(2) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment & Summary -->
+        <div class="summary-section bg-gray-light">
+          <div class="summary-layout">
+            <div class="payment-method-block">
+              <span class="info-label">MÉTODO DE PAGO</span>
+              <div class="payment-card-box">
+                <q-icon :name="metodoIcono(orden.metodo_pago_nombre)" size="sm" class="card-icon" />
+                <div class="card-info">
+                  <p class="card-type-text">{{ orden.metodo_pago_nombre }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="totals-breakdown">
+              <div class="total-row">
+                <span class="total-label">Pago registrado</span>
+                <span class="total-val">${{ Number(orden.pago_monto).toFixed(2) }}</span>
+              </div>
+              <div class="divider-dash"></div>
+              <div class="total-final-row">
+                <div class="final-label-stack">
+                  <span class="final-label">Total</span>
+                  <span class="anulado-tag">Final ANULADO</span>
+                </div>
+                <span class="final-val color-cancel">
+                  ${{ Number(orden.total_final).toFixed(2) }}
+                </span>
               </div>
             </div>
           </div>
-
-          <div class="totals-breakdown">
-            <div class="total-row">
-              <span class="total-label">Subtotal</span>
-              <span class="total-val">$28.50</span>
-            </div>
-            <div class="total-row">
-              <span class="total-label">Impuestos (8%)</span>
-              <span class="total-val">$2.28</span>
-            </div>
-            <div class="total-row text-green">
-              <span class="total-label">Descuento aplicado</span>
-              <span class="total-val">$0.00</span>
-            </div>
-            <div class="divider-dash"></div>
-            <div class="total-final-row">
-              <div class="final-label-stack">
-                <span class="final-label">Total</span>
-                <span class="anulado-tag">Final ANULADO</span>
-              </div>
-              <span class="final-val color-cancel">$30.78</span>
-            </div>
-          </div>
         </div>
-      </div>
 
-      <!-- Action Footer Buttons -->
-      <div class="modal-actions-footer">
-        <!-- 🖨️ Ejecuta la impresión nativa sin queja de TypeScript -->
-        <button type="button" class="btn-action-outline" @click="ejecutarImpresion()">
-          <q-icon name="print" size="xs" class="q-mr-xs" /> Imprimir Ticket
-        </button>
-        <!-- 🔵 Botón de cerrar amarrado al estado del padre -->
-        <button type="button" class="btn-action-solid-blue" @click="$emit('close')">Cerrar</button>
-      </div>
+        <!-- Action Footer Buttons -->
+        <div class="modal-actions-footer">
+          <button type="button" class="btn-action-outline" @click="ejecutarImpresion()">
+            <q-icon name="print" size="xs" class="q-mr-xs" /> Imprimir Ticket
+          </button>
+          <button type="button" class="btn-action-solid-blue" @click="$emit('close')">
+            Cerrar
+          </button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -137,7 +160,6 @@ const ejecutarImpresion = () => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap');
 
-/* 🪄 CONTROL DE CAPA FLOTANTE CON DESENFOQUE (Backdrop Blur) */
 .modal-backdrop-blur {
   position: fixed;
   top: 0;
@@ -160,6 +182,8 @@ const ejecutarImpresion = () => {
   background-color: #ffffff;
   width: 100%;
   max-width: 540px;
+  max-height: 80vh;
+  overflow-y: auto;
   border-radius: 24px;
   box-shadow:
     0 20px 25px -5px rgba(0, 0, 0, 0.2),
@@ -171,7 +195,20 @@ const ejecutarImpresion = () => {
   z-index: 10;
 }
 
-/* Header */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 0;
+  gap: 12px;
+}
+.loading-text {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
 .order-detail-header {
   display: flex;
   justify-content: space-between;
@@ -213,7 +250,6 @@ const ejecutarImpresion = () => {
   padding: 4px;
 }
 
-/* Info Blocks */
 .info-blocks-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -248,7 +284,6 @@ const ejecutarImpresion = () => {
   margin-top: 4px;
 }
 
-/* ⚠️ Cancel Banner styling */
 .cancel-alert-banner {
   background-color: #fff1f2;
   border: 1px solid #ffe4e6;
@@ -280,7 +315,6 @@ const ejecutarImpresion = () => {
   margin: 2px 0 0 0;
 }
 
-/* Products Section */
 .products-section {
   margin-bottom: 28px;
 }
@@ -322,6 +356,11 @@ const ejecutarImpresion = () => {
   color: #0f172a;
   margin: 0;
 }
+.combo-tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+}
 .product-unit-price {
   font-size: 11px;
   color: #64748b;
@@ -334,7 +373,6 @@ const ejecutarImpresion = () => {
   margin: 0;
 }
 
-/* Summary Box */
 .bg-gray-light {
   background-color: #f8fafc;
   border-radius: 16px;
@@ -373,11 +411,6 @@ const ejecutarImpresion = () => {
   color: #0f172a;
   margin: 0;
 }
-.card-digits-text {
-  font-size: 10px;
-  color: #64748b;
-  margin: 2px 0 0 0;
-}
 
 .totals-breakdown {
   width: 200px;
@@ -391,9 +424,6 @@ const ejecutarImpresion = () => {
   font-size: 12px;
   color: #64748b;
   font-weight: 500;
-}
-.text-green {
-  color: #008645 !important;
 }
 .divider-dash {
   border-top: 1px dashed #cbd5e1;
@@ -431,7 +461,6 @@ const ejecutarImpresion = () => {
   opacity: 0.6;
 }
 
-/* Footer Actions */
 .modal-actions-footer {
   display: flex;
   justify-content: flex-end;

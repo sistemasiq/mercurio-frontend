@@ -1,95 +1,81 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import DetalleOrdenPagada from './DetalleOrdenPagada.vue'
 import DetalleOrdenCancelada from './DetalleOrdenCancelada.vue'
+import { obtenerHistorial, obtenerEstadisticas } from '@/services/historialService'
+import type { ITransaccion } from '@/types/transaccion'
+import type { Estadisticas } from '@/api/historialApi'
 
 const mostrarModalPagado = ref(false)
 const mostrarModalCancelado = ref(false)
+const isLoading = ref(false)
+const filtroTiempo = ref<'hoy' | 'semana' | 'mes'>('hoy')
+const filtroEstado = ref<'todos' | 'pagado' | 'cancelado'>('todos')
+const transacciones = ref<ITransaccion[]>([])
+const pagoSeleccionadoId = ref('')
+const estadisticas = ref<Estadisticas>({ total_ventas: 0, total_ordenes: 0, ticket_promedio: 0 })
 
-interface ITransaccion {
-  id: string
-  fechaHora: string
-  despacho: {
-    tipo: 'Mostrador' | 'Para llevar'
-    telefono: string // 📱 Cambiado de nombre de cliente a número telefónico
+async function cargarDatos() {
+  isLoading.value = true
+  try {
+    const [txs, stats] = await Promise.all([
+      obtenerHistorial(filtroTiempo.value, filtroEstado.value),
+      obtenerEstadisticas(filtroTiempo.value),
+    ])
+    transacciones.value = txs
+    estadisticas.value = stats
+  } finally {
+    isLoading.value = false
   }
-  metodoPago: 'Tarjeta' | 'Efectivo' | 'Wallet'
-  estado: 'Pagado' | 'Cancelado' | 'Reembolsado'
-  total: number
 }
 
-const filtroTiempo = ref<'hoy' | 'semana' | 'mes'>('hoy')
+onMounted(cargarDatos)
 
-// Datos adaptados con números telefónicos reales para comida rápida
-const transacciones = ref<ITransaccion[]>([
-  {
-    id: '#0042',
-    fechaHora: '14:25 - 12 Oct',
-    despacho: { tipo: 'Mostrador', telefono: '452-123-4567' },
-    metodoPago: 'Tarjeta',
-    estado: 'Pagado',
-    total: 145.5,
-  },
-  {
-    id: '#0041',
-    fechaHora: '14:10 - 12 Oct',
-    despacho: { tipo: 'Para llevar', telefono: '352-987-6543' },
-    metodoPago: 'Efectivo',
-    estado: 'Pagado',
-    total: 32.0,
-  },
-  {
-    id: '#0040',
-    fechaHora: '13:45 - 12 Oct',
-    despacho: { tipo: 'Para llevar', telefono: '452-555-0199' },
-    metodoPago: 'Tarjeta',
-    estado: 'Cancelado',
-    total: 89.0,
-  },
-  {
-    id: '#0039',
-    fechaHora: '13:15 - 12 Oct',
-    despacho: { tipo: 'Mostrador', telefono: '352-444-0288' },
-    metodoPago: 'Wallet',
-    estado: 'Pagado',
-    total: 45.2,
-  },
-  {
-    id: '#0038',
-    fechaHora: '12:55 - 12 Oct',
-    despacho: { tipo: 'Mostrador', telefono: '452-888-9111' },
-    metodoPago: 'Efectivo',
-    estado: 'Pagado',
-    total: 12.5,
-  },
-  {
-    id: '#0034',
-    fechaHora: '11:45 - 12 Oct',
-    despacho: { tipo: 'Para llevar', telefono: '352-222-3344' },
-    metodoPago: 'Tarjeta',
-    estado: 'Reembolsado',
-    total: -15.0,
-  },
-])
+watch([filtroTiempo, filtroEstado], cargarDatos)
 
-const obtenerIconoMetodo = (metodo: string) => {
-  if (metodo === 'Tarjeta') return 'credit_card'
-  if (metodo === 'Efectivo') return 'payments'
+function obtenerIconoMetodo(nombre: string): string {
+  const n = nombre.toLowerCase()
+  if (n.includes('tarjeta') || n.includes('credito') || n.includes('debito') || n.includes('card'))
+    return 'credit_card'
+  if (n.includes('efectivo') || n.includes('cash')) return 'payments'
   return 'account_balance_wallet'
 }
 
-const obtenerClaseEstado = (estado: string) => {
-  if (estado === 'Pagado') return 'status-pagado'
-  if (estado === 'Cancelado') return 'status-cancelado'
+function obtenerClaseEstado(estado: string): string {
+  const e = estado.toUpperCase()
+  if (e === 'P' || e === 'PAGADO' || e === 'L' || e === 'T') return 'status-pagado'
+  if (e === 'C' || e === 'CANCELADO') return 'status-cancelado'
   return 'status-reembolsado'
 }
 
-const verDetalleOrden = (estado: string) => {
-  if (estado === 'Cancelado') {
+function textoEstado(estado: string): string {
+  const map: Record<string, string> = {
+    P: 'Pendiente',
+    E: 'En preparación',
+    L: 'Listo',
+    T: 'Entregado',
+    C: 'Cancelado',
+  }
+  return map[estado] ?? estado
+}
+
+const verDetalleOrden = (id: string, estado: string) => {
+  pagoSeleccionadoId.value = id
+  const e = estado.toUpperCase()
+  if (e === 'C' || e === 'CANCELADO') {
     mostrarModalCancelado.value = true
   } else {
     mostrarModalPagado.value = true
   }
+}
+
+function formatearFecha(iso: string): string {
+  const d = new Date(iso)
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mes = d.toLocaleString('es', { month: 'short' })
+  return `${hh}:${mm} - ${dd} ${mes}`
 }
 
 const imprimirDirecto = () => {
@@ -133,7 +119,7 @@ const imprimirDirecto = () => {
               Mes
             </button>
           </div>
-          <button type="button" class="btn-sync-circle">
+          <button type="button" class="btn-sync-circle" @click="cargarDatos">
             <q-icon name="sync" size="xs" />
           </button>
         </div>
@@ -142,11 +128,10 @@ const imprimirDirecto = () => {
       <section class="metrics-grid">
         <div class="metric-card border-slate">
           <div class="metric-info">
-            <span class="metric-label">Ventas Hoy</span>
-            <h3 class="metric-value text-blue-primary">$12,450.00</h3>
-            <span class="metric-trend text-green-success">
-              <q-icon name="trending_up" size="xs" /> +12%
-            </span>
+            <span class="metric-label">Ventas Totales</span>
+            <h3 class="metric-value text-blue-primary">
+              ${{ Number(estadisticas.total_ventas || 0).toFixed(2) }}
+            </h3>
           </div>
           <div class="metric-icon-box bg-blue-fixed text-blue-primary">
             <q-icon name="monetization_on" size="sm" />
@@ -156,8 +141,7 @@ const imprimirDirecto = () => {
         <div class="metric-card border-slate">
           <div class="metric-info">
             <span class="metric-label">Órdenes</span>
-            <h3 class="metric-value">142</h3>
-            <span class="metric-subtext">Uso: 85%</span>
+            <h3 class="metric-value">{{ estadisticas.total_ordenes }}</h3>
           </div>
           <div class="metric-icon-box bg-orange-fixed text-orange-deep">
             <q-icon name="shopping_basket" size="sm" />
@@ -167,10 +151,9 @@ const imprimirDirecto = () => {
         <div class="metric-card border-slate">
           <div class="metric-info">
             <span class="metric-label">Ticket Prom.</span>
-            <h3 class="metric-value text-orange-deep">$87.60</h3>
-            <span class="metric-trend text-red-error">
-              <q-icon name="trending_down" size="xs" /> -3%
-            </span>
+            <h3 class="metric-value text-orange-deep">
+              ${{ Number(estadisticas.ticket_promedio || 0).toFixed(2) }}
+            </h3>
           </div>
           <div class="metric-icon-box bg-slate-gray">
             <q-icon name="analytics" size="sm" />
@@ -186,10 +169,10 @@ const imprimirDirecto = () => {
           </div>
 
           <div class="selects-actions-group">
-            <select class="select-filter-native">
-              <option>Estado</option>
-              <option>Pagado</option>
-              <option>Cancelado</option>
+            <select v-model="filtroEstado" class="select-filter-native">
+              <option value="todos">Todos</option>
+              <option value="pagado">Pagado</option>
+              <option value="cancelado">Cancelado</option>
             </select>
             <button type="button" class="btn-filter-advanced">
               <q-icon name="filter_list" size="xs" /> Filtros
@@ -203,53 +186,68 @@ const imprimirDirecto = () => {
               <tr>
                 <th>ID</th>
                 <th>Fecha/Hora</th>
-                <th>Cliente</th>
+                <th>Ticket</th>
                 <th>Método</th>
                 <th>Estado</th>
-                <th class="text-right">Total</th>
+                <th class="text-right">Monto</th>
                 <th class="text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
+              <tr v-if="isLoading">
+                <td colspan="7" class="text-center" style="padding: 32px">
+                  <q-spinner size="24px" color="primary" />
+                </td>
+              </tr>
+              <tr v-else-if="transacciones.length === 0">
+                <td colspan="7" class="text-center text-slate-muted" style="padding: 32px">
+                  No hay transacciones para este período.
+                </td>
+              </tr>
               <tr v-for="tx in transacciones" :key="tx.id" class="table-row-hover">
-                <td class="font-bold text-blue-primary">{{ tx.id }}</td>
-                <td class="text-xs text-slate-muted">{{ tx.fechaHora }}</td>
+                <td
+                  class="font-bold text-blue-primary text-xs"
+                  style="
+                    max-width: 120px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                  "
+                  :title="tx.id"
+                >
+                  {{ tx.id }}
+                </td>
+                <td class="text-xs text-slate-muted">{{ formatearFecha(tx.creado) }}</td>
                 <td>
                   <div class="flex-column-cell">
-                    <span class="font-bold text-slate-dark">{{ tx.despacho.telefono }}</span>
-                    <span class="subtext-cell">{{ tx.despacho.tipo }}</span>
+                    <span class="font-bold text-slate-dark">{{ tx.ticket_numero }}</span>
+                    <span class="subtext-cell">Pedido</span>
                   </div>
                 </td>
                 <td>
                   <div class="flex-row-cell gap-sm text-xs text-slate-dark">
                     <q-icon
-                      :name="obtenerIconoMetodo(tx.metodoPago)"
+                      :name="obtenerIconoMetodo(tx.metodo_pago_nombre)"
                       size="xs"
                       class="text-slate-muted"
                     />
-                    {{ tx.metodoPago }}
+                    {{ tx.metodo_pago_nombre }}
                   </div>
                 </td>
                 <td>
-                  <span :class="obtenerClaseEstado(tx.estado)" class="status-badge-native">
-                    {{ tx.estado }}
+                  <span :class="obtenerClaseEstado(tx.estado_actual)" class="status-badge-native">
+                    {{ textoEstado(tx.estado_actual) }}
                   </span>
                 </td>
-                <td
-                  class="text-right font-bold text-slate-dark"
-                  :class="{
-                    'line-through opacity-40': tx.estado === 'Cancelado',
-                    'text-orange-deep': tx.estado === 'Reembolsado',
-                  }"
-                >
-                  ${{ tx.total.toFixed(2) }}
+                <td class="text-right font-bold text-slate-dark">
+                  ${{ Number(tx.monto || 0).toFixed(2) }}
                 </td>
                 <td>
                   <div class="actions-cell-group">
                     <button
                       type="button"
                       class="btn-cell-action text-blue-primary"
-                      @click="verDetalleOrden(tx.estado)"
+                      @click="verDetalleOrden(tx.id, tx.estado_actual)"
                     >
                       <q-icon name="visibility" size="xs" />
                     </button>
@@ -257,7 +255,7 @@ const imprimirDirecto = () => {
                     <button
                       type="button"
                       class="btn-cell-action text-orange-deep"
-                      :disabled="tx.estado === 'Cancelado'"
+                      :disabled="tx.estado_actual === 'C'"
                       @click="imprimirDirecto()"
                     >
                       <q-icon name="print" size="xs" />
@@ -270,26 +268,23 @@ const imprimirDirecto = () => {
         </div>
 
         <div class="pagination-footer-bar">
-          <span class="pagination-counter-text">Mostrando 1-10 de 142 órdenes</span>
-          <div class="pagination-buttons-group">
-            <button type="button" class="btn-pager-nav">
-              <q-icon name="chevron_left" size="xs" />
-            </button>
-            <button type="button" class="btn-pager-num active-page">1</button>
-            <button type="button" class="btn-pager-num">2</button>
-            <button type="button" class="btn-pager-num">3</button>
-            <button type="button" class="btn-pager-nav">
-              <q-icon name="chevron_right" size="xs" />
-            </button>
-          </div>
+          <span class="pagination-counter-text">
+            Mostrando {{ transacciones.length }} transacciones
+          </span>
         </div>
       </div>
-
-      <footer class="system-brand-footer">Sistema de Gestión Comercial ComertexPOS v2.4.0</footer>
     </main>
 
-    <DetalleOrdenPagada v-if="mostrarModalPagado" @close="mostrarModalPagado = false" />
-    <DetalleOrdenCancelada v-if="mostrarModalCancelado" @close="mostrarModalCancelado = false" />
+    <DetalleOrdenPagada
+      v-if="mostrarModalPagado"
+      :id-transaccion="pagoSeleccionadoId"
+      @close="mostrarModalPagado = false"
+    />
+    <DetalleOrdenCancelada
+      v-if="mostrarModalCancelado"
+      :id-transaccion="pagoSeleccionadoId"
+      @close="mostrarModalCancelado = false"
+    />
   </div>
 </template>
 
@@ -320,7 +315,6 @@ const imprimirDirecto = () => {
 </style>
 
 <style scoped>
-/* 🔒 ESTILOS DEL COMPONENTE */
 .historial-layout-wrapper {
   display: block;
   width: 100%;
