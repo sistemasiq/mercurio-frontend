@@ -114,12 +114,13 @@
         </div>
 
         <q-table
-          :rows="pulserasFiltradas"
+          :rows="pulserasEnPagina"
           :columns="columns"
           row-key="id"
           flat
           :loading="store.loading"
-          :rows-per-page-options="[10, 25, 50]"
+          hide-pagination
+          :rows-per-page-options="[0]"
           class="fec-table"
         >
           <template #body-cell-pulsera_rfid="props">
@@ -159,7 +160,7 @@
                 dense
                 :icon="props.row.activo ? 'toggle_on' : 'toggle_off'"
                 :color="props.row.activo ? 'positive' : 'grey-5'"
-                size="sm"
+                size="large"
                 class="q-mr-xs"
                 @click="toggleActivo(props.row)"
               >
@@ -193,6 +194,23 @@
             </div>
           </template>
         </q-table>
+
+        <!-- Footer paginación -->
+        <div class="pulseras-footer">
+          <div class="pulseras-footer__info">
+            Mostrando {{ inicioPagina }} – {{ finPagina }} de
+            {{ pulserasFiltradas.length }} resultados
+          </div>
+          <q-pagination
+            v-model="paginaActual"
+            :max="totalPaginas"
+            :max-pages="5"
+            direction-links
+            boundary-links
+            color="primary"
+            active-color="primary"
+          />
+        </div>
       </q-card>
     </div>
 
@@ -225,7 +243,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
@@ -259,6 +277,8 @@ const columns: QTableColumn[] = [
 
 const busqueda = ref('')
 const filtroEstado = ref<'todas' | 'activas' | 'inactivas'>('todas')
+const paginaActual = ref(1)
+const porPagina = 10
 
 const totalActivas = computed(() => store.pulseras.filter((p) => p.activo).length)
 const totalInactivas = computed(() => store.pulseras.length - totalActivas.value)
@@ -270,6 +290,26 @@ const pulserasFiltradas = computed(() => {
     if (filtroEstado.value === 'inactivas' && p.activo) return false
     return !q || p.pulsera_rfid.toLowerCase().includes(q)
   })
+})
+
+const totalPaginas = computed(() =>
+  Math.max(1, Math.ceil(pulserasFiltradas.value.length / porPagina)),
+)
+const inicioPagina = computed(() =>
+  Math.min((paginaActual.value - 1) * porPagina + 1, pulserasFiltradas.value.length || 1),
+)
+const finPagina = computed(() =>
+  Math.min(paginaActual.value * porPagina, pulserasFiltradas.value.length),
+)
+const pulserasEnPagina = computed(() =>
+  pulserasFiltradas.value.slice(
+    (paginaActual.value - 1) * porPagina,
+    paginaActual.value * porPagina,
+  ),
+)
+
+watch([busqueda, filtroEstado], () => {
+  paginaActual.value = 1
 })
 
 const formatearFecha = (iso?: string | null) => {
@@ -372,5 +412,19 @@ const ejecutarEliminar = async () => {
 .estado-pill--inactiva {
   background: rgba(148, 163, 184, 0.18);
   color: #475569;
+}
+
+.pulseras-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pulseras-footer__info {
+  font-size: 12px;
+  color: #1565c0;
+  font-weight: 500;
 }
 </style>
