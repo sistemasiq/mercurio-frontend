@@ -17,25 +17,38 @@
     </div>
 
     <div class="kds-card-body">
-      <div
-        v-for="detalle in comanda.detalles ?? []"
-        :key="detalle.id"
-        class="kds-item"
-        :class="{ 'kds-item--hijo': esHijoCombo(detalle) }"
-      >
-        <div class="kds-qty">{{ detalle.cantidad }}</div>
-        <div class="kds-item-details">
-          <div v-if="esHijoCombo(detalle)" class="kds-item-badge">
-            <q-icon name="subdirectory_arrow_right" size="16px" />
-            {{ detalle.nombre_combo_padre || 'Combo' }}
+      <template v-for="el in ticketsAgrupados" :key="el.key">
+        <!-- Grupo combo -->
+        <div v-if="el.tipo === 'combo'" class="kds-combo-group">
+          <div class="kds-combo-header">
+            <q-icon name="restaurant" size="14px" />
+            {{ el.nombre }}
           </div>
-          <p class="kds-item-name">{{ detalle.nombre }}</p>
-          <p v-if="detalle.notas_especiales" class="kds-item-warning">
-            <q-icon name="warning" size="18px" />
-            {{ detalle.notas_especiales }}
-          </p>
+          <div class="kds-combo-items">
+            <div v-for="hijo in el.items" :key="hijo.id" class="kds-item kds-item--hijo">
+              <div class="kds-qty">{{ hijo.cantidad }}</div>
+              <div class="kds-item-details">
+                <p class="kds-item-name">{{ hijo.nombre }}</p>
+                <p v-if="hijo.notas_especiales" class="kds-item-warning">
+                  <q-icon name="warning" size="18px" />
+                  {{ hijo.notas_especiales }}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+        <!-- Item suelto -->
+        <div v-else class="kds-item">
+          <div class="kds-qty">{{ el.item.cantidad }}</div>
+          <div class="kds-item-details">
+            <p class="kds-item-name">{{ el.item.nombre }}</p>
+            <p v-if="el.item.notas_especiales" class="kds-item-warning">
+              <q-icon name="warning" size="18px" />
+              {{ el.item.notas_especiales }}
+            </p>
+          </div>
+        </div>
+      </template>
     </div>
 
     <div class="kds-card-footer">
@@ -92,8 +105,55 @@ const tiempoDesde = (fechaISO: string | null | undefined): string => {
   return diff === 1 ? '1 min' : `${diff} min`
 }
 
-const esHijoCombo = (detalle: DetalleComanda): boolean =>
-  Boolean(detalle.es_hijo_de) || detalle.es_hijo_combo === true
+interface ComboGroup {
+  tipo: 'combo'
+  key: string
+  nombre: string
+  items: DetalleComanda[]
+}
+
+interface Suelto {
+  tipo: 'suelto'
+  key: string
+  item: DetalleComanda
+}
+
+type ElementoRender = ComboGroup | Suelto
+
+const ticketsAgrupados = computed<ElementoRender[]>(() => {
+  const detalles = comanda.detalles ?? []
+
+  const comboGroups = new Map<string, DetalleComanda[]>()
+  for (const d of detalles) {
+    if (d.nombre_combo_padre) {
+      const arr = comboGroups.get(d.nombre_combo_padre)
+      if (arr) arr.push(d)
+      else comboGroups.set(d.nombre_combo_padre, [d])
+    }
+  }
+
+  const resultado: ElementoRender[] = []
+  const emittedCombos = new Set<string>()
+
+  for (const detalle of detalles) {
+    if (detalle.nombre_combo_padre) {
+      const key = detalle.nombre_combo_padre
+      if (!emittedCombos.has(key)) {
+        emittedCombos.add(key)
+        resultado.push({
+          tipo: 'combo',
+          key: `combo-${key}`,
+          nombre: key,
+          items: comboGroups.get(key)!,
+        })
+      }
+    } else {
+      resultado.push({ tipo: 'suelto', key: `suelto-${detalle.id}`, item: detalle })
+    }
+  }
+
+  return resultado
+})
 
 const esPendiente = computed(() => comanda.estado_actual === 'P')
 const esEnProceso = computed(() => comanda.estado_actual === 'E')
@@ -227,9 +287,34 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   border-radius: 8px;
   align-items: flex-start;
 }
+.kds-combo-group {
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  background-color: #fffbeb;
+  padding: 8px;
+  margin-bottom: 4px;
+}
+.kds-combo-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background-color: #fde68a;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.kds-combo-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .kds-item--hijo {
-  margin-left: 12px;
-  background-color: rgba(255, 237, 213, 0.4);
+  background-color: rgba(255, 255, 255, 0.6);
 }
 .kds-qty {
   width: 48px;
@@ -246,20 +331,6 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 }
 .kds-item-details {
   flex: 1;
-}
-.kds-item-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  background-color: #fef3c7;
-  color: #92400e;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .kds-item-name {
   font-size: 20px;

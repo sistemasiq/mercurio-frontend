@@ -76,13 +76,13 @@
         v-if="ticketAbierto"
         :items="itemsTicket"
         :enviando="enviando"
-        @cancelar="cancelarOrden"
+        @cancelar="cancelarTicket"
         @cambiar-cantidad="cambiarCantidad"
         @editar-notas="abrirNotasDialog"
+        @split-combo="handleSplitCombo"
         @pagar="abrirModalPago"
       />
     </transition>
-
     <!-- Dialog de notas especiales -->
     <q-dialog v-model="notasDialog">
       <q-card style="min-width: 320px; border-radius: 16px">
@@ -107,7 +107,7 @@
             label="Guardar"
             color="primary"
             style="border-radius: 8px"
-            @click="guardarNotas"
+            @click="() => guardarNotas(itemEditando!, notasTemp)"
           />
         </q-card-actions>
       </q-card>
@@ -117,8 +117,12 @@
     <PaymentModal
       v-model="modalPagoAbierto"
       :total-to-pay="totalTicket"
-      @pago-exitoso="limpiarCaja"
+      :metodos-pago-disponibles="metodosPagoDisponibles"
+      @pago-exitoso="onPagoExitoso"
     />
+
+    <!-- MODALES DE PERSONALIZACIÓN -->
+    <ProductNoteModal v-model="notasDialog" :item="itemEditando" @guardar="guardarNotasLocal" />
   </div>
 </template>
 
@@ -132,20 +136,19 @@ import axios from 'axios'
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
 import TicketPanel from '@/components/comandas/TicketPanel.vue'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
-
-// Types, Stores y Services
-import { type ItemTicket } from '@/components/comandas/TicketItem.vue'
+import ProductNoteModal from '@/components/comandas/ProductNoteModal.vue'
+import type { ItemTicket } from '@/components/comandas/TicketItem.vue'
 import { obtenerProductos } from '@/services/productoService'
-import { crearComanda, obtenerComandas } from '@/services/comandaService'
+import { obtenerComandas } from '@/services/comandaService'
+import { pagosApi } from '@/api/pagosApi'
+import { metodosPagoApi } from '@/api/metodosPagoApi'
 import { useComandasSocket } from '@/composables/useComandasSocket'
+import { useTicketComanda } from '@/composables/useTicketComanda'
 import { useAuthStore } from '@/stores/auth'
 import type { Producto, TipoProducto } from '@/types/producto'
-import type {
-  Comanda,
-  ComandaWsMessage,
-  CrearComandaRequest,
-  DetalleComandaRequest,
-} from '@/types/comanda'
+import type { MetodosPago } from '@/types/metodos_pago'
+import type { AppliedPayment, PagoCompletoRequest } from '@/types/payments'
+import type { Comanda, ComandaWsMessage, DetalleComandaRequest } from '@/types/comanda'
 
 // 2. ESTADO DEL MODAL DE PAGO
 const modalPagoAbierto = ref(false)
@@ -159,6 +162,10 @@ const authStore = useAuthStore()
 const props = defineProps<{ searchTerm?: string }>()
 const abortController = new AbortController()
 
+// Composable centralizado de ticket
+const { itemsTicket, agregarProducto, splitCombo, cambiarCantidad, cancelarOrden, guardarNotas } =
+  useTicketComanda()
+
 // Estado
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -166,12 +173,12 @@ const enviando = ref(false)
 const ticketAbierto = ref(false)
 const productos = ref<Producto[]>([])
 const comandasActivas = ref<Comanda[]>([])
-const itemsTicket = ref<ItemTicket[]>([])
+const metodosPagoDisponibles = ref<MetodosPago[]>([])
 
 // Dialog de notas
 const notasDialog = ref(false)
-const notasTemp = ref('')
 const itemEditando = ref<ItemTicket | null>(null)
+const notasTemp = ref('')
 
 // La caja solo muestra A (Alimento) y B (Bebida).
 const listaCategorias: { value: TipoProducto | 'Todos'; label: string }[] = [
@@ -210,14 +217,6 @@ const totalTicket = computed(() => {
   )
 })
 
-const limpiarCaja = () => {
-  // Vaciamos la lista de lo que se le cobró al cliente
-  itemsTicket.value = []
-
-  // Opcional: Si usas esta variable para saber si hay una venta activa, la regresamos a falso
-  ticketAbierto.value = false
-}
-
 // WebSocket
 function handleMensajeSocket(msg: ComandaWsMessage) {
   const idx = comandasActivas.value.findIndex((c) => c.id === msg.comanda.id)
@@ -236,42 +235,95 @@ const seleccionarCategoria = (cat: TipoProducto | 'Todos') => {
   categoriaSeleccionada.value = cat
 }
 
-const agregarAlTicket = (producto: Producto) => {
+const agregarAlTicket = async (producto: Producto) => {
   ticketAbierto.value = true
-  const existente = itemsTicket.value.find((i) => i.producto.id === producto.id)
-  if (existente) {
-    existente.cantidad++
-  } else {
-    itemsTicket.value.push({ producto, cantidad: 1, notas: '' })
+  const ok = await agregarProducto(producto)
+  if (!ok) {
+    $q.notify({
+      type: 'negative',
+      message: 'No se pudieron cargar los hijos del combo.',
+      position: 'top-right',
+    })
   }
 }
 
 // Acciones del ticket
-const cancelarOrden = () => {
-  itemsTicket.value = []
+const cancelarTicket = () => {
+  cancelarOrden()
   ticketAbierto.value = false
 }
 
-const cambiarCantidad = (item: ItemTicket, delta: number) => {
-  item.cantidad += delta
-  if (item.cantidad <= 0) {
-    itemsTicket.value = itemsTicket.value.filter((i) => i.producto.id !== item.producto.id)
-    if (itemsTicket.value.length === 0) ticketAbierto.value = false
-  }
+// ── Split + Notas UX ────────────────────────────────────────────────
+// Si el usuario intenta editar notas en un combo con cantidad > 1,
+// se le pregunta si desea dividir primero.
+
+const handleSplitCombo = async (item: ItemTicket) => {
+  await splitCombo(item)
+}
+
+function promptSplitThenEdit(item: ItemTicket) {
+  $q.dialog({
+    title: 'Dividir combo',
+    message: `Este combo tiene cantidad ${item.cantidad}. ¿Quieres dividirlo para personalizar una unidad independiente?`,
+    cancel: { label: 'Cancelar', flat: true, color: 'grey-7' },
+    ok: { label: 'Dividir y personalizar', color: 'blue-7' },
+    persistent: true,
+  }).onOk(async () => {
+    const nuevo = await splitCombo(item)
+    if (nuevo) {
+      itemEditando.value = nuevo
+      notasDialog.value = true
+    }
+  })
 }
 
 const abrirNotasDialog = (item: ItemTicket) => {
+  const esComboConMultiples = item.producto.es_combo && !item.es_hijo_combo && item.cantidad > 1
+
+  if (esComboConMultiples) {
+    promptSplitThenEdit(item)
+    return
+  }
+
   itemEditando.value = item
-  notasTemp.value = item.notas
+  notasTemp.value = item.notas ?? ''
   notasDialog.value = true
 }
 
-const guardarNotas = () => {
-  if (itemEditando.value) itemEditando.value.notas = notasTemp.value
-  notasDialog.value = false
+const guardarNotasLocal = (item: ItemTicket, notas: string) => {
+  guardarNotas(item, notas)
 }
 
-// Pago Original (Para enviar a cocina)
+// ── Pago multimodal ────────────────────────────────────────────────────
+// Cuando PaymentModal emite pago-exitoso, recibimos los pagos aplicados
+// y orquestamos la creación de comanda + registro de pago en el backend.
+
+const onPagoExitoso = (pagos: AppliedPayment[]) => {
+  void procesarPago(pagos)
+}
+
+const mapearMetodoPago = (nombreMetodo: string): string => {
+  if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
+    throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
+  }
+
+  const metodo = metodosPagoDisponibles.value.find(
+    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
+  )
+
+  if (!metodo) {
+    const disponibles = metodosPagoDisponibles.value
+      .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
+      .join(', ')
+    const detalle = `Método buscado: "${nombreMetodo}". Métodos disponibles: [${disponibles}]`
+    console.error(`[mapearMetodoPago] ${detalle}`)
+    throw new Error(
+      `El método de pago "${nombreMetodo}" no está configurado o no está activo. ${detalle}`,
+    )
+  }
+  return metodo.id
+}
+
 const obtenerMensajeError = (err: unknown): string => {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as
@@ -282,11 +334,10 @@ const obtenerMensajeError = (err: unknown): string => {
     if (data?.error) return data.error
     if (err.response?.status) return `Error HTTP ${err.response.status}`
   }
-  return err instanceof Error ? err.message : 'No se pudo enviar la comanda.'
+  return err instanceof Error ? err.message : 'No se pudo procesar el pago.'
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const procesarPago = async () => {
+const procesarPago = async (pagos: AppliedPayment[]) => {
   if (itemsTicket.value.length === 0 || enviando.value) return
 
   if (!authStore.currentBranchId) {
@@ -300,38 +351,49 @@ const procesarPago = async () => {
 
   enviando.value = true
 
-  const detalles: DetalleComandaRequest[] = itemsTicket.value.map((item) => ({
-    producto_id: item.producto.id,
-    nombre: item.producto.nombre,
-    cantidad: item.cantidad,
-    precio_unitario: item.producto.precio_unitario,
-    subtotal: item.producto.precio_unitario * item.cantidad,
-    notas_especiales: item.notas || undefined,
-  }))
-
-  const payload: CrearComandaRequest = {
-    ticket_numero: `TICK-${String(Date.now() % 10000).padStart(4, '0')}`,
-    total_final: itemsTicket.value.reduce((s, i) => s + i.producto.precio_unitario * i.cantidad, 0),
-    //sucursal_id: authStore.currentBranchId,
-    estado_actual: 'P',
-    detalles_comanda: detalles,
-  }
-
   try {
-    await crearComanda(payload)
+    const detalles: DetalleComandaRequest[] = itemsTicket.value.map((item) => ({
+      producto_id: item.producto.id,
+      nombre: item.producto.nombre,
+      cantidad: item.cantidad,
+      precio_unitario: item.producto.precio_unitario,
+      subtotal: item.producto.precio_unitario * item.cantidad,
+      notas_especiales: item.notas || undefined,
+      nombre_combo_padre: item.nombre_combo_padre || undefined,
+      es_hijo_de: item.es_hijo_de || undefined,
+      es_hijo_combo: item.es_hijo_combo || undefined,
+    }))
+
+    const totalFinal = itemsTicket.value
+      .filter((i) => !i.es_hijo_combo)
+      .reduce((s, i) => s + i.producto.precio_unitario * i.cantidad, 0)
+
+    const payload: PagoCompletoRequest = {
+      ticket_numero: `TICK-${String(Date.now() % 10000).padStart(4, '0')}`,
+      total_final: totalFinal,
+      detalles_comanda: detalles,
+      pagos: pagos.map((p) => ({
+        metodo_pago_id: mapearMetodoPago(p.method),
+        monto: p.amount,
+        notas_pago: p.cardType ? `${p.cardType} - Folio: ${p.authCode ?? ''}` : '',
+      })),
+    }
+
+    const comanda = await pagosApi.completarPago(payload)
+
     $q.notify({
       type: 'positive',
       message: '¡Pedido enviado a cocina!',
-      caption: `${itemsTicket.value.length} producto(s) en camino`,
+      caption: `Comanda ${comanda.id.slice(0, 8)} · ${itemsTicket.value.length} producto(s) en camino`,
       position: 'top-right',
       timeout: 2500,
       icon: 'check_circle',
     })
-    cancelarOrden()
+    cancelarTicket()
   } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Error al enviar el pedido',
+      message: 'Error al procesar el pago',
       caption: obtenerMensajeError(err),
       position: 'top-right',
       timeout: 4000,
@@ -372,9 +434,27 @@ const cargarComandasActivas = async () => {
   }
 }
 
+const cargarMetodosPago = async () => {
+  try {
+    metodosPagoDisponibles.value = await metodosPagoApi.listar()
+  } catch (err) {
+    if (!abortController.signal.aborted) {
+      console.error('[CajaComponent] cargarMetodosPago:', err)
+      $q.notify({
+        type: 'warning',
+        message: 'No se pudieron cargar los métodos de pago.',
+        caption: 'El cobro multimodal no estará disponible hasta recargar la página.',
+        position: 'top-right',
+        timeout: 6000,
+      })
+    }
+  }
+}
+
 onMounted(() => {
   void cargarProductos()
   void cargarComandasActivas()
+  void cargarMetodosPago()
 })
 onBeforeUnmount(() => abortController.abort())
 </script>

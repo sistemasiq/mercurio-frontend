@@ -1,5 +1,10 @@
 import { apiClient } from '@/api/axiosClient'
-import type { ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
+import type {
+  ProductoAdmin,
+  ProductoComboHijo,
+  ProductoCreate,
+  ProductoUpdate,
+} from '@/types/producto'
 
 async function fetchProductosCatalogo(signal?: AbortSignal): Promise<ProductoAdmin[]> {
   const { data } = await apiClient.get<ProductoAdmin[]>('/productos/catalogo', { signal })
@@ -28,5 +33,10 @@ export const productosApi = {
 
   async eliminar(productoId: string): Promise<void> {
     await apiClient.delete(`/productos/${productoId}`)
+  },
+
+  async obtenerComboHijos(comboId: string): Promise<ProductoComboHijo[]> {
+    const { data } = await apiClient.get<ProductoComboHijo[]>(`/productos/${comboId}/combo-hijos`)
+    return data
   },
 }

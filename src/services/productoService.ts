@@ -1,5 +1,11 @@
 import { productosApi } from '@/api/productosApi'
-import type { Producto, ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
+import type {
+  Producto,
+  ProductoAdmin,
+  ProductoComboHijo,
+  ProductoCreate,
+  ProductoUpdate,
+} from '@/types/producto'
 
 function mapProductoUi(producto: ProductoAdmin): Producto {
   const { precio_unitario, ...resto } = producto
@@ -27,4 +33,8 @@ export async function actualizarProducto(
 
 export async function eliminarProducto(productoId: string): Promise<void> {
   return productosApi.eliminar(productoId)
+}
+
+export async function obtenerComboHijos(comboId: string): Promise<ProductoComboHijo[]> {
+  return productosApi.obtenerComboHijos(comboId)
 }

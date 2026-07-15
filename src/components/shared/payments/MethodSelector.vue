@@ -2,43 +2,52 @@
   <div class="grid-methods">
     <button
       v-for="method in methods"
-      :key="method.value"
+      :key="method.id"
       class="method-btn"
-      :class="{ active: modelValue === method.value }"
-      @click="$emit('update:modelValue', method.value)"
+      :class="{ active: modelValue === method.nombre }"
+      @click="$emit('update:modelValue', method.nombre)"
     >
       <q-icon
-        :name="method.icon"
+        :name="getMethodMeta(method.nombre).icon"
         size="24px"
-        :color="modelValue === method.value ? 'primary' : method.color"
+        :color="modelValue === method.nombre ? 'primary' : getMethodMeta(method.nombre).color"
       />
       <span
         class="method-label"
-        :class="{ 'text-primary text-weight-bold': modelValue === method.value }"
+        :class="{ 'text-primary text-weight-bold': modelValue === method.nombre }"
       >
-        {{ method.label }}
+        {{ method.nombre }}
       </span>
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { PaymentForm } from '@/types/payments'
+import type { MetodosPago } from '@/types/metodos_pago'
 
 defineProps<{
-  modelValue: PaymentForm['method']
+  modelValue: string
+  methods: MetodosPago[]
 }>()
 
 defineEmits<{
-  (e: 'update:modelValue', value: PaymentForm['method']): void
+  (e: 'update:modelValue', value: string): void
 }>()
 
-const methods = [
-  { label: 'Efectivo', value: 'EFECTIVO' as const, icon: 'payments', color: 'green' },
-  { label: 'Crédito/Débito', value: 'TARJETA' as const, icon: 'credit_card', color: 'blue' },
-  { label: 'Cupones', value: 'CUPONES' as const, icon: 'redeem', color: 'orange' },
-  { label: 'Saldo de Lealtad', value: 'LEALTAD' as const, icon: 'loyalty', color: 'purple' },
-]
+const METHOD_META: Record<string, { icon: string; color: string }> = {
+  efectivo: { icon: 'payments', color: 'green' },
+  tarjeta: { icon: 'credit_card', color: 'blue' },
+  cupones: { icon: 'redeem', color: 'orange' },
+  lealtad: { icon: 'loyalty', color: 'purple' },
+}
+
+const getMethodMeta = (nombre: string) => {
+  const key = nombre.trim().toLowerCase()
+  for (const [pattern, meta] of Object.entries(METHOD_META)) {
+    if (key.includes(pattern)) return meta
+  }
+  return { icon: 'payment', color: 'grey' }
+}
 </script>
 
 <style scoped>

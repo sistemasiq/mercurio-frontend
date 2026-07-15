@@ -44,3 +44,10 @@ export interface ProductoUpdate {
   activo?: boolean
   es_combo?: boolean
 }
+
+export interface ProductoComboHijo {
+  producto_id: string
+  nombre: string
+  cantidad: number
+  precio_unitario: number
+}

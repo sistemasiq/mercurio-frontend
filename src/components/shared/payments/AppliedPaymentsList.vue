@@ -20,9 +20,7 @@
               <span class="payment-name">{{ formatMethodName(pago) }}</span>
               <q-badge color="positive" label="Completado" rounded />
             </div>
-            <div v-if="pago.method === 'TARJETA'" class="payment-meta">
-              Auth: {{ pago.authCode }}
-            </div>
+            <div v-if="esTarjeta(pago.method)" class="payment-meta">Auth: {{ pago.authCode }}</div>
           </div>
         </div>
 
@@ -43,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AppliedPayment, PaymentForm } from '@/types/payments'
+import type { AppliedPayment } from '@/types/payments'
 
 defineProps<{
   pagos: AppliedPayment[]
@@ -53,25 +51,29 @@ defineEmits<{
   (e: 'remove-payment', id: string): void
 }>()
 
-const getIcon = (method: PaymentForm['method']) => {
-  const icons = {
-    EFECTIVO: 'payments',
-    TARJETA: 'credit_card',
-    LEALTAD: 'loyalty',
-    CUPONES: 'redeem',
-  }
-  return icons[method] || 'payments'
+const METHOD_META: Record<string, { icon: string; color: string }> = {
+  efectivo: { icon: 'payments', color: 'green' },
+  tarjeta: { icon: 'credit_card', color: 'blue' },
+  cupones: { icon: 'redeem', color: 'orange' },
+  lealtad: { icon: 'loyalty', color: 'purple' },
 }
 
-const getColor = (method: PaymentForm['method']) => {
-  const colors = { EFECTIVO: 'green', TARJETA: 'blue', LEALTAD: 'purple', CUPONES: 'orange' }
-  return colors[method] || 'grey'
+const getMeta = (method: string) => {
+  const key = method.trim().toLowerCase()
+  for (const [pattern, meta] of Object.entries(METHOD_META)) {
+    if (key.includes(pattern)) return meta
+  }
+  return { icon: 'payment', color: 'grey' }
 }
+
+const getIcon = (method: string) => getMeta(method).icon
+const getColor = (method: string) => getMeta(method).color
+
+const esTarjeta = (method: string) => method.trim().toLowerCase().includes('tarjeta')
 
 const formatMethodName = (pago: AppliedPayment) => {
-  if (pago.method === 'TARJETA')
-    return `Tarjeta ${pago.cardType === 'DEBITO' ? 'Débito' : 'Crédito'}`
-  return pago.method.charAt(0) + pago.method.slice(1).toLowerCase()
+  if (esTarjeta(pago.method)) return `Tarjeta ${pago.cardType === 'DEBITO' ? 'Débito' : 'Crédito'}`
+  return pago.method
 }
 </script>
 

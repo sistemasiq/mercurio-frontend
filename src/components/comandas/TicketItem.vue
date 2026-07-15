@@ -2,14 +2,10 @@
   <div class="ticket-item" :class="{ 'ticket-item--hijo': esHijoCombo }">
     <div class="ticket-item__top">
       <div class="ticket-item__info">
-        <div v-if="esHijoCombo" class="ticket-item__badge">
-          <q-icon name="subdirectory_arrow_right" size="16px" />
-          {{ item.nombre_combo_padre ?? 'Combo' }}
-        </div>
         <h4 class="ticket-item__nombre">{{ item.producto.nombre }}</h4>
         <p class="ticket-item__precio">${{ lineTotal.toFixed(2) }}</p>
       </div>
-      <div class="ticket-item__qty">
+      <div v-if="!esHijoCombo" class="ticket-item__qty">
         <q-btn
           flat
           dense
@@ -40,7 +36,7 @@
       class="q-mt-xs"
       @click="$emit('editar-notas', item)"
     >
-      <q-icon name="edit_note" class="q-mr-xs" /> Agregar notas especiales
+      <q-icon name="edit_note" class="q-mr-xs" /> Agregar notas
     </q-btn>
     <div v-else class="ticket-item__notas cursor-pointer" @click="$emit('editar-notas', item)">
       "{{ item.notas }}"
@@ -53,6 +49,7 @@ import { computed } from 'vue'
 import type { Producto } from '@/types/producto'
 
 export interface ItemTicket {
+  id: string
   producto: Producto
   cantidad: number
   notas: string
@@ -60,6 +57,8 @@ export interface ItemTicket {
   es_hijo_de?: string | null
   es_hijo_combo?: boolean
   nombre_combo_padre?: string | null
+  cantidad_base?: number
+  padreTicketId?: string
 }
 
 const props = defineProps<{ item: ItemTicket }>()
@@ -69,10 +68,7 @@ defineEmits<{
 }>()
 
 const esHijoCombo = computed(
-  () =>
-    Boolean(props.item.es_hijo_de) ||
-    props.item.es_hijo_combo === true ||
-    (Number(props.item.producto.precio_unitario) === 0 && Number(props.item.subtotal ?? 0) === 0),
+  () => Boolean(props.item.es_hijo_de) || props.item.es_hijo_combo === true,
 )
 
 const lineTotal = computed(() =>
@@ -103,21 +99,6 @@ const lineTotal = computed(() =>
 .ticket-item__info {
   flex: 1;
   min-width: 0;
-}
-
-.ticket-item__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  background: #fef3c7;
-  color: #92400e;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .ticket-item__nombre {
@@ -164,5 +145,9 @@ const lineTotal = computed(() =>
   font-size: 12px;
   font-style: italic;
   color: #c2410c;
+}
+.ticket-item__notas--readonly {
+  cursor: default;
+  opacity: 0.7;
 }
 </style>

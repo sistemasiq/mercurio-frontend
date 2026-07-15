@@ -76,4 +76,7 @@ export interface DetalleComandaRequest {
   precio_unitario: number
   subtotal: number
   notas_especiales?: string
+  nombre_combo_padre?: string
+  es_hijo_de?: string
+  es_hijo_combo?: boolean
 }

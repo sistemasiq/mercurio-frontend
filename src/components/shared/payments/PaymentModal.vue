@@ -41,7 +41,7 @@
           </div>
         </div>
 
-        <MethodSelector v-model="metodoSeleccionado" />
+        <MethodSelector v-model="metodoSeleccionado" :methods="metodosPagoDisponibles" />
 
         <div
           style="
@@ -196,42 +196,55 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import type { PaymentForm, PaymentProps, AppliedPayment } from '@/types/payments'
+import type { PaymentProps, AppliedPayment } from '@/types/payments'
+import type { MetodosPago } from '@/types/metodos_pago'
 
 import MethodSelector from './MethodSelector.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import AppliedPaymentsList from './AppliedPaymentsList.vue'
 
-const props = defineProps<PaymentProps & { modelValue: boolean }>()
+const props = defineProps<
+  PaymentProps & { modelValue: boolean; metodosPagoDisponibles: MetodosPago[] }
+>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
-  (e: 'pago-exitoso'): void
+  (e: 'pago-exitoso', pagos: AppliedPayment[]): void
 }>()
 
 const $q = useQuasar()
 
-const metodoSeleccionado = ref<PaymentForm['method']>('EFECTIVO')
+const metodoSeleccionado = ref('')
 const pagosAplicados = ref<AppliedPayment[]>([])
+
+watch(
+  () => props.metodosPagoDisponibles,
+  (metodos) => {
+    if (metodos.length > 0 && !metodoSeleccionado.value) {
+      metodoSeleccionado.value = metodos[0].nombre
+    }
+  },
+  { immediate: true },
+)
+
+const esEfectivo = (nombre: string) => nombre.trim().toLowerCase().includes('efectivo')
+const esTarjeta = (nombre: string) => nombre.trim().toLowerCase().includes('tarjeta')
 
 const mostrarModalTarjeta = ref(false)
 const tarjetaMontoTemporal = ref(0)
 const tarjetaTipo = ref<'DEBITO' | 'CREDITO' | null>(null)
 const tarjetaAutorizacion = ref('')
 
-// Calcula la suma de todos los pagos ingresados
 const totalPagado = computed(() => {
   return pagosAplicados.value.reduce((suma, pago) => suma + pago.amount, 0)
 })
 
-// Calcula cuánto falta por pagar (mínimo 0)
 const saldoPendiente = computed(() => {
   const restante = props.totalToPay - totalPagado.value
   return restante > 0 ? restante : 0
 })
 
-// Calcula cuánto cambio hay que dar al cliente
 const cambioADevolver = computed(() => {
   const excedente = totalPagado.value - props.totalToPay
   return excedente > 0 ? excedente : 0
@@ -240,10 +253,7 @@ const cambioADevolver = computed(() => {
 const iniciarAbono = (monto: number) => {
   if (monto <= 0) return
 
-  // NUEVA LÓGICA:
-  // Si el método NO es efectivo, evitamos que sobrepase el saldo pendiente.
-  // Si es efectivo, lo dejamos pasar libremente para poder dar cambio.
-  if (metodoSeleccionado.value !== 'EFECTIVO' && monto > saldoPendiente.value) {
+  if (!esEfectivo(metodoSeleccionado.value) && monto > saldoPendiente.value) {
     $q.notify({
       type: 'warning',
       message: `No se puede dar cambio en ${metodoSeleccionado.value}. El máximo es $${saldoPendiente.value.toFixed(2)}`,
@@ -253,7 +263,7 @@ const iniciarAbono = (monto: number) => {
     return
   }
 
-  if (metodoSeleccionado.value === 'TARJETA') {
+  if (esTarjeta(metodoSeleccionado.value)) {
     tarjetaMontoTemporal.value = monto
     mostrarModalTarjeta.value = true
   } else {
@@ -292,15 +302,11 @@ const eliminarPago = (id: string) => {
 }
 
 const finalizarPago = () => {
-  $q.notify({ type: 'positive', message: '¡Transacción completada!', position: 'top' })
-  // Le avisamos a la caja que ya terminamos de cobrar
-  emit('pago-exitoso')
+  emit(
+    'pago-exitoso',
+    pagosAplicados.value.map((p) => ({ ...p })),
+  )
   emit('update:modelValue', false)
   pagosAplicados.value = []
 }
-//console.log("Transacción finalizada:", dataTransaccion)
-
-$q.notify({ type: 'positive', message: '¡Transacción completada!', position: 'top' })
-emit('update:modelValue', false)
-pagosAplicados.value = []
 </script>
