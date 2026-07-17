@@ -4,7 +4,7 @@ import { ref, onMounted } from 'vue'
 import { obtenerDetalleOrden } from '@/services/historialService'
 import type { DetalleOrden } from '@/api/historialApi'
 
-const props = defineProps<{ idTransaccion: string }>()
+const props = defineProps<{ comandaId: string }>()
 defineEmits(['close'])
 
 const isLoading = ref(true)
@@ -12,7 +12,7 @@ const orden = ref<DetalleOrden | null>(null)
 
 onMounted(async () => {
   try {
-    orden.value = await obtenerDetalleOrden(props.idTransaccion)
+    orden.value = await obtenerDetalleOrden(props.comandaId)
   } finally {
     isLoading.value = false
   }
@@ -105,13 +105,17 @@ const ejecutarImpresion = () => {
         <!-- Payment & Financial Summary -->
         <div class="summary-section bg-gray-light">
           <div class="summary-layout">
-            <!-- Left: Payment Method -->
+            <!-- Left: Payment Methods List -->
             <div class="payment-method-block">
-              <span class="info-label">MÉTODO DE PAGO</span>
-              <div class="payment-card-box">
-                <q-icon :name="metodoIcono(orden.metodo_pago_nombre)" size="sm" class="card-icon" />
-                <div class="card-info">
-                  <p class="card-type-text">{{ orden.metodo_pago_nombre }}</p>
+              <span class="info-label">MÉTODOS DE PAGO</span>
+              <div class="payment-methods-list">
+                <div v-for="(mp, idx) in orden.metodos_pago" :key="idx" class="payment-card-box">
+                  <q-icon :name="metodoIcono(mp.metodo_pago_nombre)" size="sm" class="card-icon" />
+                  <div class="card-info">
+                    <p class="card-type-text">{{ mp.metodo_pago_nombre }}</p>
+                    <p v-if="mp.notas_pago" class="card-meta-text">{{ mp.notas_pago }}</p>
+                  </div>
+                  <span class="card-amount">${{ Number(mp.monto).toFixed(2) }}</span>
                 </div>
               </div>
             </div>
@@ -119,8 +123,10 @@ const ejecutarImpresion = () => {
             <!-- Right: Totals Breakdown -->
             <div class="totals-breakdown">
               <div class="total-row">
-                <span class="total-label">Pago registrado</span>
-                <span class="total-val">${{ Number(orden.pago_monto).toFixed(2) }}</span>
+                <span class="total-label">Total Pagado</span>
+                <span class="total-val">
+                  ${{ Number(orden.metodos_pago.reduce((s, m) => s + m.monto, 0)).toFixed(2) }}
+                </span>
               </div>
               <div class="divider-dash"></div>
               <div class="total-final-row">
@@ -344,6 +350,12 @@ const ejecutarImpresion = () => {
 .payment-method-block {
   flex: 1;
 }
+.payment-methods-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
 .payment-card-box {
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
@@ -352,7 +364,6 @@ const ejecutarImpresion = () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
 }
 .card-icon {
   color: #0059bb;
@@ -366,6 +377,18 @@ const ejecutarImpresion = () => {
   font-weight: 700;
   color: #0f172a;
   margin: 0;
+}
+.card-meta-text {
+  font-size: 10px;
+  color: #64748b;
+  margin: 2px 0 0 0;
+}
+.card-amount {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0059bb;
+  white-space: nowrap;
 }
 
 .totals-breakdown {

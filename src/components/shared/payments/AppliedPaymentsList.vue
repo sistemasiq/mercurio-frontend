@@ -20,7 +20,7 @@
               <span class="payment-name">{{ formatMethodName(pago) }}</span>
               <q-badge color="positive" label="Completado" rounded />
             </div>
-            <div v-if="esTarjeta(pago.method)" class="payment-meta">Auth: {{ pago.authCode }}</div>
+            <div v-if="esTarjeta(pago.method)" class="payment-meta">Folio: {{ pago.authCode }}</div>
           </div>
         </div>
 
@@ -69,10 +69,21 @@ const getMeta = (method: string) => {
 const getIcon = (method: string) => getMeta(method).icon
 const getColor = (method: string) => getMeta(method).color
 
-const esTarjeta = (method: string) => method.trim().toLowerCase().includes('tarjeta')
+const esTarjeta = (method: string) => {
+  const n = method.trim().toLowerCase()
+  return (
+    n.includes('tarjeta') ||
+    n.includes('crédito') ||
+    n.includes('débito') ||
+    n.includes('credito') ||
+    n.includes('debito')
+  )
+}
 
 const formatMethodName = (pago: AppliedPayment) => {
-  if (esTarjeta(pago.method)) return `Tarjeta ${pago.cardType === 'DEBITO' ? 'Débito' : 'Crédito'}`
+  if (esTarjeta(pago.method) && pago.cardType) {
+    return `Tarjeta ${pago.cardType === 'DEBITO' ? 'Débito' : 'Crédito'}`
+  }
   return pago.method
 }
 </script>

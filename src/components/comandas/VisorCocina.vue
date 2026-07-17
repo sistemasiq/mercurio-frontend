@@ -36,12 +36,14 @@
     </div>
 
     <div v-else class="kds-grid">
-      <ComandaCard
-        v-for="comanda in comandasEnCocina"
-        :key="comanda.id"
-        :comanda="comanda"
-        @cambiar-estado="onCambiarEstado"
-      />
+      <TransitionGroup name="card-list" tag="div" class="kds-grid-inner">
+        <ComandaCard
+          v-for="comanda in comandasEnCocina"
+          :key="comanda.id"
+          :comanda="comanda"
+          @cambiar-estado="onCambiarEstado"
+        />
+      </TransitionGroup>
     </div>
   </div>
 </template>
@@ -236,6 +238,9 @@ onBeforeUnmount(() => {
 }
 
 .kds-grid {
+  flex: 1;
+}
+.kds-grid-inner {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
   gap: 24px;
@@ -247,6 +252,24 @@ onBeforeUnmount(() => {
   @media (min-width: 1440px) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+.card-list-enter-active {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-list-leave-active {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-list-enter-from {
+  opacity: 0;
+  transform: translateY(20px) scale(0.97);
+}
+.card-list-leave-to {
+  opacity: 0;
+  transform: scale(0.92);
+}
+.card-list-move {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .empty-state {

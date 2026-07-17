@@ -41,7 +41,7 @@
           </div>
         </div>
 
-        <MethodSelector v-model="metodoSeleccionado" :methods="metodosPagoDisponibles" />
+        <MethodSelector v-model="metodoSeleccionado" />
 
         <div
           style="
@@ -199,15 +199,12 @@
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import type { PaymentProps, AppliedPayment } from '@/types/payments'
-import type { MetodosPago } from '@/types/metodos_pago'
 
 import MethodSelector from './MethodSelector.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import AppliedPaymentsList from './AppliedPaymentsList.vue'
 
-const props = defineProps<
-  PaymentProps & { modelValue: boolean; metodosPagoDisponibles: MetodosPago[] }
->()
+const props = defineProps<PaymentProps & { modelValue: boolean }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'pago-exitoso', pagos: AppliedPayment[]): void
@@ -219,21 +216,30 @@ const metodoSeleccionado = ref('')
 const pagosAplicados = ref<AppliedPayment[]>([])
 
 watch(
-  () => props.metodosPagoDisponibles,
-  (metodos) => {
-    if (metodos.length > 0 && !metodoSeleccionado.value) {
-      metodoSeleccionado.value = metodos[0].nombre
+  () => props.modelValue,
+  (visible) => {
+    if (visible && !metodoSeleccionado.value) {
+      metodoSeleccionado.value = 'Efectivo'
     }
   },
   { immediate: true },
 )
 
 const esEfectivo = (nombre: string) => nombre.trim().toLowerCase().includes('efectivo')
-const esTarjeta = (nombre: string) => nombre.trim().toLowerCase().includes('tarjeta')
+const esTarjeta = (nombre: string) => {
+  const n = nombre.trim().toLowerCase()
+  return (
+    n.includes('tarjeta') ||
+    n.includes('crédito') ||
+    n.includes('débito') ||
+    n.includes('credito') ||
+    n.includes('debito')
+  )
+}
 
 const mostrarModalTarjeta = ref(false)
 const tarjetaMontoTemporal = ref(0)
-const tarjetaTipo = ref<'DEBITO' | 'CREDITO' | null>(null)
+const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
 const tarjetaAutorizacion = ref('')
 
 const totalPagado = computed(() => {
@@ -293,7 +299,7 @@ const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: 
 
 const limpiarModalTarjeta = () => {
   tarjetaMontoTemporal.value = 0
-  tarjetaTipo.value = null
+  tarjetaTipo.value = 'CREDITO'
   tarjetaAutorizacion.value = ''
 }
 

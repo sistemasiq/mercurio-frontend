@@ -69,7 +69,8 @@
       <button
         v-else-if="esListo"
         class="kds-btn btn-entregar"
-        @click="emit('cambiar-estado', comanda.id, 'T')"
+        :class="{ 'card-entregando': isDelivering }"
+        @click="onEntregar"
       >
         <q-icon name="done_all" size="24px" /> Entregar Pedido
       </button>
@@ -78,13 +79,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Comanda, DetalleComanda, EstadoActualComanda } from '@/types/comanda'
 
 const { comanda } = defineProps<{ comanda: Comanda }>()
 const emit = defineEmits<{
   (e: 'cambiar-estado', comandaId: string, nuevoEstado: EstadoActualComanda): void
 }>()
+
+const isDelivering = ref(false)
+
+const onEntregar = () => {
+  isDelivering.value = true
+  emit('cambiar-estado', comanda.id, 'T')
+}
 
 const estadoLabel = (estado: EstadoActualComanda): string => {
   const labels: Record<EstadoActualComanda, string> = {
@@ -190,6 +198,10 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition:
+    border-color 0.3s,
+    background-color 0.3s,
+    box-shadow 0.3s;
 }
 .card-proceso {
   border-left: 12px solid #fd8b00;
@@ -367,8 +379,13 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   justify-content: center;
   gap: 12px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition:
+    background-color 0.2s,
+    transform 0.1s;
   border: none;
+}
+.kds-btn:active {
+  transform: scale(0.95);
 }
 .btn-accion {
   background-color: #0059bb;
@@ -391,5 +408,24 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 }
 .btn-entregar:hover {
   background-color: #008645;
+}
+
+.card-entregando {
+  animation: flash-verde 0.4s ease-out;
+}
+
+@keyframes flash-verde {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 106, 53, 0.5);
+    background-color: #006a35;
+  }
+  50% {
+    box-shadow: 0 0 24px 4px rgba(0, 106, 53, 0.3);
+  }
+  100% {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
 }
 </style>

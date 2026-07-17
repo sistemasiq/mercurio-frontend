@@ -117,7 +117,6 @@
     <PaymentModal
       v-model="modalPagoAbierto"
       :total-to-pay="totalTicket"
-      :metodos-pago-disponibles="metodosPagoDisponibles"
       @pago-exitoso="onPagoExitoso"
     />
 

@@ -10,17 +10,20 @@ export interface DetalleProducto {
   nombre_combo_padre: string | null
 }
 
+export interface MetodoPagoDetalle {
+  metodo_pago_nombre: string
+  monto: number
+  notas_pago: string | null
+}
+
 export interface DetalleOrden {
-  pago_id: string
-  pago_monto: number
-  pago_notas: string | null
-  pago_creado: string | null
+  comanda_id: string
   ticket_numero: string
   total_final: number
   estado_actual: string
   fecha_hora: string | null
-  metodo_pago_nombre: string
   creado_por_nombre: string | null
+  metodos_pago: MetodoPagoDetalle[]
   detalles: DetalleProducto[]
 }
 
@@ -39,8 +42,8 @@ export const historialApi = {
     return data
   },
 
-  async getDetalle(pagoId: string, signal?: AbortSignal): Promise<DetalleOrden> {
-    const { data } = await apiClient.get<DetalleOrden>(`/pagos/detalles/${pagoId}`, { signal })
+  async getDetalle(comandaId: string, signal?: AbortSignal): Promise<DetalleOrden> {
+    const { data } = await apiClient.get<DetalleOrden>(`/pagos/detalles/${comandaId}`, { signal })
     return data
   },
 

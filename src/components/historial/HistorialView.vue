@@ -12,7 +12,7 @@ const isLoading = ref(false)
 const filtroTiempo = ref<'hoy' | 'semana' | 'mes'>('hoy')
 const filtroEstado = ref<'todos' | 'pagado' | 'cancelado'>('todos')
 const transacciones = ref<ITransaccion[]>([])
-const pagoSeleccionadoId = ref('')
+const comandaSeleccionadaId = ref('')
 const estadisticas = ref<Estadisticas>({ total_ventas: 0, total_ordenes: 0, ticket_promedio: 0 })
 
 async function cargarDatos() {
@@ -59,14 +59,18 @@ function textoEstado(estado: string): string {
   return map[estado] ?? estado
 }
 
-const verDetalleOrden = (id: string, estado: string) => {
-  pagoSeleccionadoId.value = id
+const verDetalleOrden = (comandaId: string, estado: string) => {
+  comandaSeleccionadaId.value = comandaId
   const e = estado.toUpperCase()
   if (e === 'C' || e === 'CANCELADO') {
     mostrarModalCancelado.value = true
   } else {
     mostrarModalPagado.value = true
   }
+}
+
+function formatearMonto(monto: number): string {
+  return `$${Number(monto || 0).toFixed(2)}`
 }
 
 function formatearFecha(iso: string): string {
@@ -184,39 +188,26 @@ const imprimirDirecto = () => {
           <table class="stitch-table-native">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Fecha/Hora</th>
                 <th>Ticket</th>
-                <th>Método</th>
+                <th>Métodos de Pago</th>
                 <th>Estado</th>
-                <th class="text-right">Monto</th>
+                <th class="text-right">Total</th>
                 <th class="text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="isLoading">
-                <td colspan="7" class="text-center" style="padding: 32px">
+                <td colspan="6" class="text-center" style="padding: 32px">
                   <q-spinner size="24px" color="primary" />
                 </td>
               </tr>
               <tr v-else-if="transacciones.length === 0">
-                <td colspan="7" class="text-center text-slate-muted" style="padding: 32px">
+                <td colspan="6" class="text-center text-slate-muted" style="padding: 32px">
                   No hay transacciones para este período.
                 </td>
               </tr>
-              <tr v-for="tx in transacciones" :key="tx.id" class="table-row-hover">
-                <td
-                  class="font-bold text-blue-primary text-xs"
-                  style="
-                    max-width: 120px;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                  "
-                  :title="tx.id"
-                >
-                  {{ tx.id }}
-                </td>
+              <tr v-for="tx in transacciones" :key="tx.comanda_id" class="table-row-hover">
                 <td class="text-xs text-slate-muted">{{ formatearFecha(tx.creado) }}</td>
                 <td>
                   <div class="flex-column-cell">
@@ -225,13 +216,18 @@ const imprimirDirecto = () => {
                   </div>
                 </td>
                 <td>
-                  <div class="flex-row-cell gap-sm text-xs text-slate-dark">
-                    <q-icon
-                      :name="obtenerIconoMetodo(tx.metodo_pago_nombre)"
-                      size="xs"
-                      class="text-slate-muted"
-                    />
-                    {{ tx.metodo_pago_nombre }}
+                  <div class="payment-methods-cell">
+                    <div v-for="(mp, idx) in tx.metodos_pago" :key="idx" class="payment-method-row">
+                      <q-icon
+                        :name="obtenerIconoMetodo(mp.metodo_pago_nombre)"
+                        size="xs"
+                        class="text-slate-muted"
+                      />
+                      <span class="text-xs text-slate-dark">{{ mp.metodo_pago_nombre }}</span>
+                      <span class="text-xs font-bold text-slate-dark">{{
+                        formatearMonto(mp.monto)
+                      }}</span>
+                    </div>
                   </div>
                 </td>
                 <td>
@@ -240,14 +236,14 @@ const imprimirDirecto = () => {
                   </span>
                 </td>
                 <td class="text-right font-bold text-slate-dark">
-                  ${{ Number(tx.monto || 0).toFixed(2) }}
+                  ${{ Number(tx.total_final || 0).toFixed(2) }}
                 </td>
                 <td>
                   <div class="actions-cell-group">
                     <button
                       type="button"
                       class="btn-cell-action text-blue-primary"
-                      @click="verDetalleOrden(tx.id, tx.estado_actual)"
+                      @click="verDetalleOrden(tx.comanda_id, tx.estado_actual)"
                     >
                       <q-icon name="visibility" size="xs" />
                     </button>
@@ -277,12 +273,12 @@ const imprimirDirecto = () => {
 
     <DetalleOrdenPagada
       v-if="mostrarModalPagado"
-      :id-transaccion="pagoSeleccionadoId"
+      :comanda-id="comandaSeleccionadaId"
       @close="mostrarModalPagado = false"
     />
     <DetalleOrdenCancelada
       v-if="mostrarModalCancelado"
-      :id-transaccion="pagoSeleccionadoId"
+      :comanda-id="comandaSeleccionadaId"
       @close="mostrarModalCancelado = false"
     />
   </div>
@@ -586,6 +582,16 @@ const imprimirDirecto = () => {
   align-items: center;
 }
 .gap-sm {
+  gap: 6px;
+}
+.payment-methods-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.payment-method-row {
+  display: flex;
+  align-items: center;
   gap: 6px;
 }
 .text-slate-muted {

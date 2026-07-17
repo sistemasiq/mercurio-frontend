@@ -1,20 +1,20 @@
 <template>
   <div class="grid-methods">
     <button
-      v-for="method in methods"
-      :key="method.id"
+      v-for="method in STATIC_METHODS"
+      :key="method.valor"
       class="method-btn"
-      :class="{ active: modelValue === method.nombre }"
-      @click="$emit('update:modelValue', method.nombre)"
+      :class="{ active: modelValue === method.valor }"
+      @click="$emit('update:modelValue', method.valor)"
     >
       <q-icon
-        :name="getMethodMeta(method.nombre).icon"
+        :name="method.icon"
         size="24px"
-        :color="modelValue === method.nombre ? 'primary' : getMethodMeta(method.nombre).color"
+        :color="modelValue === method.valor ? 'primary' : method.color"
       />
       <span
         class="method-label"
-        :class="{ 'text-primary text-weight-bold': modelValue === method.nombre }"
+        :class="{ 'text-primary text-weight-bold': modelValue === method.valor }"
       >
         {{ method.nombre }}
       </span>
@@ -23,31 +23,20 @@
 </template>
 
 <script setup lang="ts">
-import type { MetodosPago } from '@/types/metodos_pago'
-
 defineProps<{
   modelValue: string
-  methods: MetodosPago[]
 }>()
 
 defineEmits<{
   (e: 'update:modelValue', value: string): void
 }>()
 
-const METHOD_META: Record<string, { icon: string; color: string }> = {
-  efectivo: { icon: 'payments', color: 'green' },
-  tarjeta: { icon: 'credit_card', color: 'blue' },
-  cupones: { icon: 'redeem', color: 'orange' },
-  lealtad: { icon: 'loyalty', color: 'purple' },
-}
-
-const getMethodMeta = (nombre: string) => {
-  const key = nombre.trim().toLowerCase()
-  for (const [pattern, meta] of Object.entries(METHOD_META)) {
-    if (key.includes(pattern)) return meta
-  }
-  return { icon: 'payment', color: 'grey' }
-}
+const STATIC_METHODS = [
+  { nombre: 'Efectivo', valor: 'Efectivo', icon: 'payments', color: 'green' },
+  { nombre: 'Crédito/Débito', valor: 'Tarjeta', icon: 'credit_card', color: 'blue' },
+  { nombre: 'Cupones', valor: 'Cupones', icon: 'redeem', color: 'orange' },
+  { nombre: 'Lealtad', valor: 'Lealtad', icon: 'loyalty', color: 'purple' },
+]
 </script>
 
 <style scoped>
@@ -58,7 +47,7 @@ const getMethodMeta = (nombre: string) => {
   margin-bottom: 12px;
 }
 .method-btn {
-  height: 76px; /* Altura reducida para laptops */
+  height: 76px;
   background: #ffffff;
   border: 1px solid #e1e3e4;
   border-radius: 12px;

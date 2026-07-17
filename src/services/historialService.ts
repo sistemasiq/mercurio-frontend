@@ -11,10 +11,10 @@ export async function obtenerHistorial(
 }
 
 export async function obtenerDetalleOrden(
-  pagoId: string,
+  comandaId: string,
   signal?: AbortSignal,
 ): Promise<DetalleOrden> {
-  return historialApi.getDetalle(pagoId, signal)
+  return historialApi.getDetalle(comandaId, signal)
 }
 
 export async function obtenerEstadisticas(
