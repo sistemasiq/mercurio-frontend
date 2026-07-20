@@ -265,6 +265,32 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/proveedores',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'proveedores-listar',
+        component: () => import('@/pages/ProveedoresPage.vue'),
+        meta: { permissions: ['inventario:gestionar_proveedores'], title: 'Proveedores' },
+      },
+    ],
+  },
+  {
+    path: '/insumos',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'insumos-listar',
+        component: () => import('@/pages/InsumosPage.vue'),
+        meta: { permissions: ['inventario:gestionar_insumos'], title: 'Insumos' },
+      },
+    ],
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/login',
   },

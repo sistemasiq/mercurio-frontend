@@ -125,6 +125,23 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'INVENTARIO',
+    items: [
+      {
+        label: 'Insumos',
+        icon: 'inventory_2',
+        routeName: 'insumos-listar',
+        permission: 'inventario:gestionar_insumos',
+      },
+      {
+        label: 'Proveedores',
+        icon: 'local_shipping',
+        routeName: 'proveedores-listar',
+        permission: 'inventario:gestionar_proveedores',
+      },
+    ],
+  },
+  {
     label: 'ADMINISTRACIÓN',
     items: [
       {
