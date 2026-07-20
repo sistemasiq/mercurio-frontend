@@ -4,6 +4,7 @@ import {
   crearProducto,
   eliminarProducto,
   listarProductosAdmin,
+  reactivarProducto,
 } from '@/services/productoService'
 import type { ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
 
@@ -31,21 +32,27 @@ export const useProductosStore = defineStore('productos', {
         this.loading = false
       }
     },
-    async crear(body: ProductoCreate) {
-      const nuevo = await crearProducto(body)
+    async crear(body: ProductoCreate, imagen?: File | null) {
+      const nuevo = await crearProducto(body, imagen)
       this.productos.unshift(nuevo)
       return nuevo
     },
-    async actualizar(id: string, body: ProductoUpdate) {
-      const actualizado = await actualizarProducto(id, body)
+    async actualizar(id: string, body: ProductoUpdate, imagen?: File | null) {
+      const actualizado = await actualizarProducto(id, body, imagen)
       const idx = this.productos.findIndex((p) => p.id === id)
-      if (idx !== -1) this.productos[idx] = actualizado
+      if (idx !== -1) this.productos.splice(idx, 1, actualizado)
       return actualizado
     },
     async eliminar(id: string) {
       await eliminarProducto(id)
       const idx = this.productos.findIndex((p) => p.id === id)
       if (idx !== -1) this.productos[idx] = { ...this.productos[idx]!, activo: false }
+    },
+    async reactivar(id: string) {
+      const reactivado = await reactivarProducto(id)
+      const idx = this.productos.findIndex((p) => p.id === id)
+      if (idx !== -1) this.productos.splice(idx, 1, reactivado)
+      return reactivado
     },
   },
 })

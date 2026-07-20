@@ -24,6 +24,11 @@
           <p class="kds-item-price">
             ${{ Number(item.precio_unitario * item.cantidad).toFixed(2) }}
           </p>
+          <ul v-if="item.productos_combo?.length" class="kds-combo-lista">
+            <li v-for="comboItem in item.productos_combo" :key="comboItem.producto_id">
+              {{ comboItem.cantidad }}x {{ comboItem.nombre }}
+            </li>
+          </ul>
           <p v-if="item.notas_especiales" class="kds-item-warning">
             <q-icon name="warning" size="18px" />
             {{ item.notas_especiales }}
@@ -252,6 +257,20 @@ const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
   font-size: 14px;
   color: #64748b;
   margin: 2px 0 0 0;
+}
+.kds-combo-lista {
+  list-style: none;
+  margin: 6px 0 0 0;
+  padding: 0 0 0 12px;
+  border-left: 2px solid #e1e3e4;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kds-combo-lista li {
+  font-size: 15px;
+  color: #414754;
+  font-weight: 500;
 }
 .kds-item-warning {
   font-size: 16px;
