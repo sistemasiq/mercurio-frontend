@@ -236,9 +236,17 @@ const guardarNotas = () => {
 const obtenerMensajeError = (err: unknown): string => {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as
-      { detail?: string | string[]; message?: string; error?: string } | undefined
+      | {
+          detail?: string | string[] | { code?: string; message?: string }
+          message?: string
+          error?: string
+        }
+      | undefined
     if (typeof data?.detail === 'string') return data.detail
     if (Array.isArray(data?.detail)) return data.detail.join(', ')
+    if (data?.detail && typeof data.detail === 'object' && data.detail.message) {
+      return data.detail.message
+    }
     if (data?.message) return data.message
     if (data?.error) return data.error
     if (err.response?.status) return `Error HTTP ${err.response.status}`
