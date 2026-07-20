@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
+import { useEstanciasSocket } from '@/composables/useEstanciasSocket'
+import type { EstanciaWsMessage } from '@/types/estancia'
 import StatCard from '@/components/control-acceso/StatCard.vue'
 import ActiveChildCard from '@/components/control-acceso/ActiveChildCard.vue'
+
+// Si el socket queda 'caido' (ver useEstanciasSocket), se cae a polling  mientras sigue reintentando la reconexión en segundo plano.
+const POLLING_FALLBACK_MS = 15000
 
 const store = useAccessControlStore()
 const router = useRouter()
 
 const scrollContainer = ref<HTMLElement | null>(null)
+const fallbackIntervalId = ref<ReturnType<typeof setInterval> | null>(null)
 
 onMounted(() => {
   store.loadActivos()
@@ -17,6 +23,30 @@ onMounted(() => {
 
 onUnmounted(() => {
   store.stopTicking()
+  if (fallbackIntervalId.value !== null) {
+    window.clearInterval(fallbackIntervalId.value)
+    fallbackIntervalId.value = null
+  }
+})
+
+// Un registro (checkin) o checkout en cualquier caja de la sucursal debe
+// reflejarse aquí sin que el cajero tenga que darle a "Actualizar".
+function handleMensajeSocket(_msg: EstanciaWsMessage) {
+  void store.loadActivos()
+}
+
+const socket = useEstanciasSocket(handleMensajeSocket)
+
+watch(socket.estado, (estado) => {
+  if (estado === 'caido' && fallbackIntervalId.value === null) {
+    fallbackIntervalId.value = window.setInterval(
+      () => void store.loadActivos(),
+      POLLING_FALLBACK_MS,
+    )
+  } else if (estado !== 'caido' && fallbackIntervalId.value !== null) {
+    window.clearInterval(fallbackIntervalId.value)
+    fallbackIntervalId.value = null
+  }
 })
 
 function getChildFirstName(nino: string, index: number) {

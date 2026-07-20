@@ -3,9 +3,9 @@ import { ref, computed } from 'vue'
 import {
   fetchProductos,
   postOnboarding,
-  fetchMetodoPagoPorDefecto,
   type ProductoDto,
   type OnboardingDetalle,
+  type OnboardingPago,
 } from '@/api/onboardingClient'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessControlStore } from '@/stores/accessControl'
@@ -67,6 +67,7 @@ export const useRegistrationStore = defineStore('registration', () => {
   const isSubmitting = ref(false)
   const submitError = ref<string | null>(null)
 
+  const pagosAplicados = ref<OnboardingPago[]>([])
   const registroId = ref('')
   const totalFromServer = ref<number | null>(null)
   const pagadoFromServer = ref<number | null>(null)
@@ -120,15 +121,6 @@ export const useRegistrationStore = defineStore('registration', () => {
       console.error(err)
     } finally {
       isLoadingCatalog.value = false
-    }
-  }
-
-  async function loadMetodoPago() {
-    try {
-      metodoPagoId.value = await fetchMetodoPagoPorDefecto()
-    } catch (err) {
-      submitError.value = 'No se pudo cargar el método de pago.'
-      console.error(err)
     }
   }
 
@@ -198,7 +190,8 @@ export const useRegistrationStore = defineStore('registration', () => {
     )
   })
 
-  async function proceedToRFID() {
+  async function proceedToRFID(pagos: OnboardingPago[]) {
+    pagosAplicados.value = pagos
     step.value = 'rfid'
   }
 
@@ -218,6 +211,11 @@ export const useRegistrationStore = defineStore('registration', () => {
 
     if (!authStore.currentBranchId) {
       submitError.value = 'No hay una sucursal activa en la sesión.'
+      return
+    }
+
+    if (pagosAplicados.value.length === 0) {
+      submitError.value = 'No se ha registrado ningún pago.'
       return
     }
 
@@ -241,7 +239,7 @@ export const useRegistrationStore = defineStore('registration', () => {
       pulseraTutorId: tutor.value.braceletGuardianId,
       parentesco: tutor.value.relationship,
       detalles,
-      pagos: [{ metodoPagoId: metodoPagoId.value, monto: total.value }],
+      pagos: pagosAplicados.value,
     }
 
     try {
@@ -316,6 +314,5 @@ export const useRegistrationStore = defineStore('registration', () => {
     completeRegistration,
     reset,
     loadProductos,
-    loadMetodoPago,
   }
 })
