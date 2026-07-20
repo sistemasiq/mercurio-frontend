@@ -101,6 +101,19 @@
                 flat
                 round
                 dense
+                icon="tune"
+                color="grey-8"
+                size="sm"
+                class="q-mr-xs"
+                :disable="!props.row.activo"
+                @click="abrirAjuste(props.row)"
+              >
+                <q-tooltip>Ajustar stock</q-tooltip>
+              </q-btn>
+              <q-btn
+                flat
+                round
+                dense
                 icon="edit"
                 color="primary"
                 size="sm"
@@ -280,6 +293,71 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- ── Dialog Ajustar Stock ───────────────────────────────────────────── -->
+    <q-dialog v-model="dialogAjuste">
+      <q-card style="min-width: 400px; border-radius: 12px">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold">Ajustar stock de {{ insumoAjuste?.nombre }}</div>
+          <div class="text-body2 text-grey-7">
+            Stock actual: {{ insumoAjuste ? Number(insumoAjuste.stock_actual) : 0 }}
+            {{ insumoAjuste ? codigoUnidad(insumoAjuste.unidad_base_id) : '' }}
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-section class="q-gutter-md q-pt-md">
+          <div>
+            <div class="field-label">TIPO DE AJUSTE</div>
+            <q-select
+              v-model="formAjuste.tipo"
+              dense
+              outlined
+              emit-value
+              map-options
+              :options="TIPO_AJUSTE_OPTIONS"
+            />
+          </div>
+          <div>
+            <div class="field-label">CANTIDAD</div>
+            <q-input
+              v-model.number="formAjuste.cantidad"
+              dense
+              outlined
+              type="number"
+              min="0"
+              step="0.001"
+            />
+          </div>
+          <div>
+            <div class="field-label">NOTAS (opcional)</div>
+            <q-input
+              v-model="formAjuste.notas"
+              dense
+              outlined
+              type="textarea"
+              rows="2"
+              placeholder="Ej. conteo físico, producto vencido..."
+            />
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md q-pt-sm">
+          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarAjuste" />
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            label="Registrar ajuste"
+            style="border-radius: 8px; font-weight: 600"
+            :loading="guardandoAjuste"
+            :disable="!formAjuste.cantidad"
+            @click="guardarAjuste"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -291,13 +369,16 @@ import { useAuthStore } from '@/stores/auth'
 import { useInsumosStore } from '@/stores/insumos'
 import { useProveedoresStore } from '@/stores/proveedores'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
+import { useMovimientosInventarioStore } from '@/stores/movimientosInventario'
 import type { Insumo } from '@/types/insumo'
+import type { TipoMovimientoManual } from '@/types/movimientoInventario'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
 const store = useInsumosStore()
 const proveedoresStore = useProveedoresStore()
 const unidadesStore = useUnidadesMedidaStore()
+const movimientosStore = useMovimientosInventarioStore()
 
 const cargar = () => {
   if (!authStore.currentBranchId) return
@@ -330,6 +411,11 @@ const nombreProveedor = (proveedorId: string | null): string => {
 }
 
 const bajoMinimo = (row: Insumo): boolean => Number(row.stock_actual) < Number(row.stock_minimo)
+
+const TIPO_AJUSTE_OPTIONS: Array<{ label: string; value: TipoMovimientoManual }> = [
+  { label: 'Entrada manual (sumar stock)', value: 'E' },
+  { label: 'Merma (restar stock)', value: 'M' },
+]
 
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
@@ -475,6 +561,54 @@ const ejecutarEliminar = async () => {
     })
   } finally {
     eliminando.value = false
+  }
+}
+
+// ── Ajustar stock ─────────────────────────────────────────────────────────────
+
+const dialogAjuste = ref(false)
+const insumoAjuste = ref<Insumo | null>(null)
+const guardandoAjuste = ref(false)
+
+const formAjuste = ref({
+  tipo: 'E' as TipoMovimientoManual,
+  cantidad: 0,
+  notas: '',
+})
+
+const abrirAjuste = (row: Insumo) => {
+  insumoAjuste.value = row
+  formAjuste.value = { tipo: 'E', cantidad: 0, notas: '' }
+  dialogAjuste.value = true
+}
+
+const cerrarAjuste = () => {
+  dialogAjuste.value = false
+  insumoAjuste.value = null
+}
+
+const guardarAjuste = async () => {
+  if (!insumoAjuste.value || !formAjuste.value.cantidad) return
+  guardandoAjuste.value = true
+  try {
+    const movimiento = await movimientosStore.registrar(insumoAjuste.value.id, {
+      tipo: formAjuste.value.tipo,
+      cantidad: String(formAjuste.value.cantidad),
+      notas: formAjuste.value.notas.trim() || null,
+    })
+    const idx = store.insumos.findIndex((i) => i.id === insumoAjuste.value?.id)
+    if (idx !== -1)
+      store.insumos[idx] = { ...store.insumos[idx]!, stock_actual: movimiento.stock_resultante }
+    $q.notify({ type: 'positive', message: 'Ajuste registrado', position: 'top-right' })
+    cerrarAjuste()
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Ocurrió un error. Intenta de nuevo.',
+      position: 'top-right',
+    })
+  } finally {
+    guardandoAjuste.value = false
   }
 }
 </script>
