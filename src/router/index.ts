@@ -139,6 +139,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/sysadmin/SysAdminDashboardPage.vue'),
         meta: { permissions: ['reportes:dashboard'] },
       },
+      {
+        path: 'inventario',
+        name: 'reportes-inventario',
+        component: () => import('@/pages/ReporteInventarioPage.vue'),
+        meta: { permissions: ['reportes:inventario'], title: 'Reporte de Inventario' },
+      },
     ],
   },
   {
