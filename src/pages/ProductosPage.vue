@@ -80,6 +80,7 @@
           <template #body-cell-actions="props">
             <q-td :props="props" class="text-right">
               <q-btn
+                v-if="props.row.tipo === 'A' || props.row.tipo === 'B'"
                 flat
                 dense
                 color="grey-8"
