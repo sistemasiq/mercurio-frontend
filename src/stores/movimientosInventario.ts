@@ -18,11 +18,11 @@ export const useMovimientosInventarioStore = defineStore('movimientosInventario'
     error: null,
   }),
   actions: {
-    async cargarPorInsumo(insumoId: string) {
+    async cargarPorInsumo(insumoId: string, desde?: string, hasta?: string) {
       this.loading = true
       this.error = null
       try {
-        this.items = await listarMovimientosPorInsumo(insumoId)
+        this.items = await listarMovimientosPorInsumo(insumoId, desde, hasta)
       } catch (error: unknown) {
         this.error = (error as Error).message ?? 'Error al cargar los movimientos'
       } finally {

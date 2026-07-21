@@ -307,6 +307,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/InsumosPage.vue'),
         meta: { permissions: ['inventario:gestionar_insumos'], title: 'Insumos' },
       },
+      {
+        path: ':id/kardex',
+        name: 'insumos-kardex',
+        component: () => import('@/pages/KardexInsumoPage.vue'),
+        meta: { permissions: ['inventario:ver_movimientos'], title: 'Kardex' },
+      },
     ],
   },
   {

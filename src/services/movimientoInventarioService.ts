@@ -3,8 +3,10 @@ import type { MovimientoInventario, MovimientoManualCreate } from '@/types/movim
 
 export async function listarMovimientosPorInsumo(
   insumoId: string,
+  desde?: string,
+  hasta?: string,
 ): Promise<MovimientoInventario[]> {
-  return movimientosInventarioApi.listarPorInsumo(insumoId)
+  return movimientosInventarioApi.listarPorInsumo(insumoId, desde, hasta)
 }
 
 export async function registrarMovimiento(

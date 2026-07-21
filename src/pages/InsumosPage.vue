@@ -101,6 +101,18 @@
                 flat
                 round
                 dense
+                icon="history"
+                color="grey-8"
+                size="sm"
+                class="q-mr-xs"
+                @click="abrirKardex(props.row)"
+              >
+                <q-tooltip>Kardex</q-tooltip>
+              </q-btn>
+              <q-btn
+                flat
+                round
+                dense
                 icon="tune"
                 color="grey-8"
                 size="sm"
@@ -363,6 +375,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
@@ -374,6 +387,7 @@ import type { Insumo } from '@/types/insumo'
 import type { TipoMovimientoManual } from '@/types/movimientoInventario'
 
 const $q = useQuasar()
+const router = useRouter()
 const authStore = useAuthStore()
 const store = useInsumosStore()
 const proveedoresStore = useProveedoresStore()
@@ -575,6 +589,10 @@ const formAjuste = ref({
   cantidad: 0,
   notas: '',
 })
+
+const abrirKardex = (row: Insumo) => {
+  router.push({ name: 'insumos-kardex', params: { id: row.id } })
+}
 
 const abrirAjuste = (row: Insumo) => {
   insumoAjuste.value = row
