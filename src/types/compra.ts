@@ -2,7 +2,8 @@ export type EstadoCompra = 'P' | 'R' | 'C'
 
 export interface DetalleCompraItem {
   insumo_id: string
-  unidad_medida_id: string
+  unidad_medida_id?: string | null
+  presentacion_id?: string | null
   cantidad: string
   costo_unitario: string
 }
@@ -11,8 +12,10 @@ export interface DetalleCompraOut {
   id: string
   insumo_id: string
   insumo_nombre: string
-  unidad_medida_id: string
-  unidad_medida_codigo: string
+  unidad_medida_id: string | null
+  unidad_medida_codigo: string | null
+  presentacion_id: string | null
+  presentacion_nombre: string | null
   cantidad: string
   costo_unitario: string
   subtotal: string

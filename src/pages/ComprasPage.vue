@@ -163,18 +163,18 @@
                   map-options
                   :options="insumoOptions"
                   placeholder="Elige un insumo"
-                  @update:model-value="lineaTemporal.unidad_medida_id = null"
+                  @update:model-value="onCambiarInsumoLinea"
                 />
               </div>
               <div class="col-3">
                 <div class="field-label">Unidad</div>
                 <q-select
-                  v-model="lineaTemporal.unidad_medida_id"
+                  v-model="lineaTemporal.unidad_seleccion"
                   dense
                   outlined
                   emit-value
                   map-options
-                  :options="unidadesCompatibles"
+                  :options="unidadesCombinadas"
                   :disable="!lineaTemporal.insumo_id"
                   placeholder="Unidad"
                 />
@@ -233,7 +233,7 @@
                       linea.insumo_nombre
                     }}</q-item-label>
                     <q-item-label caption>
-                      {{ linea.cantidad }} {{ linea.unidad_medida_codigo }} × ${{
+                      {{ linea.cantidad }} {{ linea.unidad_label }} × ${{
                         linea.costo_unitario.toFixed(2)
                       }}
                       = ${{ (linea.cantidad * linea.costo_unitario).toFixed(2) }}
@@ -316,6 +316,7 @@ import { useComprasStore } from '@/stores/compras'
 import { useProveedoresStore } from '@/stores/proveedores'
 import { useInsumosStore } from '@/stores/insumos'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
+import { usePresentacionesInsumoStore } from '@/stores/presentacionesInsumo'
 import type { Compra, EstadoCompra } from '@/types/compra'
 
 const $q = useQuasar()
@@ -324,6 +325,7 @@ const store = useComprasStore()
 const proveedoresStore = useProveedoresStore()
 const insumosStore = useInsumosStore()
 const unidadesStore = useUnidadesMedidaStore()
+const presentacionesStore = usePresentacionesInsumoStore()
 
 const cargar = () => {
   if (!authStore.currentBranchId) return
@@ -377,16 +379,29 @@ const insumoOptions = computed(() =>
   insumosStore.insumos.filter((i) => i.activo).map((i) => ({ label: i.nombre, value: i.id })),
 )
 
-const unidadesCompatibles = computed(() => {
+// Codifica el valor del select como "u:<uuid>" (unidad global) o "p:<uuid>"
+// (presentación específica del insumo) para distinguir cuál campo llenar al
+// agregar la línea, sin comparar objetos en el v-model (fase 7).
+const unidadesCombinadas = computed(() => {
   if (!lineaTemporal.value.insumo_id) return []
   const insumo = insumosStore.insumos.find((i) => i.id === lineaTemporal.value.insumo_id)
   if (!insumo) return []
   const unidadBase = unidadesStore.unidades.find((u) => u.id === insumo.unidad_base_id)
-  if (!unidadBase) return []
-  return unidadesStore.unidades
-    .filter((u) => u.tipo === unidadBase.tipo)
-    .map((u) => ({ label: `${u.nombre} (${u.codigo})`, value: u.id }))
+  const opcionesUnidad = unidadBase
+    ? unidadesStore.unidades
+        .filter((u) => u.tipo === unidadBase.tipo)
+        .map((u) => ({ label: `${u.nombre} (${u.codigo})`, value: `u:${u.id}` }))
+    : []
+  const opcionesPresentacion = presentacionesStore.items
+    .filter((p) => p.activo)
+    .map((p) => ({ label: p.nombre, value: `p:${p.id}` }))
+  return [...opcionesUnidad, ...opcionesPresentacion]
 })
+
+const onCambiarInsumoLinea = (insumoId: string | null) => {
+  lineaTemporal.value.unidad_seleccion = null
+  if (insumoId) presentacionesStore.cargarPorInsumo(insumoId)
+}
 
 const formCompra = ref({
   proveedor_id: null as string | null,
@@ -396,8 +411,9 @@ const formCompra = ref({
 interface LineaLocal {
   insumo_id: string
   insumo_nombre: string
-  unidad_medida_id: string
-  unidad_medida_codigo: string
+  unidad_medida_id: string | null
+  presentacion_id: string | null
+  unidad_label: string
   cantidad: number
   costo_unitario: number
 }
@@ -406,7 +422,7 @@ const lineas = ref<LineaLocal[]>([])
 
 const lineaTemporal = ref({
   insumo_id: null as string | null,
-  unidad_medida_id: null as string | null,
+  unidad_seleccion: null as string | null,
   cantidad: 0,
   costo_unitario: 0,
 })
@@ -414,7 +430,7 @@ const lineaTemporal = ref({
 const lineaCompleta = computed(
   () =>
     !!lineaTemporal.value.insumo_id &&
-    !!lineaTemporal.value.unidad_medida_id &&
+    !!lineaTemporal.value.unidad_seleccion &&
     lineaTemporal.value.cantidad > 0 &&
     lineaTemporal.value.costo_unitario >= 0,
 )
@@ -423,10 +439,17 @@ const totalCompra = computed(() =>
   lineas.value.reduce((acc, l) => acc + l.cantidad * l.costo_unitario, 0),
 )
 
+const lineaTemporalVacia = () => ({
+  insumo_id: null as string | null,
+  unidad_seleccion: null as string | null,
+  cantidad: 0,
+  costo_unitario: 0,
+})
+
 const abrirCrear = () => {
   formCompra.value = { proveedor_id: null, notas: '' }
   lineas.value = []
-  lineaTemporal.value = { insumo_id: null, unidad_medida_id: null, cantidad: 0, costo_unitario: 0 }
+  lineaTemporal.value = lineaTemporalVacia()
   dialogOpen.value = true
 }
 
@@ -435,19 +458,37 @@ const cerrarDialog = () => {
 }
 
 const agregarLinea = () => {
-  if (!lineaCompleta.value) return
+  if (!lineaCompleta.value || !lineaTemporal.value.unidad_seleccion) return
   const insumo = insumosStore.insumos.find((i) => i.id === lineaTemporal.value.insumo_id)
-  const unidad = unidadesStore.unidades.find((u) => u.id === lineaTemporal.value.unidad_medida_id)
-  if (!insumo || !unidad) return
+  if (!insumo) return
+
+  const [prefijo, id] = lineaTemporal.value.unidad_seleccion.split(':') as [string, string]
+  let unidad_medida_id: string | null = null
+  let presentacion_id: string | null = null
+  let unidad_label: string
+
+  if (prefijo === 'u') {
+    const unidad = unidadesStore.unidades.find((u) => u.id === id)
+    if (!unidad) return
+    unidad_medida_id = unidad.id
+    unidad_label = unidad.codigo
+  } else {
+    const presentacion = presentacionesStore.items.find((p) => p.id === id)
+    if (!presentacion) return
+    presentacion_id = presentacion.id
+    unidad_label = presentacion.nombre
+  }
+
   lineas.value.push({
     insumo_id: insumo.id,
     insumo_nombre: insumo.nombre,
-    unidad_medida_id: unidad.id,
-    unidad_medida_codigo: unidad.codigo,
+    unidad_medida_id,
+    presentacion_id,
+    unidad_label,
     cantidad: lineaTemporal.value.cantidad,
     costo_unitario: lineaTemporal.value.costo_unitario,
   })
-  lineaTemporal.value = { insumo_id: null, unidad_medida_id: null, cantidad: 0, costo_unitario: 0 }
+  lineaTemporal.value = lineaTemporalVacia()
 }
 
 const quitarLinea = (index: number) => {
@@ -466,6 +507,7 @@ const guardarCompra = async () => {
       detalles: lineas.value.map((l) => ({
         insumo_id: l.insumo_id,
         unidad_medida_id: l.unidad_medida_id,
+        presentacion_id: l.presentacion_id,
         cantidad: String(l.cantidad),
         costo_unitario: String(l.costo_unitario),
       })),

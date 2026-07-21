@@ -126,6 +126,18 @@
                 flat
                 round
                 dense
+                icon="view_module"
+                color="grey-8"
+                size="sm"
+                class="q-mr-xs"
+                @click="abrirPresentaciones(props.row)"
+              >
+                <q-tooltip>Presentaciones</q-tooltip>
+              </q-btn>
+              <q-btn
+                flat
+                round
+                dense
                 icon="edit"
                 color="primary"
                 size="sm"
@@ -370,6 +382,106 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- ── Dialog Presentaciones ──────────────────────────────────────────── -->
+    <q-dialog v-model="dialogPresentaciones">
+      <q-card style="min-width: 480px; border-radius: 12px">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold">
+            Presentaciones de {{ insumoPresentaciones?.nombre }}
+          </div>
+          <div class="text-body2 text-grey-7">
+            Empaques de compra propios de este insumo (ej. "Paquete (8 pz)"), expresados en
+            {{ insumoPresentaciones ? codigoUnidad(insumoPresentaciones.unidad_base_id) : '' }}.
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-section>
+          <q-banner
+            v-if="presentacionesStore.error"
+            dense
+            rounded
+            class="bg-red-1 text-red-8 q-mb-md"
+            style="border-radius: 10px"
+          >
+            {{ presentacionesStore.error }}
+          </q-banner>
+
+          <q-list v-if="presentacionesActivas.length" separator>
+            <q-item v-for="item in presentacionesActivas" :key="item.id">
+              <q-item-section>
+                <q-item-label>{{ item.nombre }}</q-item-label>
+                <q-item-label caption>
+                  {{ Number(item.equivalencia_base) }}
+                  {{
+                    insumoPresentaciones ? codigoUnidad(insumoPresentaciones.unidad_base_id) : ''
+                  }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="delete_outline"
+                  color="negative"
+                  size="sm"
+                  @click="quitarPresentacion(item.id)"
+                >
+                  <q-tooltip>Quitar</q-tooltip>
+                </q-btn>
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-else class="text-body2 text-grey-7 q-py-sm">
+            Este insumo todavía no tiene presentaciones registradas.
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-section class="q-gutter-md">
+          <div class="row q-col-gutter-sm items-start">
+            <div class="col-7">
+              <div class="field-label">NOMBRE</div>
+              <q-input
+                v-model="formPresentacion.nombre"
+                dense
+                outlined
+                placeholder="Ej. Paquete (8 pz)"
+              />
+            </div>
+            <div class="col-5">
+              <div class="field-label">EQUIVALENCIA</div>
+              <q-input
+                v-model.number="formPresentacion.equivalencia_base"
+                dense
+                outlined
+                type="number"
+                min="0"
+                step="0.001"
+              />
+            </div>
+          </div>
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            label="Agregar presentación"
+            style="border-radius: 8px; font-weight: 600"
+            :loading="guardandoPresentacion"
+            :disable="!formPresentacion.nombre.trim() || !formPresentacion.equivalencia_base"
+            @click="guardarPresentacion"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md q-pt-sm">
+          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -383,6 +495,7 @@ import { useInsumosStore } from '@/stores/insumos'
 import { useProveedoresStore } from '@/stores/proveedores'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { useMovimientosInventarioStore } from '@/stores/movimientosInventario'
+import { usePresentacionesInsumoStore } from '@/stores/presentacionesInsumo'
 import type { Insumo } from '@/types/insumo'
 import type { TipoMovimientoManual } from '@/types/movimientoInventario'
 
@@ -393,6 +506,7 @@ const store = useInsumosStore()
 const proveedoresStore = useProveedoresStore()
 const unidadesStore = useUnidadesMedidaStore()
 const movimientosStore = useMovimientosInventarioStore()
+const presentacionesStore = usePresentacionesInsumoStore()
 
 const cargar = () => {
   if (!authStore.currentBranchId) return
@@ -627,6 +741,66 @@ const guardarAjuste = async () => {
     })
   } finally {
     guardandoAjuste.value = false
+  }
+}
+
+// ── Presentaciones ────────────────────────────────────────────────────────────
+
+const dialogPresentaciones = ref(false)
+const insumoPresentaciones = ref<Insumo | null>(null)
+const guardandoPresentacion = ref(false)
+
+const formPresentacion = ref({
+  nombre: '',
+  equivalencia_base: 0,
+})
+
+const presentacionesActivas = computed(() => presentacionesStore.items.filter((p) => p.activo))
+
+const abrirPresentaciones = (row: Insumo) => {
+  insumoPresentaciones.value = row
+  formPresentacion.value = { nombre: '', equivalencia_base: 0 }
+  dialogPresentaciones.value = true
+  presentacionesStore.cargarPorInsumo(row.id)
+}
+
+const guardarPresentacion = async () => {
+  if (
+    !insumoPresentaciones.value ||
+    !formPresentacion.value.nombre.trim() ||
+    !formPresentacion.value.equivalencia_base
+  )
+    return
+  guardandoPresentacion.value = true
+  try {
+    await presentacionesStore.crear(insumoPresentaciones.value.id, {
+      nombre: formPresentacion.value.nombre.trim(),
+      equivalencia_base: String(formPresentacion.value.equivalencia_base),
+    })
+    formPresentacion.value = { nombre: '', equivalencia_base: 0 }
+    $q.notify({ type: 'positive', message: 'Presentación agregada', position: 'top-right' })
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'Ocurrió un error. Intenta de nuevo.',
+      position: 'top-right',
+    })
+  } finally {
+    guardandoPresentacion.value = false
+  }
+}
+
+const quitarPresentacion = async (presentacionId: string) => {
+  if (!insumoPresentaciones.value) return
+  try {
+    await presentacionesStore.eliminar(insumoPresentaciones.value.id, presentacionId)
+    $q.notify({ type: 'positive', message: 'Presentación eliminada', position: 'top-right' })
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'No se pudo eliminar. Intenta de nuevo.',
+      position: 'top-right',
+    })
   }
 }
 </script>
