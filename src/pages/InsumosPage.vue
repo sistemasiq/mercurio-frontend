@@ -87,11 +87,7 @@
 
           <template #body-cell-activo="props">
             <q-td :props="props">
-              <q-badge
-                :color="props.row.activo ? 'positive' : 'grey-5'"
-                :label="props.row.activo ? 'Activo' : 'Inactivo'"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
-              />
+              <ProductoBadgeEstado :activo="props.row.activo" />
             </q-td>
           </template>
 
@@ -99,63 +95,59 @@
             <q-td :props="props" class="text-right">
               <q-btn
                 flat
-                round
                 dense
-                icon="history"
                 color="grey-8"
                 size="sm"
-                class="q-mr-xs"
+                class="action-btn q-mr-xs"
                 @click="abrirKardex(props.row)"
               >
+                <span class="material-symbols-outlined">history</span>
                 <q-tooltip>Kardex</q-tooltip>
               </q-btn>
               <q-btn
                 flat
-                round
                 dense
-                icon="tune"
                 color="grey-8"
                 size="sm"
-                class="q-mr-xs"
+                class="action-btn q-mr-xs"
                 :disable="!props.row.activo"
                 @click="abrirAjuste(props.row)"
               >
+                <span class="material-symbols-outlined">tune</span>
                 <q-tooltip>Ajustar stock</q-tooltip>
               </q-btn>
               <q-btn
                 flat
-                round
                 dense
-                icon="view_module"
                 color="grey-8"
                 size="sm"
-                class="q-mr-xs"
+                class="action-btn q-mr-xs"
                 @click="abrirPresentaciones(props.row)"
               >
+                <span class="material-symbols-outlined">view_module</span>
                 <q-tooltip>Presentaciones</q-tooltip>
               </q-btn>
               <q-btn
                 flat
-                round
                 dense
-                icon="edit"
-                color="primary"
+                color="grey-8"
                 size="sm"
-                class="q-mr-xs"
+                class="action-btn q-mr-xs"
                 @click="abrirEditar(props.row)"
               >
+                <span class="material-symbols-outlined">edit</span>
                 <q-tooltip>Editar</q-tooltip>
               </q-btn>
               <q-btn
                 flat
-                round
                 dense
-                icon="delete_outline"
-                color="negative"
+                color="grey-8"
                 size="sm"
+                class="action-btn"
                 :disable="!props.row.activo"
                 @click="confirmarEliminar(props.row)"
               >
+                <span class="material-symbols-outlined">delete_outline</span>
                 <q-tooltip>Eliminar</q-tooltip>
               </q-btn>
             </q-td>
@@ -490,6 +482,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import ProductoBadgeEstado from '@/components/productos/ProductoBadgeEstado.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useInsumosStore } from '@/stores/insumos'
 import { useProveedoresStore } from '@/stores/proveedores'
@@ -807,11 +800,25 @@ const quitarPresentacion = async (presentacionId: string) => {
 
 <style scoped>
 .field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 6px;
+}
+
+.action-btn {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+  font-size: 20px;
+  line-height: 1;
+  text-transform: none;
 }
 </style>

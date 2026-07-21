@@ -67,10 +67,9 @@
 
           <template #body-cell-estado="props">
             <q-td :props="props">
-              <q-badge
-                :color="ESTADO_COLOR[props.row.estado as EstadoCompra]"
+              <EstadoPill
+                :tono="ESTADO_TONO[props.row.estado as EstadoCompra]"
                 :label="ESTADO_LABEL[props.row.estado as EstadoCompra]"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
               />
             </q-td>
           </template>
@@ -317,6 +316,7 @@ import { useProveedoresStore } from '@/stores/proveedores'
 import { useInsumosStore } from '@/stores/insumos'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { usePresentacionesInsumoStore } from '@/stores/presentacionesInsumo'
+import EstadoPill from '@/components/inventario/EstadoPill.vue'
 import type { Compra, EstadoCompra } from '@/types/compra'
 
 const $q = useQuasar()
@@ -342,10 +342,10 @@ const ESTADO_LABEL: Record<EstadoCompra, string> = {
   R: 'Recibida',
   C: 'Cancelada',
 }
-const ESTADO_COLOR: Record<EstadoCompra, string> = {
-  P: 'orange-8',
-  R: 'positive',
-  C: 'grey-5',
+const ESTADO_TONO: Record<EstadoCompra, 'naranja' | 'verde' | 'gris'> = {
+  P: 'naranja',
+  R: 'verde',
+  C: 'gris',
 }
 
 const formatearFecha = (iso: string): string => new Date(iso).toLocaleDateString('es-MX')
@@ -569,11 +569,25 @@ const ejecutarAccion = async () => {
 
 <style scoped>
 .field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 6px;
+}
+
+.action-btn {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+  font-size: 20px;
+  line-height: 1;
+  text-transform: none;
 }
 </style>

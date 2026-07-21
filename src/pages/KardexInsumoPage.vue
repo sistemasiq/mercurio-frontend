@@ -96,10 +96,9 @@
 
           <template #body-cell-tipo="props">
             <q-td :props="props">
-              <q-badge
-                :color="TIPO_COLOR[props.row.tipo as TipoMovimiento]"
+              <EstadoPill
+                :tono="TIPO_TONO[props.row.tipo as TipoMovimiento]"
                 :label="TIPO_LABEL[props.row.tipo as TipoMovimiento]"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
               />
             </q-td>
           </template>
@@ -139,6 +138,7 @@ import { useInsumosStore } from '@/stores/insumos'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { useMovimientosInventarioStore } from '@/stores/movimientosInventario'
 import { useAuthStore } from '@/stores/auth'
+import EstadoPill from '@/components/inventario/EstadoPill.vue'
 
 type TipoMovimiento = 'E' | 'S' | 'A' | 'M'
 
@@ -188,11 +188,11 @@ const TIPO_LABEL: Record<TipoMovimiento, string> = {
   A: 'Ajuste',
   M: 'Merma',
 }
-const TIPO_COLOR: Record<TipoMovimiento, string> = {
-  E: 'positive',
-  S: 'negative',
-  A: 'blue-7',
-  M: 'orange-8',
+const TIPO_TONO: Record<TipoMovimiento, 'verde' | 'rojo' | 'azul' | 'naranja'> = {
+  E: 'verde',
+  S: 'rojo',
+  A: 'azul',
+  M: 'naranja',
 }
 const MOTIVO_LABEL: Record<string, string> = {
   venta_comanda: 'Venta',
@@ -217,10 +217,8 @@ const columns: QTableColumn[] = [
 
 <style scoped>
 .field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 6px;
 }
