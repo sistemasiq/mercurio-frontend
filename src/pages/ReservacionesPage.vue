@@ -21,7 +21,23 @@
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
         no-data-label="No hay reservaciones registradas"
-      />
+      >
+        <template #body-cell-actions="props">
+          <q-td :props="props" auto-width>
+            <q-btn
+              flat
+              dense
+              no-caps
+              color="primary"
+              icon="point_of_sale"
+              label="Cerrar evento"
+              @click="
+                router.push({ name: 'eventos-reservaciones-cierre', params: { id: props.row.id } })
+              "
+            />
+          </q-td>
+        </template>
+      </q-table>
     </q-card>
   </q-page>
 </template>

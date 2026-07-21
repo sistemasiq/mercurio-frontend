@@ -159,6 +159,12 @@ const routes: RouteRecordRaw[] = [
         meta: { permissions: ['reservaciones:listar'], title: 'Calendario' },
       },
       {
+        path: 'reservaciones/:id/cierre',
+        name: 'eventos-reservaciones-cierre',
+        component: () => import('@/pages/CierreEventoPage.vue'),
+        meta: { permissions: ['reservaciones:editar'], title: 'Cierre de Evento' },
+      },
+      {
         path: 'pagos',
         name: 'eventos-pagos',
         component: () => import('@/pages/PagosPage.vue'),
