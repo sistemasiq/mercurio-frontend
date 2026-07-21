@@ -314,9 +314,7 @@ const duracionEvento = computed(() => {
   return `${horas} ${horas === 1 ? 'Hora' : 'Horas'}`
 })
 
-const eventoId = computed(() =>
-  reservacion.value ? `EVT-${reservacion.value.id.slice(0, 8).toUpperCase()}` : '—',
-)
+const eventoId = computed(() => reservacion.value?.id ?? '—')
 
 const tipoEventoNombre = computed(
   () => tiposEventoStore.tipos.find((t) => t.id === reservacion.value?.tipo_evento_id)?.nombre,
