@@ -304,6 +304,19 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/compras',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'compras-listar',
+        component: () => import('@/pages/ComprasPage.vue'),
+        meta: { permissions: ['inventario:gestionar_compras'], title: 'Compras' },
+      },
+    ],
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/login',
   },

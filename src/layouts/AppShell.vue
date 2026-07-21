@@ -139,6 +139,12 @@ const navGroups: NavGroup[] = [
         routeName: 'proveedores-listar',
         permission: 'inventario:gestionar_proveedores',
       },
+      {
+        label: 'Compras',
+        icon: 'shopping_cart',
+        routeName: 'compras-listar',
+        permission: 'inventario:gestionar_compras',
+      },
     ],
   },
   {
