@@ -48,12 +48,16 @@
         <div class="caja-footer__stats">
           <div class="stat-block">
             <span class="stat-label">PRODUCTOS TOTALES</span>
-            <span class="stat-value text-primary">{{ totalProductos }}</span>
+            <span class="stat-value text-primary" :class="{ 'stat-pulse': pulseProductos }">{{
+              totalProductos
+            }}</span>
           </div>
           <div class="stat-sep"></div>
           <div class="stat-block">
             <span class="stat-label">PEDIDOS</span>
-            <span class="stat-value text-orange-9">{{ totalComandasActivas }}</span>
+            <span class="stat-value text-orange-9" :class="{ 'stat-pulse': pulsePedidos }">{{
+              totalComandasActivas
+            }}</span>
           </div>
         </div>
 
@@ -126,32 +130,27 @@
 </template>
 
 <script setup lang="ts">
-// 1. IMPORTACIONES FUSIONADAS Y LIMPIAS
-import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
+import { ref, computed, onBeforeUnmount, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
 
-// Componentes
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
 import TicketPanel from '@/components/comandas/TicketPanel.vue'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import ProductNoteModal from '@/components/comandas/ProductNoteModal.vue'
 import type { ItemTicket } from '@/components/comandas/TicketItem.vue'
-import { obtenerProductos } from '@/services/productoService'
-import { obtenerComandas } from '@/services/comandaService'
 import { pagosApi } from '@/api/pagosApi'
 import { metodosPagoApi } from '@/api/metodosPagoApi'
 import { useComandasSocket } from '@/composables/useComandasSocket'
 import { useTicketComanda } from '@/composables/useTicketComanda'
+import { useCajaMetrics } from '@/composables/useCajaMetrics'
 import { useAuthStore } from '@/stores/auth'
-import type { Producto, TipoProducto } from '@/types/producto'
+import type { TipoProducto } from '@/types/producto'
 import type { MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment, PagoCompletoRequest } from '@/types/payments'
-import type { Comanda, ComandaWsMessage, DetalleComandaRequest } from '@/types/comanda'
+import type { ComandaWsMessage, DetalleComandaRequest } from '@/types/comanda'
 
-// 2. ESTADO DEL MODAL DE PAGO
 const modalPagoAbierto = ref(false)
-
 const abrirModalPago = () => {
   modalPagoAbierto.value = true
 }
@@ -161,25 +160,21 @@ const authStore = useAuthStore()
 const props = defineProps<{ searchTerm?: string }>()
 const abortController = new AbortController()
 
-// Composable centralizado de ticket
 const { itemsTicket, agregarProducto, splitCombo, cambiarCantidad, cancelarOrden, guardarNotas } =
   useTicketComanda()
 
-// Estado
+const { comandasActivas, productos, refrescarComandas } = useCajaMetrics()
+
 const loading = ref(false)
 const error = ref<string | null>(null)
 const enviando = ref(false)
 const ticketAbierto = ref(false)
-const productos = ref<Producto[]>([])
-const comandasActivas = ref<Comanda[]>([])
 const metodosPagoDisponibles = ref<MetodosPago[]>([])
 
-// Dialog de notas
 const notasDialog = ref(false)
 const itemEditando = ref<ItemTicket | null>(null)
 const notasTemp = ref('')
 
-// La caja solo muestra A (Alimento) y B (Bebida).
 const listaCategorias: { value: TipoProducto | 'Todos'; label: string }[] = [
   { value: 'Todos', label: 'Todos' },
   { value: 'A', label: 'Alimentos' },
@@ -208,7 +203,6 @@ const totalProductos = computed(
 )
 const totalComandasActivas = computed(() => comandasActivas.value.length)
 
-// Calcula el total sumando el precio por la cantidad de cada producto en el ticket
 const totalTicket = computed(() => {
   return itemsTicket.value.reduce(
     (suma, item) => suma + item.producto.precio_unitario * item.cantidad,
@@ -216,7 +210,28 @@ const totalTicket = computed(() => {
   )
 })
 
-// WebSocket
+// ── Pulse animation on stat changes ────────────────────────────────
+const pulseProductos = ref(false)
+const pulsePedidos = ref(false)
+
+watch(totalProductos, (newVal, oldVal) => {
+  if (oldVal !== undefined && newVal !== oldVal) {
+    pulseProductos.value = true
+    setTimeout(() => {
+      pulseProductos.value = false
+    }, 600)
+  }
+})
+watch(totalComandasActivas, (newVal, oldVal) => {
+  if (oldVal !== undefined && newVal !== oldVal) {
+    pulsePedidos.value = true
+    setTimeout(() => {
+      pulsePedidos.value = false
+    }, 600)
+  }
+})
+
+// ── WebSocket ──────────────────────────────────────────────────────
 function handleMensajeSocket(msg: ComandaWsMessage) {
   const idx = comandasActivas.value.findIndex((c) => c.id === msg.comanda.id)
   if (idx === -1) {
@@ -229,14 +244,13 @@ function handleMensajeSocket(msg: ComandaWsMessage) {
 }
 useComandasSocket(handleMensajeSocket)
 
-// Acciones del catálogo
 const seleccionarCategoria = (cat: TipoProducto | 'Todos') => {
   categoriaSeleccionada.value = cat
 }
 
-const agregarAlTicket = async (producto: Producto) => {
+const agregarAlTicket = async (producto: ReturnType<typeof Object> & { id: string }) => {
   ticketAbierto.value = true
-  const ok = await agregarProducto(producto)
+  const ok = await agregarProducto(producto as Parameters<typeof agregarProducto>[0])
   if (!ok) {
     $q.notify({
       type: 'negative',
@@ -246,15 +260,10 @@ const agregarAlTicket = async (producto: Producto) => {
   }
 }
 
-// Acciones del ticket
 const cancelarTicket = () => {
   cancelarOrden()
   ticketAbierto.value = false
 }
-
-// ── Split + Notas UX ────────────────────────────────────────────────
-// Si el usuario intenta editar notas en un combo con cantidad > 1,
-// se le pregunta si desea dividir primero.
 
 const handleSplitCombo = async (item: ItemTicket) => {
   await splitCombo(item)
@@ -278,12 +287,10 @@ function promptSplitThenEdit(item: ItemTicket) {
 
 const abrirNotasDialog = (item: ItemTicket) => {
   const esComboConMultiples = item.producto.es_combo && !item.es_hijo_combo && item.cantidad > 1
-
   if (esComboConMultiples) {
     promptSplitThenEdit(item)
     return
   }
-
   itemEditando.value = item
   notasTemp.value = item.notas ?? ''
   notasDialog.value = true
@@ -293,10 +300,7 @@ const guardarNotasLocal = (item: ItemTicket, notas: string) => {
   guardarNotas(item, notas)
 }
 
-// ── Pago multimodal ────────────────────────────────────────────────────
-// Cuando PaymentModal emite pago-exitoso, recibimos los pagos aplicados
-// y orquestamos la creación de comanda + registro de pago en el backend.
-
+// ── Pago multimodal ────────────────────────────────────────────────
 const onPagoExitoso = (pagos: AppliedPayment[]) => {
   void procesarPago(pagos)
 }
@@ -305,11 +309,9 @@ const mapearMetodoPago = (nombreMetodo: string): string => {
   if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
     throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
   }
-
   const metodo = metodosPagoDisponibles.value.find(
     (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
   )
-
   if (!metodo) {
     const disponibles = metodosPagoDisponibles.value
       .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
@@ -378,8 +380,6 @@ const procesarPago = async (pagos: AppliedPayment[]) => {
       })),
     }
 
-    console.log('[CajaComponent] payload pago_request:', JSON.parse(JSON.stringify(payload)))
-
     const comanda = await pagosApi.completarPago(payload)
 
     $q.notify({
@@ -390,7 +390,11 @@ const procesarPago = async (pagos: AppliedPayment[]) => {
       timeout: 2500,
       icon: 'check_circle',
     })
+
     cancelarTicket()
+
+    // Actualización optimista: refrescar comandas de inmediato
+    void refrescarComandas()
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.data) {
       console.error(
@@ -411,7 +415,7 @@ const procesarPago = async (pagos: AppliedPayment[]) => {
   }
 }
 
-// Carga inicial
+// Carga inicial de productos (comandas ya las maneja useCajaMetrics)
 const cargarProductos = async () => {
   if (!authStore.currentBranchId) {
     error.value = 'No hay una sucursal activa en la sesión.'
@@ -420,7 +424,9 @@ const cargarProductos = async () => {
   loading.value = true
   error.value = null
   try {
-    const resultado = await obtenerProductos(abortController.signal)
+    const resultado = await import('@/services/productoService').then((m) =>
+      m.obtenerProductos(abortController.signal),
+    )
     if (!abortController.signal.aborted) productos.value = resultado
   } catch (err) {
     if (!abortController.signal.aborted) {
@@ -429,15 +435,6 @@ const cargarProductos = async () => {
     }
   } finally {
     if (!abortController.signal.aborted) loading.value = false
-  }
-}
-
-const cargarComandasActivas = async () => {
-  try {
-    comandasActivas.value = await obtenerComandas(abortController.signal)
-  } catch (err) {
-    if (!abortController.signal.aborted)
-      console.error('[CajaComponent] cargarComandasActivas:', err)
   }
 }
 
@@ -458,11 +455,11 @@ const cargarMetodosPago = async () => {
   }
 }
 
-onMounted(() => {
-  void cargarProductos()
-  void cargarComandasActivas()
-  void cargarMetodosPago()
-})
+// refrescarTodo se llama en mount para initial load a través del composable
+// pero productos se cargan por separado (no están en el composable)
+void cargarProductos()
+void cargarMetodosPago()
+
 onBeforeUnmount(() => abortController.abort())
 </script>
 
@@ -587,6 +584,26 @@ onBeforeUnmount(() => abortController.abort())
   font-size: 20px;
   font-weight: 700;
   line-height: 1;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+.stat-pulse {
+  animation: stat-pulse-anim 0.6s ease;
+}
+@keyframes stat-pulse-anim {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.25);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 .stat-sep {
   width: 1px;

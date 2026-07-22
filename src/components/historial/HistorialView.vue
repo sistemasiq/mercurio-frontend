@@ -1,26 +1,36 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import DetalleOrdenPagada from './DetalleOrdenPagada.vue'
-import DetalleOrdenCancelada from './DetalleOrdenCancelada.vue'
+import EditarOrdenModal from './EditarOrdenModal.vue'
+import MotivoCancelacionDialog from './MotivoCancelacionDialog.vue'
+import { comandasApi } from '@/api/comandasApi'
 import { obtenerHistorial, obtenerEstadisticas } from '@/services/historialService'
 import type { ITransaccion } from '@/types/transaccion'
 import type { Estadisticas } from '@/api/historialApi'
 
+const $q = useQuasar()
+
 const mostrarModalPagado = ref(false)
-const mostrarModalCancelado = ref(false)
+const mostrarModalEditar = ref(false)
 const isLoading = ref(false)
 const filtroTiempo = ref<'hoy' | 'semana' | 'mes'>('hoy')
 const filtroEstado = ref<'todos' | 'pagado' | 'cancelado'>('todos')
 const transacciones = ref<ITransaccion[]>([])
 const comandaSeleccionadaId = ref('')
 const estadisticas = ref<Estadisticas>({ total_ventas: 0, total_ordenes: 0, ticket_promedio: 0 })
+const mostrarFiltros = ref(false)
+const fechaInicio = ref('')
+const fechaFin = ref('')
 
 async function cargarDatos() {
   isLoading.value = true
   try {
+    const fi = fechaInicio.value || undefined
+    const ff = fechaFin.value || undefined
     const [txs, stats] = await Promise.all([
-      obtenerHistorial(filtroTiempo.value, filtroEstado.value),
-      obtenerEstadisticas(filtroTiempo.value),
+      obtenerHistorial(filtroTiempo.value, filtroEstado.value, undefined, fi, ff),
+      obtenerEstadisticas(filtroTiempo.value, undefined, fi, ff),
     ])
     transacciones.value = txs
     estadisticas.value = stats
@@ -33,6 +43,18 @@ onMounted(cargarDatos)
 
 watch([filtroTiempo, filtroEstado], cargarDatos)
 
+function aplicarFiltroFecha() {
+  mostrarFiltros.value = false
+  cargarDatos()
+}
+
+function limpiarFiltroFecha() {
+  fechaInicio.value = ''
+  fechaFin.value = ''
+  mostrarFiltros.value = false
+  cargarDatos()
+}
+
 function obtenerIconoMetodo(nombre: string): string {
   const n = nombre.toLowerCase()
   if (n.includes('tarjeta') || n.includes('credito') || n.includes('debito') || n.includes('card'))
@@ -43,9 +65,12 @@ function obtenerIconoMetodo(nombre: string): string {
 
 function obtenerClaseEstado(estado: string): string {
   const e = estado.toUpperCase()
-  if (e === 'P' || e === 'PAGADO' || e === 'L' || e === 'T') return 'status-pagado'
+  if (e === 'P') return 'status-pendiente'
+  if (e === 'E') return 'status-proceso'
+  if (e === 'L' || e === 'PAGADO') return 'status-listo'
+  if (e === 'T') return 'status-entregado'
   if (e === 'C' || e === 'CANCELADO') return 'status-cancelado'
-  return 'status-reembolsado'
+  return 'status-cancelado'
 }
 
 function textoEstado(estado: string): string {
@@ -59,14 +84,9 @@ function textoEstado(estado: string): string {
   return map[estado] ?? estado
 }
 
-const verDetalleOrden = (comandaId: string, estado: string) => {
+const verDetalleOrden = (comandaId: string, _estado: string) => {
   comandaSeleccionadaId.value = comandaId
-  const e = estado.toUpperCase()
-  if (e === 'C' || e === 'CANCELADO') {
-    mostrarModalCancelado.value = true
-  } else {
-    mostrarModalPagado.value = true
-  }
+  mostrarModalPagado.value = true
 }
 
 function formatearMonto(monto: number): string {
@@ -84,6 +104,51 @@ function formatearFecha(iso: string): string {
 
 const imprimirDirecto = () => {
   window.print()
+}
+
+function esEstadoFinal(estado: string): boolean {
+  const e = estado.toUpperCase()
+  return e === 'C' || e === 'R'
+}
+
+function esEditable(estado: string): boolean {
+  return estado.toUpperCase() === 'P'
+}
+
+function abrirCancelar(comandaId: string) {
+  comandaSeleccionadaId.value = comandaId
+  $q.dialog({
+    component: MotivoCancelacionDialog,
+    componentProps: {
+      titulo: 'Cancelar Orden',
+      subtitulo: 'Selecciona el motivo de cancelación.',
+      botonLabel: 'Cancelar Orden',
+    },
+  }).onOk(async (motivo: string) => {
+    try {
+      await comandasApi.cambiarEstado(comandaId, 'C', motivo)
+      $q.notify({
+        type: 'positive',
+        message: 'Orden cancelada correctamente.',
+        position: 'top',
+        timeout: 2500,
+        icon: 'check_circle',
+      })
+      void cargarDatos()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'No se pudo cancelar la orden.'
+      $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 4000 })
+    }
+  })
+}
+
+function abrirEditar(comandaId: string) {
+  comandaSeleccionadaId.value = comandaId
+  mostrarModalEditar.value = true
+}
+
+function onOrdenActualizada() {
+  void cargarDatos()
 }
 </script>
 
@@ -178,9 +243,34 @@ const imprimirDirecto = () => {
               <option value="pagado">Pagado</option>
               <option value="cancelado">Cancelado</option>
             </select>
-            <button type="button" class="btn-filter-advanced">
+            <button
+              type="button"
+              class="btn-filter-advanced"
+              @click="mostrarFiltros = !mostrarFiltros"
+            >
               <q-icon name="filter_list" size="xs" /> Filtros
             </button>
+          </div>
+        </div>
+
+        <div v-if="mostrarFiltros" class="advanced-filters-panel">
+          <div class="filters-row">
+            <div class="filter-field">
+              <label class="filter-label">Fecha Inicio</label>
+              <input v-model="fechaInicio" type="date" class="filter-date-input" />
+            </div>
+            <div class="filter-field">
+              <label class="filter-label">Fecha Fin</label>
+              <input v-model="fechaFin" type="date" class="filter-date-input" />
+            </div>
+            <div class="filter-actions-row">
+              <button type="button" class="btn-filter-clear" @click="limpiarFiltroFecha">
+                <q-icon name="close" size="xs" /> Limpiar
+              </button>
+              <button type="button" class="btn-filter-apply" @click="aplicarFiltroFecha">
+                <q-icon name="check" size="xs" /> Aplicar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -208,14 +298,16 @@ const imprimirDirecto = () => {
                 </td>
               </tr>
               <tr v-for="tx in transacciones" :key="tx.comanda_id" class="table-row-hover">
-                <td class="text-xs text-slate-muted">{{ formatearFecha(tx.creado) }}</td>
-                <td>
+                <td class="td-align-middle text-xs text-slate-muted">
+                  {{ formatearFecha(tx.creado) }}
+                </td>
+                <td class="td-align-middle">
                   <div class="flex-column-cell">
                     <span class="font-bold text-slate-dark">{{ tx.ticket_numero }}</span>
                     <span class="subtext-cell">Pedido</span>
                   </div>
                 </td>
-                <td>
+                <td class="td-align-middle">
                   <div class="payment-methods-cell">
                     <div v-for="(mp, idx) in tx.metodos_pago" :key="idx" class="payment-method-row">
                       <q-icon
@@ -230,19 +322,20 @@ const imprimirDirecto = () => {
                     </div>
                   </div>
                 </td>
-                <td>
+                <td class="td-align-middle">
                   <span :class="obtenerClaseEstado(tx.estado_actual)" class="status-badge-native">
                     {{ textoEstado(tx.estado_actual) }}
                   </span>
                 </td>
-                <td class="text-right font-bold text-slate-dark">
+                <td class="td-align-middle text-right font-bold text-slate-dark">
                   ${{ Number(tx.total_final || 0).toFixed(2) }}
                 </td>
-                <td>
+                <td class="td-align-middle">
                   <div class="actions-cell-group">
                     <button
                       type="button"
                       class="btn-cell-action text-blue-primary"
+                      title="Ver detalle"
                       @click="verDetalleOrden(tx.comanda_id, tx.estado_actual)"
                     >
                       <q-icon name="visibility" size="xs" />
@@ -251,10 +344,31 @@ const imprimirDirecto = () => {
                     <button
                       type="button"
                       class="btn-cell-action text-orange-deep"
-                      :disabled="tx.estado_actual === 'C'"
+                      title="Imprimir"
+                      :disabled="esEstadoFinal(tx.estado_actual)"
                       @click="imprimirDirecto()"
                     >
                       <q-icon name="print" size="xs" />
+                    </button>
+
+                    <button
+                      v-if="esEditable(tx.estado_actual)"
+                      type="button"
+                      class="btn-cell-action text-blue-primary"
+                      title="Editar orden"
+                      @click="abrirEditar(tx.comanda_id)"
+                    >
+                      <q-icon name="edit" size="xs" />
+                    </button>
+
+                    <button
+                      v-if="!esEstadoFinal(tx.estado_actual)"
+                      type="button"
+                      class="btn-cell-action text-red-error"
+                      title="Cancelar orden"
+                      @click="abrirCancelar(tx.comanda_id)"
+                    >
+                      <q-icon name="block" size="xs" />
                     </button>
                   </div>
                 </td>
@@ -276,10 +390,11 @@ const imprimirDirecto = () => {
       :comanda-id="comandaSeleccionadaId"
       @close="mostrarModalPagado = false"
     />
-    <DetalleOrdenCancelada
-      v-if="mostrarModalCancelado"
+    <EditarOrdenModal
+      v-if="mostrarModalEditar"
       :comanda-id="comandaSeleccionadaId"
-      @close="mostrarModalCancelado = false"
+      @close="mostrarModalEditar = false"
+      @orden-actualizada="onOrdenActualizada"
     />
   </div>
 </template>
@@ -565,6 +680,10 @@ const imprimirDirecto = () => {
   padding: 16px 20px;
   font-size: 14px;
   border-bottom: 1px solid #c1c6d7;
+  vertical-align: middle;
+}
+.td-align-middle {
+  vertical-align: middle !important;
 }
 .table-row-hover:hover {
   background-color: #edeeef;
@@ -607,17 +726,25 @@ const imprimirDirecto = () => {
   font-weight: 700;
   text-transform: uppercase;
 }
-.status-pagado {
-  background-color: rgba(0, 134, 69, 0.1);
+.status-pendiente {
+  background-color: #edeeef;
+  color: #414754;
+}
+.status-proceso {
+  background-color: #ffdcc3;
+  color: #6e3900;
+}
+.status-listo {
+  background-color: rgba(0, 106, 53, 0.12);
   color: #006a35;
+}
+.status-entregado {
+  background-color: rgba(0, 89, 187, 0.1);
+  color: #0059bb;
 }
 .status-cancelado {
   background-color: rgba(186, 26, 26, 0.1);
   color: #ba1a1a;
-}
-.status-reembolsado {
-  background-color: rgba(253, 139, 0, 0.1);
-  color: #603100;
 }
 .actions-cell-group {
   display: flex;
@@ -684,5 +811,81 @@ const imprimirDirecto = () => {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   opacity: 0.4;
+}
+.advanced-filters-panel {
+  padding: 16px 20px;
+  border-bottom: 1px solid #c1c6d7;
+  background-color: #f8f9fa;
+}
+.filters-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #414754;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.filter-date-input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #c1c6d7;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+}
+.filter-date-input:focus {
+  border-color: #0059bb;
+}
+.filter-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.btn-filter-clear {
+  height: 38px;
+  padding: 0 16px;
+  background-color: #ffffff;
+  border: 1px solid #c1c6d7;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #414754;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.btn-filter-clear:hover {
+  background-color: #edeeef;
+}
+.btn-filter-apply {
+  height: 38px;
+  padding: 0 16px;
+  background-color: #0059bb;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.btn-filter-apply:hover {
+  background-color: #004a9c;
 }
 </style>

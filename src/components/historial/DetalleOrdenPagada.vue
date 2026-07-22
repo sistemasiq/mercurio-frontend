@@ -18,6 +18,15 @@ onMounted(async () => {
   }
 })
 
+function badgeClase(estado: string): string {
+  if (estado === 'C') return 'badge-cancelado'
+  return 'badge-pagado'
+}
+
+function textoEstado(estado: string): string {
+  return estado === 'C' ? 'CANCELADO' : 'PAGADO'
+}
+
 function metodoIcono(nombre: string): string {
   const n = nombre.toLowerCase()
   if (n.includes('tarjeta') || n.includes('credito') || n.includes('debito')) return 'credit_card'
@@ -43,7 +52,7 @@ const ejecutarImpresion = () => {
 </script>
 
 <template>
-  <div class="modal-backdrop-blur">
+  <div class="modal-backdrop-blur" @click.self="$emit('close')">
     <div class="order-detail-card">
       <!-- Loading -->
       <div v-if="isLoading" class="loading-container">
@@ -58,13 +67,24 @@ const ejecutarImpresion = () => {
           <div class="header-left">
             <div class="title-row">
               <h2 class="order-title">Detalle de Orden #{{ orden.ticket_numero }}</h2>
-              <span class="badge badge-pagado">PAGADO</span>
+              <span :class="['badge', badgeClase(orden.estado_actual)]">{{
+                textoEstado(orden.estado_actual)
+              }}</span>
             </div>
             <p class="order-meta">{{ formatearFecha(orden.fecha_hora) }}</p>
           </div>
           <button type="button" class="btn-close-x" @click="$emit('close')">
             <q-icon name="close" size="xs" />
           </button>
+        </div>
+
+        <!-- Motivo de cancelación -->
+        <div v-if="orden.estado_actual === 'C'" class="cancel-reason-banner">
+          <q-icon name="warning" color="negative" size="sm" />
+          <div>
+            <strong>Motivo de cancelación:</strong>
+            <p>{{ orden.motivo_cancelacion || 'Cancelación sin motivo especificado' }}</p>
+          </div>
         </div>
 
         <!-- Info Blocks -->
@@ -168,7 +188,7 @@ const ejecutarImpresion = () => {
   justify-content: center;
   padding: 40px;
   box-sizing: border-box;
-  z-index: 99999;
+  z-index: 1000;
 }
 
 .order-detail-card {
@@ -230,6 +250,10 @@ const ejecutarImpresion = () => {
   background-color: #008645;
   color: #ffffff;
 }
+.badge-cancelado {
+  background-color: #dc2626;
+  color: #ffffff;
+}
 .order-meta {
   font-size: 12px;
   color: #64748b;
@@ -241,6 +265,28 @@ const ejecutarImpresion = () => {
   color: #64748b;
   cursor: pointer;
   padding: 4px;
+}
+
+.cancel-reason-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  color: #7f1d1d;
+}
+.cancel-reason-banner strong {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #991b1b;
+}
+.cancel-reason-banner p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .info-blocks-grid {

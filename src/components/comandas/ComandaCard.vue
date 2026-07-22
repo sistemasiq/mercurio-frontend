@@ -100,6 +100,7 @@ const estadoLabel = (estado: EstadoActualComanda): string => {
     E: 'EN PREPARACIÓN',
     L: 'LISTO PARA ENTREGA',
     T: 'ENTREGADO',
+    C: 'CANCELADO',
   }
   return labels[estado] ?? estado
 }
@@ -190,10 +191,11 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 
 <style lang="scss" scoped>
 .kds-card {
+  height: 100%;
   background-color: #fff;
   border-radius: 12px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   overflow: hidden;
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
@@ -285,11 +287,10 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 
 .kds-card-body {
   padding: 16px;
-  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 280px;
   overflow-y: auto;
 }
 .kds-item {
@@ -365,7 +366,6 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   padding: 16px;
   background-color: #fff;
   border-top: 1px solid #e1e3e4;
-  margin-top: auto;
 }
 .kds-btn {
   width: 100%;

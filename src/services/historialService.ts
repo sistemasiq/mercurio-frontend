@@ -6,8 +6,10 @@ export async function obtenerHistorial(
   filtro: string,
   estado: string,
   signal?: AbortSignal,
+  fechaInicio?: string,
+  fechaFin?: string,
 ): Promise<ITransaccion[]> {
-  return historialApi.listar(filtro, estado, signal)
+  return historialApi.listar(filtro, estado, signal, fechaInicio, fechaFin)
 }
 
 export async function obtenerDetalleOrden(
@@ -20,6 +22,8 @@ export async function obtenerDetalleOrden(
 export async function obtenerEstadisticas(
   filtro: string,
   signal?: AbortSignal,
+  fechaInicio?: string,
+  fechaFin?: string,
 ): Promise<Estadisticas> {
-  return historialApi.getEstadisticas(filtro, signal)
+  return historialApi.getEstadisticas(filtro, signal, fechaInicio, fechaFin)
 }

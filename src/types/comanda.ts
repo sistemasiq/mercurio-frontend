@@ -16,7 +16,7 @@
 import type { TipoProducto } from './producto'
 
 // Estados del ciclo de vida de una comanda (códigos del backend)
-export type EstadoActualComanda = 'P' | 'E' | 'L' | 'T'
+export type EstadoActualComanda = 'P' | 'E' | 'L' | 'T' | 'C'
 
 // Detalle de un ítem dentro de una comanda — shape exacto del backend
 export interface DetalleComanda {

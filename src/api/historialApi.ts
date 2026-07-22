@@ -2,6 +2,7 @@ import { apiClient } from '@/api/axiosClient'
 import type { ITransaccion } from '@/types/transaccion'
 
 export interface DetalleProducto {
+  id: string
   producto_nombre: string
   cantidad: number
   precio_unitario: number
@@ -22,6 +23,7 @@ export interface DetalleOrden {
   total_final: number
   estado_actual: string
   fecha_hora: string | null
+  motivo_cancelacion: string | null
   creado_por_nombre: string | null
   metodos_pago: MetodoPagoDetalle[]
   detalles: DetalleProducto[]
@@ -34,9 +36,18 @@ export interface Estadisticas {
 }
 
 export const historialApi = {
-  async listar(filtro: string, estado: string, signal?: AbortSignal): Promise<ITransaccion[]> {
+  async listar(
+    filtro: string,
+    estado: string,
+    signal?: AbortSignal,
+    fechaInicio?: string,
+    fechaFin?: string,
+  ): Promise<ITransaccion[]> {
+    const params: Record<string, string> = { filtro, estado }
+    if (fechaInicio) params.fecha_inicio = fechaInicio
+    if (fechaFin) params.fecha_fin = fechaFin
     const { data } = await apiClient.get<ITransaccion[]>('/pagos/historial', {
-      params: { filtro, estado },
+      params,
       signal,
     })
     return data
@@ -47,9 +58,17 @@ export const historialApi = {
     return data
   },
 
-  async getEstadisticas(filtro: string, signal?: AbortSignal): Promise<Estadisticas> {
+  async getEstadisticas(
+    filtro: string,
+    signal?: AbortSignal,
+    fechaInicio?: string,
+    fechaFin?: string,
+  ): Promise<Estadisticas> {
+    const params: Record<string, string> = { filtro }
+    if (fechaInicio) params.fecha_inicio = fechaInicio
+    if (fechaFin) params.fecha_fin = fechaFin
     const { data } = await apiClient.get<Estadisticas>('/pagos/estadisticas', {
-      params: { filtro },
+      params,
       signal,
     })
     return data

@@ -116,7 +116,6 @@ const formatMethodName = (pago: AppliedPayment) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  overflow-y: auto;
 }
 .payment-card {
   background: #ffffff;
