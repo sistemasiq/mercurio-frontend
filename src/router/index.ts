@@ -8,6 +8,7 @@ declare module 'vue-router' {
     publicOnly?: boolean
     permissions?: string[]
     title?: string
+    parentRoute?: string
   }
 }
 
@@ -47,9 +48,33 @@ const routes: RouteRecordRaw[] = [
     children: [
       {
         path: 'caja',
-        name: 'pos-caja',
-        component: () => import('@/components/DashboardComponent.vue'),
-        meta: { permissions: ['pos:acceder'], title: 'Caja' },
+        redirect: '/pos/caja/apertura',
+      },
+      {
+        path: 'caja/apertura',
+        name: 'caja-apertura',
+        component: () => import('@/pages/caja/AperturaCajaPage.vue'),
+        meta: { permissions: ['pos:acceder'], title: 'Apertura de Caja' },
+      },
+      {
+        path: 'caja/activa',
+        name: 'caja-activa',
+        component: () => import('@/pages/caja/GestionCajaPage.vue'),
+        meta: {
+          permissions: ['pos:acceder'],
+          title: 'Gestión de Caja',
+          parentRoute: 'caja-apertura',
+        },
+      },
+      {
+        path: 'caja/retiro',
+        name: 'caja-retiro',
+        component: () => import('@/pages/caja/RetiroParcialPage.vue'),
+        meta: {
+          permissions: ['pos:acceder'],
+          title: 'Retiro Parcial',
+          parentRoute: 'caja-apertura',
+        },
       },
       {
         path: 'cocina',

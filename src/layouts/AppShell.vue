@@ -30,7 +30,12 @@ const navGroups: NavGroup[] = [
   {
     label: 'OPERACIÓN',
     items: [
-      { label: 'Caja', icon: 'point_of_sale', routeName: 'pos-caja', permission: 'pos:acceder' },
+      {
+        label: 'Caja',
+        icon: 'point_of_sale',
+        routeName: 'caja-apertura',
+        permission: 'pos:acceder',
+      },
       {
         label: 'Cocina',
         icon: 'restaurant',
@@ -171,7 +176,7 @@ const userName = computed(() => auth.currentUser?.name ?? auth.currentUser?.emai
 const userRole = computed(() => auth.primaryRole ?? '')
 
 function isActive(routeName: string): boolean {
-  return route.name === routeName
+  return route.name === routeName || route.meta?.parentRoute === routeName
 }
 
 async function handleLogout(): Promise<void> {

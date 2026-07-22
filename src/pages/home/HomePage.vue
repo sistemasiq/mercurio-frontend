@@ -18,7 +18,7 @@ const router = useRouter()
 const cards: HomeCard[] = [
   {
     permission: 'pos:acceder',
-    routeName: 'pos-caja',
+    routeName: 'caja-apertura',
     icon: 'point_of_sale',
     color: 'secondary',
     title: 'Caja',
