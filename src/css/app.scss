@@ -360,8 +360,8 @@ body {
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
   transition:
     box-shadow 0.2s,
     transform 0.2s;
@@ -371,13 +371,37 @@ body {
     transform: translateY(-2px);
   }
 
-  &__label {
-    font-size: 0.7rem;
+  &__top {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  &__corner-badge {
+    font-size: 0.65rem;
     font-weight: 700;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+
+    &--positive {
+      background: rgba(16, 185, 129, 0.12);
+      color: $positive;
+    }
+
+    &--negative {
+      background: rgba(239, 68, 68, 0.12);
+      color: $negative;
+    }
+  }
+
+  &__label {
+    font-size: 0.8rem;
+    font-weight: 500;
     color: var(--text-secondary);
-    margin-bottom: 6px;
+    margin-top: 4px;
   }
 
   &__value {
@@ -387,17 +411,10 @@ body {
     line-height: 1;
   }
 
-  &__badge {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: $positive;
-    margin-top: 4px;
-  }
-
   &__icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
