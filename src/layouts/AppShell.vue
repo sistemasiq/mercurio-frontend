@@ -30,7 +30,18 @@ const navGroups: NavGroup[] = [
   {
     label: 'OPERACIÓN',
     items: [
-      { label: 'Caja', icon: 'point_of_sale', routeName: 'pos-caja', permission: 'pos:acceder' },
+      {
+        label: 'Caja (POS)',
+        icon: 'point_of_sale',
+        routeName: 'pos-caja',
+        permission: 'pos:acceder',
+      },
+      {
+        label: 'Apertura y Cierre',
+        icon: 'key',
+        routeName: 'pos-cierre',
+        permission: 'pos:acceder',
+      },
       {
         label: 'Cocina',
         icon: 'restaurant',

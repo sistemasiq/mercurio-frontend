@@ -6,7 +6,7 @@
       <div v-for="(fila, idx) in modelValue" :key="fila.id" class="rs-metodo-fila">
         <!-- Icono + etiqueta -->
         <div class="rs-metodo-info">
-          <span class="rs-icon material-symbols-outlined">confirmation_number</span>
+          <q-icon name="confirmation_number" color="primary" size="20px" class="q-mr-xs" />
           <span v-if="readonly" class="rs-metodo-nombre">{{ etiquetaMetodo(fila.metodo) }}</span>
           <q-select
             v-else
@@ -54,7 +54,7 @@
 
       <!-- Agregar nueva fila -->
       <button v-if="!readonly" type="button" class="rs-btn-add" @click="agregarFila">
-        <span class="material-symbols-outlined rs-icon-sm">add_circle</span>
+        <q-icon name="add_circle" color="primary" size="18px" class="q-mr-xs" />
         Agregar método de pago
       </button>
     </div>

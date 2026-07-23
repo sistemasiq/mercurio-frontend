@@ -2,7 +2,7 @@
   <div class="rs-resumen-card">
     <!-- Header -->
     <div class="rs-card-header">
-      <span class="material-symbols-outlined rs-header-icon">assessment</span>
+      <q-icon name="assessment" color="primary" size="24px" class="q-mr-xs" />
       <h3 class="rs-card-title">Resumen de turno</h3>
     </div>
 

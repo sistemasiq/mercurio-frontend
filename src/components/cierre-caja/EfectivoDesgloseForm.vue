@@ -6,7 +6,7 @@
       <!-- ── Billetes ── -->
       <div class="rs-col">
         <div class="rs-col-heading">
-          <span class="rs-icon material-symbols-outlined">payments</span>
+          <q-icon name="payments" color="primary" size="20px" class="q-mr-xs" />
           Billetes
         </div>
         <div class="rs-denom-list">
@@ -33,7 +33,7 @@
       <!-- ── Monedas ── -->
       <div class="rs-col">
         <div class="rs-col-heading">
-          <span class="rs-icon material-symbols-outlined">monetization_on</span>
+          <q-icon name="monetization_on" color="primary" size="20px" class="q-mr-xs" />
           Monedas
         </div>
         <div class="rs-denom-list">

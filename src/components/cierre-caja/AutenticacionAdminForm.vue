@@ -15,7 +15,7 @@
           :disabled="turno.credencialesAdmin.cargando"
           @click="turno.cancelarDialogAdmin()"
         >
-          <span class="material-symbols-outlined">close</span>
+          <q-icon name="close" size="20px" />
         </button>
       </div>
 
@@ -34,7 +34,8 @@
             :disabled="turno.credencialesAdmin.cargando"
             @focus="emailFocused = true"
             @blur="emailFocused = false"
-            @keyup.enter="turno.autenticarAdmin()"
+            @input="turno.credencialesAdmin.error = ''"
+            @keyup.enter="intentarAutenticar"
           />
         </div>
 
@@ -51,15 +52,23 @@
             :disabled="turno.credencialesAdmin.cargando"
             @focus="passFocused = true"
             @blur="passFocused = false"
-            @keyup.enter="turno.autenticarAdmin()"
+            @input="turno.credencialesAdmin.error = ''"
+            @keyup.enter="intentarAutenticar"
           />
         </div>
 
-        <!-- Error de credenciales -->
-        <div v-if="turno.credencialesAdmin.error" class="rs-auth-error">
-          <span class="material-symbols-outlined rs-error-icon">error_outline</span>
-          {{ turno.credencialesAdmin.error }}
-        </div>
+        <!-- Error de credenciales (Aviso en caja roja dentro del modal) -->
+        <q-banner
+          v-if="turno.credencialesAdmin.error"
+          rounded
+          dense
+          class="bg-negative text-white q-mt-sm"
+        >
+          <template #avatar>
+            <q-icon name="error" color="white" size="20px" />
+          </template>
+          <div><strong>Credenciales incorrectas:</strong> {{ turno.credencialesAdmin.error }}</div>
+        </q-banner>
       </div>
 
       <!-- ── Acciones ── -->
@@ -80,38 +89,24 @@
             !turno.credencialesAdmin.password ||
             turno.credencialesAdmin.cargando
           "
-          @click="turno.autenticarAdmin()"
+          @click="intentarAutenticar"
         >
-          <span
+          <q-spinner-dots
             v-if="turno.credencialesAdmin.cargando"
-            class="material-symbols-outlined rs-btn-icon"
-            >progress_activity</span
-          >
-          <span v-else class="material-symbols-outlined rs-btn-icon">login</span>
+            size="18px"
+            color="white"
+            class="q-mr-xs"
+          />
+          <q-icon v-else name="login" size="18px" color="white" class="q-mr-xs" />
           Ingresar al Panel
         </button>
       </div>
-
-      <!-- ── Modo Test (DEV only) ─────────────────────────────────────── -->
-      <template v-if="isDev">
-        <div class="rs-dev-separator" />
-        <div class="rs-dev-banner">
-          <span class="rs-dev-label">
-            <span class="material-symbols-outlined rs-dev-icon">science</span>
-            Modo Test — sin backend
-          </span>
-          <button type="button" class="rs-dev-btn" @click="simularRevision">
-            <span class="material-symbols-outlined rs-dev-btn-icon">fast_forward</span>
-            Simular Autorización Admin (Modo Test)
-          </button>
-        </div>
-      </template>
     </div>
   </q-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 
@@ -121,23 +116,53 @@ const turno = useTurnoCajaStore()
 const emailFocused = ref(false)
 const passFocused = ref(false)
 
-const isDev = import.meta.env.DEV
+onMounted(() => {
+  turno.credencialesAdmin.email = ''
+  turno.credencialesAdmin.password = ''
+  turno.credencialesAdmin.error = ''
+})
 
-/* v8 ignore next 15 */
-async function simularRevision() {
-  if (!isDev) return
-  await (
-    turno as ReturnType<typeof useTurnoCajaStore> & {
-      inyectarRevisionMock?: () => Promise<void>
-    }
-  ).inyectarRevisionMock?.()
-  $q.notify({
-    type: 'info',
-    icon: 'science',
-    message: 'Revisión mock inyectada — estado BALANCE_REVELADO.',
-    caption: 'Diferencia neta de -$250 (faltante en efectivo).',
-    timeout: 4500,
-  })
+async function intentarAutenticar() {
+  const email = turno.credencialesAdmin.email.trim()
+  const password = turno.credencialesAdmin.password
+
+  // 1. Validar formato de correo
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!email || !emailRegex.test(email)) {
+    $q.notify({
+      type: 'negative',
+      position: 'top',
+      icon: 'warning',
+      message: 'Ingresa un correo electrónico válido (ejemplo: admin@sucursal.com).',
+    })
+    return
+  }
+
+  // 2. Validar contraseña no vacía
+  if (!password) {
+    $q.notify({
+      type: 'negative',
+      position: 'top',
+      icon: 'warning',
+      message: 'Ingresa la contraseña del administrador.',
+    })
+    return
+  }
+
+  // 3. Ejecutar autenticación con el backend
+  const exito = await turno.autenticarAdmin()
+
+  // 4. Si falla la autenticación, notificar en la parte superior y reiniciar campos
+  if (!exito) {
+    $q.notify({
+      type: 'negative',
+      position: 'top',
+      icon: 'error',
+      message:
+        turno.credencialesAdmin.error ||
+        'Credenciales incorrectas. Verifique usuario y contraseña.',
+    })
+  }
 }
 </script>
 

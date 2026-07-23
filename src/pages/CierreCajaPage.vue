@@ -5,15 +5,15 @@
       <div class="rs-page-header">
         <div class="rs-header-meta">
           <span class="rs-meta-item">
-            <span class="material-symbols-outlined rs-meta-icon">person</span>
+            <q-icon name="person" size="20px" color="primary" class="q-mr-xs" />
             <span class="rs-meta-text"
-              >Cajero: <strong>{{ turno.cajeroNombre || '—' }}</strong></span
+              >Cajero: <strong>{{ cajeroNombreMostrar }}</strong></span
             >
           </span>
           <span class="rs-meta-item">
-            <span class="material-symbols-outlined rs-meta-icon">point_of_sale</span>
+            <q-icon name="point_of_sale" size="20px" color="primary" class="q-mr-xs" />
             <span class="rs-meta-text"
-              >Terminal: <strong>{{ turno.terminal || '—' }}</strong></span
+              >Terminal: <strong>{{ terminalNombreMostrar }}</strong></span
             >
           </span>
         </div>
@@ -23,39 +23,9 @@
         </span>
       </div>
 
-      <!-- ══ Sin turno activo ════════════════════════════════════════════ -->
-      <div v-if="turno.error && !turno.turnoId" class="rs-empty-state">
-        <q-icon name="point_of_sale" size="56px" color="grey-4" />
-        <div class="rs-empty-title">Sin turno activo</div>
-        <div class="rs-empty-body">{{ turno.error }}</div>
-        <q-btn
-          unelevated
-          no-caps
-          color="primary"
-          label="Reintentar"
-          @click="turno.cargarTurnoActivo()"
-        />
-
-        <!-- Modo Test — solo DEV -->
-        <div v-if="isDev" class="rs-mock-banner">
-          <span class="rs-mock-label">
-            <span class="material-symbols-outlined" style="font-size: 14px">science</span>
-            Modo Test — sin backend
-          </span>
-          <q-btn
-            outline
-            no-caps
-            color="orange"
-            icon="play_circle"
-            label="Simular Turno Activo (Modo Test)"
-            class="q-mt-xs"
-            @click="simularTurno"
-          />
-          <span class="rs-mock-hint">
-            Inyecta un turno mock en estado EN_CONTEO con fondo $2,000,<br />
-            retiros $1,500 y 3 métodos de pago. No llama al backend.
-          </span>
-        </div>
+      <!-- ══ Sin turno activo / Apertura de caja ═════════════════════════ -->
+      <div v-if="turno.sinTurno" class="rs-apertura-section">
+        <AperturaCajaCard @apertura-exitosa="turno.cargarTurnoActivo()" />
       </div>
 
       <!-- ══ Cargando ════════════════════════════════════════════════════ -->
@@ -70,21 +40,36 @@
           <!-- FASE OPERANDO -->
           <template v-if="turno.estaOperando">
             <div class="rs-panel rs-operando-panel">
-              <span class="material-symbols-outlined rs-operando-icon">point_of_sale</span>
+              <q-icon name="point_of_sale" size="32px" color="primary" class="q-mb-xs" />
               <div class="rs-operando-title">Turno activo</div>
               <div class="rs-operando-sub">
-                Cajero: <strong>{{ turno.cajeroNombre }}</strong>
+                Cajero: <strong>{{ turno.cajeroNombre }}</strong> | Terminal:
+                <strong>{{ turno.terminal }}</strong>
               </div>
-              <q-btn
-                unelevated
-                no-caps
-                size="lg"
-                color="primary"
-                label="Iniciar conteo de caja"
-                icon="calculate"
-                :loading="turno.cargando"
-                @click="turno.iniciarConteo()"
-              />
+              <div class="rs-operando-sub q-mb-md text-primary">
+                Fondo Inicial: <strong>${{ turno.fondoInicial.toLocaleString('es-MX') }}</strong>
+              </div>
+              <div class="row q-gutter-md justify-center">
+                <q-btn
+                  unelevated
+                  no-caps
+                  size="lg"
+                  color="secondary"
+                  label="Ir a la Caja (POS)"
+                  icon="storefront"
+                  @click="router.push('/pos/caja')"
+                />
+                <q-btn
+                  unelevated
+                  no-caps
+                  size="lg"
+                  color="primary"
+                  label="Iniciar conteo de caja"
+                  icon="calculate"
+                  :loading="turno.cargando"
+                  @click="turno.iniciarConteo()"
+                />
+              </div>
             </div>
           </template>
 
@@ -114,7 +99,17 @@
                     {{ turno.error }}
                   </q-banner>
 
-                  <div class="rs-submit-row">
+                  <div class="rs-submit-row row q-gutter-md justify-between items-center q-mt-md">
+                    <q-btn
+                      outline
+                      no-caps
+                      class="rs-btn-salir"
+                      label="Salir"
+                      icon="logout"
+                      :loading="turno.cargando"
+                      :disable="turno.esperandoRevision"
+                      @click="cancelarConteoYSalir"
+                    />
                     <q-btn
                       unelevated
                       no-caps
@@ -151,7 +146,7 @@
 
               <!-- Banner admin -->
               <div class="rs-admin-ok-banner">
-                <span class="material-symbols-outlined rs-admin-ok-icon">verified_user</span>
+                <q-icon name="verified_user" size="24px" color="positive" class="q-mr-xs" />
                 Revisado por <strong class="rs-admin-ok-name">{{ turno.adminNombre }}</strong>
                 <span class="rs-spacer" />
                 <button type="button" class="rs-revocar-btn" @click="turno.cancelarConteo()">
@@ -182,18 +177,28 @@
           <!-- FASE CERRADO -->
           <template v-if="turno.estaCerrado">
             <div class="rs-panel rs-cerrado-panel">
-              <span class="material-symbols-outlined rs-cerrado-icon">task_alt</span>
+              <q-icon name="task_alt" size="32px" color="positive" class="q-mb-xs" />
               <div class="rs-operando-title">Cierre confirmado</div>
-              <div class="rs-operando-sub">El turno ha sido cerrado correctamente.</div>
-              <q-btn
-                v-if="pdfUrl"
-                unelevated
-                no-caps
-                color="primary"
-                label="Descargar comprobante PDF"
-                icon="download"
-                @click="descargarPdf"
-              />
+              <div class="rs-operando-sub q-mb-lg">El turno ha sido cerrado correctamente.</div>
+              <div class="row q-gutter-md justify-center">
+                <q-btn
+                  v-if="pdfUrl"
+                  unelevated
+                  no-caps
+                  color="primary"
+                  label="Descargar comprobante PDF"
+                  icon="download"
+                  @click="descargarPdf"
+                />
+                <q-btn
+                  unelevated
+                  no-caps
+                  color="positive"
+                  label="Abrir Nuevo Turno (Apertura de Caja)"
+                  icon="add_circle"
+                  @click="turno.reiniciarCicloTurno()"
+                />
+              </div>
             </div>
           </template>
         </div>
@@ -210,22 +215,27 @@
 
     <!-- Overlay de bloqueo -->
     <ConteoBloqueadoOverlay
-      :visible="turno.esperandoRevision"
+      :visible="turno.esperandoRevision && !turno.mostrarDialogAdmin"
       :permitir-cancelar="true"
       @cancelar="turno.cancelarConteo()"
     />
 
-    <!-- Modal admin -->
+    <!-- Etapa 1: Login del Administrador (Conteo Ciego) -->
     <AutenticacionAdminForm />
+
+    <!-- Etapa 2: Modal de Autorización de Cierre (Stitch Standalone Modal) -->
+    <AutorizacionCierreModal />
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { turnoCajaService } from '@/services/turnoCajaService'
 
+import AperturaCajaCard from '@/components/cierre-caja/AperturaCajaCard.vue'
 import EfectivoDesgloseForm from '@/components/cierre-caja/EfectivoDesgloseForm.vue'
 import MetodoPagoMontoForm from '@/components/cierre-caja/MetodoPagoMontoForm.vue'
 import TotalDeclaradoCard from '@/components/cierre-caja/TotalDeclaradoCard.vue'
@@ -234,16 +244,28 @@ import ObservacionesConfirmacionCard from '@/components/cierre-caja/Observacione
 import ResumenConteoCard from '@/components/cierre-caja/ResumenConteoCard.vue'
 import ConteoBloqueadoOverlay from '@/components/cierre-caja/ConteoBloqueadoOverlay.vue'
 import AutenticacionAdminForm from '@/components/cierre-caja/AutenticacionAdminForm.vue'
+import AutorizacionCierreModal from '@/components/cierre-caja/AutorizacionCierreModal.vue'
+
+import { useAuthStore } from '@/stores/auth'
 
 const $q = useQuasar()
+const router = useRouter()
 const turno = useTurnoCajaStore()
-const isDev = import.meta.env.DEV
+const authStore = useAuthStore()
 
 const observaciones = ref('')
 const obsCardRef = ref<InstanceType<typeof ObservacionesConfirmacionCard> | null>(null)
 const pdfUrl = ref<string | null>(null)
 
 // ── Computed ──────────────────────────────────────────────────────────────
+
+const cajeroNombreMostrar = computed(() => {
+  return turno.cajeroNombre || authStore.user?.name || authStore.user?.email || '—'
+})
+
+const terminalNombreMostrar = computed(() => {
+  return turno.terminal || 'Sin caja activa'
+})
 
 const totalCalculado = computed(() => {
   const totalMetodos = turno.metodosPago.reduce((acc, m) => acc + (m.monto ?? 0), 0)
@@ -252,6 +274,7 @@ const totalCalculado = computed(() => {
 
 const estadoLabel = computed(() => {
   const labels: Record<string, string> = {
+    SIN_TURNO: 'Sin turno activo',
     OPERANDO: 'Operando',
     EN_CONTEO: 'En conteo',
     ESPERANDO_REVISION: 'Esperando revisión',
@@ -264,6 +287,7 @@ const estadoLabel = computed(() => {
 // Clase del pill según el estado (coincide con las clases rs-estado-pill--)
 const pilColor = computed(() => {
   const map: Record<string, string> = {
+    SIN_TURNO: 'rs-estado-pill--sin-turno',
     OPERANDO: 'rs-estado-pill--operando',
     EN_CONTEO: 'rs-estado-pill--en-conteo',
     ESPERANDO_REVISION: 'rs-estado-pill--esperando',
@@ -274,6 +298,30 @@ const pilColor = computed(() => {
 })
 
 // ── Acciones ──────────────────────────────────────────────────────────────
+
+async function cancelarConteoYSalir() {
+  $q.dialog({
+    title: 'Cancelar conteo de caja',
+    message:
+      '¿Estás seguro de cancelar el conteo actual? Toda la información capturada se restablecerá a cero.',
+    cancel: {
+      flat: true,
+      label: 'Continuar en conteo',
+    },
+    ok: {
+      color: 'negative',
+      label: 'Sí, cancelar y salir',
+    },
+    persistent: true,
+  }).onOk(async () => {
+    await turno.cancelarConteo()
+    $q.notify({
+      type: 'info',
+      icon: 'cancel',
+      message: 'El conteo ha sido cancelado. El turno regresa al estado activo.',
+    })
+  })
+}
 
 async function confirmarCierre() {
   if (!obsCardRef.value?.validar()) {
@@ -300,23 +348,6 @@ async function descargarPdf() {
   } catch (err) {
     $q.notify({ type: 'negative', message: (err as Error).message })
   }
-}
-
-/* v8 ignore next 12 */
-async function simularTurno() {
-  if (!isDev) return
-  await (
-    turno as ReturnType<typeof useTurnoCajaStore> & {
-      inyectarTurnoMock?: () => Promise<void>
-    }
-  ).inyectarTurnoMock?.()
-  $q.notify({
-    type: 'info',
-    icon: 'science',
-    message: 'Turno mock inyectado — estado EN_CONTEO.',
-    caption: 'Ninguna llamada al backend fue realizada.',
-    timeout: 4000,
-  })
 }
 
 onMounted(() => {
@@ -577,6 +608,22 @@ onMounted(() => {
   font-size: 13px;
   padding: 10px 28px;
   border-radius: 8px;
+}
+
+.rs-btn-salir {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 28px;
+  border-radius: 8px;
+  color: #dc2626;
+  border: 1.5px solid rgba(220, 38, 38, 0.4) !important;
+  background: rgba(254, 226, 226, 0.25);
+  transition: all 0.2s ease;
+}
+.rs-btn-salir:hover {
+  background: rgba(254, 226, 226, 0.55);
+  border-color: rgba(220, 38, 38, 0.7) !important;
 }
 
 /* ── Admin ok banner ────────────────────────────────────────────────── */
