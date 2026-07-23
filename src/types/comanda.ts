@@ -16,19 +16,25 @@
 import type { TipoProducto } from './producto'
 
 // Estados del ciclo de vida de una comanda (códigos del backend)
-export type EstadoActualComanda = 'P' | 'E' | 'L' | 'T'
+export type EstadoActualComanda = 'P' | 'E' | 'L' | 'T' | 'C'
 
 // Detalle de un ítem dentro de una comanda — shape exacto del backend
 export interface DetalleComanda {
   id: string
   producto_id: string
+  nombre?: string | null
   producto_nombre: string | null
+  nombre_combo_padre?: string | null
   // Viene del JOIN LEFT con public.productos (p.tipo AS producto_tipo)
   // Necesario para que el KDS filtre ítems no consumibles (S, E)
   producto_tipo?: TipoProducto | null
   cantidad: number
   precio_unitario: number
+  subtotal?: number
+  importe?: number
   notas_especiales?: string | null
+  es_hijo_de?: string | null
+  es_hijo_combo?: boolean
 }
 
 // Shape de la comanda tal como la retorna el backend (asdict de models/Comanda)
@@ -56,7 +62,6 @@ export type ComandaWsMessage =
 export interface CrearComandaRequest {
   ticket_numero: string
   total_final: number
-  sucursal_id: string
   estado_actual: EstadoActualComanda
   detalles_comanda: DetalleComandaRequest[]
 }
@@ -71,4 +76,7 @@ export interface DetalleComandaRequest {
   precio_unitario: number
   subtotal: number
   notas_especiales?: string
+  nombre_combo_padre?: string
+  es_hijo_de?: string
+  es_hijo_combo?: boolean
 }

@@ -2,24 +2,22 @@
 // S (Servicio), E (Estancia).
 export type TipoProducto = 'A' | 'B' | 'S' | 'E'
 
-export interface Producto {
+export interface ProductoBase {
   id: string
   nombre: string
-  precio_unitario: number
+  precio_unitario: string | number
   tipo: TipoProducto
-  imagen: string
-  sucursal_id: string
-  descripcion?: string
-}
-
-export interface ProductoAdmin {
-  id: string
-  nombre: string
-  precio_unitario: string
-  tipo: TipoProducto
+  imagen: string | null
   sucursal_id: string
   descripcion: string | null
-  imagen: string | null
+  es_combo: boolean
+}
+
+export interface Producto extends Omit<ProductoBase, 'precio_unitario'> {
+  precio_unitario: number
+}
+
+export interface ProductoAdmin extends ProductoBase {
   activo: boolean
   creado?: string | null
   creado_por?: string | null
@@ -34,6 +32,7 @@ export interface ProductoCreate {
   sucursal_id: string
   descripcion?: string | null
   imagen?: string | null
+  es_combo?: boolean
 }
 
 export interface ProductoUpdate {
@@ -43,4 +42,12 @@ export interface ProductoUpdate {
   descripcion?: string | null
   imagen?: string | null
   activo?: boolean
+  es_combo?: boolean
+}
+
+export interface ProductoComboHijo {
+  producto_id: string
+  nombre: string
+  cantidad: number
+  precio_unitario: number
 }
