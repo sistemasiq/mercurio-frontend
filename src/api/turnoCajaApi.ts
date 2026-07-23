@@ -1,6 +1,9 @@
 import { apiClient } from '@/api/axiosClient'
 import type {
   TurnoActivoResponse,
+  AbrirTurnoPayload,
+  TurnoItem,
+  CajaItem,
   ConteoPayload,
   RevisionAdminPayload,
   RevisionAdminResponse,
@@ -87,6 +90,51 @@ function mapArqueoResumen(raw: any) {
 
 export const turnoCajaApi = {
   /**
+   * GET /turnos-caja/turnos
+   * Lista los turnos de la BD.
+   */
+  async obtenerTurnos(): Promise<TurnoItem[]> {
+    const { data } = await apiClient.get(`${BASE}/turnos`)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((t: any) => ({
+      id: t.id,
+      nombre: t.nombre,
+      horaInicio: t.hora_inicio,
+      horaFin: t.hora_fin,
+    }))
+  },
+
+  /**
+   * GET /turnos-caja/cajas
+   * Lista las cajas de la BD.
+   */
+  async obtenerCajas(): Promise<CajaItem[]> {
+    const { data } = await apiClient.get(`${BASE}/cajas`)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((c: any) => ({
+      id: c.id,
+      codigo: c.codigo,
+      nombre: c.nombre,
+    }))
+  },
+
+  /**
+   * POST /turnos-caja/abrir
+   * Transición SIN_TURNO → OPERANDO.
+   * Abre un nuevo turno de caja con el fondo inicial especificado.
+   */
+  async abrirTurno(payload: AbrirTurnoPayload): Promise<TurnoActivoResponse> {
+    const body = {
+      fondo_inicial: payload.fondoInicial,
+      terminal: payload.terminal ?? 'CAJA 01',
+      observaciones_apertura: payload.observacionesApertura,
+      id_turno: payload.idTurno,
+    }
+    const { data } = await apiClient.post(`${BASE}/abrir`, body)
+    return mapTurnoActivo(data)
+  },
+
+  /**
    * GET /turnos-caja/activo
    * Devuelve el turno activo del cajero autenticado (determinado por el JWT).
    * 404 si no existe turno activo.
@@ -148,6 +196,24 @@ export const turnoCajaApi = {
     }
     const { data } = await apiClient.post(`${BASE}/revision-admin`, body)
     return mapRevisionAdmin(data)
+  },
+
+  async validarPinCajero(turnoId: string, pin: string): Promise<{ ok: boolean; mensaje: string }> {
+    const { data } = await apiClient.post(`${BASE}/validar-pin-cajero`, { turno_id: turnoId, pin })
+    return data
+  },
+
+  async validarPinAdmin(
+    turnoId: string,
+    adminEmail: string,
+    pin: string,
+  ): Promise<{ ok: boolean; mensaje: string }> {
+    const { data } = await apiClient.post(`${BASE}/validar-pin-admin`, {
+      turno_id: turnoId,
+      admin_email: adminEmail,
+      pin,
+    })
+    return data
   },
 
   /**

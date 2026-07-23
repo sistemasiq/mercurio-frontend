@@ -4,6 +4,7 @@ import { downloadBlob } from '@/utils/downloadBlob'
 import type { ApiError } from '@/types/auth'
 import type {
   TurnoActivoResponse,
+  AbrirTurnoPayload,
   ConteoPayload,
   RevisionAdminPayload,
   RevisionAdminResponse,
@@ -56,6 +57,32 @@ function toMensajeError(err: unknown): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const turnoCajaService = {
+  /**
+   * Obtiene la lista de turnos configurados en la BD mediante petición al backend.
+   */
+  async obtenerTurnos() {
+    return await turnoCajaApi.obtenerTurnos()
+  },
+
+  /**
+   * Obtiene la lista de cajas de la sucursal activa mediante petición al backend.
+   */
+  async obtenerCajas() {
+    return await turnoCajaApi.obtenerCajas()
+  },
+
+  /**
+   * Abre un nuevo turno de caja.
+   * Transición: SIN_TURNO → OPERANDO
+   */
+  async abrirTurno(payload: AbrirTurnoPayload): Promise<TurnoActivoResponse> {
+    try {
+      return await turnoCajaApi.abrirTurno(payload)
+    } catch (err) {
+      throw new Error(toMensajeError(err), { cause: err })
+    }
+  },
+
   /**
    * Carga el turno activo del cajero.
    * Lanza TurnoNoEncontradoError si el backend responde 404.
@@ -110,6 +137,24 @@ export const turnoCajaService = {
       if (apiErr.statusCode === 401 || apiErr.statusCode === 403) {
         throw new CredencialesAdminInvalidasError()
       }
+      throw new Error(toMensajeError(err), { cause: err })
+    }
+  },
+
+  async validarPinCajero(turnoId: string, pin: string): Promise<boolean> {
+    try {
+      const resp = await turnoCajaApi.validarPinCajero(turnoId, pin)
+      return resp.ok
+    } catch (err) {
+      throw new Error(toMensajeError(err), { cause: err })
+    }
+  },
+
+  async validarPinAdmin(turnoId: string, adminEmail: string, pin: string): Promise<boolean> {
+    try {
+      const resp = await turnoCajaApi.validarPinAdmin(turnoId, adminEmail, pin)
+      return resp.ok
+    } catch (err) {
       throw new Error(toMensajeError(err), { cause: err })
     }
   },
