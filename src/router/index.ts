@@ -143,7 +143,7 @@ const routes: RouteRecordRaw[] = [
         path: 'inventario',
         name: 'reportes-inventario',
         component: () => import('@/pages/ReporteInventarioPage.vue'),
-        meta: { permissions: ['reportes:inventario'], title: 'Reporte de Inventario' },
+        meta: { permissions: ['reportes:inventario'], title: 'Reporte de Stock' },
       },
     ],
   },

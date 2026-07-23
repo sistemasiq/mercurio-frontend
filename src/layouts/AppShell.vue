@@ -146,7 +146,7 @@ const navGroups: NavGroup[] = [
         permission: 'inventario:gestionar_compras',
       },
       {
-        label: 'Reporte de Inventario',
+        label: 'Reporte de Stock',
         icon: 'query_stats',
         routeName: 'reportes-inventario',
         permission: 'reportes:inventario',

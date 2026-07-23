@@ -5,7 +5,7 @@
       <div class="row items-center q-mb-lg">
         <div>
           <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
-            Reporte de Inventario
+            Reporte de Stock
           </div>
           <div class="text-body2" style="color: var(--text-secondary)">
             Resumen del estado del inventario de la sucursal.
@@ -108,14 +108,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useInsumosStore } from '@/stores/insumos'
 import { useProveedoresStore } from '@/stores/proveedores'
 import { useComprasStore } from '@/stores/compras'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
+import { playAlertChime } from '@/utils/notificationSound'
 
+// Cada cuánto se refresca el stock mientras la página sigue abierta, para
+// detectar insumos que cruzan su mínimo sin que el usuario tenga que recargar.
+const INTERVALO_REFRESCO_MS = 20000
+
+const $q = useQuasar()
 const authStore = useAuthStore()
 const insumosStore = useInsumosStore()
 const proveedoresStore = useProveedoresStore()
@@ -123,6 +130,14 @@ const comprasStore = useComprasStore()
 const unidadesStore = useUnidadesMedidaStore()
 
 const loading = ref(false)
+let intervaloId: ReturnType<typeof setInterval> | undefined
+let primeraCarga = true
+const idsBajoMinimoVistos = new Set<string>()
+
+const cargarInsumos = async () => {
+  if (!authStore.currentBranchId) return
+  await insumosStore.cargar(authStore.currentBranchId)
+}
 
 onMounted(async () => {
   if (!authStore.currentBranchId) return
@@ -137,6 +152,11 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+  intervaloId = setInterval(() => void cargarInsumos(), INTERVALO_REFRESCO_MS)
+})
+
+onBeforeUnmount(() => {
+  if (intervaloId) clearInterval(intervaloId)
 })
 
 const codigoUnidad = (unidadId: string): string => {
@@ -160,6 +180,31 @@ const valorInventario = computed(() =>
 const proveedoresActivos = computed(() => proveedoresStore.proveedores.filter((p) => p.activo))
 
 const comprasPendientes = computed(() => comprasStore.compras.filter((c) => c.estado === 'P'))
+
+// Alerta con timbre solo para insumos que ACABAN de cruzar el mínimo — no en
+// la carga inicial de la página, para no repetir aviso de algo ya conocido.
+watch(insumosBajoMinimo, (actual) => {
+  const nuevos = primeraCarga ? [] : actual.filter((i) => !idsBajoMinimoVistos.has(i.id))
+
+  idsBajoMinimoVistos.clear()
+  actual.forEach((i) => idsBajoMinimoVistos.add(i.id))
+  primeraCarga = false
+
+  if (nuevos.length === 0) return
+
+  playAlertChime()
+  $q.notify({
+    type: 'warning',
+    icon: 'notifications_active',
+    message:
+      nuevos.length === 1
+        ? `Stock bajo: ${nuevos[0]!.nombre}`
+        : `${nuevos.length} insumos entraron en stock bajo`,
+    caption: nuevos.map((i) => i.nombre).join(', '),
+    position: 'top-right',
+    timeout: 8000,
+  })
+})
 
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'INSUMO', field: 'nombre', align: 'left', sortable: true },
