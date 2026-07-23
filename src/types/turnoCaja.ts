@@ -9,11 +9,33 @@
 
 /** Estados del ciclo de vida de un turno de caja. */
 export type EstadoTurno =
+  | 'SIN_TURNO' // no hay turno activo / listo para apertura de caja
   | 'OPERANDO' // turno activo, aún no se inicia el conteo
   | 'EN_CONTEO' // cajero registrando denominaciones
   | 'ESPERANDO_REVISION' // conteo enviado, esperando autenticación del admin
   | 'BALANCE_REVELADO' // admin autenticado, diferencias visibles
   | 'CERRADO' // cierre confirmado y persistido
+
+export interface TurnoItem {
+  id: string
+  nombre: string
+  horaInicio?: string
+  horaFin?: string
+}
+
+export interface CajaItem {
+  id: string
+  codigo: string
+  nombre: string
+}
+
+export interface AbrirTurnoPayload {
+  fondoInicial: number
+  terminal?: string
+  observacionesApertura?: string
+  idTurno?: string
+  idCaja?: string
+}
 
 // ---------------------------------------------------------------------------
 // Denominaciones de efectivo
