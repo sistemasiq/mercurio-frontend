@@ -205,6 +205,8 @@
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import ProductoBadgeEstado from '@/components/productos/ProductoBadgeEstado.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProveedoresStore } from '@/stores/proveedores'
@@ -296,10 +298,10 @@ const guardar = async () => {
       $q.notify({ type: 'positive', message: 'Proveedor creado', position: 'top-right' })
     }
     cerrarDialog()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -325,10 +327,10 @@ const ejecutarEliminar = async () => {
     await store.eliminar(filaEliminar.value.id)
     $q.notify({ type: 'positive', message: 'Proveedor eliminado', position: 'top-right' })
     dialogEliminar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {

@@ -311,6 +311,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useRolesStore } from '@/stores/roles'
 import type { RolConPermisos } from '@/types/permission'
@@ -457,10 +459,10 @@ const guardar = async () => {
       $q.notify({ type: 'positive', message: 'Rol creado', position: 'top-right' })
     }
     cerrarDialog()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -486,10 +488,10 @@ const ejecutarDesactivar = async () => {
     await store.desactivar(filaDesactivar.value.id)
     $q.notify({ type: 'positive', message: 'Rol desactivado', position: 'top-right' })
     dialogDesactivar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo desactivar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -513,10 +515,10 @@ const ejecutarReactivar = async () => {
     await store.reactivar(filaReactivar.value.id)
     $q.notify({ type: 'positive', message: 'Rol reactivado', position: 'top-right' })
     dialogReactivar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo reactivar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {

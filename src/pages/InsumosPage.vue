@@ -489,6 +489,8 @@ import { useProveedoresStore } from '@/stores/proveedores'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { useMovimientosInventarioStore } from '@/stores/movimientosInventario'
 import { usePresentacionesInsumoStore } from '@/stores/presentacionesInsumo'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import type { Insumo } from '@/types/insumo'
 import type { TipoMovimientoManual } from '@/types/movimientoInventario'
 
@@ -608,12 +610,16 @@ const cerrarDialog = () => {
 }
 
 const guardar = async () => {
-  if (
-    !formDialog.value.nombre.trim() ||
-    !formDialog.value.unidad_base_id ||
-    !formDialog.value.unidad_compra_id
-  ) {
+  if (!formDialog.value.nombre.trim()) {
     nombreRef.value?.validate()
+    return
+  }
+  if (!editando.value && (!formDialog.value.unidad_base_id || !formDialog.value.unidad_compra_id)) {
+    $q.notify({
+      type: 'warning',
+      message: 'Selecciona la unidad base y la unidad de compra.',
+      position: 'top-right',
+    })
     return
   }
   guardando.value = true
@@ -633,8 +639,8 @@ const guardar = async () => {
       await store.crear({
         nombre: formDialog.value.nombre.trim(),
         descripcion: formDialog.value.descripcion.trim() || null,
-        unidad_base_id: formDialog.value.unidad_base_id,
-        unidad_compra_id: formDialog.value.unidad_compra_id,
+        unidad_base_id: formDialog.value.unidad_base_id!,
+        unidad_compra_id: formDialog.value.unidad_compra_id!,
         stock_inicial: String(formDialog.value.stock_inicial),
         stock_minimo: String(formDialog.value.stock_minimo),
         costo_unitario:
@@ -645,10 +651,10 @@ const guardar = async () => {
       $q.notify({ type: 'positive', message: 'Insumo creado', position: 'top-right' })
     }
     cerrarDialog()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -674,10 +680,10 @@ const ejecutarEliminar = async () => {
     await store.eliminar(filaEliminar.value.id)
     $q.notify({ type: 'positive', message: 'Insumo eliminado', position: 'top-right' })
     dialogEliminar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -726,10 +732,10 @@ const guardarAjuste = async () => {
       store.insumos[idx] = { ...store.insumos[idx]!, stock_actual: movimiento.stock_resultante }
     $q.notify({ type: 'positive', message: 'Ajuste registrado', position: 'top-right' })
     cerrarAjuste()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -772,10 +778,10 @@ const guardarPresentacion = async () => {
     })
     formPresentacion.value = { nombre: '', equivalencia_base: 0 }
     $q.notify({ type: 'positive', message: 'Presentación agregada', position: 'top-right' })
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -788,10 +794,10 @@ const quitarPresentacion = async (presentacionId: string) => {
   try {
     await presentacionesStore.eliminar(insumoPresentaciones.value.id, presentacionId)
     $q.notify({ type: 'positive', message: 'Presentación eliminada', position: 'top-right' })
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   }

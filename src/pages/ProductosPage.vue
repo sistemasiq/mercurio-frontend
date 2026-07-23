@@ -501,6 +501,8 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useProductosStore } from '@/stores/productos'
 import { useInsumosStore } from '@/stores/insumos'
@@ -690,8 +692,16 @@ const cerrarDialog = () => {
 }
 
 const guardar = async () => {
-  if (!formDialog.value.nombre.trim() || formDialog.value.precio_unitario <= 0) {
+  if (!formDialog.value.nombre.trim()) {
     nombreRef.value?.validate()
+    return
+  }
+  if (formDialog.value.precio_unitario <= 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'El precio debe ser mayor a cero.',
+      position: 'top-right',
+    })
     return
   }
 
@@ -745,10 +755,10 @@ const guardar = async () => {
       $q.notify({ type: 'positive', message: 'Producto creado', position: 'top-right' })
     }
     cerrarDialog()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -774,10 +784,10 @@ const ejecutarEliminar = async () => {
     await store.eliminar(filaEliminar.value.id)
     $q.notify({ type: 'positive', message: 'Producto eliminado', position: 'top-right' })
     dialogEliminar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -817,10 +827,10 @@ const guardarRecetaItem = async () => {
     })
     formReceta.value = { insumo_id: null, cantidad: 0 }
     $q.notify({ type: 'positive', message: 'Receta actualizada', position: 'top-right' })
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -833,10 +843,10 @@ const quitarInsumo = async (insumoId: string) => {
   try {
     await recetaStore.eliminar(productoReceta.value.id, insumoId)
     $q.notify({ type: 'positive', message: 'Insumo quitado de la receta', position: 'top-right' })
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo quitar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   }
@@ -860,10 +870,10 @@ const ejecutarReactivar = async () => {
     await store.reactivar(filaReactivar.value.id)
     $q.notify({ type: 'positive', message: 'Producto reactivado', position: 'top-right' })
     dialogReactivar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo reactivar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {

@@ -310,6 +310,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useComprasStore } from '@/stores/compras'
 import { useProveedoresStore } from '@/stores/proveedores'
@@ -514,10 +516,10 @@ const guardarCompra = async () => {
     })
     $q.notify({ type: 'positive', message: 'Compra creada', position: 'top-right' })
     cerrarDialog()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -555,10 +557,10 @@ const ejecutarAccion = async () => {
     }
     dialogConfirmar.value = false
     if (authStore.currentBranchId) insumosStore.cargar(authStore.currentBranchId)
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo completar la acción. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
