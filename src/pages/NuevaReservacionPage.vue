@@ -350,7 +350,7 @@
                     Anticipo registrado correctamente
                   </div>
                   <div style="font-size: 0.85rem; color: #388e3c">
-                    {{ fmt(montoPagado) }} — {{ metodoPagoNombre }}
+                    {{ fmt(montoPagado) }} — {{ metodosPagoResumen }}
                   </div>
                 </div>
               </div>
@@ -373,7 +373,7 @@
                   </div>
                 </div>
 
-                <div class="q-mb-md">
+                <div class="q-mb-lg">
                   <div class="field-label">MONTO DEL ANTICIPO</div>
                   <q-input
                     v-model.number="anticipoIngresado"
@@ -385,30 +385,16 @@
                   />
                 </div>
 
-                <div class="q-mb-lg">
-                  <div class="field-label">MÉTODO DE PAGO</div>
-                  <q-select
-                    v-model="metodoPagoSeleccionado"
-                    dense
-                    outlined
-                    :options="metodosPagoOptions"
-                    :loading="metodosPagoStore.loading"
-                    emit-value
-                    map-options
-                    placeholder="Selecciona un método"
-                  />
-                </div>
-
                 <q-btn
                   unelevated
                   color="primary"
-                  label="Registrar Anticipo"
+                  label="Pagar Anticipo"
                   icon="payments"
                   style="border-radius: 8px; font-weight: 700; height: 44px"
                   class="q-px-lg"
                   no-caps
-                  :disable="!metodoPagoSeleccionado || anticipoIngresado <= 0"
-                  @click="registrarAnticipo"
+                  :disable="anticipoIngresado <= 0"
+                  @click="abrirModalPago"
                 />
               </template>
 
@@ -517,7 +503,7 @@
                   <span style="color: #2e7d32; font-weight: 600">{{ fmt(montoPagado) }}</span>
                 </div>
                 <div class="resumen-row">
-                  <span>Método</span><span>{{ metodoPagoNombre }}</span>
+                  <span>Método</span><span>{{ metodosPagoResumen }}</span>
                 </div>
                 <div class="resumen-row">
                   <span>Saldo pendiente</span>
@@ -650,6 +636,13 @@
         </div>
       </div>
     </div>
+
+    <!-- MODAL DE PAGO MULTIMODAL PARA EL ANTICIPO -->
+    <PaymentModal
+      v-model="modalPagoAbierto"
+      :total-to-pay="anticipoIngresado"
+      @pago-exitoso="onPagoExitoso"
+    />
   </q-page>
 </template>
 
@@ -664,6 +657,8 @@ import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
+import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
+import type { AppliedPayment } from '@/types/payments'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -846,26 +841,54 @@ const extrasSeleccionados = computed(() =>
 
 // ── Métodos de pago ───────────────────────────────────────────────────────────
 
-const metodosPagoOptions = computed(() =>
-  metodosPagoStore.activos.map((m) => ({ label: m.nombre, value: m.id })),
-)
-
 const pagoRegistrado = ref(false)
 const montoPagado = ref(0)
-const metodoPagoSeleccionado = ref<string | null>(null)
+const pagosAplicados = ref<AppliedPayment[]>([])
 const anticipoIngresado = ref(0)
+const modalPagoAbierto = ref(false)
 
-const metodoPagoNombre = computed(
-  () => metodosPagoStore.activos.find((m) => m.id === metodoPagoSeleccionado.value)?.nombre ?? '—',
-)
+const esTarjeta = (method: string) => {
+  const n = method.trim().toLowerCase()
+  return (
+    n.includes('tarjeta') ||
+    n.includes('crédito') ||
+    n.includes('débito') ||
+    n.includes('credito') ||
+    n.includes('debito')
+  )
+}
+
+const metodosPagoResumen = computed(() => {
+  const nombres = pagosAplicados.value.map((p) =>
+    esTarjeta(p.method) && p.cardType
+      ? `Tarjeta ${p.cardType === 'DEBITO' ? 'Débito' : 'Crédito'}`
+      : p.method,
+  )
+  return nombres.length ? [...new Set(nombres)].join(', ') : '—'
+})
+
+const mapearMetodoPago = (nombreMetodo: string): string => {
+  const metodo = metodosPagoStore.activos.find(
+    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase(),
+  )
+  if (!metodo) {
+    throw new Error(`El método de pago "${nombreMetodo}" no está configurado o no está activo.`)
+  }
+  return metodo.id
+}
 
 // Pre-rellena el anticipo al llegar al step 3
 watch(step, (s) => {
   if (s === 3 && !pagoRegistrado.value) anticipoIngresado.value = advanceNum.value
 })
 
-const registrarAnticipo = () => {
-  montoPagado.value = anticipoIngresado.value
+const abrirModalPago = () => {
+  modalPagoAbierto.value = true
+}
+
+const onPagoExitoso = (pagos: AppliedPayment[]) => {
+  pagosAplicados.value = pagos
+  montoPagado.value = pagos.reduce((suma, p) => suma + p.amount, 0)
   pagoRegistrado.value = true
 }
 
@@ -964,12 +987,14 @@ const confirmarReservacion = async () => {
       estado: 'confirmada',
     })
 
-    if (montoPagado.value > 0 && metodoPagoSeleccionado.value) {
+    for (const pago of pagosAplicados.value) {
       await pagosStore.crearPagosReservacion({
         reservacion_id: nuevaReservacion.id,
-        metodo_pago_id: metodoPagoSeleccionado.value,
-        monto: String(montoPagado.value),
-        notas: 'Anticipo registrado al confirmar reservación',
+        metodo_pago_id: mapearMetodoPago(pago.method),
+        monto: String(pago.amount),
+        notas: pago.cardType
+          ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
+          : 'Anticipo registrado al confirmar reservación',
       })
     }
 
