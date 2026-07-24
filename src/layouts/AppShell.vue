@@ -52,6 +52,17 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'POS',
+    items: [
+      {
+        label: 'Historial',
+        icon: 'receipt_long',
+        routeName: 'pos-historial',
+        permission: 'restaurante:registrar_pago',
+      },
+    ],
+  },
+  {
     label: 'EVENTOS',
     items: [
       {

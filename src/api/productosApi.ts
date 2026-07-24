@@ -1,5 +1,15 @@
 import { apiClient } from '@/api/axiosClient'
-import type { Producto, ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
+import type {
+  ProductoAdmin,
+  ProductoComboHijo,
+  ProductoCreate,
+  ProductoUpdate,
+} from '@/types/producto'
+
+async function fetchProductosCatalogo(signal?: AbortSignal): Promise<ProductoAdmin[]> {
+  const { data } = await apiClient.get<ProductoAdmin[]>('/productos/catalogo', { signal })
+  return data
+}
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000/api'
 
@@ -10,18 +20,12 @@ export function getProductoImagenUrl(imagen?: string | null): string | undefined
 }
 
 export const productosApi = {
-  async listar(sucursalId: string, signal?: AbortSignal): Promise<Producto[]> {
-    const { data } = await apiClient.get<Producto[]>('/productos', {
-      params: { sucursal_id: sucursalId },
-      signal,
-    })
-    return data
+  async listarCatalogo(signal?: AbortSignal): Promise<ProductoAdmin[]> {
+    return fetchProductosCatalogo(signal)
   },
 
-  async listarAdmin(sucursalId: string): Promise<ProductoAdmin[]> {
-    const { data } = await apiClient.get<ProductoAdmin[]>('/productos/admin', {
-      params: { sucursal_id: sucursalId },
-    })
+  async listarAdmin(signal?: AbortSignal): Promise<ProductoAdmin[]> {
+    const { data } = await apiClient.get<ProductoAdmin[]>('/productos/admin', { signal })
     return data
   },
 
@@ -62,6 +66,11 @@ export const productosApi = {
     const { data } = await apiClient.patch<ProductoAdmin>(`/productos/${productoId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
+    return data
+  },
+
+  async obtenerComboHijos(comboId: string): Promise<ProductoComboHijo[]> {
+    const { data } = await apiClient.get<ProductoComboHijo[]>(`/productos/${comboId}/combo-hijos`)
     return data
   },
 }

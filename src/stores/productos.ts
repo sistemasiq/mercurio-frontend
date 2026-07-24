@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
+import { productosApi } from '@/api/productosApi'
 import {
   actualizarProducto,
   crearProducto,
   eliminarProducto,
-  listarProductosAdmin,
   reactivarProducto,
 } from '@/services/productoService'
 import type { ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
@@ -21,11 +21,11 @@ export const useProductosStore = defineStore('productos', {
     error: null,
   }),
   actions: {
-    async cargar(sucursalId: string) {
+    async cargar(signal?: AbortSignal) {
       this.loading = true
       this.error = null
       try {
-        this.productos = await listarProductosAdmin(sucursalId)
+        this.productos = await productosApi.listarAdmin(signal)
       } catch (error: unknown) {
         this.error = (error as Error).message ?? 'Error al cargar los productos'
       } finally {

@@ -17,24 +17,38 @@
     </div>
 
     <div class="kds-card-body">
-      <div v-for="item in detallesConsumibles" :key="item.id" class="kds-item">
-        <div class="kds-qty">{{ item.cantidad }}</div>
-        <div class="kds-item-details">
-          <p class="kds-item-name">{{ item.producto_nombre ?? '—' }}</p>
-          <p class="kds-item-price">
-            ${{ Number(item.precio_unitario * item.cantidad).toFixed(2) }}
-          </p>
-          <ul v-if="item.productos_combo?.length" class="kds-combo-lista">
-            <li v-for="comboItem in item.productos_combo" :key="comboItem.producto_id">
-              {{ comboItem.cantidad }}x {{ comboItem.nombre }}
-            </li>
-          </ul>
-          <p v-if="item.notas_especiales" class="kds-item-warning">
-            <q-icon name="warning" size="18px" />
-            {{ item.notas_especiales }}
-          </p>
+      <template v-for="el in ticketsAgrupados" :key="el.key">
+        <!-- Grupo combo -->
+        <div v-if="el.tipo === 'combo'" class="kds-combo-group">
+          <div class="kds-combo-header">
+            <q-icon name="restaurant" size="14px" />
+            {{ el.nombre }}
+          </div>
+          <div class="kds-combo-items">
+            <div v-for="hijo in el.items" :key="hijo.id" class="kds-item kds-item--hijo">
+              <div class="kds-qty">{{ hijo.cantidad }}</div>
+              <div class="kds-item-details">
+                <p class="kds-item-name">{{ hijo.nombre }}</p>
+                <p v-if="hijo.notas_especiales" class="kds-item-warning">
+                  <q-icon name="warning" size="18px" />
+                  {{ hijo.notas_especiales }}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+        <!-- Item suelto -->
+        <div v-else class="kds-item">
+          <div class="kds-qty">{{ el.item.cantidad }}</div>
+          <div class="kds-item-details">
+            <p class="kds-item-name">{{ el.item.nombre }}</p>
+            <p v-if="el.item.notas_especiales" class="kds-item-warning">
+              <q-icon name="warning" size="18px" />
+              {{ el.item.notas_especiales }}
+            </p>
+          </div>
+        </div>
+      </template>
     </div>
 
     <div class="kds-card-footer">
@@ -55,7 +69,8 @@
       <button
         v-else-if="esListo"
         class="kds-btn btn-entregar"
-        @click="emit('cambiar-estado', comanda.id, 'T')"
+        :class="{ 'card-entregando': isDelivering }"
+        @click="onEntregar"
       >
         <q-icon name="done_all" size="24px" /> Entregar Pedido
       </button>
@@ -64,16 +79,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { Comanda, EstadoActualComanda } from '@/types/comanda'
-import type { TipoProducto } from '@/types/producto'
+import { computed, ref } from 'vue'
+import type { Comanda, DetalleComanda, EstadoActualComanda } from '@/types/comanda'
 
-const TIPOS_NO_CONSUMIBLES: TipoProducto[] = ['S', 'E']
-
-const props = defineProps<{ comanda: Comanda }>()
+const { comanda } = defineProps<{ comanda: Comanda }>()
 const emit = defineEmits<{
   (e: 'cambiar-estado', comandaId: string, nuevoEstado: EstadoActualComanda): void
 }>()
+
+const isDelivering = ref(false)
+
+const onEntregar = () => {
+  isDelivering.value = true
+  emit('cambiar-estado', comanda.id, 'T')
+}
 
 const estadoLabel = (estado: EstadoActualComanda): string => {
   const labels: Record<EstadoActualComanda, string> = {
@@ -81,6 +100,7 @@ const estadoLabel = (estado: EstadoActualComanda): string => {
     E: 'EN PREPARACIÓN',
     L: 'LISTO PARA ENTREGA',
     T: 'ENTREGADO',
+    C: 'CANCELADO',
   }
   return labels[estado] ?? estado
 }
@@ -94,15 +114,59 @@ const tiempoDesde = (fechaISO: string | null | undefined): string => {
   return diff === 1 ? '1 min' : `${diff} min`
 }
 
-const detallesConsumibles = computed(() =>
-  (props.comanda.detalles ?? []).filter(
-    (d) => !d.producto_tipo || !TIPOS_NO_CONSUMIBLES.includes(d.producto_tipo as TipoProducto),
-  ),
-)
+interface ComboGroup {
+  tipo: 'combo'
+  key: string
+  nombre: string
+  items: DetalleComanda[]
+}
 
-const esPendiente = computed(() => props.comanda.estado_actual === 'P')
-const esEnProceso = computed(() => props.comanda.estado_actual === 'E')
-const esListo = computed(() => props.comanda.estado_actual === 'L')
+interface Suelto {
+  tipo: 'suelto'
+  key: string
+  item: DetalleComanda
+}
+
+type ElementoRender = ComboGroup | Suelto
+
+const ticketsAgrupados = computed<ElementoRender[]>(() => {
+  const detalles = comanda.detalles ?? []
+
+  const comboGroups = new Map<string, DetalleComanda[]>()
+  for (const d of detalles) {
+    if (d.nombre_combo_padre) {
+      const arr = comboGroups.get(d.nombre_combo_padre)
+      if (arr) arr.push(d)
+      else comboGroups.set(d.nombre_combo_padre, [d])
+    }
+  }
+
+  const resultado: ElementoRender[] = []
+  const emittedCombos = new Set<string>()
+
+  for (const detalle of detalles) {
+    if (detalle.nombre_combo_padre) {
+      const key = detalle.nombre_combo_padre
+      if (!emittedCombos.has(key)) {
+        emittedCombos.add(key)
+        resultado.push({
+          tipo: 'combo',
+          key: `combo-${key}`,
+          nombre: key,
+          items: comboGroups.get(key)!,
+        })
+      }
+    } else {
+      resultado.push({ tipo: 'suelto', key: `suelto-${detalle.id}`, item: detalle })
+    }
+  }
+
+  return resultado
+})
+
+const esPendiente = computed(() => comanda.estado_actual === 'P')
+const esEnProceso = computed(() => comanda.estado_actual === 'E')
+const esListo = computed(() => comanda.estado_actual === 'L')
 
 const cardClass = computed(() => ({
   'card-proceso': esEnProceso.value,
@@ -122,19 +186,24 @@ const statusLabelClass = computed(() => ({
   'text-listo': esListo.value,
 }))
 
-const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
+const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 </script>
 
 <style lang="scss" scoped>
 .kds-card {
+  height: 100%;
   background-color: #fff;
   border-radius: 12px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   overflow: hidden;
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition:
+    border-color 0.3s,
+    background-color 0.3s,
+    box-shadow 0.3s;
 }
 .card-proceso {
   border-left: 12px solid #fd8b00;
@@ -218,11 +287,10 @@ const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
 
 .kds-card-body {
   padding: 16px;
-  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 280px;
   overflow-y: auto;
 }
 .kds-item {
@@ -231,6 +299,35 @@ const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
   padding: 12px;
   border-radius: 8px;
   align-items: flex-start;
+}
+.kds-combo-group {
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  background-color: #fffbeb;
+  padding: 8px;
+  margin-bottom: 4px;
+}
+.kds-combo-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background-color: #fde68a;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.kds-combo-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kds-item--hijo {
+  background-color: rgba(255, 255, 255, 0.6);
 }
 .kds-qty {
   width: 48px;
@@ -253,25 +350,6 @@ const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
   font-weight: 600;
   margin: 0;
 }
-.kds-item-price {
-  font-size: 14px;
-  color: #64748b;
-  margin: 2px 0 0 0;
-}
-.kds-combo-lista {
-  list-style: none;
-  margin: 6px 0 0 0;
-  padding: 0 0 0 12px;
-  border-left: 2px solid #e1e3e4;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.kds-combo-lista li {
-  font-size: 15px;
-  color: #414754;
-  font-weight: 500;
-}
 .kds-item-warning {
   font-size: 16px;
   color: #ba1a1a;
@@ -288,7 +366,6 @@ const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
   padding: 16px;
   background-color: #fff;
   border-top: 1px solid #e1e3e4;
-  margin-top: auto;
 }
 .kds-btn {
   width: 100%;
@@ -302,8 +379,13 @@ const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
   justify-content: center;
   gap: 12px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition:
+    background-color 0.2s,
+    transform 0.1s;
   border: none;
+}
+.kds-btn:active {
+  transform: scale(0.95);
 }
 .btn-accion {
   background-color: #0059bb;
@@ -326,5 +408,24 @@ const tipoEntrega = computed(() => props.comanda.mesa ?? 'MOSTRADOR')
 }
 .btn-entregar:hover {
   background-color: #008645;
+}
+
+.card-entregando {
+  animation: flash-verde 0.4s ease-out;
+}
+
+@keyframes flash-verde {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 106, 53, 0.5);
+    background-color: #006a35;
+  }
+  50% {
+    box-shadow: 0 0 24px 4px rgba(0, 106, 53, 0.3);
+  }
+  100% {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
 }
 </style>

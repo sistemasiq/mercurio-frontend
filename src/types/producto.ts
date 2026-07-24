@@ -15,25 +15,23 @@ export interface ComboItemCreate {
   cantidad: number
 }
 
-export interface Producto {
+export interface ProductoBase {
   id: string
   nombre: string
-  precio_unitario: number
+  precio_unitario: string | number
   tipo: TipoProducto
-  imagen: string
+  imagen: string | null
   sucursal_id: string
-  descripcion?: string
+  descripcion: string | null
+  es_combo: boolean
   productos_combo?: ComboItemCreate[]
 }
 
-export interface ProductoAdmin {
-  id: string
-  nombre: string
-  precio_unitario: string
-  tipo: TipoProducto
-  sucursal_id: string
-  descripcion: string | null
-  imagen: string | null
+export interface Producto extends Omit<ProductoBase, 'precio_unitario'> {
+  precio_unitario: number
+}
+
+export interface ProductoAdmin extends ProductoBase {
   activo: boolean
   creado?: string | null
   creado_por?: string | null
@@ -49,6 +47,7 @@ export interface ProductoCreate {
   sucursal_id: string
   descripcion?: string | null
   imagen?: string | null
+  es_combo?: boolean
   productos_combo?: ComboItemCreate[] | null
 }
 
@@ -59,5 +58,13 @@ export interface ProductoUpdate {
   descripcion?: string | null
   imagen?: string | null
   activo?: boolean
+  es_combo?: boolean
   productos_combo?: ComboItemCreate[] | null
+}
+
+export interface ProductoComboHijo {
+  producto_id: string
+  nombre: string
+  cantidad: number
+  precio_unitario: number
 }
