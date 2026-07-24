@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { fetchActivos, fetchPulseras, type ActivoDto } from '@/api/onboardingClient'
+import {
+  fetchActivos,
+  fetchPulseras,
+  type ActivoDto,
+  type PulseraDto,
+} from '@/api/onboardingClient'
 import { useAuthStore } from '@/stores/auth'
 
 export type StayStatus = 'activo' | 'por_expirar' | 'excedido'
@@ -12,7 +17,6 @@ export interface ActiveChild extends ActivoDto {
 }
 
 const EXPIRING_THRESHOLD_MINUTES = 15
-const REFRESH_INTERVAL_MS = 60_000 // 1 minute
 
 export const useAccessControlStore = defineStore('accessControl', () => {
   const authStore = useAuthStore()
@@ -20,6 +24,23 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const lastUpdated = ref<Date | null>(null)
+  const now = ref(Date.now())
+
+  let tickTimer: ReturnType<typeof setInterval> | null = null
+
+  function startTicking() {
+    stopTicking()
+    tickTimer = setInterval(() => {
+      now.value = Date.now()
+    }, 60_000)
+  }
+
+  function stopTicking() {
+    if (tickTimer) {
+      clearInterval(tickTimer)
+      tickTimer = null
+    }
+  }
 
   const checkoutChild = ref<ActiveChild | null>(null)
 
@@ -31,13 +52,15 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     checkoutChild.value = null
   }
 
-  let refreshTimer: ReturnType<typeof setInterval> | null = null
-
   function computeStatus(item: ActivoDto): ActiveChild {
-    const minutosRestantes = item.minutos_pagados - item.minutos_transcurridos
+    const elapsedMs = lastUpdated.value ? now.value - lastUpdated.value.getTime() : 0
+    const elapsedMinutes = Math.max(0, Math.floor(elapsedMs / 60_000))
+    const minutosTranscurridos = item.minutosTranscurridos + elapsedMinutes
+
+    const minutosRestantes = item.minutosPagados - minutosTranscurridos
     const progressPercent = Math.min(
       100,
-      Math.round((item.minutos_transcurridos / item.minutos_pagados) * 100),
+      Math.round((minutosTranscurridos / item.minutosPagados) * 100),
     )
 
     let status: StayStatus = 'activo'
@@ -47,18 +70,19 @@ export const useAccessControlStore = defineStore('accessControl', () => {
       status = 'por_expirar'
     }
 
-    return { ...item, status, minutosRestantes, progressPercent }
+    return { ...item, minutosTranscurridos, status, minutosRestantes, progressPercent }
   }
 
   const activos = computed<ActiveChild[]>(() => rawActivos.value.map(computeStatus))
 
-  const totalActivos = computed(() => activos.value.length)
+  const totalActivos = computed(() => activos.value.filter((a) => a.status === 'activo').length)
 
   const porExpirar = computed(() => activos.value.filter((a) => a.status === 'por_expirar').length)
 
   const excedidos = computed(() => activos.value.filter((a) => a.status === 'excedido').length)
 
-  const pulserasLibres = ref(0)
+  const pulserasDisponibles = ref<PulseraDto[]>([])
+  const pulserasLibres = computed(() => pulserasDisponibles.value.length)
   const puedeVerPulseras = computed(() => authStore.hasPermission('pulseras:listar'))
   const capacidadTotal = computed(() => totalActivos.value + pulserasLibres.value)
 
@@ -84,39 +108,26 @@ export const useAccessControlStore = defineStore('accessControl', () => {
       isLoading.value = false
     }
 
-    // Las pulseras alimentan solo el indicador de disponibilidad; requieren un
-    // permiso aparte (pulseras:listar) y no deben bloquear la lista de activos.
+    // Las pulseras alimentan el indicador de disponibilidad y el selector de
+    // registro; requieren un permiso aparte (pulseras:listar) y no deben
+    // bloquear la lista de activos.
     if (puedeVerPulseras.value) {
       try {
-        pulserasLibres.value = (await fetchPulseras(authStore.currentBranchId)).length
+        pulserasDisponibles.value = await fetchPulseras(authStore.currentBranchId)
       } catch (err) {
         console.error(err)
       }
     }
   }
 
-  function startAutoRefresh() {
-    stopAutoRefresh()
-    refreshTimer = setInterval(() => {
-      loadActivos()
-    }, REFRESH_INTERVAL_MS)
-  }
-
-  function stopAutoRefresh() {
-    if (refreshTimer) {
-      clearInterval(refreshTimer)
-      refreshTimer = null
-    }
-  }
-
   function formatMinutosLabel(item: ActiveChild): string {
-    const transcurridoH = Math.floor(item.minutos_transcurridos / 60)
-    const transcurridoM = item.minutos_transcurridos % 60
-    const pagadoH = Math.floor(item.minutos_pagados / 60)
+    const transcurridoH = Math.floor(item.minutosTranscurridos / 60)
+    const transcurridoM = item.minutosTranscurridos % 60
+    const pagadoH = Math.floor(item.minutosPagados / 60)
 
     const transcurridoStr =
       transcurridoH > 0 ? `${transcurridoH}h ${transcurridoM}m` : `${transcurridoM}m`
-    const pagadoStr = pagadoH > 0 ? `${pagadoH}h` : `${item.minutos_pagados}m`
+    const pagadoStr = pagadoH > 0 ? `${pagadoH}h` : `${item.minutosPagados}m`
 
     return `${transcurridoStr} / ${pagadoStr}`
   }
@@ -124,8 +135,8 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   function formatRemainingLabel(item: ActiveChild): string {
     if (item.status === 'excedido') {
       const exceededBy = Math.abs(item.minutosRestantes)
-      const h = Math.floor(item.minutos_pagados / 60)
-      const hLabel = h > 0 ? `${h}h` : `${item.minutos_pagados}m`
+      const h = Math.floor(item.minutosPagados / 60)
+      const hLabel = h > 0 ? `${h}h` : `${item.minutosPagados}m`
       return `+${exceededBy}m (${hLabel})`
     }
     return `< ${item.minutosRestantes} min`
@@ -134,22 +145,23 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   return {
     rawActivos,
     activos,
+    totalActivos,
     isLoading,
     error,
     lastUpdated,
+    startTicking,
+    stopTicking,
     checkoutChild,
     setCheckoutChild,
     clearCheckoutChild,
-    totalActivos,
     porExpirar,
     excedidos,
-    disponibilidadPercent,
     pulserasLibres,
+    pulserasDisponibles,
     puedeVerPulseras,
     capacidadTotal,
+    disponibilidadPercent,
     loadActivos,
-    startAutoRefresh,
-    stopAutoRefresh,
     formatMinutosLabel,
     formatRemainingLabel,
   }

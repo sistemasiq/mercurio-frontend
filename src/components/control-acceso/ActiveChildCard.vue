@@ -61,6 +61,16 @@ function handleCheckout() {
   router.push({ name: 'estancias-checkout' })
 }
 
+function formatTelefono(telefono: string) {
+  const digits = telefono.replace(/\D/g, '')
+
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+  }
+
+  return telefono
+}
+
 const fotoIneUrl = ref<string | null>(null)
 const fotoLlegadaUrl = ref<string | null>(null)
 
@@ -81,13 +91,13 @@ async function openFotosDialog() {
   fotoLlegadaError.value = false
 
   try {
-    fotoIneUrl.value = await fetchFotoIneUrl(props.child.registro_id)
+    fotoIneUrl.value = await fetchFotoIneUrl(props.child.registroId)
   } catch {
     fotoIneError.value = true
   }
 
   try {
-    fotoLlegadaUrl.value = await fetchFotoLlegadaUrl(props.child.registro_id)
+    fotoLlegadaUrl.value = await fetchFotoLlegadaUrl(props.child.registroId)
   } catch {
     fotoLlegadaError.value = true
   }
@@ -113,31 +123,35 @@ function closeFotosDialog() {
         <div class="status-bar" :class="statusConfig?.barColor"></div>
 
         <div
-          class="q-pa-md q-pl-lg"
+          class="q-pa-md q-pl-xl"
           :class="statusConfig?.headerBg"
-          style="border-bottom: 1px solid #f1f1f1"
+          style="border-bottom: 1px solid #f1f1f1; position: relative"
         >
-          <div class="row justify-between items-start">
-            <div>
-              <span
-                class="text-caption text-weight-bold block text-uppercase tracking-wider"
-                :class="statusConfig?.textColor"
-                style="font-size: 11px"
-              >
-                {{ statusConfig?.label }}
-              </span>
-              <div class="text-h6 text-weight-bolder text-dark q-mt-xs" style="line-height: 1.2">
-                {{ child.nino }}
-              </div>
-              <div class="row items-center text-caption text-grey-7 q-mt-xs">
-                <q-icon name="person_outline" size="14px" class="q-mr-xs" />
-                {{ child.tutor }}
-              </div>
-              <div class="row items-center text-caption text-grey-7 q-mt-xs">
-                {{ child.parentesco }}
-              </div>
+          <div style="padding-right: 30px">
+            <span
+              class="text-caption text-weight-bold block text-uppercase tracking-wider"
+              :class="statusConfig?.textColor"
+              style="font-size: 11px"
+            >
+              {{ statusConfig?.label }}
+            </span>
+            <div class="text-h6 text-weight-bolder text-dark q-mt-xs" style="line-height: 1.2">
+              {{ child.nino }}
             </div>
+            <div class="row items-center text-caption text-grey-7 q-mt-xs">
+              <q-icon name="person_outline" size="14px" class="q-mr-xs" />
+              {{ child.tutor }}
+            </div>
+            <div class="row items-center text-caption text-grey-7 q-mt-xs">
+              <span>{{ child.parentesco }}</span>
 
+              <q-icon name="phone" size="14px" class="q-ml-md q-mr-xs" />
+
+              <span>{{ formatTelefono(child.telefono) }}</span>
+            </div>
+          </div>
+
+          <div style="position: absolute; top: 12px; right: 12px">
             <q-btn
               flat
               round
@@ -150,38 +164,40 @@ function closeFotosDialog() {
           </div>
         </div>
 
-        <div class="column q-pa-lg q-pl-lg bg-white card-body">
-          <div class="row q-col-gutter-sm q-mb-md">
-            <div class="col-6">
-              <div class="info-label">PULSERA</div>
-              <div class="row items-center info-value">
-                <q-icon name="badge" size="14px" class="q-mr-xs text-grey-6" />
-                {{ child.pulsera }}
+        <div class="column q-pa-lg q-pl-xl bg-white card-body">
+          <div>
+            <div class="row q-col-gutter-lg q-mb-md">
+              <div class="col-6">
+                <div class="info-label">PULSERA</div>
+                <div class="row items-center info-value">
+                  <q-icon name="badge" size="14px" class="q-mr-xs text-grey-6" />
+                  {{ child.pulsera }}
+                </div>
               </div>
-            </div>
-            <div class="col-6">
-              <div class="info-label">TIEMPO</div>
-              <div class="info-value" :class="statusConfig?.textColor">
-                {{ store.formatMinutosLabel(child) }}
-              </div>
-            </div>
-          </div>
 
-          <q-linear-progress
-            :value="child.progressPercent / 100"
-            :color="statusConfig?.barColor.replace('bg-', '')"
-            track-color="grey-3"
-            size="8px"
-            rounded
-            class="q-mb-lg"
-          />
+              <div class="col-6">
+                <div class="info-label">TIEMPO</div>
+                <div class="info-value" :class="statusConfig?.textColor">
+                  {{ store.formatMinutosLabel(child) }}
+                </div>
+              </div>
+            </div>
+
+            <q-linear-progress
+              :value="child.progressPercent / 100"
+              :color="statusConfig?.barColor.replace('bg-', '')"
+              track-color="grey-3"
+              size="8px"
+              rounded
+            />
+          </div>
 
           <q-btn
             unelevated
             color="primary"
             label="Checkout"
             no-caps
-            dense
+            class="q-mt-lg full-width"
             @click="handleCheckout"
           />
         </div>
@@ -192,27 +208,32 @@ function closeFotosDialog() {
         <div class="status-bar" :class="statusConfig?.barColor"></div>
 
         <div
-          class="q-pa-md q-pl-lg"
+          class="q-pa-md q-pl-xl"
           :class="statusConfig?.headerBg"
-          style="border-bottom: 1px solid #f1f1f1"
+          style="border-bottom: 1px solid #f1f1f1; position: relative"
         >
-          <div class="row justify-between items-center">
-            <span class="text-subtitle2 text-weight-bold text-dark">Detalles</span>
+          <div class="text-subtitle2 text-weight-bold text-dark" style="padding-right: 30px">
+            Detalles
+          </div>
+          <div style="position: absolute; top: 12px; right: 12px">
             <q-btn flat round dense icon="close" size="sm" color="grey-8" @click="closeDetails" />
           </div>
         </div>
 
-        <div class="column q-pa-lg q-pl-lg bg-white card-body">
+        <div class="column q-pa-lg q-pl-xl bg-white card-body">
+          <div class="info-label q-mb-xs">SEGUNDO TUTOR</div>
+          <div v-if="child.nombreSegundoTutor" class="text-body2 text-dark q-mb-md">
+            {{ child.nombreSegundoTutor }}
+          </div>
+          <div v-else class="text-body2 text-dark q-mb-md">Sin segundo tutor</div>
+
           <div class="info-label q-mb-xs">NOTAS</div>
           <div v-if="child.notas" class="notas-box q-mb-md">
             <span class="text-body2 text-dark">{{ child.notas }}</span>
           </div>
           <div v-else class="text-caption text-grey-5 q-mb-md">Sin notas registradas.</div>
-
           <q-separator class="q-mb-md" />
-
           <div class="info-label q-mb-sm">FOTOS DEL REGISTRO</div>
-
           <q-btn
             outline
             color="primary"
@@ -291,8 +312,8 @@ function closeFotosDialog() {
 
 <style scoped>
 .card-slot {
-  width: 100%;
-  height: 340px;
+  width: 120%;
+  height: 360px;
   position: relative;
 }
 
@@ -309,7 +330,9 @@ function closeFotosDialog() {
 
 .card-body {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .border-activo {
