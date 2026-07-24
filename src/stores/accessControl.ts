@@ -83,6 +83,13 @@ export const useAccessControlStore = defineStore('accessControl', () => {
 
   const pulserasDisponibles = ref<PulseraDto[]>([])
   const pulserasLibres = computed(() => pulserasDisponibles.value.length)
+  const puedeVerPulseras = computed(() => authStore.hasPermission('pulseras:listar'))
+  const capacidadTotal = computed(() => totalActivos.value + pulserasLibres.value)
+
+  const disponibilidadPercent = computed(() => {
+    if (capacidadTotal.value === 0) return 0
+    return Math.round((pulserasLibres.value / capacidadTotal.value) * 100)
+  })
 
   async function loadActivos() {
     if (!authStore.currentBranchId) {
@@ -92,18 +99,24 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     isLoading.value = true
     error.value = null
     try {
-      const [activosData, pulserasData] = await Promise.all([
-        fetchActivos(authStore.currentBranchId),
-        fetchPulseras(authStore.currentBranchId),
-      ])
-      rawActivos.value = activosData
-      pulserasDisponibles.value = pulserasData
+      rawActivos.value = await fetchActivos(authStore.currentBranchId)
       lastUpdated.value = new Date()
     } catch (err) {
       error.value = 'No se pudo cargar la lista de niños activos.'
       console.error(err)
     } finally {
       isLoading.value = false
+    }
+
+    // Las pulseras alimentan el indicador de disponibilidad y el selector de
+    // registro; requieren un permiso aparte (pulseras:listar) y no deben
+    // bloquear la lista de activos.
+    if (puedeVerPulseras.value) {
+      try {
+        pulserasDisponibles.value = await fetchPulseras(authStore.currentBranchId)
+      } catch (err) {
+        console.error(err)
+      }
     }
   }
 
@@ -145,6 +158,9 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     excedidos,
     pulserasLibres,
     pulserasDisponibles,
+    puedeVerPulseras,
+    capacidadTotal,
+    disponibilidadPercent,
     loadActivos,
     formatMinutosLabel,
     formatRemainingLabel,

@@ -10,7 +10,7 @@ export async function cambiarEstadoComanda(
   nuevoEstado: EstadoActualComanda,
   signal?: AbortSignal,
 ): Promise<void> {
-  return comandasApi.cambiarEstado(comandaId, nuevoEstado, signal)
+  return comandasApi.cambiarEstado(comandaId, nuevoEstado, undefined, signal)
 }
 
 export async function crearComanda(
@@ -18,4 +18,13 @@ export async function crearComanda(
   signal?: AbortSignal,
 ): Promise<Comanda> {
   return comandasApi.crear(payload, signal)
+}
+
+export async function modificarDetallesComanda(
+  comandaId: string,
+  detallesIdsAEliminar: string[],
+  motivoCancelacion?: string,
+  signal?: AbortSignal,
+): Promise<Comanda> {
+  return comandasApi.modificarDetalles(comandaId, detallesIdsAEliminar, motivoCancelacion, signal)
 }

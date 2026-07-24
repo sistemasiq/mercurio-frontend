@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { ActiveChild } from '@/stores/accessControl'
 import { useAccessControlStore } from '@/stores/accessControl'
-import { getFotoIneUrl, getFotoLlegadaUrl } from '@/api/onboardingClient'
+import { fetchFotoIneUrl, fetchFotoLlegadaUrl } from '@/api/onboardingClient'
 
 const props = defineProps<{ child: ActiveChild }>()
 const store = useAccessControlStore()
@@ -71,12 +71,41 @@ function formatTelefono(telefono: string) {
   return telefono
 }
 
-const fotoIneUrl = computed(() => getFotoIneUrl(props.child.registroId))
-const fotoLlegadaUrl = computed(() => getFotoLlegadaUrl(props.child.registroId))
+const fotoIneUrl = ref<string | null>(null)
+const fotoLlegadaUrl = ref<string | null>(null)
 
 const showFotosDialog = ref(false)
 const fotoIneError = ref(false)
 const fotoLlegadaError = ref(false)
+
+function revokeFotoUrls() {
+  if (fotoIneUrl.value) URL.revokeObjectURL(fotoIneUrl.value)
+  if (fotoLlegadaUrl.value) URL.revokeObjectURL(fotoLlegadaUrl.value)
+  fotoIneUrl.value = null
+  fotoLlegadaUrl.value = null
+}
+
+async function openFotosDialog() {
+  showFotosDialog.value = true
+  fotoIneError.value = false
+  fotoLlegadaError.value = false
+
+  try {
+    fotoIneUrl.value = await fetchFotoIneUrl(props.child.registroId)
+  } catch {
+    fotoIneError.value = true
+  }
+
+  try {
+    fotoLlegadaUrl.value = await fetchFotoLlegadaUrl(props.child.registroId)
+  } catch {
+    fotoLlegadaError.value = true
+  }
+}
+
+function closeFotosDialog() {
+  showFotosDialog.value = false
+}
 </script>
 
 <template>
@@ -213,14 +242,20 @@ const fotoLlegadaError = ref(false)
             no-caps
             dense
             class="full-width"
-            @click="showFotosDialog = true"
+            @click="openFotosDialog"
           />
         </div>
       </q-card>
     </transition>
 
     <!-- Dialog de fotos a pantalla completa -->
-    <q-dialog v-model="showFotosDialog" maximized transition-show="fade" transition-hide="fade">
+    <q-dialog
+      v-model="showFotosDialog"
+      maximized
+      transition-show="fade"
+      transition-hide="fade"
+      @hide="revokeFotoUrls"
+    >
       <q-card class="fotos-dialog-card">
         <q-btn
           flat
@@ -230,7 +265,7 @@ const fotoLlegadaError = ref(false)
           size="lg"
           color="white"
           class="fotos-close-btn"
-          @click="showFotosDialog = false"
+          @click="closeFotosDialog"
         />
 
         <div class="fotos-dialog-content">
@@ -239,27 +274,33 @@ const fotoLlegadaError = ref(false)
           <div class="row q-col-gutter-lg justify-center">
             <div class="col-12 col-sm-15 text-center">
               <div class="text-subtitle2 text-white q-mb-sm">INE</div>
-              <div v-if="!fotoIneError" class="fotos-dialog-img-wrap">
-                <img :src="fotoIneUrl" class="fotos-dialog-img" @error="fotoIneError = true" />
-              </div>
-              <div v-else class="fotos-dialog-img-error">
+              <div v-if="fotoIneError" class="fotos-dialog-img-error">
                 <q-icon name="broken_image" size="48px" color="grey-5" />
                 <div class="text-caption text-grey-5 q-mt-sm">No disponible</div>
+              </div>
+              <div v-else-if="!fotoIneUrl" class="fotos-dialog-img-error">
+                <q-spinner color="white" size="32px" />
+              </div>
+              <div v-else class="fotos-dialog-img-wrap">
+                <img :src="fotoIneUrl" class="fotos-dialog-img" @error="fotoIneError = true" />
               </div>
             </div>
 
             <div class="col-12 col-sm-15 text-center">
               <div class="text-subtitle2 text-white q-mb-sm">Foto de Llegada</div>
-              <div v-if="!fotoLlegadaError" class="fotos-dialog-img-wrap">
+              <div v-if="fotoLlegadaError" class="fotos-dialog-img-error">
+                <q-icon name="broken_image" size="48px" color="grey-5" />
+                <div class="text-caption text-grey-5 q-mt-sm">No disponible</div>
+              </div>
+              <div v-else-if="!fotoLlegadaUrl" class="fotos-dialog-img-error">
+                <q-spinner color="white" size="32px" />
+              </div>
+              <div v-else class="fotos-dialog-img-wrap">
                 <img
                   :src="fotoLlegadaUrl"
                   class="fotos-dialog-img"
                   @error="fotoLlegadaError = true"
                 />
-              </div>
-              <div v-else class="fotos-dialog-img-error">
-                <q-icon name="broken_image" size="48px" color="grey-5" />
-                <div class="text-caption text-grey-5 q-mt-sm">No disponible</div>
               </div>
             </div>
           </div>
