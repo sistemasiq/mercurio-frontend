@@ -133,7 +133,6 @@
 import { ref, computed, onBeforeUnmount, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
-
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
 import TicketPanel from '@/components/comandas/TicketPanel.vue'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
@@ -145,6 +144,8 @@ import { useComandasSocket } from '@/composables/useComandasSocket'
 import { useTicketComanda } from '@/composables/useTicketComanda'
 import { useCajaMetrics } from '@/composables/useCajaMetrics'
 import { useAuthStore } from '@/stores/auth'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import type { TipoProducto } from '@/types/producto'
 import type { MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment, PagoCompletoRequest } from '@/types/payments'
@@ -327,20 +328,7 @@ const mapearMetodoPago = (nombreMetodo: string): string => {
   return metodo.id
 }
 
-const obtenerMensajeError = (err: unknown): string => {
-  if (axios.isAxiosError(err)) {
-    const data = err.response?.data as
-      | { detail?: string | string[]; message?: string; error?: string }
-      | undefined
-    if (typeof data?.detail === 'string') return data.detail
-    if (Array.isArray(data?.detail)) return data.detail.join(', ')
-    if (data?.message) return data.message
-    if (data?.error) return data.error
-    if (err.response?.status) return `Error HTTP ${err.response.status}`
-  }
-  return err instanceof Error ? err.message : 'No se pudo procesar el pago.'
-}
-
+// Pago
 const procesarPago = async (pagos: AppliedPayment[]) => {
   if (itemsTicket.value.length === 0 || enviando.value) return
 
@@ -408,7 +396,7 @@ const procesarPago = async (pagos: AppliedPayment[]) => {
     $q.notify({
       type: 'negative',
       message: 'Error al procesar el pago',
-      caption: obtenerMensajeError(err),
+      caption: resolveErrorMessage(err as ApiError),
       position: 'top-right',
       timeout: 4000,
     })

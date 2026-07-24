@@ -238,6 +238,8 @@
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { usePaquetesStore } from '@/stores/paquetes'
 import type { Paquetes } from '@/types/paquetes'
@@ -315,8 +317,16 @@ const cerrarDialog = () => {
 }
 
 const guardar = async () => {
-  if (!formDialog.value.nombre.trim() || formDialog.value.precio_base <= 0) {
+  if (!formDialog.value.nombre.trim()) {
     nombreRef.value?.validate()
+    return
+  }
+  if (formDialog.value.precio_base <= 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'El precio debe ser mayor a cero.',
+      position: 'top-right',
+    })
     return
   }
   guardando.value = true
@@ -345,10 +355,10 @@ const guardar = async () => {
       $q.notify({ type: 'positive', message: 'Paquete creado', position: 'top-right' })
     }
     cerrarDialog()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -366,8 +376,12 @@ const toggleActivo = async (row: Paquetes) => {
       message: `Paquete ${!row.activo ? 'activado' : 'desactivado'}`,
       position: 'top-right',
     })
-  } catch {
-    $q.notify({ type: 'negative', message: 'No se pudo cambiar el estado.', position: 'top-right' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
   }
 }
 
@@ -389,10 +403,10 @@ const ejecutarEliminar = async () => {
     await store.eliminarPaquete(filaEliminar.value.id)
     $q.notify({ type: 'positive', message: 'Paquete eliminado', position: 'top-right' })
     dialogEliminar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {

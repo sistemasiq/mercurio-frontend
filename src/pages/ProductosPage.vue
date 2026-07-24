@@ -67,6 +67,18 @@
           <template #body-cell-actions="props">
             <q-td :props="props" class="text-right">
               <q-btn
+                v-if="props.row.tipo === 'A' || props.row.tipo === 'B'"
+                flat
+                dense
+                color="grey-8"
+                size="sm"
+                class="action-btn q-mr-xs"
+                @click="abrirReceta(props.row)"
+              >
+                <span class="material-symbols-outlined">restaurant_menu</span>
+                <q-tooltip>Receta</q-tooltip>
+              </q-btn>
+              <q-btn
                 flat
                 dense
                 color="grey-8"
@@ -351,6 +363,101 @@
       </q-card>
     </q-dialog>
 
+    <!-- ── Dialog Receta ──────────────────────────────────────────────────── -->
+    <q-dialog v-model="dialogReceta">
+      <q-card style="min-width: 480px; border-radius: 12px">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold">Receta de {{ productoReceta?.nombre }}</div>
+          <div class="text-body2 text-grey-7">Insumos que consume una unidad de este producto.</div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-section>
+          <q-banner
+            v-if="recetaStore.error"
+            dense
+            rounded
+            class="bg-red-1 text-red-8 q-mb-md"
+            style="border-radius: 10px"
+          >
+            {{ recetaStore.error }}
+          </q-banner>
+
+          <q-list v-if="recetaStore.items.length" separator>
+            <q-item v-for="item in recetaStore.items" :key="item.insumo_id">
+              <q-item-section>
+                <q-item-label>{{ item.insumo_nombre }}</q-item-label>
+                <q-item-label caption>
+                  {{ Number(item.cantidad) }} {{ item.unidad_base_codigo }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="delete_outline"
+                  color="negative"
+                  size="sm"
+                  @click="quitarInsumo(item.insumo_id)"
+                >
+                  <q-tooltip>Quitar</q-tooltip>
+                </q-btn>
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-else class="text-body2 text-grey-7 q-py-sm">
+            Este producto todavía no tiene insumos en su receta.
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-section class="q-gutter-md">
+          <div class="row q-col-gutter-sm items-start">
+            <div class="col-7">
+              <div class="field-label">INSUMO</div>
+              <q-select
+                v-model="formReceta.insumo_id"
+                dense
+                outlined
+                emit-value
+                map-options
+                :options="insumoOptions"
+                placeholder="Selecciona un insumo"
+              />
+            </div>
+            <div class="col-5">
+              <div class="field-label">CANTIDAD</div>
+              <q-input
+                v-model.number="formReceta.cantidad"
+                dense
+                outlined
+                type="number"
+                min="0"
+                step="0.001"
+              />
+            </div>
+          </div>
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            label="Agregar / actualizar"
+            style="border-radius: 8px; font-weight: 600"
+            :loading="guardandoReceta"
+            :disable="!formReceta.insumo_id || !formReceta.cantidad"
+            @click="guardarRecetaItem"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md q-pt-sm">
+          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="dialogReactivar">
       <q-card style="min-width: 360px; border-radius: 12px">
         <q-card-section>
@@ -381,8 +488,12 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useProductosStore } from '@/stores/productos'
+import { useInsumosStore } from '@/stores/insumos'
+import { useRecetaProductoStore } from '@/stores/recetaProducto'
 import type { ComboItemCreate, ProductoAdmin, TipoProducto } from '@/types/producto'
 import { apiClient } from '@/api/axiosClient.ts'
 import { getProductoImagenUrl } from '@/api/productosApi'
@@ -392,6 +503,8 @@ import ProductoBadgeEstado from '@/components/productos/ProductoBadgeEstado.vue'
 const $q = useQuasar()
 const authStore = useAuthStore()
 const store = useProductosStore()
+const insumosStore = useInsumosStore()
+const recetaStore = useRecetaProductoStore()
 
 const TIPO_OPTIONS = [
   { label: 'Alimento', value: 'A' },
@@ -568,8 +681,16 @@ const cerrarDialog = () => {
 }
 
 const guardar = async () => {
-  if (!formDialog.value.nombre.trim() || formDialog.value.precio_unitario <= 0) {
+  if (!formDialog.value.nombre.trim()) {
     nombreRef.value?.validate()
+    return
+  }
+  if (formDialog.value.precio_unitario <= 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'El precio debe ser mayor a cero.',
+      position: 'top-right',
+    })
     return
   }
 
@@ -632,10 +753,10 @@ const guardar = async () => {
       $q.notify({ type: 'positive', message: 'Producto creado', position: 'top-right' })
     }
     cerrarDialog()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -661,16 +782,75 @@ const ejecutarEliminar = async () => {
     await store.eliminar(filaEliminar.value.id)
     $q.notify({ type: 'positive', message: 'Producto eliminado', position: 'top-right' })
     dialogEliminar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
     eliminando.value = false
   }
 }
+
+// ── Receta ────────────────────────────────────────────────────────────────────
+
+const dialogReceta = ref(false)
+const productoReceta = ref<ProductoAdmin | null>(null)
+const guardandoReceta = ref(false)
+
+const formReceta = ref({
+  insumo_id: null as string | null,
+  cantidad: 0,
+})
+
+const insumoOptions = computed(() =>
+  insumosStore.insumos.filter((i) => i.activo).map((i) => ({ label: i.nombre, value: i.id })),
+)
+
+const abrirReceta = (row: ProductoAdmin) => {
+  productoReceta.value = row
+  formReceta.value = { insumo_id: null, cantidad: 0 }
+  dialogReceta.value = true
+  recetaStore.cargar(row.id)
+  if (authStore.currentBranchId) insumosStore.cargar(authStore.currentBranchId)
+}
+
+const guardarRecetaItem = async () => {
+  if (!productoReceta.value || !formReceta.value.insumo_id || !formReceta.value.cantidad) return
+  guardandoReceta.value = true
+  try {
+    await recetaStore.upsert(productoReceta.value.id, formReceta.value.insumo_id, {
+      cantidad: String(formReceta.value.cantidad),
+    })
+    formReceta.value = { insumo_id: null, cantidad: 0 }
+    $q.notify({ type: 'positive', message: 'Receta actualizada', position: 'top-right' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+  } finally {
+    guardandoReceta.value = false
+  }
+}
+
+const quitarInsumo = async (insumoId: string) => {
+  if (!productoReceta.value) return
+  try {
+    await recetaStore.eliminar(productoReceta.value.id, insumoId)
+    $q.notify({ type: 'positive', message: 'Insumo quitado de la receta', position: 'top-right' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+  }
+}
+
+// ── Reactivar ─────────────────────────────────────────────────────────────────
 
 const dialogReactivar = ref(false)
 const filaReactivar = ref<ProductoAdmin | null>(null)
@@ -688,10 +868,10 @@ const ejecutarReactivar = async () => {
     await store.reactivar(filaReactivar.value.id)
     $q.notify({ type: 'positive', message: 'Producto reactivado', position: 'top-right' })
     dialogReactivar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo reactivar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {

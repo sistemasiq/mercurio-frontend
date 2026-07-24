@@ -4,16 +4,16 @@
       <!-- Encabezado -->
       <div class="row items-center q-mb-lg">
         <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Pulseras</div>
+          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Proveedores</div>
           <div class="text-body2" style="color: var(--text-secondary)">
-            Pulseras RFID disponibles para el control de acceso de la sucursal.
+            Catálogo de proveedores de la sucursal.
           </div>
         </div>
         <q-space />
         <q-btn
           color="primary"
           icon="add"
-          label="Nueva Pulsera"
+          label="Nuevo Proveedor"
           unelevated
           no-caps
           :disable="!authStore.currentBranchId"
@@ -52,22 +52,18 @@
       <!-- Tabla -->
       <q-card flat bordered style="border-radius: 12px; overflow: hidden">
         <q-table
-          :rows="store.pulseras"
+          :rows="store.proveedores"
           :columns="columns"
           row-key="id"
           flat
           :loading="store.loading"
           :rows-per-page-options="[10, 25, 50]"
-          no-data-label="No hay pulseras registradas"
+          no-data-label="No hay proveedores registrados"
           class="fec-table"
         >
           <template #body-cell-activo="props">
             <q-td :props="props">
-              <q-badge
-                :color="props.row.activo ? 'positive' : 'grey-5'"
-                :label="props.row.activo ? 'Activa' : 'Inactiva'"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
-              />
+              <ProductoBadgeEstado :activo="props.row.activo" />
             </q-td>
           </template>
 
@@ -75,26 +71,25 @@
             <q-td :props="props" class="text-right">
               <q-btn
                 flat
-                round
                 dense
-                :icon="props.row.activo ? 'toggle_on' : 'toggle_off'"
-                :color="props.row.activo ? 'positive' : 'grey-5'"
+                color="grey-8"
                 size="sm"
-                class="q-mr-xs"
-                @click="toggleActivo(props.row)"
+                class="action-btn q-mr-xs"
+                @click="abrirEditar(props.row)"
               >
-                <q-tooltip>{{ props.row.activo ? 'Desactivar' : 'Activar' }}</q-tooltip>
+                <span class="material-symbols-outlined">edit</span>
+                <q-tooltip>Editar</q-tooltip>
               </q-btn>
               <q-btn
                 flat
-                round
                 dense
-                icon="delete_outline"
-                color="negative"
+                color="grey-8"
                 size="sm"
+                class="action-btn"
                 :disable="!props.row.activo"
                 @click="confirmarEliminar(props.row)"
               >
+                <span class="material-symbols-outlined">delete_outline</span>
                 <q-tooltip>Eliminar</q-tooltip>
               </q-btn>
             </q-td>
@@ -103,26 +98,62 @@
       </q-card>
     </div>
 
-    <!-- ── Dialog Crear ─────────────────────────────────────────────────────── -->
+    <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
     <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 380px; border-radius: 12px">
+      <q-card style="min-width: 420px; border-radius: 12px">
         <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Nueva Pulsera</div>
+          <div class="text-h6 text-weight-bold">
+            {{ editando ? 'Editar Proveedor' : 'Nuevo Proveedor' }}
+          </div>
         </q-card-section>
 
         <q-separator />
 
         <q-card-section class="q-gutter-md q-pt-md">
           <div>
-            <div class="field-label">CÓDIGO RFID</div>
+            <div class="field-label">NOMBRE</div>
             <q-input
-              ref="rfidRef"
-              v-model="formDialog.pulsera_rfid"
+              ref="nombreRef"
+              v-model="formDialog.nombre"
               dense
               outlined
               autofocus
-              placeholder="Ej. RFID-001"
-              :rules="[(v) => !!v || 'El código RFID es requerido']"
+              placeholder="Ej. Distribuidora del Valle"
+              :rules="[(v) => !!v || 'El nombre es requerido']"
+            />
+          </div>
+          <div>
+            <div class="field-label">CONTACTO (opcional)</div>
+            <q-input
+              v-model="formDialog.contacto_nombre"
+              dense
+              outlined
+              placeholder="Nombre de la persona de contacto"
+            />
+          </div>
+          <div>
+            <div class="field-label">TELÉFONO (opcional)</div>
+            <q-input v-model="formDialog.telefono" dense outlined placeholder="10 dígitos" />
+          </div>
+          <div>
+            <div class="field-label">EMAIL (opcional)</div>
+            <q-input
+              v-model="formDialog.email"
+              dense
+              outlined
+              type="email"
+              placeholder="contacto@proveedor.com"
+            />
+          </div>
+          <div>
+            <div class="field-label">NOTAS (opcional)</div>
+            <q-input
+              v-model="formDialog.notas"
+              dense
+              outlined
+              type="textarea"
+              rows="2"
+              placeholder="Notas adicionales"
             />
           </div>
         </q-card-section>
@@ -133,7 +164,7 @@
             unelevated
             no-caps
             color="primary"
-            label="Crear pulsera"
+            :label="editando ? 'Guardar cambios' : 'Crear proveedor'"
             style="border-radius: 8px; font-weight: 600"
             :loading="guardando"
             @click="guardar"
@@ -142,14 +173,14 @@
       </q-card>
     </q-dialog>
 
-    <!-- ── Dialog Confirmar Eliminar ────────────────────────────────────────── -->
+    <!-- ── Dialog Confirmar Eliminar ──────────────────────────────────────── -->
     <q-dialog v-model="dialogEliminar">
       <q-card style="min-width: 360px; border-radius: 12px">
         <q-card-section>
-          <div class="text-h6 text-weight-bold">Eliminar pulsera</div>
+          <div class="text-h6 text-weight-bold">Eliminar proveedor</div>
           <div class="q-mt-sm text-body2 text-grey-8">
             ¿Estás seguro de que deseas eliminar
-            <strong>{{ filaEliminar?.pulsera_rfid }}</strong
+            <strong>{{ filaEliminar?.nombre }}</strong
             >? Esta acción no se puede deshacer.
           </div>
         </q-card-section>
@@ -176,13 +207,14 @@ import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
+import ProductoBadgeEstado from '@/components/productos/ProductoBadgeEstado.vue'
 import { useAuthStore } from '@/stores/auth'
-import { usePulserasStore } from '@/stores/pulseras'
-import type { PulseraAdmin } from '@/types/pulsera'
+import { useProveedoresStore } from '@/stores/proveedores'
+import type { Proveedor } from '@/types/proveedor'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
-const store = usePulserasStore()
+const store = useProveedoresStore()
 
 const cargar = () => {
   if (authStore.currentBranchId) store.cargar(authStore.currentBranchId)
@@ -191,13 +223,10 @@ const cargar = () => {
 onMounted(cargar)
 
 const columns: QTableColumn[] = [
-  {
-    name: 'pulsera_rfid',
-    label: 'CÓDIGO RFID',
-    field: 'pulsera_rfid',
-    align: 'left',
-    sortable: true,
-  },
+  { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
+  { name: 'contacto_nombre', label: 'CONTACTO', field: 'contacto_nombre', align: 'left' },
+  { name: 'telefono', label: 'TELÉFONO', field: 'telefono', align: 'left' },
+  { name: 'email', label: 'EMAIL', field: 'email', align: 'left' },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
@@ -205,33 +234,69 @@ const columns: QTableColumn[] = [
 // ── Estado del dialog ─────────────────────────────────────────────────────────
 
 const dialogOpen = ref(false)
+const editando = ref<Proveedor | null>(null)
 const guardando = ref(false)
-const rfidRef = ref()
+const nombreRef = ref()
 
-const formDialog = ref({ pulsera_rfid: '' })
+const formDialog = ref({
+  nombre: '',
+  contacto_nombre: '',
+  telefono: '',
+  email: '',
+  notas: '',
+})
 
 const abrirCrear = () => {
-  formDialog.value = { pulsera_rfid: '' }
+  editando.value = null
+  formDialog.value = { nombre: '', contacto_nombre: '', telefono: '', email: '', notas: '' }
+  dialogOpen.value = true
+}
+
+const abrirEditar = (row: Proveedor) => {
+  editando.value = row
+  formDialog.value = {
+    nombre: row.nombre,
+    contacto_nombre: row.contacto_nombre ?? '',
+    telefono: row.telefono ?? '',
+    email: row.email ?? '',
+    notas: row.notas ?? '',
+  }
   dialogOpen.value = true
 }
 
 const cerrarDialog = () => {
   dialogOpen.value = false
+  editando.value = null
 }
 
 const guardar = async () => {
-  if (!formDialog.value.pulsera_rfid.trim()) {
-    rfidRef.value?.validate()
+  if (!formDialog.value.nombre.trim()) {
+    nombreRef.value?.validate()
     return
   }
-  if (!authStore.currentBranchId) return
   guardando.value = true
   try {
-    await store.crear({
-      pulsera_rfid: formDialog.value.pulsera_rfid.trim(),
-      sucursal_id: authStore.currentBranchId,
-    })
-    $q.notify({ type: 'positive', message: 'Pulsera creada', position: 'top-right' })
+    if (editando.value) {
+      await store.actualizar(editando.value.id, {
+        nombre: formDialog.value.nombre.trim(),
+        contacto_nombre: formDialog.value.contacto_nombre.trim() || null,
+        telefono: formDialog.value.telefono.trim() || null,
+        email: formDialog.value.email.trim() || null,
+        notas: formDialog.value.notas.trim() || null,
+      })
+      $q.notify({ type: 'positive', message: 'Proveedor actualizado', position: 'top-right' })
+    } else {
+      if (!authStore.currentBranchId) return
+      await store.crear({
+        nombre: formDialog.value.nombre.trim(),
+        contacto_nombre: formDialog.value.contacto_nombre.trim() || null,
+        telefono: formDialog.value.telefono.trim() || null,
+        email: formDialog.value.email.trim() || null,
+        notas: formDialog.value.notas.trim() || null,
+        sucursal_id: authStore.currentBranchId,
+      })
+      $q.notify({ type: 'positive', message: 'Proveedor creado', position: 'top-right' })
+    }
     cerrarDialog()
   } catch (err) {
     $q.notify({
@@ -244,32 +309,13 @@ const guardar = async () => {
   }
 }
 
-// ── Toggle activo ─────────────────────────────────────────────────────────────
-
-const toggleActivo = async (row: PulseraAdmin) => {
-  try {
-    await store.actualizar(row.id, { activo: !row.activo })
-    $q.notify({
-      type: 'positive',
-      message: `Pulsera ${!row.activo ? 'activada' : 'desactivada'}`,
-      position: 'top-right',
-    })
-  } catch (err) {
-    $q.notify({
-      type: 'negative',
-      message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
-    })
-  }
-}
-
 // ── Eliminar ──────────────────────────────────────────────────────────────────
 
 const dialogEliminar = ref(false)
-const filaEliminar = ref<PulseraAdmin | null>(null)
+const filaEliminar = ref<Proveedor | null>(null)
 const eliminando = ref(false)
 
-const confirmarEliminar = (row: PulseraAdmin) => {
+const confirmarEliminar = (row: Proveedor) => {
   filaEliminar.value = row
   dialogEliminar.value = true
 }
@@ -279,7 +325,7 @@ const ejecutarEliminar = async () => {
   eliminando.value = true
   try {
     await store.eliminar(filaEliminar.value.id)
-    $q.notify({ type: 'positive', message: 'Pulsera eliminada', position: 'top-right' })
+    $q.notify({ type: 'positive', message: 'Proveedor eliminado', position: 'top-right' })
     dialogEliminar.value = false
   } catch (err) {
     $q.notify({
@@ -295,11 +341,25 @@ const ejecutarEliminar = async () => {
 
 <style scoped>
 .field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 6px;
+}
+
+.action-btn {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+  font-size: 20px;
+  line-height: 1;
+  text-transform: none;
 }
 </style>
