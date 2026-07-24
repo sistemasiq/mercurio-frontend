@@ -26,6 +26,36 @@ function buildApiError(statusCode: number, code: string, message: string): ApiEr
   return { statusCode, code, message }
 }
 
+// El backend estructura sus errores como { detail: string | { code, message } }
+// (ver app/exceptions/__init__.py) — los 422 de validación de FastAPI mandan
+// detail como un array de { msg }. Desempaca cualquiera de esas formas.
+interface BackendErrorBody {
+  detail?: string | { code?: string; message?: string } | Array<{ msg?: string }>
+  code?: string
+  message?: string
+}
+
+function extractCodeAndMessage(data: BackendErrorBody | undefined): {
+  code: string
+  message: string
+} {
+  const detail = data?.detail
+  if (typeof detail === 'string') return { code: '', message: detail }
+  if (Array.isArray(detail)) {
+    return {
+      code: '',
+      message: detail
+        .map((item) => item?.msg)
+        .filter((msg): msg is string => !!msg)
+        .join(', '),
+    }
+  }
+  if (detail && typeof detail === 'object') {
+    return { code: detail.code ?? '', message: detail.message ?? '' }
+  }
+  return { code: data?.code ?? '', message: data?.message ?? '' }
+}
+
 function createAxiosClient(): AxiosInstance {
   let isRefreshing = false
   const refreshQueue: Array<(token: string) => void> = []
@@ -46,7 +76,7 @@ function createAxiosClient(): AxiosInstance {
 
   client.interceptors.response.use(
     (response: AxiosResponse) => response,
-    async (error: AxiosError<{ message?: string; code?: string }>) => {
+    async (error: AxiosError<BackendErrorBody>) => {
       if (isNetworkError(error)) {
         return Promise.reject(
           buildApiError(0, 'NETWORK_ERROR', 'Sin conexión a internet. Verifica tu red.'),
@@ -54,8 +84,7 @@ function createAxiosClient(): AxiosInstance {
       }
 
       const status = error.response?.status ?? 0
-      const code = error.response?.data?.code ?? ''
-      const message = error.response?.data?.message ?? ''
+      const { code, message } = extractCodeAndMessage(error.response?.data)
 
       if (status === 401) {
         const session = sessionStorage.load()

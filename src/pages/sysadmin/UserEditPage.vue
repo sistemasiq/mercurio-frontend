@@ -5,6 +5,7 @@ import { useQuasar } from 'quasar'
 import { userService } from '@/services/userService'
 import { branchService } from '@/services/branchService'
 import { useAuthStore } from '@/stores/auth'
+import { useRolesStore } from '@/stores/roles'
 import type { UserRole, ApiError } from '@/types/auth'
 import type { Branch } from '@/types/branch'
 
@@ -12,6 +13,7 @@ const $q = useQuasar()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const rolesStore = useRolesStore()
 
 const id = route.params.id as string
 const loading = ref(false)
@@ -19,8 +21,8 @@ const loadingData = ref(true)
 const showPassword = ref(false)
 const branches = ref<Branch[]>([])
 
-// Un Administrador de sucursal solo puede editar Cajero/Cocina de su propia
-// sucursal — nunca otro Administrador ni un AdministradorSistema.
+// Un Administrador de sucursal solo puede editar roles operativos de su
+// propia sucursal — nunca otro Administrador ni un AdministradorSistema.
 const isBranchAdmin = computed(() => authStore.hasRole('Administrador'))
 
 const form = reactive({
@@ -31,26 +33,23 @@ const form = reactive({
   password: '',
 })
 
-const ALL_ROLE_OPTIONS: { label: string; value: UserRole }[] = [
-  { label: 'Administrador Sistema', value: 'AdministradorSistema' },
-  { label: 'Administrador', value: 'Administrador' },
-  { label: 'Cajero', value: 'Cajero' },
-  { label: 'Cocina', value: 'Cocina' },
-]
-
+// El catálogo de roles es dinámico (ver stores/roles.ts / página Roles).
 const roleOptions = computed(() =>
-  isBranchAdmin.value
-    ? ALL_ROLE_OPTIONS.filter((o) => o.value === 'Cajero' || o.value === 'Cocina')
-    : ALL_ROLE_OPTIONS,
+  rolesStore.roles
+    .filter((r) => r.activo && (!isBranchAdmin.value || r.requiere_sucursal))
+    .map((r) => ({ label: r.nombre, value: r.nombre })),
 )
 
 const branchOptions = computed(() =>
   branches.value.filter((b) => b.isActive).map((b) => ({ label: b.nombre, value: b.id })),
 )
 
-// Solo Cajero/Cocina operan una sola sucursal fija. Un Administrador se
-// asigna a sucursales desde el formulario de sucursal, no aquí.
-const requiresBranch = computed(() => form.role === 'Cajero' || form.role === 'Cocina')
+// Solo los roles operativos (requiere_sucursal) usan una sola sucursal fija.
+// Un Administrador se asigna a sucursales desde el formulario de sucursal,
+// no aquí.
+const requiresBranch = computed(
+  () => rolesStore.roles.find((r) => r.nombre === form.role)?.requiere_sucursal ?? false,
+)
 
 // Un Administrador de sucursal siempre edita usuarios de su propia sucursal:
 // no tiene sentido pedirle que la seleccione.
@@ -123,6 +122,7 @@ onMounted(async () => {
     const [user, branchList] = await Promise.all([
       userService.getUser(id),
       branchService.listBranches(),
+      rolesStore.roles.length === 0 ? rolesStore.cargar() : Promise.resolve(),
     ])
     branches.value = branchList
     form.name = user.name

@@ -166,6 +166,8 @@
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
 import type { Tipos_evento } from '@/types/tipos_evento'
 
@@ -226,10 +228,10 @@ const guardar = async () => {
       $q.notify({ type: 'positive', message: 'Tipo de evento creado', position: 'top-right' })
     }
     cerrarDialog()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -247,8 +249,12 @@ const toggleActivo = async (row: Tipos_evento) => {
       message: `Tipo de evento ${!row.activo ? 'activado' : 'desactivado'}`,
       position: 'top-right',
     })
-  } catch {
-    $q.notify({ type: 'negative', message: 'No se pudo cambiar el estado.', position: 'top-right' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
   }
 }
 
@@ -270,10 +276,10 @@ const ejecutarEliminar = async () => {
     await store.eliminarTipoEvento(filaEliminar.value.id)
     $q.notify({ type: 'positive', message: 'Tipo de evento eliminado', position: 'top-right' })
     dialogEliminar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {

@@ -8,8 +8,7 @@
       style="
         width: 900px;
         max-width: 95vw;
-        height: 75vh;
-        max-height: 680px;
+        max-height: 85vh;
         display: flex;
         flex-direction: row;
         border-radius: 16px;
@@ -24,7 +23,7 @@
           flex-direction: column;
           padding: 16px 20px;
           background: #ffffff;
-          overflow-y: auto;
+          overflow: hidden;
         "
       >
         <div class="row items-center justify-between q-mb-sm">
@@ -71,6 +70,7 @@
           border-left: 1px solid #e1e3e4;
           display: flex;
           flex-direction: column;
+          overflow: hidden;
         "
       >
         <div style="padding: 16px 20px; border-bottom: 1px solid #e1e3e4; background: #ffffff">
@@ -84,7 +84,7 @@
           </div>
         </div>
 
-        <div style="flex-grow: 1; overflow-y: auto; padding: 12px">
+        <div style="flex-grow: 1; padding: 12px; overflow-y: auto; min-height: 0">
           <AppliedPaymentsList :pagos="pagosAplicados" @remove-payment="eliminarPago" />
         </div>
 
@@ -287,6 +287,14 @@ const confirmarPagoTarjeta = () => {
 }
 
 const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: string) => {
+  if (esEfectivo(metodoSeleccionado.value)) {
+    const existente = pagosAplicados.value.find((p) => esEfectivo(p.method))
+    if (existente) {
+      existente.amount += monto
+      existente.timestamp = new Date()
+      return
+    }
+  }
   pagosAplicados.value.push({
     id: Date.now().toString(),
     method: metodoSeleccionado.value,

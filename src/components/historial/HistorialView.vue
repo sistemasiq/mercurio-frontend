@@ -1,99 +1,154 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import DetalleOrdenPagada from './DetalleOrdenPagada.vue'
-import DetalleOrdenCancelada from './DetalleOrdenCancelada.vue'
+import EditarOrdenModal from './EditarOrdenModal.vue'
+import MotivoCancelacionDialog from './MotivoCancelacionDialog.vue'
+import { comandasApi } from '@/api/comandasApi'
+import { obtenerHistorial, obtenerEstadisticas } from '@/services/historialService'
+import type { ITransaccion } from '@/types/transaccion'
+import type { Estadisticas } from '@/api/historialApi'
+
+const $q = useQuasar()
 
 const mostrarModalPagado = ref(false)
-const mostrarModalCancelado = ref(false)
+const mostrarModalEditar = ref(false)
+const isLoading = ref(false)
+const filtroTiempo = ref<'hoy' | 'semana' | 'mes'>('hoy')
+const filtroEstado = ref<'todos' | 'pagado' | 'cancelado'>('todos')
+const transacciones = ref<ITransaccion[]>([])
+const comandaSeleccionadaId = ref('')
+const estadisticas = ref<Estadisticas>({ total_ventas: 0, total_ordenes: 0, ticket_promedio: 0 })
+const mostrarFiltros = ref(false)
+const fechaInicio = ref('')
+const fechaFin = ref('')
 
-interface ITransaccion {
-  id: string
-  fechaHora: string
-  despacho: {
-    tipo: 'Mostrador' | 'Para llevar'
-    telefono: string // 📱 Cambiado de nombre de cliente a número telefónico
+async function cargarDatos() {
+  isLoading.value = true
+  try {
+    const fi = fechaInicio.value || undefined
+    const ff = fechaFin.value || undefined
+    const [txs, stats] = await Promise.all([
+      obtenerHistorial(filtroTiempo.value, filtroEstado.value, undefined, fi, ff),
+      obtenerEstadisticas(filtroTiempo.value, undefined, fi, ff),
+    ])
+    transacciones.value = txs
+    estadisticas.value = stats
+  } finally {
+    isLoading.value = false
   }
-  metodoPago: 'Tarjeta' | 'Efectivo' | 'Wallet'
-  estado: 'Pagado' | 'Cancelado' | 'Reembolsado'
-  total: number
 }
 
-const filtroTiempo = ref<'hoy' | 'semana' | 'mes'>('hoy')
+onMounted(cargarDatos)
 
-// Datos adaptados con números telefónicos reales para comida rápida
-const transacciones = ref<ITransaccion[]>([
-  {
-    id: '#0042',
-    fechaHora: '14:25 - 12 Oct',
-    despacho: { tipo: 'Mostrador', telefono: '452-123-4567' },
-    metodoPago: 'Tarjeta',
-    estado: 'Pagado',
-    total: 145.5,
-  },
-  {
-    id: '#0041',
-    fechaHora: '14:10 - 12 Oct',
-    despacho: { tipo: 'Para llevar', telefono: '352-987-6543' },
-    metodoPago: 'Efectivo',
-    estado: 'Pagado',
-    total: 32.0,
-  },
-  {
-    id: '#0040',
-    fechaHora: '13:45 - 12 Oct',
-    despacho: { tipo: 'Para llevar', telefono: '452-555-0199' },
-    metodoPago: 'Tarjeta',
-    estado: 'Cancelado',
-    total: 89.0,
-  },
-  {
-    id: '#0039',
-    fechaHora: '13:15 - 12 Oct',
-    despacho: { tipo: 'Mostrador', telefono: '352-444-0288' },
-    metodoPago: 'Wallet',
-    estado: 'Pagado',
-    total: 45.2,
-  },
-  {
-    id: '#0038',
-    fechaHora: '12:55 - 12 Oct',
-    despacho: { tipo: 'Mostrador', telefono: '452-888-9111' },
-    metodoPago: 'Efectivo',
-    estado: 'Pagado',
-    total: 12.5,
-  },
-  {
-    id: '#0034',
-    fechaHora: '11:45 - 12 Oct',
-    despacho: { tipo: 'Para llevar', telefono: '352-222-3344' },
-    metodoPago: 'Tarjeta',
-    estado: 'Reembolsado',
-    total: -15.0,
-  },
-])
+watch([filtroTiempo, filtroEstado], cargarDatos)
 
-const obtenerIconoMetodo = (metodo: string) => {
-  if (metodo === 'Tarjeta') return 'credit_card'
-  if (metodo === 'Efectivo') return 'payments'
+function aplicarFiltroFecha() {
+  mostrarFiltros.value = false
+  cargarDatos()
+}
+
+function limpiarFiltroFecha() {
+  fechaInicio.value = ''
+  fechaFin.value = ''
+  mostrarFiltros.value = false
+  cargarDatos()
+}
+
+function obtenerIconoMetodo(nombre: string): string {
+  const n = nombre.toLowerCase()
+  if (n.includes('tarjeta') || n.includes('credito') || n.includes('debito') || n.includes('card'))
+    return 'credit_card'
+  if (n.includes('efectivo') || n.includes('cash')) return 'payments'
   return 'account_balance_wallet'
 }
 
-const obtenerClaseEstado = (estado: string) => {
-  if (estado === 'Pagado') return 'status-pagado'
-  if (estado === 'Cancelado') return 'status-cancelado'
-  return 'status-reembolsado'
+function obtenerClaseEstado(estado: string): string {
+  const e = estado.toUpperCase()
+  if (e === 'P') return 'status-pendiente'
+  if (e === 'E') return 'status-proceso'
+  if (e === 'L' || e === 'PAGADO') return 'status-listo'
+  if (e === 'T') return 'status-entregado'
+  if (e === 'C' || e === 'CANCELADO') return 'status-cancelado'
+  return 'status-cancelado'
 }
 
-const verDetalleOrden = (estado: string) => {
-  if (estado === 'Cancelado') {
-    mostrarModalCancelado.value = true
-  } else {
-    mostrarModalPagado.value = true
+function textoEstado(estado: string): string {
+  const map: Record<string, string> = {
+    P: 'Pendiente',
+    E: 'En preparación',
+    L: 'Listo',
+    T: 'Entregado',
+    C: 'Cancelado',
   }
+  return map[estado] ?? estado
+}
+
+const verDetalleOrden = (comandaId: string, _estado: string) => {
+  comandaSeleccionadaId.value = comandaId
+  mostrarModalPagado.value = true
+}
+
+function formatearMonto(monto: number): string {
+  return `$${Number(monto || 0).toFixed(2)}`
+}
+
+function formatearFecha(iso: string): string {
+  const d = new Date(iso)
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mes = d.toLocaleString('es', { month: 'short' })
+  return `${hh}:${mm} - ${dd} ${mes}`
 }
 
 const imprimirDirecto = () => {
   window.print()
+}
+
+function esEstadoFinal(estado: string): boolean {
+  const e = estado.toUpperCase()
+  return e === 'C' || e === 'R'
+}
+
+function esEditable(estado: string): boolean {
+  return estado.toUpperCase() === 'P'
+}
+
+function abrirCancelar(comandaId: string) {
+  comandaSeleccionadaId.value = comandaId
+  $q.dialog({
+    component: MotivoCancelacionDialog,
+    componentProps: {
+      titulo: 'Cancelar Orden',
+      subtitulo: 'Selecciona el motivo de cancelación.',
+      botonLabel: 'Cancelar Orden',
+    },
+  }).onOk(async (motivo: string) => {
+    try {
+      await comandasApi.cambiarEstado(comandaId, 'C', motivo)
+      $q.notify({
+        type: 'positive',
+        message: 'Orden cancelada correctamente.',
+        position: 'top',
+        timeout: 2500,
+        icon: 'check_circle',
+      })
+      void cargarDatos()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'No se pudo cancelar la orden.'
+      $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 4000 })
+    }
+  })
+}
+
+function abrirEditar(comandaId: string) {
+  comandaSeleccionadaId.value = comandaId
+  mostrarModalEditar.value = true
+}
+
+function onOrdenActualizada() {
+  void cargarDatos()
 }
 </script>
 
@@ -133,7 +188,7 @@ const imprimirDirecto = () => {
               Mes
             </button>
           </div>
-          <button type="button" class="btn-sync-circle">
+          <button type="button" class="btn-sync-circle" @click="cargarDatos">
             <q-icon name="sync" size="xs" />
           </button>
         </div>
@@ -142,11 +197,10 @@ const imprimirDirecto = () => {
       <section class="metrics-grid">
         <div class="metric-card border-slate">
           <div class="metric-info">
-            <span class="metric-label">Ventas Hoy</span>
-            <h3 class="metric-value text-blue-primary">$12,450.00</h3>
-            <span class="metric-trend text-green-success">
-              <q-icon name="trending_up" size="xs" /> +12%
-            </span>
+            <span class="metric-label">Ventas Totales</span>
+            <h3 class="metric-value text-blue-primary">
+              ${{ Number(estadisticas.total_ventas || 0).toFixed(2) }}
+            </h3>
           </div>
           <div class="metric-icon-box bg-blue-fixed text-blue-primary">
             <q-icon name="monetization_on" size="sm" />
@@ -156,8 +210,7 @@ const imprimirDirecto = () => {
         <div class="metric-card border-slate">
           <div class="metric-info">
             <span class="metric-label">Órdenes</span>
-            <h3 class="metric-value">142</h3>
-            <span class="metric-subtext">Uso: 85%</span>
+            <h3 class="metric-value">{{ estadisticas.total_ordenes }}</h3>
           </div>
           <div class="metric-icon-box bg-orange-fixed text-orange-deep">
             <q-icon name="shopping_basket" size="sm" />
@@ -167,10 +220,9 @@ const imprimirDirecto = () => {
         <div class="metric-card border-slate">
           <div class="metric-info">
             <span class="metric-label">Ticket Prom.</span>
-            <h3 class="metric-value text-orange-deep">$87.60</h3>
-            <span class="metric-trend text-red-error">
-              <q-icon name="trending_down" size="xs" /> -3%
-            </span>
+            <h3 class="metric-value text-orange-deep">
+              ${{ Number(estadisticas.ticket_promedio || 0).toFixed(2) }}
+            </h3>
           </div>
           <div class="metric-icon-box bg-slate-gray">
             <q-icon name="analytics" size="sm" />
@@ -186,14 +238,39 @@ const imprimirDirecto = () => {
           </div>
 
           <div class="selects-actions-group">
-            <select class="select-filter-native">
-              <option>Estado</option>
-              <option>Pagado</option>
-              <option>Cancelado</option>
+            <select v-model="filtroEstado" class="select-filter-native">
+              <option value="todos">Todos</option>
+              <option value="pagado">Pagado</option>
+              <option value="cancelado">Cancelado</option>
             </select>
-            <button type="button" class="btn-filter-advanced">
+            <button
+              type="button"
+              class="btn-filter-advanced"
+              @click="mostrarFiltros = !mostrarFiltros"
+            >
               <q-icon name="filter_list" size="xs" /> Filtros
             </button>
+          </div>
+        </div>
+
+        <div v-if="mostrarFiltros" class="advanced-filters-panel">
+          <div class="filters-row">
+            <div class="filter-field">
+              <label class="filter-label">Fecha Inicio</label>
+              <input v-model="fechaInicio" type="date" class="filter-date-input" />
+            </div>
+            <div class="filter-field">
+              <label class="filter-label">Fecha Fin</label>
+              <input v-model="fechaFin" type="date" class="filter-date-input" />
+            </div>
+            <div class="filter-actions-row">
+              <button type="button" class="btn-filter-clear" @click="limpiarFiltroFecha">
+                <q-icon name="close" size="xs" /> Limpiar
+              </button>
+              <button type="button" class="btn-filter-apply" @click="aplicarFiltroFecha">
+                <q-icon name="check" size="xs" /> Aplicar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -201,55 +278,65 @@ const imprimirDirecto = () => {
           <table class="stitch-table-native">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Fecha/Hora</th>
-                <th>Cliente</th>
-                <th>Método</th>
+                <th>Ticket</th>
+                <th>Métodos de Pago</th>
                 <th>Estado</th>
                 <th class="text-right">Total</th>
                 <th class="text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="tx in transacciones" :key="tx.id" class="table-row-hover">
-                <td class="font-bold text-blue-primary">{{ tx.id }}</td>
-                <td class="text-xs text-slate-muted">{{ tx.fechaHora }}</td>
-                <td>
+              <tr v-if="isLoading">
+                <td colspan="6" class="text-center" style="padding: 32px">
+                  <q-spinner size="24px" color="primary" />
+                </td>
+              </tr>
+              <tr v-else-if="transacciones.length === 0">
+                <td colspan="6" class="text-center text-slate-muted" style="padding: 32px">
+                  No hay transacciones para este período.
+                </td>
+              </tr>
+              <tr v-for="tx in transacciones" :key="tx.comanda_id" class="table-row-hover">
+                <td class="td-align-middle text-xs text-slate-muted">
+                  {{ formatearFecha(tx.creado) }}
+                </td>
+                <td class="td-align-middle">
                   <div class="flex-column-cell">
-                    <span class="font-bold text-slate-dark">{{ tx.despacho.telefono }}</span>
-                    <span class="subtext-cell">{{ tx.despacho.tipo }}</span>
+                    <span class="font-bold text-slate-dark">{{ tx.ticket_numero }}</span>
+                    <span class="subtext-cell">Pedido</span>
                   </div>
                 </td>
-                <td>
-                  <div class="flex-row-cell gap-sm text-xs text-slate-dark">
-                    <q-icon
-                      :name="obtenerIconoMetodo(tx.metodoPago)"
-                      size="xs"
-                      class="text-slate-muted"
-                    />
-                    {{ tx.metodoPago }}
+                <td class="td-align-middle">
+                  <div class="payment-methods-cell">
+                    <div v-for="(mp, idx) in tx.metodos_pago" :key="idx" class="payment-method-row">
+                      <q-icon
+                        :name="obtenerIconoMetodo(mp.metodo_pago_nombre)"
+                        size="xs"
+                        class="text-slate-muted"
+                      />
+                      <span class="text-xs text-slate-dark">{{ mp.metodo_pago_nombre }}</span>
+                      <span class="text-xs font-bold text-slate-dark">{{
+                        formatearMonto(mp.monto)
+                      }}</span>
+                    </div>
                   </div>
                 </td>
-                <td>
-                  <span :class="obtenerClaseEstado(tx.estado)" class="status-badge-native">
-                    {{ tx.estado }}
+                <td class="td-align-middle">
+                  <span :class="obtenerClaseEstado(tx.estado_actual)" class="status-badge-native">
+                    {{ textoEstado(tx.estado_actual) }}
                   </span>
                 </td>
-                <td
-                  class="text-right font-bold text-slate-dark"
-                  :class="{
-                    'line-through opacity-40': tx.estado === 'Cancelado',
-                    'text-orange-deep': tx.estado === 'Reembolsado',
-                  }"
-                >
-                  ${{ tx.total.toFixed(2) }}
+                <td class="td-align-middle text-right font-bold text-slate-dark">
+                  ${{ Number(tx.total_final || 0).toFixed(2) }}
                 </td>
-                <td>
+                <td class="td-align-middle">
                   <div class="actions-cell-group">
                     <button
                       type="button"
                       class="btn-cell-action text-blue-primary"
-                      @click="verDetalleOrden(tx.estado)"
+                      title="Ver detalle"
+                      @click="verDetalleOrden(tx.comanda_id, tx.estado_actual)"
                     >
                       <q-icon name="visibility" size="xs" />
                     </button>
@@ -257,10 +344,31 @@ const imprimirDirecto = () => {
                     <button
                       type="button"
                       class="btn-cell-action text-orange-deep"
-                      :disabled="tx.estado === 'Cancelado'"
+                      title="Imprimir"
+                      :disabled="esEstadoFinal(tx.estado_actual)"
                       @click="imprimirDirecto()"
                     >
                       <q-icon name="print" size="xs" />
+                    </button>
+
+                    <button
+                      v-if="esEditable(tx.estado_actual)"
+                      type="button"
+                      class="btn-cell-action text-blue-primary"
+                      title="Editar orden"
+                      @click="abrirEditar(tx.comanda_id)"
+                    >
+                      <q-icon name="edit" size="xs" />
+                    </button>
+
+                    <button
+                      v-if="!esEstadoFinal(tx.estado_actual)"
+                      type="button"
+                      class="btn-cell-action text-red-error"
+                      title="Cancelar orden"
+                      @click="abrirCancelar(tx.comanda_id)"
+                    >
+                      <q-icon name="block" size="xs" />
                     </button>
                   </div>
                 </td>
@@ -270,26 +378,24 @@ const imprimirDirecto = () => {
         </div>
 
         <div class="pagination-footer-bar">
-          <span class="pagination-counter-text">Mostrando 1-10 de 142 órdenes</span>
-          <div class="pagination-buttons-group">
-            <button type="button" class="btn-pager-nav">
-              <q-icon name="chevron_left" size="xs" />
-            </button>
-            <button type="button" class="btn-pager-num active-page">1</button>
-            <button type="button" class="btn-pager-num">2</button>
-            <button type="button" class="btn-pager-num">3</button>
-            <button type="button" class="btn-pager-nav">
-              <q-icon name="chevron_right" size="xs" />
-            </button>
-          </div>
+          <span class="pagination-counter-text">
+            Mostrando {{ transacciones.length }} transacciones
+          </span>
         </div>
       </div>
-
-      <footer class="system-brand-footer">Sistema de Gestión Comercial ComertexPOS v2.4.0</footer>
     </main>
 
-    <DetalleOrdenPagada v-if="mostrarModalPagado" @close="mostrarModalPagado = false" />
-    <DetalleOrdenCancelada v-if="mostrarModalCancelado" @close="mostrarModalCancelado = false" />
+    <DetalleOrdenPagada
+      v-if="mostrarModalPagado"
+      :comanda-id="comandaSeleccionadaId"
+      @close="mostrarModalPagado = false"
+    />
+    <EditarOrdenModal
+      v-if="mostrarModalEditar"
+      :comanda-id="comandaSeleccionadaId"
+      @close="mostrarModalEditar = false"
+      @orden-actualizada="onOrdenActualizada"
+    />
   </div>
 </template>
 
@@ -320,7 +426,6 @@ const imprimirDirecto = () => {
 </style>
 
 <style scoped>
-/* 🔒 ESTILOS DEL COMPONENTE */
 .historial-layout-wrapper {
   display: block;
   width: 100%;
@@ -575,6 +680,10 @@ const imprimirDirecto = () => {
   padding: 16px 20px;
   font-size: 14px;
   border-bottom: 1px solid #c1c6d7;
+  vertical-align: middle;
+}
+.td-align-middle {
+  vertical-align: middle !important;
 }
 .table-row-hover:hover {
   background-color: #edeeef;
@@ -594,6 +703,16 @@ const imprimirDirecto = () => {
 .gap-sm {
   gap: 6px;
 }
+.payment-methods-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.payment-method-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .text-slate-muted {
   color: #717786;
 }
@@ -607,17 +726,25 @@ const imprimirDirecto = () => {
   font-weight: 700;
   text-transform: uppercase;
 }
-.status-pagado {
-  background-color: rgba(0, 134, 69, 0.1);
+.status-pendiente {
+  background-color: #edeeef;
+  color: #414754;
+}
+.status-proceso {
+  background-color: #ffdcc3;
+  color: #6e3900;
+}
+.status-listo {
+  background-color: rgba(0, 106, 53, 0.12);
   color: #006a35;
+}
+.status-entregado {
+  background-color: rgba(0, 89, 187, 0.1);
+  color: #0059bb;
 }
 .status-cancelado {
   background-color: rgba(186, 26, 26, 0.1);
   color: #ba1a1a;
-}
-.status-reembolsado {
-  background-color: rgba(253, 139, 0, 0.1);
-  color: #603100;
 }
 .actions-cell-group {
   display: flex;
@@ -684,5 +811,81 @@ const imprimirDirecto = () => {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   opacity: 0.4;
+}
+.advanced-filters-panel {
+  padding: 16px 20px;
+  border-bottom: 1px solid #c1c6d7;
+  background-color: #f8f9fa;
+}
+.filters-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #414754;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.filter-date-input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #c1c6d7;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+}
+.filter-date-input:focus {
+  border-color: #0059bb;
+}
+.filter-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.btn-filter-clear {
+  height: 38px;
+  padding: 0 16px;
+  background-color: #ffffff;
+  border: 1px solid #c1c6d7;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #414754;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.btn-filter-clear:hover {
+  background-color: #edeeef;
+}
+.btn-filter-apply {
+  height: 38px;
+  padding: 0 16px;
+  background-color: #0059bb;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.btn-filter-apply:hover {
+  background-color: #004a9c;
 }
 </style>

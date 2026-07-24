@@ -1,10 +1,83 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { useRegistrationStore } from '@/stores/registration'
+import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
+import { metodosPagoApi } from '@/api/metodosPagoApi'
+import type { MetodosPago } from '@/types/metodos_pago'
+import type { AppliedPayment } from '@/types/payments'
+import type { OnboardingPago } from '@/api/onboardingClient'
 
 const store = useRegistrationStore()
+const $q = useQuasar()
+
+const mostrarModalPago = ref(false)
+const metodosPagoDisponibles = ref<MetodosPago[]>([])
 
 function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
+}
+
+const cargarMetodosPago = async () => {
+  try {
+    metodosPagoDisponibles.value = await metodosPagoApi.listar()
+  } catch (err) {
+    console.error('[OrderSummary] cargarMetodosPago:', err)
+    $q.notify({
+      type: 'warning',
+      message: 'No se pudieron cargar los métodos de pago.',
+      caption: 'El cobro no estará disponible hasta recargar la página.',
+      position: 'top-right',
+      timeout: 6000,
+    })
+  }
+}
+
+onMounted(() => {
+  void cargarMetodosPago()
+})
+
+const abrirModalPago = () => {
+  mostrarModalPago.value = true
+}
+
+const mapearMetodoPago = (nombreMetodo: string): string => {
+  if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
+    throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
+  }
+
+  const metodo = metodosPagoDisponibles.value.find(
+    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
+  )
+
+  if (!metodo) {
+    const disponibles = metodosPagoDisponibles.value
+      .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
+      .join(', ')
+    throw new Error(
+      `El método de pago "${nombreMetodo}" no está configurado o no está activo. Métodos disponibles: [${disponibles}]`,
+    )
+  }
+  return metodo.id
+}
+
+const onPagoExitoso = (pagos: AppliedPayment[]) => {
+  try {
+    const pagosMapeados: OnboardingPago[] = pagos.map((p) => ({
+      metodoPagoId: mapearMetodoPago(p.method),
+      monto: p.amount,
+    }))
+    store.proceedToRFID(pagosMapeados)
+  } catch (err) {
+    console.error('[OrderSummary] onPagoExitoso:', err)
+    $q.notify({
+      type: 'negative',
+      message: 'No se pudo registrar el pago.',
+      caption: err instanceof Error ? err.message : 'Error desconocido.',
+      position: 'top-right',
+      timeout: 4000,
+    })
+  }
 }
 </script>
 
@@ -12,19 +85,6 @@ function formatCurrency(value: number) {
   <q-card flat bordered class="summary-card">
     <q-card-section>
       <div class="text-subtitle1 text-weight-bold q-mb-md">Resumen</div>
-
-      <q-banner
-        v-if="store.submitError"
-        dense
-        rounded
-        class="bg-red-1 text-red-9 q-mb-md"
-        style="font-size: 12px"
-      >
-        <template #avatar>
-          <q-icon name="error_outline" color="negative" />
-        </template>
-        {{ store.submitError }}
-      </q-banner>
 
       <div
         v-if="store.savedChildren.length === 0"
@@ -63,7 +123,13 @@ function formatCurrency(value: number) {
           label="Completar pago"
           icon="payment"
           :disable="!store.canProceedToRFID"
-          @click="store.proceedToRFID()"
+          @click="abrirModalPago"
+        />
+
+        <PaymentModal
+          v-model="mostrarModalPago"
+          :total-to-pay="store.total"
+          @pago-exitoso="onPagoExitoso"
         />
         <div class="text-caption text-grey-6 text-center">
           Asegúrate de ingresar todos los datos
@@ -84,7 +150,6 @@ function formatCurrency(value: number) {
           class="full-width"
           label="Completar registro e Imprimir Comprobante"
           icon="print"
-          :loading="store.isSubmitting"
           :disable="!store.allChildrenHaveBracelet"
           @click="store.completeRegistration()"
         />

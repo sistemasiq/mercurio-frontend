@@ -1,4 +1,6 @@
-export type UserRole = 'Administrador' | 'Cajero' | 'Cocina' | 'AdministradorSistema'
+// El catálogo de roles es dinámico (ver stores/roles.ts): cualquier string
+// que exista y esté activo en la tabla `roles` del backend es válido.
+export type UserRole = string
 
 export interface TokenPayload {
   sub: string
@@ -32,6 +34,7 @@ export interface User {
   email: string
   roles: UserRole[]
   branchId: string | null
+  branchName: string | null
   permissions: string[]
 }
 

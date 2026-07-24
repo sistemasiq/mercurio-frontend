@@ -1,13 +1,11 @@
 <template>
-  <div class="ticket-item">
+  <div class="ticket-item" :class="{ 'ticket-item--hijo': esHijoCombo }">
     <div class="ticket-item__top">
       <div class="ticket-item__info">
         <h4 class="ticket-item__nombre">{{ item.producto.nombre }}</h4>
-        <p class="ticket-item__precio">
-          ${{ (item.producto.precio_unitario * item.cantidad).toFixed(2) }}
-        </p>
+        <p class="ticket-item__precio">${{ lineTotal.toFixed(2) }}</p>
       </div>
-      <div class="ticket-item__qty">
+      <div v-if="!esHijoCombo" class="ticket-item__qty">
         <q-btn
           flat
           dense
@@ -38,7 +36,7 @@
       class="q-mt-xs"
       @click="$emit('editar-notas', item)"
     >
-      <q-icon name="edit_note" class="q-mr-xs" /> Agregar notas especiales
+      <q-icon name="edit_note" class="q-mr-xs" /> Agregar notas
     </q-btn>
     <div v-else class="ticket-item__notas cursor-pointer" @click="$emit('editar-notas', item)">
       "{{ item.notas }}"
@@ -47,19 +45,35 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Producto } from '@/types/producto'
 
 export interface ItemTicket {
+  id: string
   producto: Producto
   cantidad: number
   notas: string
+  subtotal?: number
+  es_hijo_de?: string | null
+  es_hijo_combo?: boolean
+  nombre_combo_padre?: string | null
+  cantidad_base?: number
+  padreTicketId?: string
 }
 
-defineProps<{ item: ItemTicket }>()
+const props = defineProps<{ item: ItemTicket }>()
 defineEmits<{
   (e: 'cambiar-cantidad', item: ItemTicket, delta: number): void
   (e: 'editar-notas', item: ItemTicket): void
 }>()
+
+const esHijoCombo = computed(
+  () => Boolean(props.item.es_hijo_de) || props.item.es_hijo_combo === true,
+)
+
+const lineTotal = computed(() =>
+  Number(props.item.subtotal ?? props.item.producto.precio_unitario * props.item.cantidad),
+)
 </script>
 
 <style scoped>
@@ -68,6 +82,11 @@ defineEmits<{
   border-radius: 10px;
   padding: 12px;
   border: 1px solid #f1f5f9;
+}
+
+.ticket-item--hijo {
+  border-left: 4px solid #f59e0b;
+  background: #fffbeb;
 }
 
 .ticket-item__top {
@@ -126,5 +145,9 @@ defineEmits<{
   font-size: 12px;
   font-style: italic;
   color: #c2410c;
+}
+.ticket-item__notas--readonly {
+  cursor: default;
+  opacity: 0.7;
 }
 </style>
