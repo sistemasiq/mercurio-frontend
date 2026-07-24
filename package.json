@@ -1,8 +1,8 @@
 {
-  "name": "mercurio-frontend",
+  "name": "woow-kids-frontend",
   "version": "0.0.1",
-  "description": "FEC Mercurio Frontend",
-  "productName": "Mercurio",
+  "description": "Woow Kids Frontend",
+  "productName": "Woow Kids",
   "private": true,
   "type": "module",
   "scripts": {

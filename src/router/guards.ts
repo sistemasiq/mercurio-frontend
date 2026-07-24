@@ -1,5 +1,6 @@
 import type { Router } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAccessControlStore } from '@/stores/accessControl'
 
 export function setupRouterGuards(router: Router): void {
   router.beforeEach(async (to) => {
@@ -20,6 +21,20 @@ export function setupRouterGuards(router: Router): void {
       const allowed = to.meta.permissions.some((p) => auth.hasPermission(p))
       if (!allowed) {
         return { name: 'home' }
+      }
+    }
+
+    if (to.name === 'estancias-registro-infantes') {
+      const accessControlStore = useAccessControlStore()
+      if (!accessControlStore.lastUpdated || accessControlStore.pulserasLibres < 2) {
+        return { name: 'estancias-control-acceso' }
+      }
+    }
+
+    if (to.name === 'estancias-checkout') {
+      const accessControlStore = useAccessControlStore()
+      if (!accessControlStore.checkoutChild) {
+        return { name: 'estancias-control-acceso' }
       }
     }
   })

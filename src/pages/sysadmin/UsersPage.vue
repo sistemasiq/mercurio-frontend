@@ -3,12 +3,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { userService } from '@/services/userService'
+import { useRolesStore } from '@/stores/roles'
 import type { UserListItem } from '@/types/user'
 import type { UserRole } from '@/types/auth'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
 
 const $q = useQuasar()
 const router = useRouter()
+const rolesStore = useRolesStore()
 
 const allUsers = ref<UserListItem[]>([])
 const loading = ref(false)
@@ -17,27 +19,15 @@ const roleFilter = ref<UserRole | ''>('')
 const statusFilter = ref<'all' | 'active' | 'inactive'>('all')
 const pagination = ref({ page: 1, rowsPerPage: 10 })
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  AdministradorSistema: 'SISTEMA',
-  Administrador: 'ADMIN',
-  Cajero: 'CAJERO',
-  Cocina: 'COCINA',
-}
+// El color del badge se deriva del nombre del rol (hash determinístico),
+// igual que los avatares de usuario: los roles son un catálogo dinámico,
+// no un enum cerrado con colores fijos.
+const roleColor = (role: string) => getAvatarColor(role)
 
-const ROLE_COLORS: Record<UserRole, string> = {
-  AdministradorSistema: '#7c3aed',
-  Administrador: '#2563eb',
-  Cajero: '#0891b2',
-  Cocina: '#d97706',
-}
-
-const roleFilters: { label: string; value: UserRole | '' }[] = [
+const roleFilters = computed(() => [
   { label: 'Todos', value: '' },
-  { label: 'Sistema', value: 'AdministradorSistema' },
-  { label: 'Admin', value: 'Administrador' },
-  { label: 'Cajero', value: 'Cajero' },
-  { label: 'Cocina', value: 'Cocina' },
-]
+  ...rolesStore.roles.filter((r) => r.activo).map((r) => ({ label: r.nombre, value: r.nombre })),
+])
 
 const statusOptions = [
   { label: 'Todos', value: 'all' },
@@ -93,7 +83,10 @@ async function fetchUsers(): Promise<void> {
   }
 }
 
-onMounted(fetchUsers)
+onMounted(() => {
+  fetchUsers()
+  if (rolesStore.roles.length === 0) rolesStore.cargar()
+})
 </script>
 
 <template>
@@ -211,12 +204,12 @@ onMounted(fetchUsers)
             <span
               class="role-badge"
               :style="{
-                background: ROLE_COLORS[row.role as UserRole] + '18',
-                color: ROLE_COLORS[row.role as UserRole],
-                borderColor: ROLE_COLORS[row.role as UserRole] + '40',
+                background: roleColor(row.role) + '18',
+                color: roleColor(row.role),
+                borderColor: roleColor(row.role) + '40',
               }"
             >
-              {{ ROLE_LABELS[row.role as UserRole] }}
+              {{ row.role.toUpperCase() }}
             </span>
           </q-td>
         </template>
@@ -361,8 +354,8 @@ onMounted(fetchUsers)
 }
 
 .pill--active {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #025fe0;
+  border-color: #025fe0;
   color: #fff;
 }
 

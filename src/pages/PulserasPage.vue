@@ -246,6 +246,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { usePulserasStore } from '@/stores/pulseras'
 import type { PulseraAdmin } from '@/types/pulsera'
@@ -331,8 +333,12 @@ const toggleActivo = async (row: PulseraAdmin) => {
       message: `Pulsera ${!row.activo ? 'activada' : 'desactivada'}`,
       position: 'top-right',
     })
-  } catch {
-    $q.notify({ type: 'negative', message: 'No se pudo cambiar el estado.', position: 'top-right' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
   }
 }
 
@@ -354,10 +360,10 @@ const ejecutarEliminar = async () => {
     await store.eliminar(filaEliminar.value.id)
     $q.notify({ type: 'positive', message: 'Pulsera eliminada', position: 'top-right' })
     dialogEliminar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {

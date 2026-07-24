@@ -57,6 +57,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/components/comandas/VisorCocina.vue'),
         meta: { permissions: ['restaurante:gestionar_cocina'], title: 'Visor Cocina' },
       },
+      {
+        path: 'historial',
+        name: 'pos-historial',
+        component: () => import('@/components/historial/HistorialView.vue'),
+        meta: { permissions: ['restaurante:registrar_pago'], title: 'Historial' },
+      },
     ],
   },
   {
@@ -81,6 +87,19 @@ const routes: RouteRecordRaw[] = [
         name: 'usuarios-editar',
         component: () => import('@/pages/sysadmin/UserEditPage.vue'),
         meta: { permissions: ['usuarios:editar'] },
+      },
+    ],
+  },
+  {
+    path: '/roles',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'roles-listar',
+        component: () => import('@/pages/RolesPage.vue'),
+        meta: { permissions: ['permisos:ver'], title: 'Roles' },
       },
     ],
   },
@@ -125,6 +144,12 @@ const routes: RouteRecordRaw[] = [
         name: 'reportes-dashboard',
         component: () => import('@/pages/sysadmin/SysAdminDashboardPage.vue'),
         meta: { permissions: ['reportes:dashboard'] },
+      },
+      {
+        path: 'inventario',
+        name: 'reportes-inventario',
+        component: () => import('@/pages/ReporteInventarioPage.vue'),
+        meta: { permissions: ['reportes:inventario'], title: 'Reporte de Stock' },
       },
     ],
   },
@@ -267,6 +292,51 @@ const routes: RouteRecordRaw[] = [
         name: 'productos-listar',
         component: () => import('@/pages/ProductosPage.vue'),
         meta: { permissions: ['inventario:gestionar_productos'], title: 'Productos' },
+      },
+    ],
+  },
+  {
+    path: '/proveedores',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'proveedores-listar',
+        component: () => import('@/pages/ProveedoresPage.vue'),
+        meta: { permissions: ['inventario:gestionar_proveedores'], title: 'Proveedores' },
+      },
+    ],
+  },
+  {
+    path: '/insumos',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'insumos-listar',
+        component: () => import('@/pages/InsumosPage.vue'),
+        meta: { permissions: ['inventario:gestionar_insumos'], title: 'Insumos' },
+      },
+      {
+        path: ':id/kardex',
+        name: 'insumos-kardex',
+        component: () => import('@/pages/KardexInsumoPage.vue'),
+        meta: { permissions: ['inventario:ver_movimientos'], title: 'Kardex' },
+      },
+    ],
+  },
+  {
+    path: '/compras',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'compras-listar',
+        component: () => import('@/pages/ComprasPage.vue'),
+        meta: { permissions: ['inventario:gestionar_compras'], title: 'Compras' },
       },
     ],
   },

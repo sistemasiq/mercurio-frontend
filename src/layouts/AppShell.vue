@@ -58,6 +58,17 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'POS',
+    items: [
+      {
+        label: 'Historial',
+        icon: 'receipt_long',
+        routeName: 'pos-historial',
+        permission: 'restaurante:registrar_pago',
+      },
+    ],
+  },
+  {
     label: 'EVENTOS',
     items: [
       {
@@ -131,6 +142,35 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'INVENTARIO',
+    items: [
+      {
+        label: 'Insumos',
+        icon: 'inventory_2',
+        routeName: 'insumos-listar',
+        permission: 'inventario:gestionar_insumos',
+      },
+      {
+        label: 'Proveedores',
+        icon: 'local_shipping',
+        routeName: 'proveedores-listar',
+        permission: 'inventario:gestionar_proveedores',
+      },
+      {
+        label: 'Compras',
+        icon: 'shopping_cart',
+        routeName: 'compras-listar',
+        permission: 'inventario:gestionar_compras',
+      },
+      {
+        label: 'Reporte de Stock',
+        icon: 'query_stats',
+        routeName: 'reportes-inventario',
+        permission: 'reportes:inventario',
+      },
+    ],
+  },
+  {
     label: 'ADMINISTRACIÓN',
     items: [
       {
@@ -144,6 +184,12 @@ const navGroups: NavGroup[] = [
         icon: 'group',
         routeName: 'usuarios-listar',
         permission: 'usuarios:listar',
+      },
+      {
+        label: 'Roles',
+        icon: 'admin_panel_settings',
+        routeName: 'roles-listar',
+        permission: 'permisos:ver',
       },
       {
         label: 'Reportes',
@@ -169,6 +215,7 @@ const userInitials = computed(() => getInitials(auth.currentUser?.name ?? ''))
 const userColor = computed(() => getAvatarColor(auth.currentUser?.name ?? ''))
 const userName = computed(() => auth.currentUser?.name ?? auth.currentUser?.email ?? '')
 const userRole = computed(() => auth.primaryRole ?? '')
+const branchName = computed(() => auth.currentBranchName ?? '')
 
 function isActive(routeName: string): boolean {
   return route.name === routeName
@@ -192,17 +239,6 @@ async function handleLogout(): Promise<void> {
       class="sb-drawer"
     >
       <div class="sb-root">
-        <!-- Logo -->
-        <div class="sb-logo">
-          <div class="sb-logo-icon">
-            <q-icon name="apps" size="16px" color="white" />
-          </div>
-          <div>
-            <div class="sb-brand">Mercurio</div>
-            <div class="sb-sub">Panel de control</div>
-          </div>
-        </div>
-
         <!-- Nav -->
         <div class="sb-nav-scroll">
           <template v-for="group in visibleGroups" :key="group.label ?? 'root'">
@@ -225,19 +261,6 @@ async function handleLogout(): Promise<void> {
             </q-list>
           </template>
         </div>
-
-        <div class="sb-spacer" />
-
-        <!-- Usuario -->
-        <div class="sb-user">
-          <div class="sb-avatar" :style="{ background: userColor }">
-            {{ userInitials }}
-          </div>
-          <div class="sb-user-info">
-            <div class="sb-user-name">{{ userName }}</div>
-            <div class="sb-user-role">{{ userRole }}</div>
-          </div>
-        </div>
       </div>
     </q-drawer>
 
@@ -245,22 +268,17 @@ async function handleLogout(): Promise<void> {
     <q-header class="app-header">
       <q-toolbar class="app-toolbar">
         <q-toolbar-title class="header-brand">
-          <q-icon name="apps" size="16px" color="primary" class="q-mr-xs" />
-          Mercurio
+          <img src="/woow-kids-mascot.png" alt="Woow Kids" class="header-brand-img" />
+          Woow Kids
         </q-toolbar-title>
 
         <q-space />
 
         <div class="header-actions">
-          <q-btn flat round dense class="action-btn" aria-label="Notificaciones">
-            <q-icon name="notifications_none" size="20px" />
-          </q-btn>
-          <q-btn flat round dense class="action-btn" aria-label="Configuración">
-            <q-icon name="settings" size="20px" />
-          </q-btn>
-          <q-btn flat round dense class="action-btn" aria-label="Ayuda">
-            <q-icon name="help_outline" size="20px" />
-          </q-btn>
+          <div v-if="branchName" class="header-branch">
+            <q-icon name="store" size="18px" />
+            <span>{{ branchName }}</span>
+          </div>
 
           <div class="header-divider" />
 
@@ -310,45 +328,10 @@ async function handleLogout(): Promise<void> {
   height: 100%;
 }
 
-.sb-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 16px 18px;
-  border-bottom: 1px solid #f1f5f9;
-  flex-shrink: 0;
-}
-
-.sb-logo-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: #2563eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.sb-brand {
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f172a;
-  line-height: 1.2;
-  letter-spacing: 0.01em;
-}
-
-.sb-sub {
-  font-size: 10px;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  line-height: 1.3;
-}
-
 .sb-nav-scroll {
   flex: 1;
   overflow-y: auto;
+  padding-top: 8px;
 }
 
 .sb-section-label {
@@ -392,58 +375,14 @@ async function handleLogout(): Promise<void> {
 
 .sb-item--active {
   background: #eff6ff !important;
-  color: #2563eb !important;
+  color: #025fe0 !important;
   font-weight: 600 !important;
-  border-left: 3px solid #2563eb;
+  border-left: 3px solid #025fe0;
   padding-left: 7px !important;
 }
 
 .sb-item--active :deep(.q-icon) {
-  color: #2563eb !important;
-}
-
-.sb-spacer {
-  flex: 0 0 8px;
-}
-
-/* User footer */
-.sb-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 18px;
-  border-top: 1px solid #f1f5f9;
-  flex-shrink: 0;
-}
-
-.sb-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.sb-user-name {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #1e293b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 140px;
-  line-height: 1.3;
-}
-
-.sb-user-role {
-  font-size: 10.5px;
-  color: #94a3b8;
-  line-height: 1.3;
+  color: #025fe0 !important;
 }
 
 /* ── Header ─────────────────────────────────────────────── */
@@ -466,13 +405,33 @@ async function handleLogout(): Promise<void> {
   font-weight: 700;
   color: #0f172a;
   flex: 0 0 auto;
-  gap: 4px;
+  gap: 8px;
+}
+
+.header-brand-img {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.header-branch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .action-btn {

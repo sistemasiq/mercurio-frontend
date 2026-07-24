@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
+import { allowOnlyLettersKeydown, allowOnlyNumbersKeydown } from '@/utils/validators'
 
 const props = defineProps<{ index: number }>()
 
@@ -23,30 +24,6 @@ function edit() {
 
 function remove() {
   store.removeChild(props.index)
-}
-
-function blockSpecialChars(e: KeyboardEvent) {
-  const controlKeys = [
-    'Backspace',
-    'Delete',
-    'ArrowUp',
-    'ArrowDown',
-    'ArrowLeft',
-    'ArrowRight',
-    'Tab',
-    'Enter',
-  ]
-  if (controlKeys.includes(e.key)) {
-    return
-  }
-
-  if (e.ctrlKey || e.metaKey) {
-    return
-  }
-
-  if (!/^[0-9]$/.test(e.key)) {
-    e.preventDefault()
-  }
 }
 
 function limitAgeInput(value: number | string | null) {
@@ -118,9 +95,8 @@ function limitAgeInput(value: number | string | null) {
               (val) =>
                 val.trim().split(/\s+/).length >= 2 ||
                 'Por favor, introduce nombre y primer apellido',
-              (val) =>
-                /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(val) || 'El nombre solo puede contener letras',
             ]"
+            @keydown="allowOnlyLettersKeydown"
           />
         </div>
         <div class="col-12 col-sm-5">
@@ -139,7 +115,7 @@ function limitAgeInput(value: number | string | null) {
               (val) => (val !== null && val !== '') || 'La edad es obligatoria',
               (val) => (val >= 1 && val <= 99) || 'La edad debe ser entre 1 y 99 años',
             ]"
-            @keydown="blockSpecialChars"
+            @keydown="allowOnlyNumbersKeydown"
             @paste.prevent
             @update:model-value="limitAgeInput"
           >
