@@ -27,14 +27,14 @@ export default defineConfig((/* ctx */) => {
     framework: {
       config: {
         brand: {
-          primary: '#1a237e',
-          secondary: '#e53935',
-          accent: '#5c6bc0',
-          dark: '#0f1221',
-          positive: '#00c853',
-          negative: '#d32f2f',
-          info: '#29b6f6',
-          warning: '#ffa000',
+          primary: '#025FE0',
+          secondary: '#F31258',
+          accent: '#65B80B',
+          dark: '#0B1450',
+          positive: '#3FA834',
+          negative: '#DC2626',
+          info: '#0FA4FE',
+          warning: '#FFC107',
         },
       },
       plugins: ['Notify', 'Dialog', 'Loading'],

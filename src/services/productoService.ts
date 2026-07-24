@@ -1,19 +1,23 @@
 import { productosApi } from '@/api/productosApi'
-import type { Producto, ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
+import type {
+  Producto,
+  ProductoAdmin,
+  ProductoComboHijo,
+  ProductoCreate,
+  ProductoUpdate,
+} from '@/types/producto'
 
-export async function obtenerProductos(
-  sucursalId: string,
-  signal?: AbortSignal,
-): Promise<Producto[]> {
-  const productos = await productosApi.listar(sucursalId, signal)
-  return productos.map((producto) => ({
-    ...producto,
-    precio_unitario: Number(producto.precio_unitario),
-  }))
+function mapProductoUi(producto: ProductoAdmin): Producto {
+  const { precio_unitario, ...resto } = producto
+  return {
+    ...resto,
+    precio_unitario: Number(precio_unitario),
+  }
 }
 
-export async function listarProductosAdmin(sucursalId: string): Promise<ProductoAdmin[]> {
-  return productosApi.listarAdmin(sucursalId)
+export async function obtenerProductos(signal?: AbortSignal): Promise<Producto[]> {
+  const productos = await productosApi.listarCatalogo(signal)
+  return productos.map(mapProductoUi)
 }
 
 export async function crearProducto(
@@ -37,4 +41,8 @@ export async function eliminarProducto(productoId: string): Promise<void> {
 
 export async function reactivarProducto(productoId: string): Promise<ProductoAdmin> {
   return productosApi.reactivar(productoId)
+}
+
+export async function obtenerComboHijos(comboId: string): Promise<ProductoComboHijo[]> {
+  return productosApi.obtenerComboHijos(comboId)
 }

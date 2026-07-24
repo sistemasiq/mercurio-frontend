@@ -354,8 +354,8 @@ onMounted(() => {
 }
 
 .pill--active {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #025fe0;
+  border-color: #025fe0;
   color: #fff;
 }
 

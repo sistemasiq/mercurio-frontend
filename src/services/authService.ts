@@ -10,6 +10,7 @@ function mapUser(raw: BackendUser, payload: TokenPayload | null): User {
     email: raw.email,
     roles: [payload?.role ?? raw.role],
     branchId: payload?.branch_id ?? raw.branch_id,
+    branchName: raw.branch_name,
     permissions: payload?.permissions ?? raw.permissions,
   }
 }

@@ -39,7 +39,7 @@ onMounted(async () => {
       <div>
         <div class="page-eyebrow">Panel de control</div>
         <h1 class="page-title">Dashboard</h1>
-        <p class="page-sub">Resumen general del sistema TEC-FS.</p>
+        <p class="page-sub">Resumen general del sistema Woow Kids.</p>
       </div>
     </div>
 
@@ -281,7 +281,7 @@ onMounted(async () => {
 .page-eyebrow {
   font-size: 11.5px;
   font-weight: 600;
-  color: #2563eb;
+  color: #025fe0;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 4px;
@@ -345,7 +345,7 @@ onMounted(async () => {
 
 .stat-icon--blue {
   background: #eff6ff;
-  color: #2563eb;
+  color: #025fe0;
 }
 .stat-icon--green {
   background: #f0fdf4;
@@ -376,7 +376,7 @@ onMounted(async () => {
 
 .stat-tag--blue {
   background: #eff6ff;
-  color: #2563eb;
+  color: #025fe0;
 }
 .stat-tag--green {
   background: #f0fdf4;
@@ -612,7 +612,7 @@ onMounted(async () => {
 
 .quick-btn__icon--blue {
   background: #eff6ff;
-  color: #2563eb;
+  color: #025fe0;
 }
 .quick-btn__icon--green {
   background: #f0fdf4;
@@ -652,7 +652,7 @@ onMounted(async () => {
 
 .movement__icon--blue {
   background: #eff6ff;
-  color: #2563eb;
+  color: #025fe0;
 }
 .movement__icon--green {
   background: #f0fdf4;

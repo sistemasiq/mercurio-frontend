@@ -16,23 +16,10 @@
           label="Nuevo producto"
           unelevated
           no-caps
-          :disable="!authStore.currentBranchId"
           style="border-radius: 8px; font-weight: 600"
           @click="abrirCrear"
         />
       </div>
-
-      <!-- Sin sucursal activa -->
-      <q-banner
-        v-if="!authStore.currentBranchId"
-        dense
-        rounded
-        class="bg-orange-1 text-orange-9 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="info" color="orange-9" /></template>
-        No hay una sucursal activa en la sesión.
-      </q-banner>
 
       <!-- Error -->
       <q-banner
@@ -528,7 +515,7 @@ const TIPO_OPTIONS = [
 ]
 
 const cargar = () => {
-  if (authStore.currentBranchId) store.cargar(authStore.currentBranchId)
+  store.cargar()
 }
 
 onMounted(cargar)
@@ -550,7 +537,9 @@ const columns: QTableColumn[] = [
 
 const productosDisponiblesParaCombo = computed(() => {
   const yaAgregados = new Set(formDialog.value.productos_combo.map((i) => i.producto_id))
-  return store.productos.filter((p) => p.tipo !== 'C' && p.activo && !yaAgregados.has(p.id))
+  return store.productos.filter(
+    (p) => p.tipo !== 'C' && p.tipo !== 'S' && p.tipo !== 'E' && p.activo && !yaAgregados.has(p.id),
+  )
 })
 
 const formularioValido = computed(() => {
@@ -740,14 +729,23 @@ const guardar = async () => {
       )
       $q.notify({ type: 'positive', message: 'Producto actualizado', position: 'top-right' })
     } else {
-      if (!authStore.currentBranchId) return
+      const sucursalId = authStore.currentBranchId
+      if (!sucursalId) {
+        $q.notify({
+          type: 'negative',
+          message: 'No hay una sucursal activa en la sesión.',
+          position: 'top-right',
+        })
+        return
+      }
+
       await store.crear(
         {
           nombre: formDialog.value.nombre.trim(),
           tipo: formDialog.value.tipo,
           precio_unitario: String(formDialog.value.precio_unitario),
           descripcion: formDialog.value.descripcion.trim() || null,
-          sucursal_id: authStore.currentBranchId,
+          sucursal_id: sucursalId,
           productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
         },
         imagenFile.value,

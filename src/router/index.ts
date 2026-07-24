@@ -57,6 +57,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/components/comandas/VisorCocina.vue'),
         meta: { permissions: ['restaurante:gestionar_cocina'], title: 'Visor Cocina' },
       },
+      {
+        path: 'historial',
+        name: 'pos-historial',
+        component: () => import('@/components/historial/HistorialView.vue'),
+        meta: { permissions: ['restaurante:registrar_pago'], title: 'Historial' },
+      },
     ],
   },
   {
