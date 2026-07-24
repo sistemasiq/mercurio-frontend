@@ -657,6 +657,7 @@ import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
+import { useReservacionExtrasStore } from '@/stores/reservacion_extras'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
 
@@ -669,6 +670,7 @@ const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
 const authStore = useAuthStore()
 const pagosStore = usePagosReservacionesStore()
+const reservacionExtrasStore = useReservacionExtrasStore()
 
 onMounted(() => {
   paquetesStore.cargar(authStore.currentBranchId ?? undefined)
@@ -986,6 +988,17 @@ const confirmarReservacion = async () => {
       anticipo: String(montoPagado.value),
       estado: 'confirmada',
     })
+
+    for (const extraId of selectedExtraIds.value) {
+      const extra = extrasStore.activos.find((e) => e.id === extraId)
+      if (!extra) continue
+      await reservacionExtrasStore.crearReservacionExtra({
+        reservacion_id: nuevaReservacion.id,
+        extra_id: extra.id,
+        cantidad: 1,
+        precio_unitario: extra.precio,
+      })
+    }
 
     for (const pago of pagosAplicados.value) {
       await pagosStore.crearPagosReservacion({

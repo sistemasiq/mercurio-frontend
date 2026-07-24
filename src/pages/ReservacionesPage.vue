@@ -13,21 +13,58 @@
       />
     </div>
     <q-card flat bordered>
+      <div class="row items-center q-pa-md">
+        <q-select
+          v-model="filtroEstado"
+          :options="opcionesEstado"
+          emit-value
+          map-options
+          dense
+          outlined
+          label="Estado"
+          style="min-width: 220px"
+        />
+      </div>
+      <q-separator />
       <q-table
-        :rows="store.reservaciones"
+        :rows="reservacionesFiltradas"
         :columns="columns"
         row-key="id"
         flat
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
         no-data-label="No hay reservaciones registradas"
-      />
+      >
+        <template #body-cell-estado="props">
+          <q-td :props="props">
+            <q-badge
+              :color="estadoColor(props.row.estado)"
+              :label="estadoLabel(props.row.estado)"
+            />
+          </q-td>
+        </template>
+        <template #body-cell-actions="props">
+          <q-td :props="props" auto-width>
+            <q-btn
+              flat
+              dense
+              no-caps
+              color="primary"
+              icon="point_of_sale"
+              label="Cerrar evento"
+              @click="
+                router.push({ name: 'eventos-reservaciones-cierre', params: { id: props.row.id } })
+              "
+            />
+          </q-td>
+        </template>
+      </q-table>
     </q-card>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import type { QTableColumn } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useReservacionesStore } from '@/stores/reservaciones'
@@ -35,6 +72,41 @@ import { useReservacionesStore } from '@/stores/reservaciones'
 const router = useRouter()
 const store = useReservacionesStore()
 onMounted(() => store.cargar())
+
+const opcionesEstado = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Pendiente', value: 'pendiente' },
+  { label: 'Confirmada', value: 'confirmada' },
+  { label: 'En curso', value: 'en_curso' },
+  { label: 'Completada', value: 'completada' },
+  { label: 'Cancelada', value: 'cancelada' },
+]
+
+const filtroEstado = ref('todos')
+
+const reservacionesFiltradas = computed(() =>
+  filtroEstado.value === 'todos'
+    ? store.reservaciones
+    : store.reservaciones.filter((r) => r.estado === filtroEstado.value),
+)
+
+const estadoLabel = (estado: string) =>
+  ({
+    pendiente: 'Pendiente',
+    confirmada: 'Confirmada',
+    en_curso: 'En curso',
+    completada: 'Completada',
+    cancelada: 'Cancelada',
+  })[estado] ?? estado
+
+const estadoColor = (estado: string) =>
+  ({
+    pendiente: 'orange',
+    confirmada: 'primary',
+    en_curso: 'purple',
+    completada: 'positive',
+    cancelada: 'grey-5',
+  })[estado] ?? 'grey'
 
 const columns: QTableColumn[] = [
   {
@@ -46,8 +118,6 @@ const columns: QTableColumn[] = [
   },
   { name: 'fecha_evento', label: 'FECHA', field: 'fecha_evento', align: 'left', sortable: true },
   { name: 'estado', label: 'ESTADO', field: 'estado', align: 'left', sortable: true },
-  { name: 'precio_total', label: 'TOTAL', field: 'precio_total', align: 'left' },
-  { name: 'saldo_pendiente', label: 'SALDO', field: 'saldo_pendiente', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
 </script>
