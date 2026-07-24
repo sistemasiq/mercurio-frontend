@@ -18,6 +18,15 @@ import type { TipoProducto } from './producto'
 // Estados del ciclo de vida de una comanda (códigos del backend)
 export type EstadoActualComanda = 'P' | 'E' | 'L' | 'T' | 'C'
 
+// Producto individual dentro del desglose de un combo (solo cuando
+// producto_tipo === 'C'). cantidad ya viene multiplicada por la cantidad
+// de combos pedidos en este detalle.
+export interface ComboItemComanda {
+  producto_id: string
+  nombre: string
+  cantidad: number
+}
+
 // Detalle de un ítem dentro de una comanda — shape exacto del backend
 export interface DetalleComanda {
   id: string
@@ -33,6 +42,8 @@ export interface DetalleComanda {
   subtotal?: number
   importe?: number
   notas_especiales?: string | null
+  // Solo presente si producto_tipo === 'C'; desglose de lo que incluye el combo
+  productos_combo?: ComboItemComanda[] | null
   es_hijo_de?: string | null
   es_hijo_combo?: boolean
 }
@@ -56,7 +67,8 @@ export interface Comanda {
 
 // Mensajes WebSocket del canal de comandas (app/api/routers/comandas.py)
 export type ComandaWsMessage =
-  { type: 'comanda_creada'; comanda: Comanda } | { type: 'comanda_actualizada'; comanda: Comanda }
+  | { type: 'comanda_creada'; comanda: Comanda }
+  | { type: 'comanda_actualizada'; comanda: Comanda }
 
 // Payload para crear una comanda (POST /api/comandas/)
 export interface CrearComandaRequest {

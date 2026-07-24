@@ -20,19 +20,27 @@ export async function obtenerProductos(signal?: AbortSignal): Promise<Producto[]
   return productos.map(mapProductoUi)
 }
 
-export async function crearProducto(body: ProductoCreate): Promise<ProductoAdmin> {
-  return productosApi.crear(body)
+export async function crearProducto(
+  body: ProductoCreate,
+  imagen?: File | null,
+): Promise<ProductoAdmin> {
+  return productosApi.crear(body, imagen)
 }
 
 export async function actualizarProducto(
   productoId: string,
   body: ProductoUpdate,
+  imagen?: File | null,
 ): Promise<ProductoAdmin> {
-  return productosApi.actualizar(productoId, body)
+  return productosApi.actualizar(productoId, body, imagen)
 }
 
 export async function eliminarProducto(productoId: string): Promise<void> {
   return productosApi.eliminar(productoId)
+}
+
+export async function reactivarProducto(productoId: string): Promise<ProductoAdmin> {
+  return productosApi.reactivar(productoId)
 }
 
 export async function obtenerComboHijos(comboId: string): Promise<ProductoComboHijo[]> {

@@ -9,9 +9,9 @@
     <!-- Teclado Numérico -->
     <div class="keypad-grid">
       <button
-        class="num-btn"
         v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9]"
         :key="n"
+        class="num-btn"
         @click="appendNumber(n.toString())"
       >
         {{ n }}
@@ -23,7 +23,7 @@
       </button>
 
       <!-- Botón de Acción Principal -->
-      <button class="apply-btn" @click="submitAmount" :disabled="!montoValido">
+      <button class="apply-btn" :disabled="!montoValido" @click="submitAmount">
         <q-icon name="add_circle" size="sm" /> Aplicar Pago
       </button>
     </div>

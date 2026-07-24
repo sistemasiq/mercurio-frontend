@@ -175,10 +175,12 @@ const notasDialog = ref(false)
 const itemEditando = ref<ItemTicket | null>(null)
 const notasTemp = ref('')
 
+// La caja solo muestra A (Alimento), B (Bebida) y combos.
 const listaCategorias: { value: TipoProducto | 'Todos'; label: string }[] = [
   { value: 'Todos', label: 'Todos' },
   { value: 'A', label: 'Alimentos' },
   { value: 'B', label: 'Bebidas' },
+  { value: 'C', label: 'Combos' },
 ]
 const categoriaSeleccionada = ref<TipoProducto | 'Todos'>('Todos')
 
@@ -328,7 +330,8 @@ const mapearMetodoPago = (nombreMetodo: string): string => {
 const obtenerMensajeError = (err: unknown): string => {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as
-      { detail?: string | string[]; message?: string; error?: string } | undefined
+      | { detail?: string | string[]; message?: string; error?: string }
+      | undefined
     if (typeof data?.detail === 'string') return data.detail
     if (Array.isArray(data?.detail)) return data.detail.join(', ')
     if (data?.message) return data.message

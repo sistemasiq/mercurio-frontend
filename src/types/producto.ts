@@ -1,6 +1,19 @@
 // Coincide con el enum tipo_producto del backend: A (Alimento), B (Bebida),
-// S (Servicio), E (Estancia).
-export type TipoProducto = 'A' | 'B' | 'S' | 'E'
+// S (Servicio), E (Estancia), C (Combo).
+export type TipoProducto = 'A' | 'B' | 'S' | 'E' | 'C'
+
+export const TIPO_LABELS: Record<TipoProducto, string> = {
+  A: 'Alimento',
+  B: 'Bebida',
+  E: 'Estancia',
+  S: 'Servicio',
+  C: 'Combo',
+}
+
+export interface ComboItemCreate {
+  producto_id: string
+  cantidad: number
+}
 
 export interface ProductoBase {
   id: string
@@ -11,6 +24,7 @@ export interface ProductoBase {
   sucursal_id: string
   descripcion: string | null
   es_combo: boolean
+  productos_combo?: ComboItemCreate[]
 }
 
 export interface Producto extends Omit<ProductoBase, 'precio_unitario'> {
@@ -23,6 +37,7 @@ export interface ProductoAdmin extends ProductoBase {
   creado_por?: string | null
   modificado?: string | null
   modificado_por?: string | null
+  productos_combo?: ComboItemCreate[]
 }
 
 export interface ProductoCreate {
@@ -33,6 +48,7 @@ export interface ProductoCreate {
   descripcion?: string | null
   imagen?: string | null
   es_combo?: boolean
+  productos_combo?: ComboItemCreate[] | null
 }
 
 export interface ProductoUpdate {
@@ -43,6 +59,7 @@ export interface ProductoUpdate {
   imagen?: string | null
   activo?: boolean
   es_combo?: boolean
+  productos_combo?: ComboItemCreate[] | null
 }
 
 export interface ProductoComboHijo {

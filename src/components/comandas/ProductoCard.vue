@@ -42,19 +42,13 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { getProductoImagenUrl } from '@/api/productosApi'
 import type { Producto } from '@/types/producto'
 
 const props = defineProps<{ producto: Producto }>()
 defineEmits<{ (e: 'agregar', producto: Producto): void }>()
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL as string
-
-const imagenSrc = computed(() => {
-  const img = props.producto.imagen
-  if (!img) return ''
-  if (img.startsWith('http://') || img.startsWith('https://')) return img
-  return `${API_BASE}/${img}`
-})
+const imagenSrc = computed(() => getProductoImagenUrl(props.producto.imagen))
 </script>
 
 <style scoped>

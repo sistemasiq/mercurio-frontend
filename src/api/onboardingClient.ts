@@ -1,16 +1,24 @@
 import { apiClient } from '@/api/axiosClient'
 import { metodosPagoApi } from '@/api/metodosPagoApi'
 
-const ONBOARDING_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000'
-
 const onboardingClient = apiClient
 
-export function getFotoIneUrl(registroId: string): string {
-  return `${ONBOARDING_BASE_URL}/uploads/identificaciones/${registroId}.jpg`
+// Las fotos de INE/llegada se sirven en una ruta protegida por JWT, que un
+// <img src="..."> no puede enviar. Se descargan con el cliente autenticado y
+// se exponen como blob URL para usarlas en <img>.
+async function fetchFotoBlobUrl(carpeta: 'identificaciones' | 'llegadas', registroId: string) {
+  const { data } = await onboardingClient.get(`/uploads/${carpeta}/${registroId}.jpg`, {
+    responseType: 'blob',
+  })
+  return URL.createObjectURL(data)
 }
 
-export function getFotoLlegadaUrl(registroId: string): string {
-  return `${ONBOARDING_BASE_URL}/uploads/llegadas/${registroId}.jpg`
+export function fetchFotoIneUrl(registroId: string): Promise<string> {
+  return fetchFotoBlobUrl('identificaciones', registroId)
+}
+
+export function fetchFotoLlegadaUrl(registroId: string): Promise<string> {
+  return fetchFotoBlobUrl('llegadas', registroId)
 }
 
 export interface FotosUploadResponse {
