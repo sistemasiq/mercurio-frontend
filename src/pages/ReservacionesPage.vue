@@ -68,10 +68,12 @@ import { onMounted, ref, computed } from 'vue'
 import type { QTableColumn } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useReservacionesStore } from '@/stores/reservaciones'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const store = useReservacionesStore()
-onMounted(() => store.cargar())
+const authStore = useAuthStore()
+onMounted(() => store.cargar(authStore.currentBranchId ?? undefined))
 
 const opcionesEstado = [
   { label: 'Todos', value: 'todos' },

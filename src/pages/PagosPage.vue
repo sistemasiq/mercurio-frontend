@@ -176,16 +176,18 @@ import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
+import { useAuthStore } from '@/stores/auth'
 
 const $q = useQuasar()
 const pagosStore = usePagosReservacionesStore()
 const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
 const tiposEventoStore = useTiposEventoStore()
+const authStore = useAuthStore()
 
 onMounted(() => {
   pagosStore.cargar()
-  if (!resStore.reservaciones.length) resStore.cargar()
+  if (!resStore.reservaciones.length) resStore.cargar(authStore.currentBranchId ?? undefined)
   metodosPagoStore.cargar()
   tiposEventoStore.cargar()
 })
