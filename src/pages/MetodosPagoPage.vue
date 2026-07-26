@@ -50,6 +50,13 @@
           no-data-label="No hay métodos de pago registrados"
           class="fec-table"
         >
+          <!-- Alcance -->
+          <template #body-cell-sucursal_id="props">
+            <q-td :props="props">
+              {{ props.row.sucursal_id ? 'Solo esta sucursal' : 'Global' }}
+            </q-td>
+          </template>
+
           <!-- Estado -->
           <template #body-cell-activo="props">
             <q-td :props="props">
@@ -129,6 +136,13 @@
               :rules="[(v) => !!v || 'El nombre es requerido']"
             />
           </div>
+          <div v-if="authStore.currentBranchId">
+            <q-checkbox
+              v-model="formDialog.global"
+              label="Disponible en todas las sucursales (global)"
+              dense
+            />
+          </div>
           <div>
             <div class="field-label">DESCRIPCIÓN (opcional)</div>
             <q-input
@@ -191,10 +205,12 @@ import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
+import { useAuthStore } from '@/stores/auth'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import type { MetodosPago } from '@/types/metodos_pago'
 
 const $q = useQuasar()
+const authStore = useAuthStore()
 const store = useMetodosPagoStore()
 
 onMounted(() => store.cargar())
@@ -202,6 +218,7 @@ onMounted(() => store.cargar())
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
   { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
+  { name: 'sucursal_id', label: 'ALCANCE', field: 'sucursal_id', align: 'left' },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
@@ -213,17 +230,21 @@ const editando = ref<MetodosPago | null>(null)
 const guardando = ref(false)
 const nombreRef = ref()
 
-const formDialog = ref({ nombre: '', descripcion: '' })
+const formDialog = ref({ nombre: '', descripcion: '', global: false })
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', descripcion: '' }
+  formDialog.value = { nombre: '', descripcion: '', global: false }
   dialogOpen.value = true
 }
 
 const abrirEditar = (row: MetodosPago) => {
   editando.value = row
-  formDialog.value = { nombre: row.nombre, descripcion: row.descripcion ?? '' }
+  formDialog.value = {
+    nombre: row.nombre,
+    descripcion: row.descripcion ?? '',
+    global: row.sucursal_id === null,
+  }
   dialogOpen.value = true
 }
 
@@ -237,6 +258,14 @@ const guardar = async () => {
     nombreRef.value?.validate()
     return
   }
+  if (!formDialog.value.global && !authStore.currentBranchId) {
+    $q.notify({
+      type: 'negative',
+      message: 'No hay una sucursal activa en la sesión.',
+      position: 'top-right',
+    })
+    return
+  }
   guardando.value = true
   try {
     const body = {
@@ -247,7 +276,10 @@ const guardar = async () => {
       await store.actualizarMetodoPago(editando.value.id, body)
       $q.notify({ type: 'positive', message: 'Método de pago actualizado', position: 'top-right' })
     } else {
-      await store.crearMetodoPago(body)
+      await store.crearMetodoPago({
+        ...body,
+        sucursal_id: formDialog.value.global ? null : authStore.currentBranchId,
+      })
       $q.notify({ type: 'positive', message: 'Método de pago creado', position: 'top-right' })
     }
     cerrarDialog()
