@@ -14,6 +14,7 @@ const loading = ref(true)
 const branchEmail = ref('')
 const branchClave = ref('')
 const administrador = ref<{ id: string; label: string } | null>(null)
+const adminOptionsAll = ref<{ id: string; label: string }[]>([])
 const adminOptions = ref<{ id: string; label: string }[]>([])
 const adminLoading = ref(false)
 
@@ -50,13 +51,14 @@ onMounted(async () => {
   }
 
   if (users.status === 'fulfilled') {
-    adminOptions.value = users.value
+    adminOptionsAll.value = users.value
       .filter((u) => u.role === 'Administrador' && u.isActive)
       .map((u) => ({ id: u.id, label: u.name }))
+    adminOptions.value = adminOptionsAll.value
 
     if (branch.value?.administradorId) {
       administrador.value =
-        adminOptions.value.find((a) => a.id === branch.value!.administradorId) ?? null
+        adminOptionsAll.value.find((a) => a.id === branch.value!.administradorId) ?? null
     }
   }
 
@@ -124,6 +126,17 @@ async function saveChanges() {
 
 function cancelEdit() {
   router.back()
+}
+
+function filterAdminOptions(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    if (!val) {
+      adminOptions.value = adminOptionsAll.value
+      return
+    }
+    const needle = val.toLowerCase()
+    adminOptions.value = adminOptionsAll.value.filter((o) => o.label.toLowerCase().includes(needle))
+  })
 }
 </script>
 
@@ -291,6 +304,7 @@ function cancelEdit() {
                   clearable
                   class="field-input"
                   map-options
+                  @filter="filterAdminOptions"
                 >
                   <template #prepend><q-icon name="search" color="grey-6" /></template>
                   <template #no-option>

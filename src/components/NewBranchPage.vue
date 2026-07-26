@@ -14,6 +14,7 @@ const telefono = ref('')
 const email = ref('')
 const clave = ref('')
 const administrador = ref<{ id: string; label: string } | null>(null)
+const adminOptionsAll = ref<{ id: string; label: string }[]>([])
 const adminOptions = ref<{ id: string; label: string }[]>([])
 const adminLoading = ref(false)
 
@@ -21,15 +22,27 @@ onMounted(async () => {
   adminLoading.value = true
   try {
     const users = await userService.listUsers()
-    adminOptions.value = users
+    adminOptionsAll.value = users
       .filter((u) => u.role === 'Administrador' && u.isActive)
       .map((u) => ({ id: u.id, label: u.name }))
+    adminOptions.value = adminOptionsAll.value
   } catch {
     Notify.create({ type: 'warning', message: 'No se pudieron cargar los administradores.' })
   } finally {
     adminLoading.value = false
   }
 })
+
+function filterAdminOptions(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    if (!val) {
+      adminOptions.value = adminOptionsAll.value
+      return
+    }
+    const needle = val.toLowerCase()
+    adminOptions.value = adminOptionsAll.value.filter((o) => o.label.toLowerCase().includes(needle))
+  })
+}
 
 const isFormValid = computed(() => {
   return nombre.value.trim() !== '' && telefono.value.trim() !== '' && clave.value.trim() !== ''
@@ -217,6 +230,7 @@ function cancelCreation() {
                   :loading="adminLoading"
                   clearable
                   class="field-input"
+                  @filter="filterAdminOptions"
                 >
                   <template #prepend><q-icon name="search" color="grey-6" /></template>
                   <template #no-option> </template>
