@@ -56,7 +56,9 @@ export function useTicketComanda() {
   }
 
   function agregarProductoSuelto(producto: Producto) {
-    const existente = itemsTicket.value.find((i) => i.producto.id === producto.id)
+    const existente = itemsTicket.value.find(
+      (i) => i.producto.id === producto.id && !i.es_hijo_combo,
+    )
     if (existente) {
       existente.cantidad++
     } else {
