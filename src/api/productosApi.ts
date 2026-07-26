@@ -24,8 +24,11 @@ export const productosApi = {
     return fetchProductosCatalogo(signal)
   },
 
-  async listarAdmin(signal?: AbortSignal): Promise<ProductoAdmin[]> {
-    const { data } = await apiClient.get<ProductoAdmin[]>('/productos/admin', { signal })
+  async listarAdmin(sucursalId?: string | null, signal?: AbortSignal): Promise<ProductoAdmin[]> {
+    const { data } = await apiClient.get<ProductoAdmin[]>('/productos/admin', {
+      params: sucursalId ? { sucursal_id: sucursalId } : undefined,
+      signal,
+    })
     return data
   },
 

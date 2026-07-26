@@ -21,11 +21,11 @@ export const useProductosStore = defineStore('productos', {
     error: null,
   }),
   actions: {
-    async cargar(signal?: AbortSignal) {
+    async cargar(sucursalId?: string | null, signal?: AbortSignal) {
       this.loading = true
       this.error = null
       try {
-        this.productos = await productosApi.listarAdmin(signal)
+        this.productos = await productosApi.listarAdmin(sucursalId, signal)
       } catch (error: unknown) {
         this.error = (error as Error).message ?? 'Error al cargar los productos'
       } finally {
