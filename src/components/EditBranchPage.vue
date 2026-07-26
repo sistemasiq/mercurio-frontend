@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { branchService } from '@/services/branchService'
 import { userService } from '@/services/userService'
 import type { Branch } from '@/types/branch'
+import type { ApiError } from '@/types/auth'
+import { resolveErrorMessage } from '@/utils/errorHandler'
 import { Notify } from 'quasar'
 
 const route = useRoute()
@@ -117,8 +119,8 @@ async function saveChanges() {
     })
     Notify.create({ type: 'positive', message: 'Sucursal actualizada con éxito.' })
     router.push({ name: 'sucursales-listar' })
-  } catch {
-    Notify.create({ type: 'negative', message: 'Error al guardar los cambios.' })
+  } catch (err) {
+    Notify.create({ type: 'negative', message: resolveErrorMessage(err as ApiError) })
   } finally {
     loading.value = false
   }
