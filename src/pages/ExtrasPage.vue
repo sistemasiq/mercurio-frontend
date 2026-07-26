@@ -306,6 +306,14 @@ const guardar = async () => {
       })
       $q.notify({ type: 'positive', message: 'Extra actualizado', position: 'top-right' })
     } else {
+      if (!formDialog.value.global && !authStore.currentBranchId) {
+        $q.notify({
+          type: 'negative',
+          message: 'No hay una sucursal activa en la sesión.',
+          position: 'top-right',
+        })
+        return
+      }
       await store.createExtras({
         nombre: formDialog.value.nombre.trim(),
         precio: String(formDialog.value.precio),
