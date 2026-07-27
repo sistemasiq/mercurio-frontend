@@ -136,13 +136,6 @@
               :rules="[(v) => !!v || 'El nombre es requerido']"
             />
           </div>
-          <div v-if="authStore.currentBranchId">
-            <q-checkbox
-              v-model="formDialog.global"
-              label="Disponible en todas las sucursales (global)"
-              dense
-            />
-          </div>
           <div>
             <div class="field-label">DESCRIPCIÓN (opcional)</div>
             <q-input
@@ -230,11 +223,11 @@ const editando = ref<MetodosPago | null>(null)
 const guardando = ref(false)
 const nombreRef = ref()
 
-const formDialog = ref({ nombre: '', descripcion: '', global: false })
+const formDialog = ref({ nombre: '', descripcion: '' })
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', descripcion: '', global: false }
+  formDialog.value = { nombre: '', descripcion: '' }
   dialogOpen.value = true
 }
 
@@ -243,7 +236,6 @@ const abrirEditar = (row: MetodosPago) => {
   formDialog.value = {
     nombre: row.nombre,
     descripcion: row.descripcion ?? '',
-    global: row.sucursal_id === null,
   }
   dialogOpen.value = true
 }
@@ -258,14 +250,6 @@ const guardar = async () => {
     nombreRef.value?.validate()
     return
   }
-  if (!formDialog.value.global && !authStore.currentBranchId) {
-    $q.notify({
-      type: 'negative',
-      message: 'No hay una sucursal activa en la sesión.',
-      position: 'top-right',
-    })
-    return
-  }
   guardando.value = true
   try {
     const body = {
@@ -278,7 +262,7 @@ const guardar = async () => {
     } else {
       await store.crearMetodoPago({
         ...body,
-        sucursal_id: formDialog.value.global ? null : authStore.currentBranchId,
+        sucursal_id: authStore.currentBranchId,
       })
       $q.notify({ type: 'positive', message: 'Método de pago creado', position: 'top-right' })
     }
