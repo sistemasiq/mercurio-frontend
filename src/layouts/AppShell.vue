@@ -179,6 +179,12 @@ const navGroups: NavGroup[] = [
         routeName: 'lealtad-configuracion',
         permission: 'lealtad:gestionar_configuracion',
       },
+      {
+        label: 'Kardex',
+        icon: 'history',
+        routeName: 'lealtad-kardex',
+        permission: 'lealtad:ver_saldo',
+      },
     ],
   },
   {

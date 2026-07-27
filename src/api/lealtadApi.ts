@@ -1,5 +1,10 @@
 import { apiClient } from '@/api/axiosClient'
-import type { ConfiguracionLealtad, ConfiguracionLealtadInput } from '@/types/lealtad'
+import type {
+  ConfiguracionLealtad,
+  ConfiguracionLealtadInput,
+  MovimientoPuntos,
+  SaldoPuntos,
+} from '@/types/lealtad'
 
 export const lealtadApi = {
   async obtenerConfiguracion(sucursalId: string): Promise<ConfiguracionLealtad> {
@@ -15,6 +20,25 @@ export const lealtadApi = {
   ): Promise<ConfiguracionLealtad> {
     const { data } = await apiClient.put<ConfiguracionLealtad>('/lealtad/configuracion', body, {
       params: { sucursal_id: sucursalId },
+    })
+    return data
+  },
+
+  async obtenerSaldo(sucursalId: string, celular: string): Promise<SaldoPuntos> {
+    const { data } = await apiClient.get<SaldoPuntos>('/lealtad/saldo', {
+      params: { sucursal_id: sucursalId, celular },
+    })
+    return data
+  },
+
+  async listarMovimientos(
+    sucursalId: string,
+    celular: string,
+    desde?: string,
+    hasta?: string,
+  ): Promise<MovimientoPuntos[]> {
+    const { data } = await apiClient.get<MovimientoPuntos[]>('/lealtad/movimientos', {
+      params: { sucursal_id: sucursalId, celular, desde, hasta },
     })
     return data
   },

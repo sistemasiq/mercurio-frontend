@@ -1,13 +1,22 @@
 import { defineStore } from 'pinia'
 import {
   actualizarConfiguracionLealtad,
+  listarMovimientosLealtad,
   obtenerConfiguracionLealtad,
+  obtenerSaldoLealtad,
 } from '@/services/lealtadService'
 import type { ApiError } from '@/types/auth'
-import type { ConfiguracionLealtad, ConfiguracionLealtadInput } from '@/types/lealtad'
+import type {
+  ConfiguracionLealtad,
+  ConfiguracionLealtadInput,
+  MovimientoPuntos,
+  SaldoPuntos,
+} from '@/types/lealtad'
 
 interface LealtadState {
   configuracion: ConfiguracionLealtad | null
+  saldo: SaldoPuntos | null
+  movimientos: MovimientoPuntos[]
   loading: boolean
   error: string | null
 }
@@ -15,6 +24,8 @@ interface LealtadState {
 export const useLealtadStore = defineStore('lealtad', {
   state: (): LealtadState => ({
     configuracion: null,
+    saldo: null,
+    movimientos: [],
     loading: false,
     error: null,
   }),
@@ -38,6 +49,22 @@ export const useLealtadStore = defineStore('lealtad', {
     async guardarConfiguracion(sucursalId: string, body: ConfiguracionLealtadInput) {
       this.configuracion = await actualizarConfiguracionLealtad(sucursalId, body)
       return this.configuracion
+    },
+    async cargarSaldo(sucursalId: string, celular: string) {
+      this.saldo = await obtenerSaldoLealtad(sucursalId, celular)
+      return this.saldo
+    },
+    async cargarMovimientos(sucursalId: string, celular: string, desde?: string, hasta?: string) {
+      this.loading = true
+      this.error = null
+      try {
+        this.movimientos = await listarMovimientosLealtad(sucursalId, celular, desde, hasta)
+        this.saldo = await obtenerSaldoLealtad(sucursalId, celular)
+      } catch (error: unknown) {
+        this.error = (error as ApiError).message ?? 'Error al cargar el kardex de lealtad'
+      } finally {
+        this.loading = false
+      }
     },
   },
 })
