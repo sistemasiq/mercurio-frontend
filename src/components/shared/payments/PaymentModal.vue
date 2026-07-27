@@ -23,7 +23,8 @@
           flex-direction: column;
           padding: 16px 20px;
           background: #ffffff;
-          overflow: hidden;
+          overflow-y: auto;
+          min-height: 0;
         "
       >
         <div class="row items-center justify-between q-mb-sm">
