@@ -13,6 +13,17 @@ declare module 'vue-router' {
 }
 
 const routes: RouteRecordRaw[] = [
+  // ── Ruta de desarrollo (solo disponible en DEV, árbol eliminado en build) ──
+  ...(import.meta.env.DEV
+    ? ([
+        {
+          path: '/dev',
+          name: 'dev-menu',
+          component: () => import('@/pages/DevMenuPage.vue'),
+          meta: { title: '⚗ Dev Menu' },
+        },
+      ] as RouteRecordRaw[])
+    : []),
   {
     path: '/',
     redirect: '/login',
@@ -93,6 +104,16 @@ const routes: RouteRecordRaw[] = [
         name: 'pos-historial',
         component: () => import('@/components/historial/HistorialView.vue'),
         meta: { permissions: ['restaurante:registrar_pago'], title: 'Historial' },
+      },
+      {
+        path: 'historial-arqueos',
+        name: 'pos-historial-arqueos',
+        component: () => import('@/pages/HistorialArqueosPage.vue'),
+        meta: {
+          requiresAuth: true,
+          permissions: ['caja:ver_historial'],
+          title: 'Historial de Arqueos',
+        },
       },
     ],
   },

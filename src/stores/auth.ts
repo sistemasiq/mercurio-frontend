@@ -162,5 +162,15 @@ export const useAuthStore = defineStore('auth', () => {
     tryRefresh,
     updateToken,
     clearError,
+    // Helper DEV: inyecta usuario y token sin pasar por el backend
+    ...(import.meta.env.DEV
+      ? {
+          /* v8 ignore next 5 */
+          _setDevSession(mockUser: typeof user.value, mockToken: string) {
+            user.value = mockUser
+            token.value = mockToken
+          },
+        }
+      : {}),
   }
 })
