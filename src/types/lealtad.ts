@@ -25,6 +25,15 @@ export interface SaldoPuntos {
 
 export type TipoMovimientoPuntos = 'O' | 'R' | 'C' | 'A'
 
+export interface ReporteLealtad {
+  sucursal_id: string
+  total_otorgado: number
+  total_redimido: number
+  total_caducado: number
+  saldo_vigente: number
+  clientes_con_saldo: number
+}
+
 export interface MovimientoPuntos {
   id: string
   sucursal_id: string

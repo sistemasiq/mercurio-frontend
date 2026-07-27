@@ -185,6 +185,12 @@ const navGroups: NavGroup[] = [
         routeName: 'lealtad-kardex',
         permission: 'lealtad:ver_saldo',
       },
+      {
+        label: 'Reporte',
+        icon: 'query_stats',
+        routeName: 'lealtad-reporte',
+        permission: 'lealtad:ver_reporte',
+      },
     ],
   },
   {

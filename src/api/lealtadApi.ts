@@ -3,6 +3,7 @@ import type {
   ConfiguracionLealtad,
   ConfiguracionLealtadInput,
   MovimientoPuntos,
+  ReporteLealtad,
   SaldoPuntos,
 } from '@/types/lealtad'
 
@@ -39,6 +40,13 @@ export const lealtadApi = {
   ): Promise<MovimientoPuntos[]> {
     const { data } = await apiClient.get<MovimientoPuntos[]>('/lealtad/movimientos', {
       params: { sucursal_id: sucursalId, celular, desde, hasta },
+    })
+    return data
+  },
+
+  async obtenerReporte(sucursalId: string): Promise<ReporteLealtad> {
+    const { data } = await apiClient.get<ReporteLealtad>('/lealtad/reporte', {
+      params: { sucursal_id: sucursalId },
     })
     return data
   },

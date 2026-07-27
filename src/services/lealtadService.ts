@@ -3,6 +3,7 @@ import type {
   ConfiguracionLealtad,
   ConfiguracionLealtadInput,
   MovimientoPuntos,
+  ReporteLealtad,
   SaldoPuntos,
 } from '@/types/lealtad'
 
@@ -33,4 +34,8 @@ export async function listarMovimientosLealtad(
   hasta?: string,
 ): Promise<MovimientoPuntos[]> {
   return lealtadApi.listarMovimientos(sucursalId, celular, desde, hasta)
+}
+
+export async function obtenerReporteLealtad(sucursalId: string): Promise<ReporteLealtad> {
+  return lealtadApi.obtenerReporte(sucursalId)
 }

@@ -3,6 +3,7 @@ import {
   actualizarConfiguracionLealtad,
   listarMovimientosLealtad,
   obtenerConfiguracionLealtad,
+  obtenerReporteLealtad,
   obtenerSaldoLealtad,
 } from '@/services/lealtadService'
 import type { ApiError } from '@/types/auth'
@@ -10,6 +11,7 @@ import type {
   ConfiguracionLealtad,
   ConfiguracionLealtadInput,
   MovimientoPuntos,
+  ReporteLealtad,
   SaldoPuntos,
 } from '@/types/lealtad'
 
@@ -17,6 +19,7 @@ interface LealtadState {
   configuracion: ConfiguracionLealtad | null
   saldo: SaldoPuntos | null
   movimientos: MovimientoPuntos[]
+  reporte: ReporteLealtad | null
   loading: boolean
   error: string | null
 }
@@ -26,6 +29,7 @@ export const useLealtadStore = defineStore('lealtad', {
     configuracion: null,
     saldo: null,
     movimientos: [],
+    reporte: null,
     loading: false,
     error: null,
   }),
@@ -62,6 +66,17 @@ export const useLealtadStore = defineStore('lealtad', {
         this.saldo = await obtenerSaldoLealtad(sucursalId, celular)
       } catch (error: unknown) {
         this.error = (error as ApiError).message ?? 'Error al cargar el kardex de lealtad'
+      } finally {
+        this.loading = false
+      }
+    },
+    async cargarReporte(sucursalId: string) {
+      this.loading = true
+      this.error = null
+      try {
+        this.reporte = await obtenerReporteLealtad(sucursalId)
+      } catch (error: unknown) {
+        this.error = (error as ApiError).message ?? 'Error al cargar el reporte de lealtad'
       } finally {
         this.loading = false
       }

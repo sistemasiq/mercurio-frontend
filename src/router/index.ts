@@ -363,6 +363,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/KardexLealtadPage.vue'),
         meta: { permissions: ['lealtad:ver_saldo'], title: 'Kardex de Lealtad' },
       },
+      {
+        path: 'reporte',
+        name: 'lealtad-reporte',
+        component: () => import('@/pages/ReporteLealtadPage.vue'),
+        meta: { permissions: ['lealtad:ver_reporte'], title: 'Reporte de Lealtad' },
+      },
     ],
   },
   {
