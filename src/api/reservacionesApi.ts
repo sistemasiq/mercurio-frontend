@@ -2,7 +2,10 @@ import { apiClient } from '@/api/axiosClient'
 import type { Reservaciones, ReservacionesCreate, ReservacionesUpdate } from '@/types/reservaciones'
 
 export const reservacionesApi = {
-  listar: () => apiClient.get<Reservaciones[]>('/reservaciones').then((r) => r.data),
+  listar: (sucursal_id?: string) =>
+    apiClient
+      .get<Reservaciones[]>('/reservaciones', { params: sucursal_id ? { sucursal_id } : undefined })
+      .then((r) => r.data),
 
   obtener: (id: string) => apiClient.get<Reservaciones>(`/reservaciones/${id}`).then((r) => r.data),
 

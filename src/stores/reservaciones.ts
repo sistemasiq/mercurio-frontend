@@ -18,11 +18,11 @@ export const useReservacionesStore = defineStore('reservaciones', {
     activas: (state) => state.reservaciones.filter((r) => r.activo),
   },
   actions: {
-    async cargar() {
+    async cargar(sucursal_id?: string) {
       this.loading = true
       this.error = null
       try {
-        this.reservaciones = await reservacionesApi.listar()
+        this.reservaciones = await reservacionesApi.listar(sucursal_id)
       } catch (error: unknown) {
         this.error = (error as Error).message ?? 'Error al cargar reservaciones'
       } finally {

@@ -236,7 +236,7 @@ const paquetesStore = usePaquetesStore()
 const authStore = useAuthStore()
 
 onMounted(() => {
-  store.cargar()
+  store.cargar(authStore.currentBranchId ?? undefined)
   paquetesStore.cargar(authStore.currentBranchId ?? undefined)
 })
 

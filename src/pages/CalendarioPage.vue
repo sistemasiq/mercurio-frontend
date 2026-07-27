@@ -215,10 +215,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useReservacionesStore } from '@/stores/reservaciones'
+import { useAuthStore } from '@/stores/auth'
 
 const store = useReservacionesStore()
+const authStore = useAuthStore()
 onMounted(() => {
-  if (!store.reservaciones.length) store.cargar()
+  if (!store.reservaciones.length) store.cargar(authStore.currentBranchId ?? undefined)
 })
 
 // ── Navegación ────────────────────────────────────────────────────────────────
