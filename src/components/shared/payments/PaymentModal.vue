@@ -74,13 +74,45 @@
         "
       >
         <div style="padding: 16px 20px; border-bottom: 1px solid #e1e3e4; background: #ffffff">
+          <q-input
+            v-model="celularCliente"
+            label="Celular del cliente (opcional)"
+            placeholder="10 dígitos"
+            outlined
+            dense
+            mask="##########"
+            class="q-mb-sm"
+            :rules="[(val: string) => !val || val.length === 10 || 'Debe tener 10 dígitos']"
+            hint="Para acumular puntos de lealtad"
+          />
+
+          <q-input
+            v-if="saldoDisponible !== null && saldoDisponible > 0"
+            v-model.number="puntosARedimir"
+            label="Puntos a redimir"
+            outlined
+            dense
+            type="number"
+            min="0"
+            :max="maxPuntosRedimibles"
+            class="q-mb-sm"
+            :hint="`Disponibles: ${saldoDisponible} pts · $${valorPunto?.toFixed(2)} c/u`"
+          />
+
           <div class="row justify-between text-grey-8 text-caption q-mb-xs">
             <span>Subtotal</span>
             <span>${{ props.totalToPay.toFixed(2) }}</span>
           </div>
+          <div
+            v-if="descuentoPuntos > 0"
+            class="row justify-between text-positive text-caption q-mb-xs"
+          >
+            <span>Descuento por puntos</span>
+            <span>-${{ descuentoPuntos.toFixed(2) }}</span>
+          </div>
           <div class="row justify-between text-h6 text-weight-bold q-mt-xs">
             <span>Total a Pagar</span>
-            <span>${{ props.totalToPay.toFixed(2) }}</span>
+            <span>${{ totalNeto.toFixed(2) }}</span>
           </div>
         </div>
 
@@ -199,6 +231,8 @@
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import type { PaymentProps, AppliedPayment } from '@/types/payments'
+import { useAuthStore } from '@/stores/auth'
+import { useLealtadStore } from '@/stores/lealtad'
 
 import MethodSelector from './MethodSelector.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
@@ -207,13 +241,25 @@ import AppliedPaymentsList from './AppliedPaymentsList.vue'
 const props = defineProps<PaymentProps & { modelValue: boolean }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
-  (e: 'pago-exitoso', pagos: AppliedPayment[]): void
+  (
+    e: 'pago-exitoso',
+    pagos: AppliedPayment[],
+    celularCliente: string | null,
+    puntosARedimir: number,
+    descuentoPuntos: number,
+  ): void
 }>()
 
 const $q = useQuasar()
+const authStore = useAuthStore()
+const lealtadStore = useLealtadStore()
 
 const metodoSeleccionado = ref('')
 const pagosAplicados = ref<AppliedPayment[]>([])
+const celularCliente = ref('')
+const puntosARedimir = ref(0)
+const saldoDisponible = ref<number | null>(null)
+const valorPunto = ref<number | null>(null)
 
 watch(
   () => props.modelValue,
@@ -221,9 +267,43 @@ watch(
     if (visible && !metodoSeleccionado.value) {
       metodoSeleccionado.value = 'Efectivo'
     }
+    if (!visible) {
+      saldoDisponible.value = null
+      valorPunto.value = null
+      puntosARedimir.value = 0
+    }
   },
   { immediate: true },
 )
+
+watch(celularCliente, async (val) => {
+  if (val.length !== 10 || !authStore.currentBranchId) {
+    saldoDisponible.value = null
+    puntosARedimir.value = 0
+    return
+  }
+  const sucursalId = authStore.currentBranchId
+  const [saldo] = await Promise.all([
+    lealtadStore.cargarSaldo(sucursalId, val),
+    lealtadStore.cargarConfiguracion(sucursalId),
+  ])
+  saldoDisponible.value = saldo.saldo
+  valorPunto.value = lealtadStore.configuracion?.valor_punto ?? null
+})
+
+const maxPuntosRedimibles = computed(() => {
+  if (saldoDisponible.value === null || !valorPunto.value) return 0
+  const maxPorTotal = Math.floor(props.totalToPay / valorPunto.value)
+  return Math.max(0, Math.min(saldoDisponible.value, maxPorTotal))
+})
+
+const descuentoPuntos = computed(() => {
+  if (!valorPunto.value) return 0
+  const puntos = Math.min(puntosARedimir.value, maxPuntosRedimibles.value)
+  return puntos * valorPunto.value
+})
+
+const totalNeto = computed(() => props.totalToPay - descuentoPuntos.value)
 
 const esEfectivo = (nombre: string) => nombre.trim().toLowerCase().includes('efectivo')
 const esTarjeta = (nombre: string) => {
@@ -247,12 +327,12 @@ const totalPagado = computed(() => {
 })
 
 const saldoPendiente = computed(() => {
-  const restante = props.totalToPay - totalPagado.value
+  const restante = totalNeto.value - totalPagado.value
   return restante > 0 ? restante : 0
 })
 
 const cambioADevolver = computed(() => {
-  const excedente = totalPagado.value - props.totalToPay
+  const excedente = totalPagado.value - totalNeto.value
   return excedente > 0 ? excedente : 0
 })
 
@@ -319,8 +399,15 @@ const finalizarPago = () => {
   emit(
     'pago-exitoso',
     pagosAplicados.value.map((p) => ({ ...p })),
+    celularCliente.value.length === 10 ? celularCliente.value : null,
+    Math.min(puntosARedimir.value, maxPuntosRedimibles.value),
+    descuentoPuntos.value,
   )
   emit('update:modelValue', false)
   pagosAplicados.value = []
+  celularCliente.value = ''
+  puntosARedimir.value = 0
+  saldoDisponible.value = null
+  valorPunto.value = null
 }
 </script>

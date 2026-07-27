@@ -171,6 +171,29 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'LEALTAD',
+    items: [
+      {
+        label: 'Configuración',
+        icon: 'loyalty',
+        routeName: 'lealtad-configuracion',
+        permission: 'lealtad:gestionar_configuracion',
+      },
+      {
+        label: 'Kardex',
+        icon: 'history',
+        routeName: 'lealtad-kardex',
+        permission: 'lealtad:ver_saldo',
+      },
+      {
+        label: 'Reporte',
+        icon: 'query_stats',
+        routeName: 'lealtad-reporte',
+        permission: 'lealtad:ver_reporte',
+      },
+    ],
+  },
+  {
     label: 'ADMINISTRACIÓN',
     items: [
       {

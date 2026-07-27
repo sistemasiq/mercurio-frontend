@@ -347,6 +347,31 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/lealtad',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'configuracion',
+        name: 'lealtad-configuracion',
+        component: () => import('@/pages/LealtadConfiguracionPage.vue'),
+        meta: { permissions: ['lealtad:gestionar_configuracion'], title: 'Puntos de Lealtad' },
+      },
+      {
+        path: 'kardex',
+        name: 'lealtad-kardex',
+        component: () => import('@/pages/KardexLealtadPage.vue'),
+        meta: { permissions: ['lealtad:ver_saldo'], title: 'Kardex de Lealtad' },
+      },
+      {
+        path: 'reporte',
+        name: 'lealtad-reporte',
+        component: () => import('@/pages/ReporteLealtadPage.vue'),
+        meta: { permissions: ['lealtad:ver_reporte'], title: 'Reporte de Lealtad' },
+      },
+    ],
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/login',
   },
