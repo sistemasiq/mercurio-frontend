@@ -347,6 +347,19 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/lealtad',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'configuracion',
+        name: 'lealtad-configuracion',
+        component: () => import('@/pages/LealtadConfiguracionPage.vue'),
+        meta: { permissions: ['lealtad:gestionar_configuracion'], title: 'Puntos de Lealtad' },
+      },
+    ],
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/login',
   },

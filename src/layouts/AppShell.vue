@@ -171,6 +171,17 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'LEALTAD',
+    items: [
+      {
+        label: 'Configuración',
+        icon: 'loyalty',
+        routeName: 'lealtad-configuracion',
+        permission: 'lealtad:gestionar_configuracion',
+      },
+    ],
+  },
+  {
     label: 'ADMINISTRACIÓN',
     items: [
       {
