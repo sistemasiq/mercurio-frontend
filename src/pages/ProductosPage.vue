@@ -515,7 +515,7 @@ const TIPO_OPTIONS = [
 ]
 
 const cargar = () => {
-  store.cargar()
+  store.cargar(authStore.currentBranchId)
 }
 
 onMounted(cargar)
