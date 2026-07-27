@@ -304,8 +304,13 @@ const guardarNotasLocal = (item: ItemTicket, notas: string) => {
 }
 
 // ── Pago multimodal ────────────────────────────────────────────────
-const onPagoExitoso = (pagos: AppliedPayment[], celularCliente: string | null) => {
-  void procesarPago(pagos, celularCliente)
+const onPagoExitoso = (
+  pagos: AppliedPayment[],
+  celularCliente: string | null,
+  puntosARedimir: number,
+  descuentoPuntos: number,
+) => {
+  void procesarPago(pagos, celularCliente, puntosARedimir, descuentoPuntos)
 }
 
 const mapearMetodoPago = (nombreMetodo: string): string => {
@@ -329,7 +334,12 @@ const mapearMetodoPago = (nombreMetodo: string): string => {
 }
 
 // Pago
-const procesarPago = async (pagos: AppliedPayment[], celularCliente: string | null) => {
+const procesarPago = async (
+  pagos: AppliedPayment[],
+  celularCliente: string | null,
+  puntosARedimir: number,
+  descuentoPuntos: number,
+) => {
   if (itemsTicket.value.length === 0 || enviando.value) return
 
   if (!authStore.currentBranchId) {
@@ -356,9 +366,10 @@ const procesarPago = async (pagos: AppliedPayment[], celularCliente: string | nu
       es_hijo_combo: item.es_hijo_combo || undefined,
     }))
 
-    const totalFinal = itemsTicket.value
+    const totalBruto = itemsTicket.value
       .filter((i) => !i.es_hijo_combo)
       .reduce((s, i) => s + i.producto.precio_unitario * i.cantidad, 0)
+    const totalFinal = totalBruto - descuentoPuntos
 
     const payload: PagoCompletoRequest = {
       ticket_numero: `TICK-${String(Date.now() % 10000).padStart(4, '0')}`,
@@ -370,6 +381,7 @@ const procesarPago = async (pagos: AppliedPayment[], celularCliente: string | nu
         notas_pago: p.cardType ? `${p.cardType} - Folio: ${p.authCode ?? ''}` : '',
       })),
       ...(celularCliente ? { celular_cliente: celularCliente } : {}),
+      ...(puntosARedimir > 0 ? { puntos_a_redimir: puntosARedimir } : {}),
     }
 
     const comanda = await pagosApi.completarPago(payload)
