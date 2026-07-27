@@ -74,6 +74,17 @@
         "
       >
         <div style="padding: 16px 20px; border-bottom: 1px solid #e1e3e4; background: #ffffff">
+          <q-input
+            v-model="celularCliente"
+            label="Celular del cliente (opcional)"
+            placeholder="10 dígitos"
+            outlined
+            dense
+            mask="##########"
+            class="q-mb-sm"
+            :rules="[(val: string) => !val || val.length === 10 || 'Debe tener 10 dígitos']"
+            hint="Para acumular puntos de lealtad"
+          />
           <div class="row justify-between text-grey-8 text-caption q-mb-xs">
             <span>Subtotal</span>
             <span>${{ props.totalToPay.toFixed(2) }}</span>
@@ -207,13 +218,14 @@ import AppliedPaymentsList from './AppliedPaymentsList.vue'
 const props = defineProps<PaymentProps & { modelValue: boolean }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
-  (e: 'pago-exitoso', pagos: AppliedPayment[]): void
+  (e: 'pago-exitoso', pagos: AppliedPayment[], celularCliente: string | null): void
 }>()
 
 const $q = useQuasar()
 
 const metodoSeleccionado = ref('')
 const pagosAplicados = ref<AppliedPayment[]>([])
+const celularCliente = ref('')
 
 watch(
   () => props.modelValue,
@@ -319,8 +331,10 @@ const finalizarPago = () => {
   emit(
     'pago-exitoso',
     pagosAplicados.value.map((p) => ({ ...p })),
+    celularCliente.value.length === 10 ? celularCliente.value : null,
   )
   emit('update:modelValue', false)
   pagosAplicados.value = []
+  celularCliente.value = ''
 }
 </script>

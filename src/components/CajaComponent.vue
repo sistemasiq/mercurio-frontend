@@ -304,8 +304,8 @@ const guardarNotasLocal = (item: ItemTicket, notas: string) => {
 }
 
 // ── Pago multimodal ────────────────────────────────────────────────
-const onPagoExitoso = (pagos: AppliedPayment[]) => {
-  void procesarPago(pagos)
+const onPagoExitoso = (pagos: AppliedPayment[], celularCliente: string | null) => {
+  void procesarPago(pagos, celularCliente)
 }
 
 const mapearMetodoPago = (nombreMetodo: string): string => {
@@ -329,7 +329,7 @@ const mapearMetodoPago = (nombreMetodo: string): string => {
 }
 
 // Pago
-const procesarPago = async (pagos: AppliedPayment[]) => {
+const procesarPago = async (pagos: AppliedPayment[], celularCliente: string | null) => {
   if (itemsTicket.value.length === 0 || enviando.value) return
 
   if (!authStore.currentBranchId) {
@@ -369,6 +369,7 @@ const procesarPago = async (pagos: AppliedPayment[]) => {
         monto: p.amount,
         notas_pago: p.cardType ? `${p.cardType} - Folio: ${p.authCode ?? ''}` : '',
       })),
+      ...(celularCliente ? { celular_cliente: celularCliente } : {}),
     }
 
     const comanda = await pagosApi.completarPago(payload)

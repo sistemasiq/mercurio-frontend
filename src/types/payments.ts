@@ -27,4 +27,5 @@ export interface PagoCompletoRequest {
   detalles_comanda: DetalleComandaRequest[]
   notas_generales?: string
   pagos: PaymentItemRequest[]
+  celular_cliente?: string
 }
