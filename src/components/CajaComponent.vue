@@ -2,10 +2,75 @@
   <div class="caja-root">
     <!-- Columna izquierda: catálogo -->
     <div class="caja-col">
-      <div class="caja-header">
-        <h1 class="caja-header__titulo">Estación Principal</h1>
-        <div class="caja-header__sub">Terminal #01</div>
+      <div class="caja-header row items-center justify-between">
+        <div>
+          <h1 class="caja-header__titulo">Estación Principal</h1>
+          <div class="caja-header__sub">Terminal #01 | Cajero: {{ turno.cajeroNombre || '—' }}</div>
+        </div>
+
+        <!-- Acciones y estado del turno -->
+        <div class="row items-center q-gutter-x-sm">
+          <q-chip
+            v-if="turno.estaOperando"
+            dense
+            color="teal-1"
+            text-color="teal-9"
+            icon="check_circle"
+            class="text-weight-bold"
+          >
+            Turno Activo (${{ turno.fondoInicial.toLocaleString('es-MX') }})
+          </q-chip>
+          <q-chip
+            v-else
+            dense
+            color="amber-2"
+            text-color="amber-10"
+            icon="warning"
+            class="text-weight-bold"
+          >
+            Sin Turno Activo
+          </q-chip>
+
+          <q-btn
+            v-if="turno.estaOperando"
+            outline
+            dense
+            no-caps
+            color="primary"
+            icon="point_of_sale"
+            label="Cierre de Caja"
+            class="q-px-sm"
+            @click="router.push('/pos/cierre')"
+          />
+          <q-btn
+            v-else
+            unelevated
+            dense
+            no-caps
+            color="positive"
+            icon="key"
+            label="Abrir Caja"
+            class="q-px-sm"
+            @click="router.push('/pos/cierre')"
+          />
+        </div>
       </div>
+
+      <!-- Banner de aviso si no hay turno activo -->
+      <q-banner v-if="turno.sinTurno" class="bg-amber-1 text-amber-10 q-mx-md q-mt-md" rounded>
+        <template #avatar><q-icon name="info" color="amber-9" /></template>
+        No hay un turno de caja activo. Es necesario realizar la
+        <strong>Apertura de Caja</strong> antes de procesar comandas.
+        <template #action>
+          <q-btn
+            flat
+            no-caps
+            color="primary"
+            label="Ir a Apertura de Caja"
+            @click="router.push('/pos/cierre')"
+          />
+        </template>
+      </q-banner>
 
       <div class="caja-cats hide-scrollbar">
         <button
@@ -116,6 +181,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
@@ -125,6 +191,7 @@ import { obtenerProductos } from '@/services/productoService'
 import { crearComanda, obtenerComandas } from '@/services/comandaService'
 import { useComandasSocket } from '@/composables/useComandasSocket'
 import { useAuthStore } from '@/stores/auth'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import type { Producto, TipoProducto } from '@/types/producto'
 import type {
   Comanda,
@@ -134,7 +201,9 @@ import type {
 } from '@/types/comanda'
 
 const $q = useQuasar()
+const router = useRouter()
 const authStore = useAuthStore()
+const turno = useTurnoCajaStore()
 const props = defineProps<{ searchTerm?: string }>()
 const abortController = new AbortController()
 
@@ -236,7 +305,8 @@ const guardarNotas = () => {
 const obtenerMensajeError = (err: unknown): string => {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as
-      { detail?: string | string[]; message?: string; error?: string } | undefined
+      | { detail?: string | string[]; message?: string; error?: string }
+      | undefined
     if (typeof data?.detail === 'string') return data.detail
     if (Array.isArray(data?.detail)) return data.detail.join(', ')
     if (data?.message) return data.message
@@ -331,6 +401,7 @@ const cargarComandasActivas = async () => {
 onMounted(() => {
   void cargarProductos()
   void cargarComandasActivas()
+  void turno.cargarTurnoActivo()
 })
 onBeforeUnmount(() => abortController.abort())
 </script>

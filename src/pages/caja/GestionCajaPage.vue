@@ -6,6 +6,10 @@ const router = useRouter()
 function irARetiro(): void {
   router.push({ name: 'caja-retiro' })
 }
+
+function irACierre(): void {
+  router.push({ name: 'pos-cierre' })
+}
 </script>
 
 <template>
@@ -31,7 +35,7 @@ function irARetiro(): void {
         </q-card>
 
         <!-- Cierre de Caja -->
-        <q-card flat bordered class="action-card">
+        <q-card v-ripple flat bordered class="action-card" clickable @click="irACierre">
           <q-card-section class="card-body">
             <div class="action-icon-wrap" style="background: #ffebee">
               <q-icon name="receipt_long" size="28px" style="color: #e53935" />

@@ -37,6 +37,12 @@ const navGroups: NavGroup[] = [
         permission: 'pos:acceder',
       },
       {
+        label: 'Apertura y Cierre',
+        icon: 'key',
+        routeName: 'pos-cierre',
+        permission: 'pos:acceder',
+      },
+      {
         label: 'Cocina',
         icon: 'restaurant',
         routeName: 'pos-cocina',

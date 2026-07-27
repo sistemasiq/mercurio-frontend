@@ -1,7 +1,10 @@
 import type { App } from 'vue'
 import type { Router } from 'vue-router'
 import { Quasar, Notify, Loading, Dialog } from 'quasar'
+import langEs from 'quasar/lang/es'
 import '@quasar/extras/material-icons/material-icons.css'
+import '@quasar/extras/material-icons-outlined/material-icons-outlined.css'
+import '@quasar/extras/material-symbols-outlined/material-symbols-outlined.css'
 import 'quasar/src/css/index.sass'
 import '@/css/app.scss'
 import { createPinia } from 'pinia'
@@ -18,6 +21,7 @@ export function setupPlugins(app: App, router: Router): void {
   app.use(router)
   app.use(Quasar, {
     plugins: { Notify, Loading, Dialog },
+    lang: langEs,
     config: {
       notify: { position: 'top', timeout: 4000 },
     },

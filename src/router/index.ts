@@ -77,6 +77,12 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'cierre',
+        name: 'pos-cierre',
+        component: () => import('@/pages/CierreCajaPage.vue'),
+        meta: { permissions: ['pos:acceder'], title: 'Cierre de Caja' },
+      },
+      {
         path: 'cocina',
         name: 'pos-cocina',
         component: () => import('@/components/comandas/VisorCocina.vue'),
