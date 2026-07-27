@@ -41,12 +41,6 @@
           <q-td :props="props"> ${{ Number(props.row.precio).toFixed(2) }} </q-td>
         </template>
 
-        <template #body-cell-sucursal_id="props">
-          <q-td :props="props">
-            {{ props.row.sucursal_id ? 'Solo esta sucursal' : 'Global' }}
-          </q-td>
-        </template>
-
         <template #body-cell-activo="props">
           <q-td :props="props">
             <q-badge
@@ -147,13 +141,6 @@
               :options="UNIDAD_OPTIONS"
             />
           </div>
-          <div v-if="authStore.currentBranchId">
-            <q-checkbox
-              v-model="formDialog.global"
-              label="Disponible en todas las sucursales (global)"
-              dense
-            />
-          </div>
           <div>
             <div class="field-label">DESCRIPCIÓN (opcional)</div>
             <q-input
@@ -238,7 +225,6 @@ const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
   { name: 'precio', label: 'PRECIO', field: 'precio', align: 'left', sortable: true },
   { name: 'unidad', label: 'UNIDAD', field: 'unidad', align: 'left' },
-  { name: 'sucursal_id', label: 'ALCANCE', field: 'sucursal_id', align: 'left' },
   { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
@@ -256,12 +242,11 @@ const formDialog = ref({
   precio: 0,
   unidad: 'evento' as 'evento' | 'persona' | 'hora',
   descripcion: '',
-  global: false,
 })
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', precio: 0, unidad: 'evento', descripcion: '', global: false }
+  formDialog.value = { nombre: '', precio: 0, unidad: 'evento', descripcion: '' }
   dialogOpen.value = true
 }
 
@@ -272,7 +257,6 @@ const abrirEditar = (row: Extras) => {
     precio: Number(row.precio),
     unidad: row.unidad,
     descripcion: row.descripcion ?? '',
-    global: row.sucursal_id === null,
   }
   dialogOpen.value = true
 }
@@ -306,7 +290,7 @@ const guardar = async () => {
       })
       $q.notify({ type: 'positive', message: 'Extra actualizado', position: 'top-right' })
     } else {
-      if (!formDialog.value.global && !authStore.currentBranchId) {
+      if (!authStore.currentBranchId && !authStore.hasRole('AdministradorSistema')) {
         $q.notify({
           type: 'negative',
           message: 'No hay una sucursal activa en la sesión.',
@@ -319,7 +303,7 @@ const guardar = async () => {
         precio: String(formDialog.value.precio),
         unidad: formDialog.value.unidad,
         descripcion: formDialog.value.descripcion.trim() || null,
-        sucursal_id: formDialog.value.global ? null : (authStore.currentBranchId ?? null),
+        sucursal_id: authStore.currentBranchId ?? null,
       })
       $q.notify({ type: 'positive', message: 'Extra creado', position: 'top-right' })
     }

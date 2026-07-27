@@ -50,13 +50,6 @@
           no-data-label="No hay métodos de pago registrados"
           class="fec-table"
         >
-          <!-- Alcance -->
-          <template #body-cell-sucursal_id="props">
-            <q-td :props="props">
-              {{ props.row.sucursal_id ? 'Solo esta sucursal' : 'Global' }}
-            </q-td>
-          </template>
-
           <!-- Estado -->
           <template #body-cell-activo="props">
             <q-td :props="props">
@@ -211,7 +204,6 @@ onMounted(() => store.cargar())
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
   { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
-  { name: 'sucursal_id', label: 'ALCANCE', field: 'sucursal_id', align: 'left' },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
