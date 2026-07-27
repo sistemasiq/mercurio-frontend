@@ -1,11 +1,17 @@
+export interface MetodoPagoResumen {
+  metodo_pago_id: string
+  metodo_pago_nombre: string
+  monto: number
+  notas_pago: string | null
+}
+
 export interface ITransaccion {
-  id: string
-  fechaHora: string
-  clienteMesa: {
-    ubicacion: string
-    referencia: string
-  }
-  metodoPago: 'Tarjeta' | 'Efectivo' | 'Wallet'
-  estado: 'Pagado' | 'Cancelado' | 'Reembolsado'
-  total: number
+  comanda_id: string
+  ticket_numero: string
+  total_final: number
+  estado_actual: string
+  sucursal_id: string
+  creado: string
+  creado_por: string | null
+  metodos_pago: MetodoPagoResumen[]
 }

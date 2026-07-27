@@ -33,7 +33,7 @@ function printVoucher() {
 
 function getBraceletLabel(braceletId: string) {
   const bracelet = store.pulseras.find((p) => p.id === braceletId)
-  return bracelet?.pulsera_rfid ?? braceletId
+  return bracelet?.pulseraRfid ?? braceletId
 }
 </script>
 
@@ -80,7 +80,7 @@ function getBraceletLabel(braceletId: string) {
       <div class="row text-caption text-grey-7 q-mb-xs">
         <div class="col">Nombre</div>
         <div style="width: 50px" class="text-center">Edad</div>
-        <div style="width: 80px" class="text-right">Brazalete</div>
+        <div style="width: 80px" class="text-right">Pulsera</div>
       </div>
       <div v-for="child in store.savedChildren" :key="child.id" class="row items-center q-mb-xs">
         <div class="col text-weight-medium" style="font-size: 14px">{{ child.name }}</div>
