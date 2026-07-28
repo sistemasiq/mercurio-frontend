@@ -190,6 +190,38 @@ export const useRegistrationStore = defineStore('registration', () => {
     )
   })
 
+  /** Lista de requisitos que faltan para poder completar el pago -- para
+   * mostrarle al operador exactamente qué falta en vez de un aviso genérico
+   * cuando el botón "Completar pago" está deshabilitado. */
+  const motivosPendientes = computed(() => {
+    const motivos: string[] = []
+
+    if (tutor.value.fullName.trim().length <= 3) {
+      motivos.push('Captura el nombre completo del tutor')
+    }
+    if (tutor.value.phone.replace(/\D/g, '').length !== 10) {
+      motivos.push('El teléfono del tutor debe tener 10 dígitos')
+    }
+    if (tutor.value.inePhoto === null) {
+      motivos.push('Toma la foto de INE del tutor')
+    }
+    if (tutor.value.arrivalPhoto === null) {
+      motivos.push('Toma la foto de llegada del tutor')
+    }
+    if (savedChildren.value.length === 0) {
+      motivos.push('Guarda al menos un niño')
+    } else if (
+      !savedChildren.value.every(
+        (child) =>
+          child.name.trim().length > 0 && child.age !== null && child.age > 0 && child.age < 18,
+      )
+    ) {
+      motivos.push('Revisa el nombre y la edad de cada niño guardado')
+    }
+
+    return motivos
+  })
+
   async function proceedToRFID(pagos: OnboardingPago[]) {
     pagosAplicados.value = pagos
     step.value = 'rfid'
@@ -302,6 +334,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     availableBraceletsForChild,
     allChildrenHaveBracelet,
     canProceedToRFID,
+    motivosPendientes,
     maxChildrenAllowed,
     reachedBraceletLimit,
     tutorHasBracelet,
