@@ -229,7 +229,9 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   async function completeRegistration() {
     if (!productoBase.value) {
-      submitError.value = 'No hay catálogo de productos cargado.'
+      submitError.value =
+        'Esta sucursal no tiene un producto de tipo "estancia" configurado. ' +
+        'Ve a Catálogo > Productos y crea uno antes de completar el registro.'
       return
     }
 

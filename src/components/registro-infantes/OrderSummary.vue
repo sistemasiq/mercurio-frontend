@@ -153,6 +153,7 @@ const onPagoExitoso = (pagos: AppliedPayment[]) => {
           class="full-width"
           label="Completar registro e Imprimir Comprobante"
           icon="print"
+          :loading="store.isSubmitting"
           :disable="!store.allChildrenHaveBracelet"
           @click="store.completeRegistration()"
         />
@@ -162,6 +163,16 @@ const onPagoExitoso = (pagos: AppliedPayment[]) => {
         >
           Asigna una pulsera a cada niño registrado
         </div>
+        <q-banner
+          v-if="store.submitError"
+          dense
+          rounded
+          class="bg-red-1 text-red-9 q-mt-sm"
+          style="font-size: 12px"
+        >
+          <template #avatar><q-icon name="error_outline" color="negative" /></template>
+          {{ store.submitError }}
+        </q-banner>
       </template>
 
       <template v-if="store.step === 'complete'">
