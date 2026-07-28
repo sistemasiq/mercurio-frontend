@@ -641,6 +641,7 @@
     <PaymentModal
       v-model="modalPagoAbierto"
       :total-to-pay="anticipoIngresado"
+      :metodos-pago="metodosPagoStore.activos"
       @pago-exitoso="onPagoExitoso"
     />
   </q-page>
@@ -660,6 +661,7 @@ import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
 import { useReservacionExtrasStore } from '@/stores/reservacion_extras'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
+import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -869,12 +871,13 @@ const metodosPagoResumen = computed(() => {
   return nombres.length ? [...new Set(nombres)].join(', ') : '—'
 })
 
-const mapearMetodoPago = (nombreMetodo: string): string => {
-  const metodo = metodosPagoStore.activos.find(
-    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase(),
-  )
+const mapearMetodoPago = (categoriaSeleccionada: string): string => {
+  const categoria = CATEGORIAS_METODO_PAGO.find((c) => c.valor === categoriaSeleccionada)
+  const metodo = metodosPagoStore.activos.find((m) => m.tipo === categoria?.tipo)
   if (!metodo) {
-    throw new Error(`El método de pago "${nombreMetodo}" no está configurado o no está activo.`)
+    throw new Error(
+      `No hay un método de pago activo de tipo "${categoriaSeleccionada}" configurado para esta sucursal.`,
+    )
   }
   return metodo.id
 }

@@ -140,6 +140,19 @@
               placeholder="Descripción breve del método de pago"
             />
           </div>
+          <div>
+            <div class="field-label">TIPO</div>
+            <q-select
+              v-model="formDialog.tipo"
+              dense
+              outlined
+              emit-value
+              map-options
+              :options="TIPO_OPTIONS"
+              :rules="[(v) => !!v || 'El tipo es requerido']"
+              hint="Determina qué botón del modal de cobro usa este método."
+            />
+          </div>
         </q-card-section>
 
         <q-card-actions align="right" class="q-pa-md q-pt-sm">
@@ -193,7 +206,15 @@ import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
-import type { MetodosPago } from '@/types/metodos_pago'
+import type { MetodosPago, TipoMetodoPago } from '@/types/metodos_pago'
+
+const TIPO_OPTIONS: { label: string; value: TipoMetodoPago }[] = [
+  { label: 'Efectivo', value: 'E' },
+  { label: 'Tarjeta (crédito/débito/wallets)', value: 'T' },
+  { label: 'Cupón', value: 'C' },
+  { label: 'Lealtad', value: 'L' },
+  { label: 'Otro (transferencia, etc.)', value: 'O' },
+]
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -204,6 +225,13 @@ onMounted(() => store.cargar())
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
   { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
+  {
+    name: 'tipo',
+    label: 'TIPO',
+    field: 'tipo',
+    align: 'left',
+    format: (v: TipoMetodoPago) => TIPO_OPTIONS.find((o) => o.value === v)?.label ?? v,
+  },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
@@ -215,11 +243,15 @@ const editando = ref<MetodosPago | null>(null)
 const guardando = ref(false)
 const nombreRef = ref()
 
-const formDialog = ref({ nombre: '', descripcion: '' })
+const formDialog = ref<{ nombre: string; descripcion: string; tipo: TipoMetodoPago | null }>({
+  nombre: '',
+  descripcion: '',
+  tipo: null,
+})
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', descripcion: '' }
+  formDialog.value = { nombre: '', descripcion: '', tipo: null }
   dialogOpen.value = true
 }
 
@@ -228,6 +260,7 @@ const abrirEditar = (row: MetodosPago) => {
   formDialog.value = {
     nombre: row.nombre,
     descripcion: row.descripcion ?? '',
+    tipo: row.tipo,
   }
   dialogOpen.value = true
 }
@@ -242,11 +275,16 @@ const guardar = async () => {
     nombreRef.value?.validate()
     return
   }
+  if (!formDialog.value.tipo) {
+    $q.notify({ type: 'warning', message: 'Selecciona un tipo.', position: 'top-right' })
+    return
+  }
   guardando.value = true
   try {
     const body = {
       nombre: formDialog.value.nombre.trim(),
       descripcion: formDialog.value.descripcion.trim() || undefined,
+      tipo: formDialog.value.tipo,
     }
     if (editando.value) {
       await store.actualizarMetodoPago(editando.value.id, body)

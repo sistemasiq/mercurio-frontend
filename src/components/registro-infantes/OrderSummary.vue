@@ -4,7 +4,7 @@ import { useQuasar } from 'quasar'
 import { useRegistrationStore } from '@/stores/registration'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import { metodosPagoApi } from '@/api/metodosPagoApi'
-import type { MetodosPago } from '@/types/metodos_pago'
+import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment } from '@/types/payments'
 import type { OnboardingPago } from '@/api/onboardingClient'
 
@@ -41,21 +41,17 @@ const abrirModalPago = () => {
   mostrarModalPago.value = true
 }
 
-const mapearMetodoPago = (nombreMetodo: string): string => {
+const mapearMetodoPago = (categoriaSeleccionada: string): string => {
   if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
     throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
   }
 
-  const metodo = metodosPagoDisponibles.value.find(
-    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
-  )
+  const categoria = CATEGORIAS_METODO_PAGO.find((c) => c.valor === categoriaSeleccionada)
+  const metodo = metodosPagoDisponibles.value.find((m) => m.activo && m.tipo === categoria?.tipo)
 
   if (!metodo) {
-    const disponibles = metodosPagoDisponibles.value
-      .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
-      .join(', ')
     throw new Error(
-      `El método de pago "${nombreMetodo}" no está configurado o no está activo. Métodos disponibles: [${disponibles}]`,
+      `No hay un método de pago activo de tipo "${categoriaSeleccionada}" configurado para esta sucursal.`,
     )
   }
   return metodo.id
@@ -129,6 +125,7 @@ const onPagoExitoso = (pagos: AppliedPayment[]) => {
         <PaymentModal
           v-model="mostrarModalPago"
           :total-to-pay="store.total"
+          :metodos-pago="metodosPagoDisponibles"
           @pago-exitoso="onPagoExitoso"
         />
         <ul
