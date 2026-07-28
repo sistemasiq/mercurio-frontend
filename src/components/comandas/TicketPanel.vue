@@ -38,24 +38,27 @@
                 <q-tooltip>Dividir para personalizar</q-tooltip>
               </q-btn>
             </div>
-            <div class="combo-group__qty">
-              <q-btn
-                flat
-                dense
-                icon="remove"
-                size="xs"
-                color="grey-7"
-                @click="$emit('cambiar-cantidad', el.parent, -1)"
-              />
-              <span class="combo-group__qty-val">{{ el.parent.cantidad }}</span>
-              <q-btn
-                flat
-                dense
-                icon="add"
-                size="xs"
-                color="grey-7"
-                @click="$emit('cambiar-cantidad', el.parent, 1)"
-              />
+            <div class="combo-group__header-right">
+              <span class="combo-group__precio">${{ precioLinea(el.parent).toFixed(2) }}</span>
+              <div class="combo-group__qty">
+                <q-btn
+                  flat
+                  dense
+                  icon="remove"
+                  size="xs"
+                  color="grey-7"
+                  @click="$emit('cambiar-cantidad', el.parent, -1)"
+                />
+                <span class="combo-group__qty-val">{{ el.parent.cantidad }}</span>
+                <q-btn
+                  flat
+                  dense
+                  icon="add"
+                  size="xs"
+                  color="grey-7"
+                  @click="$emit('cambiar-cantidad', el.parent, 1)"
+                />
+              </div>
             </div>
           </div>
           <div class="combo-group__items">
@@ -166,13 +169,14 @@ const itemsAgrupados = computed<ElementoRender[]>(() => {
   return resultado
 })
 
+function precioLinea(item: ItemTicket): number {
+  return Number(item.subtotal ?? item.producto.precio_unitario * item.cantidad)
+}
+
 const total = computed(() =>
   props.items
     .filter((item) => !item.es_hijo_combo)
-    .reduce(
-      (suma, item) => suma + Number(item.subtotal ?? item.producto.precio_unitario * item.cantidad),
-      0,
-    ),
+    .reduce((suma, item) => suma + precioLinea(item), 0),
 )
 </script>
 
@@ -290,6 +294,19 @@ const total = computed(() =>
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.combo-group__header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.combo-group__precio {
+  font-size: 12px;
+  font-weight: 800;
+  color: #1d4ed8;
 }
 
 .combo-group__split-btn {
