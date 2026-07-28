@@ -131,9 +131,12 @@ const onPagoExitoso = (pagos: AppliedPayment[]) => {
           :total-to-pay="store.total"
           @pago-exitoso="onPagoExitoso"
         />
-        <div class="text-caption text-grey-6 text-center">
-          Asegúrate de ingresar todos los datos
-        </div>
+        <ul
+          v-if="store.motivosPendientes.length > 0"
+          class="text-caption text-grey-8 q-mt-xs q-mb-none q-pl-md"
+        >
+          <li v-for="motivo in store.motivosPendientes" :key="motivo">{{ motivo }}</li>
+        </ul>
       </template>
 
       <template v-if="store.step === 'rfid'">
