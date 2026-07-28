@@ -630,6 +630,11 @@ body {
 
 // ─── Service Card ───────────────────────────────────────────────────────────
 .service-card {
+  // Sin min-width, el .col de Quasar (flex-shrink: 1, sin límite) permite
+  // que todas las tarjetas se compriman indefinidamente para caber en una
+  // sola fila, cortando el texto/precio/botón en vez de saltar de línea.
+  min-width: 170px;
+  max-width: 240px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   overflow: hidden;
