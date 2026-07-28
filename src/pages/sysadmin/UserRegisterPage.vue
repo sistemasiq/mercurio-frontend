@@ -133,6 +133,7 @@ onMounted(async () => {
             v-model="form.email"
             label="Correo electrónico"
             type="email"
+            autocomplete="off"
             outlined
             :rules="emailRules"
             lazy-rules
@@ -142,6 +143,7 @@ onMounted(async () => {
             v-model="form.password"
             label="Contraseña"
             :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
             outlined
             :rules="passwordRules"
             lazy-rules
@@ -159,6 +161,7 @@ onMounted(async () => {
             v-model="form.confirmPassword"
             label="Confirmar contraseña"
             :type="showConfirm ? 'text' : 'password'"
+            autocomplete="new-password"
             outlined
             :rules="confirmRules"
             lazy-rules

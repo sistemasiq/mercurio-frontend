@@ -200,6 +200,7 @@ onMounted(async () => {
             v-model="form.password"
             label="Nueva contraseña"
             :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
             outlined
             :rules="passwordRules"
             lazy-rules
