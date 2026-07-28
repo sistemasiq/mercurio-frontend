@@ -30,12 +30,6 @@
         :rows-per-page-options="[10, 25, 50]"
         no-data-label="No hay tipos de evento registrados"
       >
-        <template #body-cell-sucursal_id="props">
-          <q-td :props="props">
-            {{ props.row.sucursal_id ? 'Solo esta sucursal' : 'Global' }}
-          </q-td>
-        </template>
-
         <template #body-cell-activo="props">
           <q-td :props="props">
             <q-badge
@@ -110,13 +104,6 @@
               autofocus
               placeholder="Ej. Cumpleaños"
               :rules="[(v) => !!v || 'El nombre es requerido']"
-            />
-          </div>
-          <div v-if="authStore.currentBranchId">
-            <q-checkbox
-              v-model="formDialog.global"
-              label="Disponible en todas las sucursales (global)"
-              dense
             />
           </div>
           <div>
@@ -194,7 +181,6 @@ onMounted(() => store.cargar())
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
   { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
-  { name: 'sucursal_id', label: 'ALCANCE', field: 'sucursal_id', align: 'left' },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
@@ -206,11 +192,11 @@ const editando = ref<Tipos_evento | null>(null)
 const guardando = ref(false)
 const nombreRef = ref()
 
-const formDialog = ref({ nombre: '', descripcion: '', global: false })
+const formDialog = ref({ nombre: '', descripcion: '' })
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', descripcion: '', global: false }
+  formDialog.value = { nombre: '', descripcion: '' }
   dialogOpen.value = true
 }
 
@@ -219,7 +205,6 @@ const abrirEditar = (row: Tipos_evento) => {
   formDialog.value = {
     nombre: row.nombre,
     descripcion: row.descripcion ?? '',
-    global: row.sucursal_id === null,
   }
   dialogOpen.value = true
 }
@@ -234,7 +219,7 @@ const guardar = async () => {
     nombreRef.value?.validate()
     return
   }
-  if (!formDialog.value.global && !authStore.currentBranchId) {
+  if (!authStore.currentBranchId && !authStore.hasRole('AdministradorSistema')) {
     $q.notify({
       type: 'negative',
       message: 'No hay una sucursal activa en la sesión.',
@@ -254,7 +239,7 @@ const guardar = async () => {
     } else {
       await store.crearTipoEvento({
         ...body,
-        sucursal_id: formDialog.value.global ? null : authStore.currentBranchId,
+        sucursal_id: authStore.currentBranchId,
       })
       $q.notify({ type: 'positive', message: 'Tipo de evento creado', position: 'top-right' })
     }
