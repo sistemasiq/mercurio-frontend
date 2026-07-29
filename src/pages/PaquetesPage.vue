@@ -53,6 +53,26 @@
           <q-td :props="props"> ${{ Number(props.row.precio_base).toFixed(2) }} </q-td>
         </template>
 
+        <template #body-cell-precio_hora="props">
+          <q-td :props="props"> ${{ Number(props.row.precio_hora).toFixed(2) }} </q-td>
+        </template>
+
+        <template #body-cell-productos_incluidos="props">
+          <q-td :props="props">
+            <div v-if="props.row.productos_incluidos?.length" class="row q-gutter-xs">
+              <q-badge
+                v-for="item in props.row.productos_incluidos"
+                :key="item.producto_id"
+                color="blue-1"
+                text-color="primary"
+                :label="`${item.cantidad}x ${item.nombre}`"
+                style="font-size: 0.7rem; padding: 3px 8px; border-radius: 6px"
+              />
+            </div>
+            <span v-else class="text-grey-6 text-caption">—</span>
+          </q-td>
+        </template>
+
         <template #body-cell-activo="props">
           <q-td :props="props">
             <q-badge
@@ -107,8 +127,8 @@
 
     <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
     <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 460px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
+      <q-card style="min-width: 520px; border-radius: 12px">
+        <q-card-section class="q-pa-lg q-pb-md">
           <div class="text-h6 text-weight-bold">
             {{ editando ? 'Editar Paquete' : 'Nuevo Paquete' }}
           </div>
@@ -116,7 +136,7 @@
 
         <q-separator />
 
-        <q-card-section class="q-gutter-md q-pt-md">
+        <q-card-section class="q-gutter-lg q-pa-lg">
           <div>
             <div class="field-label">NOMBRE</div>
             <q-input
@@ -158,15 +178,22 @@
           </div>
           <div class="row q-col-gutter-md">
             <div class="col-6">
-              <div class="field-label">DURACIÓN (MINUTOS)</div>
+              <div class="field-label">PRECIO POR HORA</div>
               <q-input
-                v-model.number="formDialog.duracion_minutos"
+                v-model.number="formDialog.precio_hora"
                 dense
                 outlined
                 type="number"
-                min="1"
+                min="0"
+                step="0.01"
+                prefix="$"
               />
+              <div class="text-caption text-grey-6 q-mt-xs">
+                Se cobra por cada hora que dure el evento, además del precio base.
+              </div>
             </div>
+          </div>
+          <div class="row q-col-gutter-md">
             <div class="col-6">
               <div class="field-label">PERSONAS INCLUIDAS</div>
               <q-input
@@ -189,9 +216,121 @@
               placeholder="Descripción breve del paquete"
             />
           </div>
+
+          <div
+            class="bg-grey-1 rounded-borders q-mt-md"
+            style="border: 1px dashed #ccc; border-radius: 8px; padding: 20px"
+          >
+            <div class="text-subtitle2 text-weight-bold q-mb-md text-primary">
+              ALIMENTOS INCLUIDOS (opcional)
+            </div>
+
+            <div class="row q-col-gutter-sm items-end">
+              <div class="col-7">
+                <div class="field-label">Seleccionar producto</div>
+                <q-select
+                  v-model="productoIncluidoTemporal.producto_id"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  option-value="id"
+                  option-label="nombre"
+                  :options="productosDisponiblesParaIncluir"
+                  placeholder="Elige un producto"
+                  no-options-label="No hay más productos disponibles"
+                />
+              </div>
+              <div class="col-3">
+                <div class="field-label">Cant.</div>
+                <q-input
+                  v-model.number="productoIncluidoTemporal.cantidad"
+                  dense
+                  outlined
+                  type="number"
+                  min="1"
+                />
+              </div>
+              <div class="col-2 flex flex-center">
+                <q-btn
+                  color="primary"
+                  icon="add"
+                  unelevated
+                  style="height: 40px; border-radius: 8px"
+                  @click="agregarProductoIncluido"
+                >
+                  <q-tooltip>Agregar al paquete</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+
+            <div class="q-mt-md">
+              <div
+                v-if="formDialog.productos_incluidos.length === 0"
+                class="text-caption text-grey-6 text-center q-py-sm"
+              >
+                No has añadido alimentos incluidos a este paquete todavía.
+              </div>
+
+              <q-list
+                v-else
+                separator
+                dense
+                class="bg-white rounded-borders"
+                style="border: 1px solid #e2e8f0"
+              >
+                <q-item
+                  v-for="(item, index) in formDialog.productos_incluidos"
+                  :key="item.producto_id"
+                  class="q-py-sm"
+                >
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">{{
+                      obtenerNombreProducto(item.producto_id)
+                    }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <div class="row items-center q-gutter-sm">
+                      <div class="qty-stepper bg-blue-2 text-blue-9">
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          class="qty-btn"
+                          @click="ajustarCantidadIncluido(item, -1)"
+                        >
+                          <span class="material-symbols-outlined qty-icon">remove</span>
+                        </q-btn>
+                        <span class="qty-value">{{ item.cantidad }}</span>
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          class="qty-btn"
+                          @click="ajustarCantidadIncluido(item, 1)"
+                        >
+                          <span class="material-symbols-outlined qty-icon">add</span>
+                        </q-btn>
+                      </div>
+                      <q-btn
+                        flat
+                        round
+                        dense
+                        color="grey-8"
+                        size="sm"
+                        @click="removerProductoIncluido(index)"
+                      >
+                        <span class="material-symbols-outlined">delete</span>
+                      </q-btn>
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+          </div>
         </q-card-section>
 
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
+        <q-card-actions align="right" class="q-pa-lg q-pt-sm">
           <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
           <q-btn
             unelevated
@@ -235,24 +374,75 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { usePaquetesStore } from '@/stores/paquetes'
-import type { Paquetes } from '@/types/paquetes'
+import { useProductosStore } from '@/stores/productos'
+import { paquetesApi } from '@/api/paquetesApi'
+import type { Paquetes, PaqueteProductoItem } from '@/types/paquetes'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
 const store = usePaquetesStore()
+const productosStore = useProductosStore()
 
 const cargar = () => {
-  if (authStore.currentBranchId) store.cargar(authStore.currentBranchId)
+  if (authStore.currentBranchId) {
+    store.cargar(authStore.currentBranchId)
+    productosStore.cargar(authStore.currentBranchId)
+  }
 }
 
 onMounted(cargar)
+
+// ── Alimentos incluidos ────────────────────────────────────────────────────────
+
+const productoIncluidoTemporal = ref({ producto_id: '', cantidad: 1 })
+
+const productosDisponiblesParaIncluir = computed(() => {
+  const yaAgregados = new Set(formDialog.value.productos_incluidos.map((i) => i.producto_id))
+  return productosStore.productos.filter(
+    (p) => p.tipo !== 'C' && p.tipo !== 'S' && p.tipo !== 'E' && p.activo && !yaAgregados.has(p.id),
+  )
+})
+
+const agregarProductoIncluido = () => {
+  const { producto_id, cantidad } = productoIncluidoTemporal.value
+  if (!producto_id || cantidad <= 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'Selecciona un producto y una cantidad válida.',
+      position: 'top-right',
+    })
+    return
+  }
+  const existente = formDialog.value.productos_incluidos.find(
+    (item) => item.producto_id === producto_id,
+  )
+  if (existente) {
+    existente.cantidad += cantidad
+  } else {
+    formDialog.value.productos_incluidos.push({ producto_id, cantidad })
+  }
+  productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
+}
+
+const ajustarCantidadIncluido = (item: PaqueteProductoItem, delta: number) => {
+  item.cantidad = Math.max(1, item.cantidad + delta)
+}
+
+const removerProductoIncluido = (index: number) => {
+  formDialog.value.productos_incluidos.splice(index, 1)
+}
+
+const obtenerNombreProducto = (id: string) => {
+  const prod = productosStore.productos.find((p) => p.id === id)
+  return prod ? prod.nombre : 'Producto no encontrado'
+}
 
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
@@ -263,8 +453,20 @@ const columns: QTableColumn[] = [
     align: 'left',
     sortable: true,
   },
+  {
+    name: 'precio_hora',
+    label: 'PRECIO/HORA',
+    field: 'precio_hora',
+    align: 'left',
+    sortable: true,
+  },
   { name: 'personas_incluidas', label: 'PERSONAS', field: 'personas_incluidas', align: 'left' },
-  { name: 'duracion_minutos', label: 'DURACIÓN (MIN)', field: 'duracion_minutos', align: 'left' },
+  {
+    name: 'productos_incluidos',
+    label: 'ALIMENTOS INCLUIDOS',
+    field: 'productos_incluidos',
+    align: 'left',
+  },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
@@ -279,10 +481,11 @@ const nombreRef = ref()
 const formDialog = ref({
   nombre: '',
   descripcion: '',
-  duracion_minutos: 120,
   personas_incluidas: 10,
   precio_base: 0,
   precio_persona_extra: 0,
+  precio_hora: 0,
+  productos_incluidos: [] as PaqueteProductoItem[],
 })
 
 const abrirCrear = () => {
@@ -290,24 +493,45 @@ const abrirCrear = () => {
   formDialog.value = {
     nombre: '',
     descripcion: '',
-    duracion_minutos: 120,
     personas_incluidas: 10,
     precio_base: 0,
     precio_persona_extra: 0,
+    precio_hora: 0,
+    productos_incluidos: [],
   }
+  productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
   dialogOpen.value = true
 }
 
-const abrirEditar = (row: Paquetes) => {
+const abrirEditar = async (row: Paquetes) => {
   editando.value = row
+  let productosIncluidosCargados: PaqueteProductoItem[]
+
+  try {
+    const detalle = await paquetesApi.obtener(row.id)
+    productosIncluidosCargados = (detalle.productos_incluidos ?? []).map((item) => ({
+      producto_id: item.producto_id,
+      cantidad: item.cantidad,
+    }))
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+    return
+  }
+
   formDialog.value = {
     nombre: row.nombre,
     descripcion: row.descripcion ?? '',
-    duracion_minutos: row.duracion_minutos,
     personas_incluidas: row.personas_incluidas,
     precio_base: Number(row.precio_base),
     precio_persona_extra: Number(row.precio_persona_extra),
+    precio_hora: Number(row.precio_hora),
+    productos_incluidos: productosIncluidosCargados,
   }
+  productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
   dialogOpen.value = true
 }
 
@@ -335,10 +559,11 @@ const guardar = async () => {
       await store.editarPaquete(editando.value.id, {
         nombre: formDialog.value.nombre.trim(),
         descripcion: formDialog.value.descripcion.trim() || null,
-        duracion_minutos: formDialog.value.duracion_minutos,
         personas_incluidas: formDialog.value.personas_incluidas,
         precio_base: String(formDialog.value.precio_base),
         precio_persona_extra: String(formDialog.value.precio_persona_extra),
+        precio_hora: String(formDialog.value.precio_hora),
+        productos_incluidos: formDialog.value.productos_incluidos,
       })
       $q.notify({ type: 'positive', message: 'Paquete actualizado', position: 'top-right' })
     } else {
@@ -346,10 +571,11 @@ const guardar = async () => {
       await store.crearPaquete({
         nombre: formDialog.value.nombre.trim(),
         descripcion: formDialog.value.descripcion.trim() || null,
-        duracion_minutos: formDialog.value.duracion_minutos,
         personas_incluidas: formDialog.value.personas_incluidas,
         precio_base: String(formDialog.value.precio_base),
         precio_persona_extra: String(formDialog.value.precio_persona_extra),
+        precio_hora: String(formDialog.value.precio_hora),
+        productos_incluidos: formDialog.value.productos_incluidos,
         sucursal_id: authStore.currentBranchId,
       })
       $q.notify({ type: 'positive', message: 'Paquete creado', position: 'top-right' })
@@ -423,5 +649,31 @@ const ejecutarEliminar = async () => {
   text-transform: uppercase;
   color: var(--text-secondary);
   margin-bottom: 6px;
+}
+
+.qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 999px;
+}
+
+.qty-value {
+  min-width: 16px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.qty-btn {
+  min-height: 22px;
+  min-width: 22px;
+  padding: 0;
+}
+
+.qty-icon {
+  font-size: 14px;
+  line-height: 1;
 }
 </style>
