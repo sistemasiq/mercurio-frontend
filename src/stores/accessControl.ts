@@ -84,12 +84,6 @@ export const useAccessControlStore = defineStore('accessControl', () => {
   const pulserasDisponibles = ref<PulseraDto[]>([])
   const pulserasLibres = computed(() => pulserasDisponibles.value.length)
   const puedeVerPulseras = computed(() => authStore.hasPermission('pulseras:listar'))
-  const capacidadTotal = computed(() => totalActivos.value + pulserasLibres.value)
-
-  const disponibilidadPercent = computed(() => {
-    if (capacidadTotal.value === 0) return 0
-    return Math.round((pulserasLibres.value / capacidadTotal.value) * 100)
-  })
 
   async function loadActivos() {
     if (!authStore.currentBranchId) {
@@ -159,8 +153,6 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     pulserasLibres,
     pulserasDisponibles,
     puedeVerPulseras,
-    capacidadTotal,
-    disponibilidadPercent,
     loadActivos,
     formatMinutosLabel,
     formatRemainingLabel,

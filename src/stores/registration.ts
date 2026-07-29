@@ -3,12 +3,15 @@ import { ref, computed } from 'vue'
 import {
   fetchProductos,
   postOnboarding,
+  fetchMetodoPagoPorDefecto,
   type ProductoDto,
   type OnboardingDetalle,
   type OnboardingPago,
 } from '@/api/onboardingClient'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessControlStore } from '@/stores/accessControl'
+import { reservacionesApi } from '@/api/reservacionesApi'
+import type { EventoDelDia } from '@/types/reservaciones'
 
 export interface Child {
   id: string
@@ -39,11 +42,19 @@ const HOUR_OPTIONS: Record<string, number> = {
 }
 
 export type RegistrationStep = 'form' | 'rfid' | 'complete'
+export type RegistrationMode = 'normal' | 'evento'
 
 export const useRegistrationStore = defineStore('registration', () => {
   const authStore = useAuthStore()
   const accessControlStore = useAccessControlStore()
   const step = ref<RegistrationStep>('form')
+
+  const modo = ref<RegistrationMode>('normal')
+  const eventoSeleccionado = ref<EventoDelDia | null>(null)
+  const isLoadingEvento = ref(false)
+  const eventoNoEncontrado = ref(false)
+
+  const isEventoMode = computed(() => modo.value === 'evento')
 
   const tutor = ref<TutorData>({
     fullName: '',
@@ -63,11 +74,11 @@ export const useRegistrationStore = defineStore('registration', () => {
   const productoBase = ref<ProductoDto | null>(null)
   const pulseras = computed(() => accessControlStore.pulserasDisponibles)
   const metodoPagoId = ref<string | null>(null)
+  const pagosFromModal = ref<OnboardingPago[]>([])
   const isLoadingCatalog = ref(false)
   const isSubmitting = ref(false)
   const submitError = ref<string | null>(null)
 
-  const pagosAplicados = ref<OnboardingPago[]>([])
   const registroId = ref('')
   const totalFromServer = ref<number | null>(null)
   const pagadoFromServer = ref<number | null>(null)
@@ -124,11 +135,59 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
   }
 
+  async function loadMetodoPago() {
+    try {
+      metodoPagoId.value = await fetchMetodoPagoPorDefecto()
+    } catch (err) {
+      submitError.value = 'No se pudo cargar el método de pago.'
+      console.error(err)
+    }
+  }
+
+  async function cargarEventoProximo() {
+    if (!authStore.currentBranchId) return
+    isLoadingEvento.value = true
+    eventoNoEncontrado.value = false
+    try {
+      const evento = await reservacionesApi.eventoProximo(authStore.currentBranchId)
+      if (evento) {
+        seleccionarEvento(evento)
+      } else {
+        eventoSeleccionado.value = null
+        eventoNoEncontrado.value = true
+      }
+    } catch (err) {
+      submitError.value = 'No se pudo consultar el evento próximo.'
+      console.error(err)
+    } finally {
+      isLoadingEvento.value = false
+    }
+  }
+
+  function cambiarModo(nuevoModo: RegistrationMode) {
+    modo.value = nuevoModo
+    eventoSeleccionado.value = null
+    eventoNoEncontrado.value = false
+
+    if (nuevoModo === 'evento') {
+      void cargarEventoProximo()
+    }
+  }
+
+  function seleccionarEvento(evento: EventoDelDia) {
+    eventoSeleccionado.value = evento
+    tutor.value.fullName = [evento.nombre_cliente, evento.apellidos_cliente]
+      .filter(Boolean)
+      .join(' ')
+    tutor.value.phone = evento.telefono_cliente
+  }
+
   const savedChildren = computed(() => children.value.filter((c) => c.saved))
   const tutorHasBracelet = computed(() => tutor.value.braceletGuardianId !== '')
   const hours = computed(() => HOUR_OPTIONS[tutor.value.estimatedTime] ?? 1)
 
   const pricePerChild = computed(() => {
+    if (modo.value === 'evento') return 0
     if (!productoBase.value) return 0
     return productoBase.value.precioUnitario * hours.value
   })
@@ -151,13 +210,38 @@ export const useRegistrationStore = defineStore('registration', () => {
       savedChildren.value.every((c) => c.rfidBracelet !== ''),
   )
 
-  // Cuántos niños se pueden registrar según las pulseras disponibles en la sucursal
-  // Esto calculando la pulsera del tutor como una reservada por defecto
-  const maxChildrenAllowed = computed(() => pulseras.value.length - 1)
+  const cupoEventoRestante = computed(() => {
+    if (!eventoSeleccionado.value) return Infinity
+    return eventoSeleccionado.value.numero_personas - savedChildren.value.length
+  })
 
-  const reachedBraceletLimit = computed(() => children.value.length >= maxChildrenAllowed.value)
+  const horasEvento = computed(() => {
+    if (!eventoSeleccionado.value) return '1 hr'
+    const inicio = eventoSeleccionado.value.hora_inicio
+    const fin = eventoSeleccionado.value.hora_fin
+    const [hInicio] = inicio.split(':').map(Number)
+    const [hFin] = fin.split(':').map(Number)
+    const diff = hFin - hInicio
+    if (diff <= 0) return '1 hr'
+    if (diff > 5) return '5 hr'
+    return `${diff} hr`
+  })
+
+  const maxChildrenAllowed = computed(() => {
+    if (modo.value === 'evento' && eventoSeleccionado.value) {
+      return eventoSeleccionado.value.numero_personas
+    }
+    return Math.max(0, pulseras.value.length - 1)
+  })
+
+  const reachedBraceletLimit = computed(
+    () => savedChildren.value.length >= maxChildrenAllowed.value,
+  )
 
   const showBraceletLimitBanner = computed(() => {
+    if (modo.value === 'evento') {
+      return savedChildren.value.length >= maxChildrenAllowed.value
+    }
     if (maxChildrenAllowed.value === 1) {
       return true
     }
@@ -190,18 +274,27 @@ export const useRegistrationStore = defineStore('registration', () => {
     )
   })
 
-  async function proceedToRFID(pagos: OnboardingPago[]) {
-    pagosAplicados.value = pagos
+  async function proceedToRFID(pagos?: OnboardingPago[]) {
+    if (pagos) {
+      pagosFromModal.value = pagos
+    }
     step.value = 'rfid'
   }
 
   async function completeRegistration() {
+    const esEvento = modo.value === 'evento'
+
     if (!productoBase.value) {
       submitError.value = 'No hay catálogo de productos cargado.'
       return
     }
 
-    if (!metodoPagoId.value) {
+    if (esEvento && !eventoSeleccionado.value) {
+      submitError.value = 'Selecciona el evento antes de completar el registro.'
+      return
+    }
+
+    if (!esEvento && !metodoPagoId.value) {
       //Hasta no tener componente para hacer pruebas se tomara este
       metodoPagoId.value = 'b827363b-6453-40e4-9536-f7a004711f91'
       //console.log("No hay nada")
@@ -211,11 +304,6 @@ export const useRegistrationStore = defineStore('registration', () => {
 
     if (!authStore.currentBranchId) {
       submitError.value = 'No hay una sucursal activa en la sesión.'
-      return
-    }
-
-    if (pagosAplicados.value.length === 0) {
-      submitError.value = 'No se ha registrado ningún pago.'
       return
     }
 
@@ -239,7 +327,12 @@ export const useRegistrationStore = defineStore('registration', () => {
       pulseraTutorId: tutor.value.braceletGuardianId,
       parentesco: tutor.value.relationship,
       detalles,
-      pagos: pagosAplicados.value,
+      pagos: esEvento
+        ? []
+        : pagosFromModal.value.length > 0
+          ? pagosFromModal.value
+          : [{ metodoPagoId: metodoPagoId.value!, monto: total.value }],
+      reservacionId: esEvento ? eventoSeleccionado.value!.id : null,
     }
 
     try {
@@ -264,6 +357,10 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   function reset() {
     step.value = 'form'
+    modo.value = 'normal'
+    eventoSeleccionado.value = null
+    eventoNoEncontrado.value = false
+    pagosFromModal.value = []
     tutor.value = {
       fullName: '',
       relationship: 'Padre / Madre',
@@ -281,6 +378,13 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   return {
     step,
+    modo,
+    isEventoMode,
+    eventoSeleccionado,
+    isLoadingEvento,
+    eventoNoEncontrado,
+    cupoEventoRestante,
+    horasEvento,
     tutor,
     children,
     currentChildIndex,
@@ -314,5 +418,9 @@ export const useRegistrationStore = defineStore('registration', () => {
     completeRegistration,
     reset,
     loadProductos,
+    loadMetodoPago,
+    cargarEventoProximo,
+    cambiarModo,
+    seleccionarEvento,
   }
 })

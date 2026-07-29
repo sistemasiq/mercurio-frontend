@@ -133,11 +133,11 @@ function goToNewRegistration() {
       <div class="col-12 col-sm-6 col-md-3">
         <StatCard
           label="Disponibilidad"
-          :value="store.puedeVerPulseras ? `${store.disponibilidadPercent}%` : '—'"
+          :value="store.puedeVerPulseras ? `${store.pulserasLibres}` : '—'"
           icon="lock_open"
           icon-color="primary"
           icon-bg="#e8f0fe"
-          :caption="store.puedeVerPulseras ? 'Capacidad segura' : 'Sin permiso para ver pulseras'"
+          :caption="store.puedeVerPulseras ? 'Listas para usar' : 'Sin permiso para ver pulseras'"
           caption-color="grey-7"
         />
       </div>
