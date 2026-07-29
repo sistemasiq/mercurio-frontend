@@ -1,24 +1,21 @@
 <template>
   <div class="rs-form-block">
-    <span class="rs-block-label">BLOQUE B: VOUCHERS / TICKETS</span>
+    <span class="rs-block-label">BLOQUE B: MÉTODOS DE PAGO</span>
 
     <div class="rs-metodo-list">
       <div v-for="(fila, idx) in modelValue" :key="fila.id" class="rs-metodo-fila">
-        <!-- Icono + etiqueta -->
+        <!-- Icono + nombre (fijo, no editable — viene del sistema o se eligió al agregar) -->
         <div class="rs-metodo-info">
-          <q-icon name="confirmation_number" color="primary" size="20px" class="q-mr-xs" />
-          <span v-if="readonly" class="rs-metodo-nombre">{{ etiquetaMetodo(fila.metodo) }}</span>
-          <q-select
-            v-else
-            v-model="fila.metodo"
-            :options="opcionesMetodo"
-            dense
-            borderless
-            emit-value
-            map-options
-            class="rs-metodo-select"
-            no-options-label="Sin opciones"
+          <q-icon
+            :name="fila.origen === 'sistema' ? 'point_of_sale' : 'confirmation_number'"
+            color="primary"
+            size="20px"
+            class="q-mr-xs"
           />
+          <span class="rs-metodo-nombre">{{ fila.metodo }}</span>
+          <span v-if="fila.origen === 'sistema'" class="rs-tag-sistema"
+            >registrado en el sistema</span
+          >
         </div>
 
         <!-- Input con prefijo $ -->
@@ -39,9 +36,9 @@
           />
         </div>
 
-        <!-- Eliminar (solo editable, >1 fila) -->
+        <!-- Eliminar (solo filas manuales, en modo edición) -->
         <q-btn
-          v-if="!readonly && modelValue.length > 1"
+          v-if="!readonly && fila.origen === 'manual'"
           flat
           round
           dense
@@ -50,19 +47,43 @@
           class="rs-btn-delete"
           @click="eliminarFila(idx)"
         />
+        <div v-else-if="!readonly" class="rs-btn-delete-spacer" />
       </div>
 
-      <!-- Agregar nueva fila -->
-      <button v-if="!readonly" type="button" class="rs-btn-add" @click="agregarFila">
-        <q-icon name="add_circle" color="primary" size="18px" class="q-mr-xs" />
-        Agregar método de pago
-      </button>
+      <div v-if="modelValue.length === 0" class="rs-sin-metodos">
+        No se registraron movimientos con métodos de pago en este turno.
+      </div>
+
+      <!-- Agregar método de pago del catálogo real -->
+      <q-select
+        v-if="!readonly"
+        v-model="metodoSeleccionado"
+        :options="opcionesDisponibles"
+        option-label="nombre"
+        option-value="id"
+        label="Agregar método de pago…"
+        dense
+        outlined
+        emit-value
+        map-options
+        clearable
+        class="rs-select-agregar"
+        :loading="metodosPagoStore.loading"
+        no-options-label="No hay más métodos disponibles en el catálogo"
+        @update:model-value="agregarFila"
+      >
+        <template #prepend>
+          <q-icon name="add_circle" color="primary" size="18px" />
+        </template>
+      </q-select>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { FilaMetodoPago, MetodoPagoClave } from '@/types/turnoCaja'
+import { onMounted, computed, ref } from 'vue'
+import { useMetodosPagoStore } from '@/stores/metodos_pago'
+import type { FilaMetodoPago } from '@/types/turnoCaja'
 
 withDefaults(
   defineProps<{
@@ -73,23 +94,35 @@ withDefaults(
 
 const modelValue = defineModel<FilaMetodoPago[]>({ default: () => [] })
 
-const ETIQUETAS_METODO: Record<MetodoPagoClave, string> = {
-  vouchers: 'Total Vouchers / Tickets',
-  tarjeta: 'Tarjeta de crédito/débito',
-  transferencia: 'Transferencia',
-  otro: 'Otro',
-}
+const metodosPagoStore = useMetodosPagoStore()
+const metodoSeleccionado = ref<string | null>(null)
 
-const opcionesMetodo = Object.entries(ETIQUETAS_METODO).map(([value, label]) => ({ label, value }))
+onMounted(() => {
+  if (metodosPagoStore.metodos.length === 0) {
+    metodosPagoStore.cargar()
+  }
+})
 
-function etiquetaMetodo(clave: MetodoPagoClave): string {
-  return ETIQUETAS_METODO[clave] ?? clave
-}
+// Métodos del catálogo real, activos, que aún no aparecen como fila (ni de sistema ni agregados)
+const opcionesDisponibles = computed(() => {
+  const nombresEnUso = new Set(modelValue.value.map((f) => f.metodo.trim().toLowerCase()))
+  return metodosPagoStore.activos.filter((m) => !nombresEnUso.has(m.nombre.trim().toLowerCase()))
+})
 
-let nextId = modelValue.value.length + 1
+let nextId = 1
 
-function agregarFila() {
-  modelValue.value.push({ id: nextId++, metodo: 'vouchers', monto: null })
+function agregarFila(metodoId: string | null) {
+  if (!metodoId) return
+  const metodo = metodosPagoStore.activos.find((m) => m.id === metodoId)
+  if (!metodo) return
+
+  modelValue.value.push({
+    id: nextId++,
+    metodo: metodo.nombre,
+    monto: null,
+    origen: 'manual',
+  })
+  metodoSeleccionado.value = null
 }
 
 function eliminarFila(idx: number) {
@@ -152,16 +185,6 @@ function eliminarFila(idx: number) {
   flex: 1;
   min-width: 0;
 }
-.rs-icon {
-  font-size: 20px;
-  color: #767683;
-  flex-shrink: 0;
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
-}
 .rs-metodo-nombre {
   font-family: 'Inter', sans-serif;
   font-size: 14px;
@@ -171,16 +194,23 @@ function eliminarFila(idx: number) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.rs-metodo-select {
-  flex: 1;
-  min-width: 0;
-}
-.rs-metodo-select :deep(.q-field__native) {
+.rs-tag-sistema {
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  color: #0b1c30;
-  padding: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #2e7d32;
+  background: #e8f5e9;
+  border-radius: 999px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+.rs-sin-metodos {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #767683;
+  padding: 8px 4px;
 }
 
 /* ── Input de monto con prefijo ──────────────────────────────────────── */
@@ -226,31 +256,16 @@ function eliminarFila(idx: number) {
 .rs-btn-delete:hover {
   color: #b7131a !important;
 }
+.rs-btn-delete-spacer {
+  width: 32px;
+  flex-shrink: 0;
+}
 
-/* ── Botón agregar ──────────────────────────────────────────────────── */
-.rs-btn-add {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #000666;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 6px 4px;
-  transition: opacity 0.15s ease;
+/* ── Select de agregar ──────────────────────────────────────────────── */
+.rs-select-agregar {
+  margin-top: 4px;
 }
-.rs-btn-add:hover {
-  opacity: 0.75;
-}
-.rs-icon-sm {
-  font-size: 18px;
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
+.rs-select-agregar :deep(.q-field__control) {
+  border-radius: 8px;
 }
 </style>

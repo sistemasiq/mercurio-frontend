@@ -131,16 +131,29 @@
               </div>
             </div>
 
-            <!-- Observaciones de Cierre (sin texto rojo en label) -->
+            <!-- Observaciones de Cierre -->
             <div class="rs-card-box">
-              <label class="rs-box-title block mb-2">Observaciones de Cierre</label>
+              <label class="rs-box-title block mb-2">
+                Observaciones de Cierre
+                <span v-if="diferenciaCalculada !== 0" class="rs-required-tag">Requerido</span>
+              </label>
               <textarea
                 v-model="observacionesModal"
                 rows="3"
                 class="rs-textarea"
+                :class="{
+                  'rs-textarea--invalid': diferenciaCalculada !== 0 && !observacionesValidas,
+                }"
                 placeholder="Ingrese comentarios, discrepancias o notas adicionales sobre el turno..."
               />
-              <div class="text-right text-caption text-grey-6 mt-1">
+              <div
+                class="text-right text-caption mt-1"
+                :class="
+                  diferenciaCalculada !== 0 && !observacionesValidas
+                    ? 'text-negative'
+                    : 'text-grey-6'
+                "
+              >
                 {{ observacionesModal.trim().length }} / 15 caracteres mín.
               </div>
             </div>
@@ -245,7 +258,7 @@
           label="Cierre Extraordinario"
           icon="warning"
           :loading="cargandoProceso"
-          :disable="!pinAdminConfirmado"
+          :disable="!pinAdminConfirmado || !observacionesValidas"
           @click="ejecutarCierreExtraordinario"
         />
 
@@ -257,7 +270,7 @@
           label="Autorizar Cierre"
           icon-right="lock"
           :loading="cargandoProceso"
-          :disable="!pinCajeroConfirmado || !pinAdminConfirmado"
+          :disable="!pinCajeroConfirmado || !pinAdminConfirmado || !observacionesValidas"
           @click="ejecutarAutorizacionCierre"
         />
       </div>
@@ -300,6 +313,12 @@ const diferenciaCalculada = computed(() => {
   return turno.diferenciaNeta !== 0
     ? turno.diferenciaNeta
     : totalDeclaradoContado.value - totalEsperadoCalculado.value
+})
+
+// RN-VAL-005: observaciones obligatorias (mín. 15 caracteres) solo si hay diferencia.
+const observacionesValidas = computed(() => {
+  if (diferenciaCalculada.value === 0) return true
+  return observacionesModal.value.trim().length >= 15
 })
 
 const signoDiferencia = computed(() => {
@@ -380,9 +399,8 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
   cargandoProceso.value = true
   try {
     const obsText = observacionesModal.value.trim()
-    const notaFinal = esExtraordinario ? `[CIERRE EXTRAORDINARIO] ${obsText}` : obsText
 
-    await turno.confirmarCierre(notaFinal)
+    await turno.confirmarCierre(obsText, esExtraordinario)
     turno.mostrarDialogAutorizacion = false
 
     // Intentar descarga automática de PDF del arqueo
@@ -402,12 +420,14 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
       position: 'top',
       icon: 'check_circle',
       message: esExtraordinario
-        ? 'Cierre extraordinario registrado con éxito en la base de datos. Redirigiendo...'
+        ? 'Cierre extraordinario registrado con éxito en la base de datos. Redirigiendo a apertura de caja...'
         : 'Cierre de caja autorizado correctamente. Se ha descargado el comprobante PDF.',
     })
 
-    // Redirección automática a la tabla/dashboard de cierres de caja
-    router.push('/cierre-caja')
+    // Tras confirmar (normal o extraordinario), se limpia el turno y se regresa
+    // a la pantalla de apertura de caja para iniciar el siguiente turno.
+    turno.reiniciarCicloTurno()
+    router.push({ name: 'pos-cierre' })
   } catch (err) {
     $q.notify({
       type: 'negative',
@@ -712,6 +732,18 @@ async function ejecutarCierreExtraordinario() {
   border: 1px solid #bbf7d0;
 }
 
+.rs-required-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 .rs-textarea {
   width: 100%;
   border: 1px solid #cbd5e1;
@@ -721,6 +753,9 @@ async function ejecutarCierreExtraordinario() {
   font-size: 13px;
   color: #0b1c30;
   outline: none;
+}
+.rs-textarea--invalid {
+  border-color: #dc2626;
 }
 .rs-textarea:focus {
   border-color: #025fe0;
