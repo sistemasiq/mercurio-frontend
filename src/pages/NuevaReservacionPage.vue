@@ -234,14 +234,19 @@
                       <li v-if="pkg.descripcion">
                         <q-icon name="check_circle" />{{ pkg.descripcion }}
                       </li>
-                      <li>
-                        <q-icon name="check_circle" />{{ pkg.duracion_minutos }} min. de duración
-                      </li>
                       <li v-if="parseFloat(pkg.precio_persona_extra) > 0">
                         <q-icon name="check_circle" />+{{
                           fmt(parseFloat(pkg.precio_persona_extra))
                         }}
                         por persona extra
+                      </li>
+                      <li v-if="parseFloat(pkg.precio_hora) > 0">
+                        <q-icon name="check_circle" />+{{ fmt(parseFloat(pkg.precio_hora)) }} por
+                        hora del evento
+                      </li>
+                      <li v-for="item in pkg.productos_incluidos ?? []" :key="item.producto_id">
+                        <q-icon name="check_circle" />Incluye {{ item.cantidad }}x
+                        {{ item.nombre }}
                       </li>
                     </ul>
                     <q-btn
@@ -255,6 +260,19 @@
                       no-caps
                     />
                   </div>
+                </div>
+
+                <div
+                  v-if="selectedPkg && personasExtraCount > 0"
+                  class="q-pa-sm q-mt-md bg-orange-1 text-orange-9 rounded-borders"
+                  style="border-radius: 8px; font-size: 0.85rem"
+                >
+                  <q-icon name="info" size="18px" class="q-mr-xs" />
+                  {{ form.ninos }} niños seleccionados, {{ personasExtraCount }} más de los
+                  {{ selectedPkg.personas_incluidas }} incluidos en el paquete — se cobrarán
+                  {{ personasExtraCount }} persona{{ personasExtraCount === 1 ? '' : 's' }} extra a
+                  {{ fmt(parseFloat(selectedPkg.precio_persona_extra)) }} c/u, total
+                  <strong>{{ fmt(precioPersonasExtraNum) }}</strong>
                 </div>
               </div>
 
@@ -299,6 +317,103 @@
                       />
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section__title">
+                  <q-icon name="restaurant" color="primary" />
+                  Productos Adicionales
+                </div>
+
+                <div class="row q-col-gutter-sm items-end">
+                  <div class="col-5">
+                    <div class="field-label">Producto</div>
+                    <q-select
+                      v-model="productoAdicionalTemporal.producto_id"
+                      dense
+                      outlined
+                      emit-value
+                      map-options
+                      option-value="id"
+                      option-label="nombre"
+                      :options="productosDisponiblesParaAdicionales"
+                      placeholder="Elige un producto"
+                      no-options-label="No hay más productos disponibles"
+                    />
+                  </div>
+                  <div class="col-2">
+                    <div class="field-label">Cant.</div>
+                    <q-input
+                      v-model.number="productoAdicionalTemporal.cantidad"
+                      dense
+                      outlined
+                      type="number"
+                      min="1"
+                    />
+                  </div>
+                  <div class="col-3">
+                    <div class="field-label">Notas</div>
+                    <q-input
+                      v-model="productoAdicionalTemporal.notas"
+                      dense
+                      outlined
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div class="col-2 flex flex-center">
+                    <q-btn
+                      color="primary"
+                      icon="add"
+                      unelevated
+                      style="height: 40px; border-radius: 8px"
+                      @click="agregarProductoAdicional"
+                    >
+                      <q-tooltip>Agregar</q-tooltip>
+                    </q-btn>
+                  </div>
+                </div>
+
+                <div class="q-mt-md">
+                  <div
+                    v-if="productosAdicionales.length === 0"
+                    class="text-caption text-grey-6 text-center q-py-sm"
+                  >
+                    No has agregado productos adicionales.
+                  </div>
+
+                  <q-list v-else separator dense class="bg-white rounded-borders">
+                    <q-item
+                      v-for="(item, index) in productosAdicionales"
+                      :key="item.producto_id"
+                      class="q-py-sm"
+                    >
+                      <q-item-section>
+                        <q-item-label class="text-weight-medium">
+                          {{ item.cantidad }}x
+                          {{ obtenerNombreProductoAdicional(item.producto_id) }}
+                        </q-item-label>
+                        <q-item-label v-if="item.notas" caption>{{ item.notas }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <div class="row items-center q-gutter-sm">
+                          <span class="text-weight-bold">{{
+                            fmt(precioUnitarioProducto(item.producto_id) * item.cantidad)
+                          }}</span>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            color="grey-8"
+                            size="sm"
+                            @click="removerProductoAdicional(index)"
+                          >
+                            <span class="material-symbols-outlined">delete</span>
+                          </q-btn>
+                        </div>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
                 </div>
               </div>
 
@@ -478,6 +593,24 @@
                 <div class="resumen-row">
                   <span>Precio base</span><span>{{ packagePrice }}</span>
                 </div>
+                <div v-if="packageHoursPriceNum > 0" class="resumen-row">
+                  <span>Horas del evento ({{ horasSeleccionadas }})</span
+                  ><span>{{ fmt(packageHoursPriceNum) }}</span>
+                </div>
+                <div v-if="personasExtraCount > 0" class="resumen-row">
+                  <span>Personas extra ({{ personasExtraCount }})</span
+                  ><span>{{ fmt(precioPersonasExtraNum) }}</span>
+                </div>
+                <div
+                  v-for="item in productosAdicionales"
+                  :key="item.producto_id"
+                  class="resumen-row"
+                >
+                  <span
+                    >{{ item.cantidad }}x
+                    {{ obtenerNombreProductoAdicional(item.producto_id) }}</span
+                  ><span>{{ fmt(precioUnitarioProducto(item.producto_id) * item.cantidad) }}</span>
+                </div>
                 <template v-if="extrasSeleccionados.length">
                   <div v-for="e in extrasSeleccionados" :key="e.id" class="resumen-row">
                     <span>{{ e.nombre }}</span
@@ -567,6 +700,26 @@
                 <span>Paquete {{ selectedPackageName || '—' }}</span>
                 <span class="amount">{{ selectedPkg ? packagePrice : '—' }}</span>
               </div>
+              <div v-if="packageHoursPriceNum > 0" class="payment-card__row">
+                <span>Horas del evento ({{ horasSeleccionadas }})</span>
+                <span class="amount">{{ fmt(packageHoursPriceNum) }}</span>
+              </div>
+              <div v-if="personasExtraCount > 0" class="payment-card__row">
+                <span>Personas extra ({{ personasExtraCount }})</span>
+                <span class="amount">{{ fmt(precioPersonasExtraNum) }}</span>
+              </div>
+              <div
+                v-for="item in productosAdicionales"
+                :key="item.producto_id"
+                class="payment-card__row"
+              >
+                <span
+                  >{{ item.cantidad }}x {{ obtenerNombreProductoAdicional(item.producto_id) }}</span
+                >
+                <span class="amount">{{
+                  fmt(precioUnitarioProducto(item.producto_id) * item.cantidad)
+                }}</span>
+              </div>
               <div class="payment-card__row">
                 <span>Servicios Adicionales</span>
                 <span class="amount">{{ extraServicesNum > 0 ? extraServicesTotal : '—' }}</span>
@@ -647,34 +800,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, watchEffect, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { usePaquetesStore } from '@/stores/paquetes'
 import { useExtrasStore } from '@/stores/extras'
+import { useProductosStore } from '@/stores/productos'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
 import { useReservacionExtrasStore } from '@/stores/reservacion_extras'
+import { useReservacionProductosStore } from '@/stores/reservacion_productos'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
+import { horasFacturables } from '@/utils/horario'
 
 const router = useRouter()
 const $q = useQuasar()
 const paquetesStore = usePaquetesStore()
 const extrasStore = useExtrasStore()
+const productosStore = useProductosStore()
 const tiposEventoStore = useTiposEventoStore()
 const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
 const authStore = useAuthStore()
 const pagosStore = usePagosReservacionesStore()
 const reservacionExtrasStore = useReservacionExtrasStore()
+const reservacionProductosStore = useReservacionProductosStore()
 
 onMounted(() => {
   paquetesStore.cargar(authStore.currentBranchId ?? undefined)
   extrasStore.cargar(authStore.currentBranchId ?? undefined)
+  productosStore.cargar(authStore.currentBranchId ?? undefined)
   tiposEventoStore.cargar()
   metodosPagoStore.cargar()
   if (!resStore.reservaciones.length) resStore.cargar(authStore.currentBranchId ?? undefined)
@@ -817,12 +976,6 @@ const timeSlotLabel = computed(() => {
 
 // ── Paquetes ──────────────────────────────────────────────────────────────────
 
-watchEffect(() => {
-  if (paquetesStore.activos.length && !form.value.selectedPackage) {
-    form.value.selectedPackage = paquetesStore.activos[0].id
-  }
-})
-
 const selectPackage = (id: string) => {
   form.value.selectedPackage = id
 }
@@ -839,6 +992,63 @@ const toggleService = (id: string) => {
 
 const extrasSeleccionados = computed(() =>
   extrasStore.activos.filter((e) => selectedExtraIds.value.includes(e.id)),
+)
+
+// ── Productos adicionales ───────────────────────────────────────────────────
+
+interface ProductoAdicional {
+  producto_id: string
+  cantidad: number
+  notas: string
+}
+
+const productosAdicionales = ref<ProductoAdicional[]>([])
+const productoAdicionalTemporal = ref({ producto_id: '', cantidad: 1, notas: '' })
+
+const productosDisponiblesParaAdicionales = computed(() => {
+  const yaAgregados = new Set(productosAdicionales.value.map((i) => i.producto_id))
+  return productosStore.productos.filter((p) => p.activo && !yaAgregados.has(p.id))
+})
+
+const precioUnitarioProducto = (productoId: string): number => {
+  const prod = productosStore.productos.find((p) => p.id === productoId)
+  return prod ? parseFloat(String(prod.precio_unitario)) : 0
+}
+
+const obtenerNombreProductoAdicional = (productoId: string): string => {
+  const prod = productosStore.productos.find((p) => p.id === productoId)
+  return prod ? prod.nombre : 'Producto no encontrado'
+}
+
+const agregarProductoAdicional = () => {
+  const { producto_id, cantidad, notas } = productoAdicionalTemporal.value
+  if (!producto_id || cantidad <= 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'Selecciona un producto y una cantidad válida.',
+      position: 'top-right',
+    })
+    return
+  }
+  const existente = productosAdicionales.value.find((item) => item.producto_id === producto_id)
+  if (existente) {
+    existente.cantidad += cantidad
+    if (notas) existente.notas = notas
+  } else {
+    productosAdicionales.value.push({ producto_id, cantidad, notas })
+  }
+  productoAdicionalTemporal.value = { producto_id: '', cantidad: 1, notas: '' }
+}
+
+const removerProductoAdicional = (index: number) => {
+  productosAdicionales.value.splice(index, 1)
+}
+
+const productosAdicionalesNum = computed(() =>
+  productosAdicionales.value.reduce(
+    (sum, item) => sum + precioUnitarioProducto(item.producto_id) * item.cantidad,
+    0,
+  ),
 )
 
 // ── Métodos de pago ───────────────────────────────────────────────────────────
@@ -904,13 +1114,34 @@ const selectedPkg = computed(() =>
 const selectedPackageName = computed(() => selectedPkg.value?.nombre ?? '')
 const packagePriceNum = computed(() => parseFloat(selectedPkg.value?.precio_base ?? '0'))
 
+const horasSeleccionadas = computed(() =>
+  horasFacturables(form.value.horaInicio, form.value.horaFin),
+)
+const packageHoursPriceNum = computed(
+  () => parseFloat(selectedPkg.value?.precio_hora ?? '0') * horasSeleccionadas.value,
+)
+
+const personasExtraCount = computed(() =>
+  selectedPkg.value ? Math.max(0, form.value.ninos - selectedPkg.value.personas_incluidas) : 0,
+)
+const precioPersonasExtraNum = computed(
+  () => personasExtraCount.value * parseFloat(selectedPkg.value?.precio_persona_extra ?? '0'),
+)
+
 const extraServicesNum = computed(() =>
   extrasStore.activos
     .filter((e) => selectedExtraIds.value.includes(e.id))
     .reduce((sum, e) => sum + parseFloat(e.precio), 0),
 )
 
-const subtotal = computed(() => packagePriceNum.value + extraServicesNum.value)
+const subtotal = computed(
+  () =>
+    packagePriceNum.value +
+    packageHoursPriceNum.value +
+    precioPersonasExtraNum.value +
+    productosAdicionalesNum.value +
+    extraServicesNum.value,
+)
 const totalNum = computed(() => subtotal.value)
 const advanceNum = computed(() => Math.round(totalNum.value * 0.3))
 const remainingNum = computed(() => totalNum.value - advanceNum.value)
@@ -982,7 +1213,10 @@ const confirmarReservacion = async () => {
       numero_personas: form.value.ninos,
       precio_base: String(packagePriceNum.value),
       precio_extras: String(extraServicesNum.value),
-      precio_personas_extra: '0',
+      precio_personas_extra: String(precioPersonasExtraNum.value),
+      horas_reservadas: horasSeleccionadas.value,
+      precio_horas: String(packageHoursPriceNum.value),
+      precio_productos: String(productosAdicionalesNum.value),
       descuento: '0',
       precio_total: String(totalNum.value),
       anticipo: String(montoPagado.value),
@@ -997,6 +1231,16 @@ const confirmarReservacion = async () => {
         extra_id: extra.id,
         cantidad: 1,
         precio_unitario: extra.precio,
+      })
+    }
+
+    for (const item of productosAdicionales.value) {
+      await reservacionProductosStore.crearReservacionProducto({
+        reservacion_id: nuevaReservacion.id,
+        producto_id: item.producto_id,
+        cantidad: item.cantidad,
+        precio_unitario: String(precioUnitarioProducto(item.producto_id)),
+        notas: item.notas || null,
       })
     }
 
