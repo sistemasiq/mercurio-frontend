@@ -12,6 +12,8 @@ import type {
   FiltrosHistorial,
   HistorialArqueosResponse,
   DetalleArqueo,
+  RetiroParcialPayload,
+  RetiroParcialResponse,
 } from '@/types/turnoCaja'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -106,10 +108,12 @@ export const turnoCajaApi = {
 
   /**
    * GET /turnos-caja/cajas
-   * Lista las cajas de la BD.
+   * Lista las cajas de la BD, filtradas a la sucursal del usuario si se especifica.
    */
-  async obtenerCajas(): Promise<CajaItem[]> {
-    const { data } = await apiClient.get(`${BASE}/cajas`)
+  async obtenerCajas(sucursalId?: string | null): Promise<CajaItem[]> {
+    const { data } = await apiClient.get(`${BASE}/cajas`, {
+      params: sucursalId ? { sucursal_id: sucursalId } : undefined,
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (data ?? []).map((c: any) => ({
       id: c.id,
@@ -129,6 +133,7 @@ export const turnoCajaApi = {
       terminal: payload.terminal ?? 'CAJA 01',
       observaciones_apertura: payload.observacionesApertura,
       id_turno: payload.idTurno,
+      sucursal_id: payload.sucursalId,
     }
     const { data } = await apiClient.post(`${BASE}/abrir`, body)
     return mapTurnoActivo(data)
@@ -225,6 +230,7 @@ export const turnoCajaApi = {
     const { data } = await apiClient.post(`${BASE}/confirmar`, {
       turno_id: payload.turnoId,
       observaciones: payload.observaciones,
+      tipo_cierre: payload.tipoCierre ?? 'NORMAL',
     })
     return {
       arqueoId: data.arqueo_id,
@@ -241,6 +247,29 @@ export const turnoCajaApi = {
   async cancelarConteo(turnoId: string): Promise<TurnoActivoResponse> {
     const { data } = await apiClient.post(`${BASE}/cancelar`, { turno_id: turnoId })
     return mapTurnoActivo(data)
+  },
+
+  /**
+   * POST /turnos-caja/retiro
+   * Registra un retiro parcial sobre el turno activo (solo en estado OPERANDO).
+   */
+  async registrarRetiro(payload: RetiroParcialPayload): Promise<RetiroParcialResponse> {
+    const { data } = await apiClient.post(`${BASE}/retiro`, {
+      id_apertura_caja: payload.turnoId,
+      concepto: payload.concepto,
+      tipo_destinatario: payload.tipoDestinatario,
+      monto: payload.monto,
+      observaciones: payload.observaciones,
+    })
+    return {
+      id: data.id,
+      turnoId: data.id_apertura_caja,
+      concepto: data.concepto,
+      tipoDestinatario: data.tipo_destinatario,
+      monto: data.monto,
+      observaciones: data.observaciones ?? null,
+      creado: data.creado,
+    }
   },
 
   /**

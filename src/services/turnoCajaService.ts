@@ -13,6 +13,8 @@ import type {
   FiltrosHistorial,
   HistorialArqueosResponse,
   DetalleArqueo,
+  RetiroParcialPayload,
+  RetiroParcialResponse,
 } from '@/types/turnoCaja'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,8 +69,22 @@ export const turnoCajaService = {
   /**
    * Obtiene la lista de cajas de la sucursal activa mediante petición al backend.
    */
-  async obtenerCajas() {
-    return await turnoCajaApi.obtenerCajas()
+  async obtenerCajas(sucursalId?: string | null) {
+    return await turnoCajaApi.obtenerCajas(sucursalId)
+  },
+
+  /**
+   * Registra un retiro parcial sobre el turno activo (solo en estado OPERANDO).
+   */
+  async registrarRetiro(payload: RetiroParcialPayload): Promise<RetiroParcialResponse> {
+    try {
+      return await turnoCajaApi.registrarRetiro(payload)
+    } catch (err) {
+      const apiErr = err as ApiError
+      if (apiErr.statusCode === 409)
+        throw new TransicionInvalidaError('No se pueden registrar retiros en este momento.')
+      throw new Error(toMensajeError(err), { cause: err })
+    }
   },
 
   /**
