@@ -22,7 +22,13 @@ const route = useRoute()
 
 const leftOpen = ref(true)
 
-const navGroups: NavGroup[] = [
+// El Administrador de sucursal no opera la caja directamente (apertura/cierre/venta) —
+// solo el AdministradorSistema y el Cajero. Su única vista de este módulo es el historial.
+const esAdminDeSucursal = computed(
+  () => auth.hasRole('Administrador') && !auth.hasRole('AdministradorSistema'),
+)
+
+const navGroups = computed<NavGroup[]>(() => [
   {
     label: null,
     items: [{ label: 'Inicio', icon: 'home', routeName: 'home' }],
@@ -30,17 +36,27 @@ const navGroups: NavGroup[] = [
   {
     label: 'OPERACIÓN',
     items: [
+      ...(esAdminDeSucursal.value
+        ? []
+        : [
+            {
+              label: 'Caja (POS)',
+              icon: 'point_of_sale',
+              routeName: 'pos-caja',
+              permission: 'pos:acceder',
+            },
+            {
+              label: 'Apertura y Cierre',
+              icon: 'key',
+              routeName: 'pos-cierre',
+              permission: 'pos:acceder',
+            },
+          ]),
       {
-        label: 'Caja (POS)',
-        icon: 'point_of_sale',
-        routeName: 'pos-caja',
-        permission: 'pos:acceder',
-      },
-      {
-        label: 'Apertura y Cierre',
-        icon: 'key',
-        routeName: 'pos-cierre',
-        permission: 'pos:acceder',
+        label: 'Historial de Arqueos',
+        icon: 'receipt_long',
+        routeName: 'pos-historial-arqueos',
+        permission: 'turnos_caja:historial',
       },
       {
         label: 'Cocina',
@@ -158,14 +174,14 @@ const navGroups: NavGroup[] = [
       },
     ],
   },
-]
+])
 
 function isVisible(item: NavItem): boolean {
   return !item.permission || auth.hasPermission(item.permission)
 }
 
 const visibleGroups = computed(() =>
-  navGroups
+  navGroups.value
     .map((group) => ({ ...group, items: group.items.filter(isVisible) }))
     .filter((group) => group.items.length > 0),
 )

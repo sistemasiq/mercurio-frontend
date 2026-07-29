@@ -37,40 +37,43 @@
       <div v-else class="rs-layout">
         <!-- Columna izquierda -->
         <div class="rs-col-main">
-          <!-- FASE OPERANDO -->
+          <!-- FASE OPERANDO — Hub de Gestión de Caja Activa -->
           <template v-if="turno.estaOperando">
-            <div class="rs-panel rs-operando-panel">
-              <q-icon name="point_of_sale" size="32px" color="primary" class="q-mb-xs" />
-              <div class="rs-operando-title">Turno activo</div>
-              <div class="rs-operando-sub">
-                Cajero: <strong>{{ turno.cajeroNombre }}</strong> | Terminal:
-                <strong>{{ turno.terminal }}</strong>
+            <div v-if="vistaOperando === 'hub'" class="rs-hub-wrap">
+              <div class="rs-hub-header">
+                <h1 class="rs-hub-title">Gestión de Caja Activa</h1>
+                <p class="rs-hub-sub">
+                  Selecciona la operación que deseas realizar en el turno actual.
+                </p>
               </div>
-              <div class="rs-operando-sub q-mb-md text-primary">
-                Fondo Inicial: <strong>${{ turno.fondoInicial.toLocaleString('es-MX') }}</strong>
-              </div>
-              <div class="row q-gutter-md justify-center">
-                <q-btn
-                  unelevated
-                  no-caps
-                  size="lg"
-                  color="secondary"
-                  label="Ir a la Caja (POS)"
-                  icon="storefront"
-                  @click="router.push('/pos/caja')"
-                />
-                <q-btn
-                  unelevated
-                  no-caps
-                  size="lg"
-                  color="primary"
-                  label="Iniciar conteo de caja"
-                  icon="calculate"
-                  :loading="turno.cargando"
+              <div class="rs-hub-actions">
+                <button type="button" class="rs-hub-card" @click="vistaOperando = 'retiro'">
+                  <div class="rs-hub-icon rs-hub-icon--retiro">
+                    <q-icon name="payments" size="32px" />
+                  </div>
+                  <h2 class="rs-hub-card-title">Registrar Retiro Parcial</h2>
+                  <p class="rs-hub-card-sub">Extraer fondos para operaciones específicas.</p>
+                </button>
+                <button
+                  type="button"
+                  class="rs-hub-card"
+                  :disabled="turno.cargando"
                   @click="turno.iniciarConteo()"
-                />
+                >
+                  <div class="rs-hub-icon rs-hub-icon--cierre">
+                    <q-icon name="receipt_long" size="32px" />
+                  </div>
+                  <h2 class="rs-hub-card-title">Cierre de Caja</h2>
+                  <p class="rs-hub-card-sub">Finalizar tu turno y hacer el corte.</p>
+                </button>
               </div>
             </div>
+
+            <RetiroParcialCard
+              v-else
+              @volver="vistaOperando = 'hub'"
+              @retiro-exitoso="vistaOperando = 'hub'"
+            />
           </template>
 
           <!-- FASES EN_CONTEO / ESPERANDO_REVISION -->
@@ -118,7 +121,7 @@
                       label="Enviar conteo"
                       icon-right="send"
                       :loading="turno.cargando"
-                      :disable="turno.esperandoRevision"
+                      :disable="!puedeEnviarConteo"
                       @click="turno.enviarConteo()"
                     />
                   </div>
@@ -127,52 +130,9 @@
             </div>
           </template>
 
-          <!-- FASE BALANCE_REVELADO -->
-          <template v-if="turno.balanceRevelado">
-            <div class="rs-form-stack">
-              <EfectivoDesgloseForm v-model="turno.desgloseEfectivo" readonly />
-              <MetodoPagoMontoForm v-model="turno.metodosPago" readonly />
-              <BalanceRevisionPanel
-                :balance-por-metodo="turno.balancePorMetodo"
-                :total-declarado="turno.totalDeclarado"
-                :total-esperado="turno.totalEsperado"
-                :diferencia-neta="turno.diferenciaNeta"
-              />
-              <ObservacionesConfirmacionCard
-                ref="obsCardRef"
-                v-model="observaciones"
-                :hay-diferencias="turno.hayDiferencias"
-              />
-
-              <!-- Banner admin -->
-              <div class="rs-admin-ok-banner">
-                <q-icon name="verified_user" size="24px" color="positive" class="q-mr-xs" />
-                Revisado por <strong class="rs-admin-ok-name">{{ turno.adminNombre }}</strong>
-                <span class="rs-spacer" />
-                <button type="button" class="rs-revocar-btn" @click="turno.cancelarConteo()">
-                  Revocar y reiniciar
-                </button>
-              </div>
-
-              <q-banner v-if="turno.error" rounded class="bg-negative text-white">
-                <template #avatar><q-icon name="error" /></template>
-                {{ turno.error }}
-              </q-banner>
-
-              <div class="rs-submit-row">
-                <q-btn
-                  unelevated
-                  no-caps
-                  color="positive"
-                  class="rs-btn-enviar"
-                  label="Confirmar cierre definitivo"
-                  icon-right="check_circle"
-                  :loading="turno.cargando"
-                  @click="confirmarCierre"
-                />
-              </div>
-            </div>
-          </template>
+          <!-- FASE BALANCE_REVELADO: manejada por completo por AutorizacionCierreModal.vue
+               (balance, observaciones, doble PIN y confirmación). No se renderiza nada aquí
+               para evitar duplicar esa UI. -->
 
           <!-- FASE CERRADO -->
           <template v-if="turno.estaCerrado">
@@ -229,8 +189,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { turnoCajaService } from '@/services/turnoCajaService'
@@ -239,22 +198,18 @@ import AperturaCajaCard from '@/components/cierre-caja/AperturaCajaCard.vue'
 import EfectivoDesgloseForm from '@/components/cierre-caja/EfectivoDesgloseForm.vue'
 import MetodoPagoMontoForm from '@/components/cierre-caja/MetodoPagoMontoForm.vue'
 import TotalDeclaradoCard from '@/components/cierre-caja/TotalDeclaradoCard.vue'
-import BalanceRevisionPanel from '@/components/cierre-caja/BalanceRevisionPanel.vue'
-import ObservacionesConfirmacionCard from '@/components/cierre-caja/ObservacionesConfirmacionCard.vue'
 import ResumenConteoCard from '@/components/cierre-caja/ResumenConteoCard.vue'
 import ConteoBloqueadoOverlay from '@/components/cierre-caja/ConteoBloqueadoOverlay.vue'
 import AutenticacionAdminForm from '@/components/cierre-caja/AutenticacionAdminForm.vue'
 import AutorizacionCierreModal from '@/components/cierre-caja/AutorizacionCierreModal.vue'
+import RetiroParcialCard from '@/components/cierre-caja/RetiroParcialCard.vue'
 
 import { useAuthStore } from '@/stores/auth'
 
 const $q = useQuasar()
-const router = useRouter()
 const turno = useTurnoCajaStore()
 const authStore = useAuthStore()
 
-const observaciones = ref('')
-const obsCardRef = ref<InstanceType<typeof ObservacionesConfirmacionCard> | null>(null)
 const pdfUrl = ref<string | null>(null)
 
 // ── Computed ──────────────────────────────────────────────────────────────
@@ -271,6 +226,12 @@ const totalCalculado = computed(() => {
   const totalMetodos = turno.metodosPago.reduce((acc, m) => acc + (m.monto ?? 0), 0)
   return turno.desgloseEfectivo.total + totalMetodos
 })
+
+// El backend exige total_declarado > 0 (ver turnoCaja.ts enviarConteo); se refleja aquí
+// para no dejar presionar "Enviar conteo" hasta que el cajero haya declarado un total válido.
+const puedeEnviarConteo = computed(
+  () => !turno.esperandoRevision && (turno.totalContadoDeclarado ?? 0) > 0,
+)
 
 const estadoLabel = computed(() => {
   const labels: Record<string, string> = {
@@ -323,21 +284,6 @@ async function cancelarConteoYSalir() {
   })
 }
 
-async function confirmarCierre() {
-  if (!obsCardRef.value?.validar()) {
-    $q.notify({
-      type: 'warning',
-      message: 'Las observaciones son obligatorias cuando hay diferencias en el balance.',
-    })
-    return
-  }
-  const url = await turno.confirmarCierre(observaciones.value)
-  if (url) pdfUrl.value = url
-  if (turno.estaCerrado) {
-    $q.notify({ type: 'positive', message: 'Cierre de caja confirmado correctamente.' })
-  }
-}
-
 async function descargarPdf() {
   if (!turno.turnoId) return
   try {
@@ -353,6 +299,15 @@ async function descargarPdf() {
 onMounted(() => {
   turno.cargarTurnoActivo()
 })
+
+// Sub-vista del hub de la fase OPERANDO: 'hub' (elegir operación) o 'retiro' (formulario).
+const vistaOperando = ref<'hub' | 'retiro'>('hub')
+watch(
+  () => turno.turnoId,
+  () => {
+    vistaOperando.value = 'hub'
+  },
+)
 </script>
 
 <style scoped>
@@ -553,6 +508,98 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+/* ── Hub de Gestión de Caja Activa (fase OPERANDO) ────────────────────── */
+.rs-hub-wrap {
+  padding: 32px 0 8px;
+}
+.rs-hub-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.rs-hub-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #0b1c30;
+  margin: 0 0 8px;
+}
+.rs-hub-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #454652;
+  margin: 0;
+}
+.rs-hub-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+@media (min-width: 700px) {
+  .rs-hub-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.rs-hub-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #c6c5d4;
+  border-radius: 16px;
+  padding: 32px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+.rs-hub-card:hover:not(:disabled) {
+  border-color: #1a237e;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  background: #f1f5f9;
+}
+.rs-hub-card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.rs-hub-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  transition: transform 0.2s ease;
+}
+.rs-hub-card:hover .rs-hub-icon {
+  transform: scale(1.1);
+}
+.rs-hub-icon--retiro {
+  background: #e0e0ff;
+  color: #1a237e;
+}
+.rs-hub-icon--cierre {
+  background: #ffdad6;
+  color: #b7131a;
+}
+.rs-hub-card-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0b1c30;
+  margin: 0 0 8px;
+}
+.rs-hub-card-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #454652;
+  margin: 0;
 }
 
 /* ── Operando / cerrado ─────────────────────────────────────────────── */

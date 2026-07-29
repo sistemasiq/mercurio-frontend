@@ -22,5 +22,12 @@ export function setupRouterGuards(router: Router): void {
         return { name: 'home' }
       }
     }
+
+    // El Administrador de sucursal no opera la caja directamente (apertura/cierre/venta):
+    // su única vista de este módulo es el historial de arqueos. AdministradorSistema sí puede.
+    const esAdminDeSucursal = auth.hasRole('Administrador') && !auth.hasRole('AdministradorSistema')
+    if (esAdminDeSucursal && (to.name === 'pos-cierre' || to.name === 'pos-caja')) {
+      return { name: 'pos-historial-arqueos' }
+    }
   })
 }

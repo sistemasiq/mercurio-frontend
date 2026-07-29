@@ -80,7 +80,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/HistorialArqueosPage.vue'),
         meta: {
           requiresAuth: true,
-          permissions: ['caja:ver_historial'],
+          permissions: ['turnos_caja:historial'],
           title: 'Historial de Arqueos',
         },
       },
