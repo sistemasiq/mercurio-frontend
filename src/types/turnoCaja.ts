@@ -35,6 +35,8 @@ export interface AbrirTurnoPayload {
   observacionesApertura?: string
   idTurno?: string
   idCaja?: string
+  /** Solo relevante para AdministradorSistema, que no tiene sucursal propia en el JWT. */
+  sucursalId?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -63,20 +65,21 @@ export interface DesgloseEfectivo {
 // Métodos de pago
 // ---------------------------------------------------------------------------
 
-/** Claves de método de pago reconocidas por el backend */
-export type MetodoPagoClave = 'vouchers' | 'tarjeta' | 'transferencia' | 'otro'
-
-/** Una fila del formulario de declaración de métodos */
+/** Una fila del formulario de declaración de métodos. `metodo` es el nombre real
+ *  del catálogo de la BD (metodos_pago.nombre) — no hay claves fijas. */
 export interface FilaMetodoPago {
   /** ID local (generado en frontend) para key de v-for */
   id: number
-  metodo: MetodoPagoClave
+  metodo: string
   monto: number | null
+  /** 'sistema': detectado automáticamente por tener movimientos reales en el turno (nombre fijo).
+   *  'manual': agregado por el cajero eligiendo del catálogo. */
+  origen: 'sistema' | 'manual'
 }
 
 /** Movimiento real del turno — viene del backend al cargar el turno activo */
 export interface MovimientoTurno {
-  metodo: MetodoPagoClave
+  metodo: string
   /** Total de ventas procesadas por este método durante el turno */
   totalVentas: number
 }
@@ -86,7 +89,7 @@ export interface MovimientoTurno {
 // ---------------------------------------------------------------------------
 
 export interface FilaBalance {
-  metodo: MetodoPagoClave | 'efectivo'
+  metodo: string
   label: string
   /** Monto declarado por el cajero */
   declarado: number
@@ -126,7 +129,7 @@ export interface ConteoPayload {
     monedas: Array<{ denominacion: number; cantidad: number }>
     total: number
   }
-  metodosPago: Array<{ metodo: MetodoPagoClave; monto: number }>
+  metodosPago: Array<{ metodo: string; monto: number }>
   totalDeclarado: number
 }
 
@@ -153,9 +156,12 @@ export interface RevisionAdminResponse {
 // Payload de confirmación final → POST /confirmar
 // ---------------------------------------------------------------------------
 
+export type TipoCierre = 'NORMAL' | 'EXTRAORDINARIO'
+
 export interface ConfirmarCierrePayload {
   turnoId: string
   observaciones: string
+  tipoCierre?: TipoCierre
 }
 
 export interface ConfirmarCierreResponse {
@@ -163,6 +169,41 @@ export interface ConfirmarCierreResponse {
   estado: 'CERRADO'
   pdfUrl: string | null
   mensaje: string
+}
+
+// ---------------------------------------------------------------------------
+// Retiros parciales (RN-RET)
+// ---------------------------------------------------------------------------
+
+/** Valores reales del enum conceptos_retiro en BD */
+export type ConceptoRetiro =
+  | 'Pago a proveedor'
+  | 'Compra de insumos'
+  | 'Depósito bancario'
+  | 'Resguardo de efectivo'
+  | 'Pago de servicios'
+  | 'Gastos administrativos'
+  | 'Gastos varios'
+
+/** Valores reales del enum tipos_destinatario en BD */
+export type TipoDestinatario = 'Proveedor' | 'Empleado' | 'Administrador'
+
+export interface RetiroParcialPayload {
+  turnoId: string
+  concepto: ConceptoRetiro
+  tipoDestinatario: TipoDestinatario
+  monto: number
+  observaciones?: string
+}
+
+export interface RetiroParcialResponse {
+  id: string
+  turnoId: string
+  concepto: string
+  tipoDestinatario: string
+  monto: number
+  observaciones: string | null
+  creado: string
 }
 
 // ---------------------------------------------------------------------------
