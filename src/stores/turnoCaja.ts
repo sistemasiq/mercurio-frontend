@@ -23,6 +23,7 @@ import type {
   FilaMetodoPago,
   FilaBalance,
   RevisionAdminResponse,
+  RetiroParcialPayload,
 } from '@/types/turnoCaja'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     ],
     total: 0,
   })
-  const metodosPago = ref<FilaMetodoPago[]>([{ id: 1, metodo: 'vouchers', monto: null }])
+  const metodosPago = ref<FilaMetodoPago[]>([])
   const totalContadoDeclarado = ref<number | null>(null)
 
   // ── Credenciales efímeras del admin (se limpian tras el intento) ──────────
@@ -114,6 +115,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     terminalNombre = 'CAJA 01',
     observaciones = '',
     idTurno?: string,
+    sucursalId?: string,
   ): Promise<void> {
     cargando.value = true
     error.value = null
@@ -123,6 +125,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
         terminal: terminalNombre,
         observacionesApertura: observaciones,
         idTurno,
+        sucursalId,
       })
       _aplicarTurno(turno)
     } catch (err) {
@@ -163,6 +166,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalEsperado.value = 0
     totalDeclarado.value = 0
     diferenciaNeta.value = 0
+    metodosPago.value = []
     _resetFormulario()
   }
 
@@ -295,11 +299,45 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   }
 
   /**
+   * Registra un retiro parcial sobre el turno activo (solo en OPERANDO).
+   * No cambia el estado del turno; refresca fondo/retiros al terminar.
+   */
+  async function registrarRetiro(
+    concepto: RetiroParcialPayload['concepto'],
+    tipoDestinatario: RetiroParcialPayload['tipoDestinatario'],
+    monto: number,
+    observaciones?: string,
+  ): Promise<boolean> {
+    if (!turnoId.value) return false
+    cargando.value = true
+    error.value = null
+    try {
+      await turnoCajaService.registrarRetiro({
+        turnoId: turnoId.value,
+        concepto,
+        tipoDestinatario,
+        monto,
+        observaciones,
+      })
+      await cargarTurnoActivo()
+      return true
+    } catch (err) {
+      error.value = (err as Error).message
+      return false
+    } finally {
+      cargando.value = false
+    }
+  }
+
+  /**
    * Transición: BALANCE_REVELADO → CERRADO
    * Confirma el cierre definitivo del turno.
    * @param observaciones - Requerido si hayDiferencias === true
    */
-  async function confirmarCierre(observaciones: string): Promise<string | null> {
+  async function confirmarCierre(
+    observaciones: string,
+    esExtraordinario = false,
+  ): Promise<string | null> {
     if (!turnoId.value) return null
     cargando.value = true
     error.value = null
@@ -307,6 +345,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       const resp = await turnoCajaService.confirmarCierre({
         turnoId: turnoId.value,
         observaciones,
+        tipoCierre: esExtraordinario ? 'EXTRAORDINARIO' : 'NORMAL',
       })
       estado.value = 'CERRADO'
       mostrarDialogAutorizacion.value = false
@@ -385,14 +424,16 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalVentas.value = turno.totalVentas ?? 0
     estado.value = turno.estado
 
-    // Precarga las filas de métodos de pago con los movimientos reales del turno
-    if (turno.movimientos.length > 0) {
-      metodosPago.value = turno.movimientos.map((m, idx) => ({
-        id: idx + 1,
-        metodo: m.metodo,
-        monto: null,
-      }))
-    }
+    // Precarga las filas de métodos de pago con los movimientos reales del turno.
+    // Se conservan las filas agregadas manualmente por el cajero que no vinieron del sistema.
+    const filasManuales = metodosPago.value.filter((f) => f.origen === 'manual')
+    const filasSistema = turno.movimientos.map((m, idx) => ({
+      id: idx + 1,
+      metodo: m.metodo,
+      monto: null,
+      origen: 'sistema' as const,
+    }))
+    metodosPago.value = [...filasSistema, ...filasManuales]
   }
 
   function _aplicarRevision(revision: RevisionAdminResponse): void {
@@ -407,7 +448,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     desgloseEfectivo.value.billetes.forEach((b) => (b.amount = null))
     desgloseEfectivo.value.monedas.forEach((m) => (m.amount = null))
     desgloseEfectivo.value.total = 0
-    metodosPago.value = [{ id: 1, metodo: 'vouchers', monto: null }]
+    metodosPago.value = metodosPago.value.filter((f) => f.origen === 'sistema')
+    metodosPago.value.forEach((f) => (f.monto = null))
     totalContadoDeclarado.value = null
   }
 
@@ -459,6 +501,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     autenticarAdmin,
     cancelarDialogAdmin,
     cancelarConteo,
+    registrarRetiro,
     confirmarCierre,
     // helper de pruebas (DEV only — tree-shaken en producción)
     ...(import.meta.env.DEV
