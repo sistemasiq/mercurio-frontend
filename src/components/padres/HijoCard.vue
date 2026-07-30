@@ -78,7 +78,7 @@ const statusText: Record<string, string> = {
           <span class="info-label">Tiempo transcurrido</span>
           <div class="row items-center">
             <q-icon name="timer" size="16px" class="info-icon" />
-            <span class="info-value">{{ formatMinutos(nino['minutos Transcurridos']) }}</span>
+            <span class="info-value">{{ formatMinutos(nino.minutosTranscurridos) }}</span>
           </div>
         </div>
       </div>

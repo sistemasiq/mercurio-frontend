@@ -17,8 +17,8 @@ export interface NinoActivo {
   estadoVisita: string
   horaEntrada: string
   horaSalidaEsperada: string
-  'minutos Transcurridos': number
-  'minutos Pagados': number
+  minutosTranscurridos: number
+  minutosPagados: number
   pulsera: string
 }
 
