@@ -111,6 +111,8 @@ export const useAccessControlStore = defineStore('accessControl', () => {
       } catch (err) {
         console.error(err)
       }
+    } else {
+      pulserasDisponibles.value = await fetchPulseras(authStore.currentBranchId)
     }
   }
 

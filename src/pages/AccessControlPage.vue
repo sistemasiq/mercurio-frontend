@@ -14,7 +14,7 @@ const store = useAccessControlStore()
 const router = useRouter()
 
 const scrollContainer = ref<HTMLElement | null>(null)
-const fallbackIntervalId = ref<ReturnType<typeof setInterval> | null>(null)
+const fallbackIntervalId = ref<number | null>(null)
 
 onMounted(() => {
   store.loadActivos()

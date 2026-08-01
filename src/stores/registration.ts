@@ -69,7 +69,6 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   const children = ref<Child[]>([createChild()])
   const currentChildIndex = ref(0)
-  const folioId = ref('')
 
   const productoBase = ref<ProductoDto | null>(null)
   const pulseras = computed(() => accessControlStore.pulserasDisponibles)
@@ -373,7 +372,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
     children.value = [createChild()]
     currentChildIndex.value = 0
-    folioId.value = ''
   }
 
   return {
@@ -388,7 +386,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     tutor,
     children,
     currentChildIndex,
-    folioId,
     productoBase,
     pulseras,
     isLoadingCatalog,
