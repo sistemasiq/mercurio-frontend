@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
 
 interface NavItem {
@@ -17,6 +18,7 @@ interface NavGroup {
 }
 
 const auth = useAuthStore()
+const turno = useTurnoCajaStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -192,6 +194,29 @@ const userName = computed(() => auth.currentUser?.name ?? auth.currentUser?.emai
 const userRole = computed(() => auth.primaryRole ?? '')
 const branchName = computed(() => auth.currentBranchName ?? '')
 
+// Estado de apertura de caja visible en cualquier pantalla, no solo dentro del
+// módulo de caja — solo aplica al Cajero, que es a quien RN-CIE-001 bloquea de
+// vender/cobrar (comandas, check-in/checkout, eventos) sin turno OPERANDO.
+const mostrarEstadoTurno = computed(() => auth.hasRole('Cajero'))
+
+const estadoTurnoInfo = computed(() => {
+  if (turno.estaOperando) {
+    return { label: 'Caja Abierta', clase: 'estado-turno--abierta', icon: 'lock_open' }
+  }
+  if (turno.sinTurno) {
+    return { label: 'Sin Apertura de Caja', clase: 'estado-turno--cerrada', icon: 'lock' }
+  }
+  // EN_CONTEO / ESPERANDO_REVISION / BALANCE_REVELADO / CERRADO: hay un turno,
+  // pero tampoco se puede vender mientras no vuelva a OPERANDO.
+  return { label: 'En Corte de Caja', clase: 'estado-turno--corte', icon: 'hourglass_empty' }
+})
+
+onMounted(() => {
+  if (mostrarEstadoTurno.value) {
+    turno.cargarTurnoActivo()
+  }
+})
+
 function isActive(routeName: string): boolean {
   return route.name === routeName
 }
@@ -253,6 +278,11 @@ async function handleLogout(): Promise<void> {
           <div v-if="branchName" class="header-branch">
             <q-icon name="store" size="18px" />
             <span>{{ branchName }}</span>
+          </div>
+
+          <div v-if="mostrarEstadoTurno" class="header-branch" :class="estadoTurnoInfo.clase">
+            <q-icon :name="estadoTurnoInfo.icon" size="18px" />
+            <span>{{ estadoTurnoInfo.label }}</span>
           </div>
 
           <div class="header-divider" />
@@ -407,6 +437,21 @@ async function handleLogout(): Promise<void> {
   font-size: 12.5px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.estado-turno--abierta {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.estado-turno--cerrada {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.estado-turno--corte {
+  background: #fef3c7;
+  color: #b45309;
 }
 
 .action-btn {
