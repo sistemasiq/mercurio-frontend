@@ -30,11 +30,14 @@ export function resolveErrorMessage(error: ApiError | null): string {
     return API_ERROR_CODE_MESSAGES[error.code]
   }
 
+  // El mensaje real del backend (ahora que axiosClient lo extrae correctamente de
+  // "detail") es más útil que un texto genérico por código HTTP — solo se usa el
+  // genérico cuando el backend no mandó ningún mensaje específico.
+  if (error.message) return error.message
+
   if (error.statusCode && HTTP_ERROR_MESSAGES[error.statusCode]) {
     return HTTP_ERROR_MESSAGES[error.statusCode]
   }
-
-  if (error.message) return error.message
 
   return 'Ocurrió un error inesperado. Intenta nuevamente.'
 }

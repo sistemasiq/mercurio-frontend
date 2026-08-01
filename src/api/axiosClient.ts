@@ -46,7 +46,11 @@ function createAxiosClient(): AxiosInstance {
 
   client.interceptors.response.use(
     (response: AxiosResponse) => response,
-    async (error: AxiosError<{ message?: string; code?: string }>) => {
+    async (
+      error: AxiosError<{
+        detail?: string | { code?: string; message?: string } | Array<{ msg?: string }>
+      }>,
+    ) => {
       if (isNetworkError(error)) {
         return Promise.reject(
           buildApiError(0, 'NETWORK_ERROR', 'Sin conexión a internet. Verifica tu red.'),
@@ -54,8 +58,21 @@ function createAxiosClient(): AxiosInstance {
       }
 
       const status = error.response?.status ?? 0
-      const code = error.response?.data?.code ?? ''
-      const message = error.response?.data?.message ?? ''
+      // El backend envía sus errores como HTTPException(detail=...), que FastAPI serializa
+      // anidado bajo "detail" — no en la raíz del body. "detail" puede ser un dict propio
+      // {code, message} (nuestros errores de negocio), un string plano (algunos endpoints),
+      // o un array de errores de validación de Pydantic (422 automáticos).
+      const detail = error.response?.data?.detail
+      let code = ''
+      let message = ''
+      if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+        code = detail.code ?? ''
+        message = detail.message ?? ''
+      } else if (typeof detail === 'string') {
+        message = detail
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        message = detail[0]?.msg ?? ''
+      }
 
       if (status === 401) {
         const url = error.config?.url ?? ''
