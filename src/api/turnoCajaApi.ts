@@ -83,6 +83,7 @@ function mapArqueoResumen(raw: any) {
     diferenciaNeta: raw.diferencia_neta,
     tieneObservaciones: raw.tiene_observaciones ?? false,
     pdfUrl: raw.pdf_url ?? null,
+    adminNombre: raw.admin_nombre ?? null,
   }
 }
 

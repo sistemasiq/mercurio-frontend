@@ -13,7 +13,7 @@
           type="button"
           class="rs-close-btn"
           :disabled="turno.credencialesAdmin.cargando"
-          @click="turno.cancelarDialogAdmin()"
+          @click="turno.cancelarConteo()"
         >
           <q-icon name="close" size="20px" />
         </button>
@@ -77,7 +77,7 @@
           type="button"
           class="rs-btn-cancel"
           :disabled="turno.credencialesAdmin.cargando"
-          @click="turno.cancelarDialogAdmin()"
+          @click="turno.cancelarConteo()"
         >
           Cancelar
         </button>

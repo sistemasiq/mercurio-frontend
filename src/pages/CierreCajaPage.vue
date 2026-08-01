@@ -17,10 +17,6 @@
             >
           </span>
         </div>
-        <span class="rs-estado-pill" :class="pilColor">
-          <span class="rs-pill-dot" />
-          {{ estadoLabel }}
-        </span>
       </div>
 
       <!-- ══ Sin turno activo / Apertura de caja ═════════════════════════ -->
@@ -229,34 +225,12 @@ const totalCalculado = computed(() => {
 
 // El backend exige total_declarado > 0 (ver turnoCaja.ts enviarConteo); se refleja aquí
 // para no dejar presionar "Enviar conteo" hasta que el cajero haya declarado un total válido.
+// También se bloquea mientras hay una petición en curso (turno.cargando): Quasar no
+// deshabilita un q-btn solo por "loading", así que sin esto un doble clic alcanza a
+// mandar dos POST /conteo y el segundo choca con el conteo que el primero ya congeló.
 const puedeEnviarConteo = computed(
-  () => !turno.esperandoRevision && (turno.totalContadoDeclarado ?? 0) > 0,
+  () => !turno.esperandoRevision && !turno.cargando && (turno.totalContadoDeclarado ?? 0) > 0,
 )
-
-const estadoLabel = computed(() => {
-  const labels: Record<string, string> = {
-    SIN_TURNO: 'Sin turno activo',
-    OPERANDO: 'Operando',
-    EN_CONTEO: 'En conteo',
-    ESPERANDO_REVISION: 'Esperando revisión',
-    BALANCE_REVELADO: 'Balance revelado',
-    CERRADO: 'Cerrado',
-  }
-  return labels[turno.estado] ?? turno.estado
-})
-
-// Clase del pill según el estado (coincide con las clases rs-estado-pill--)
-const pilColor = computed(() => {
-  const map: Record<string, string> = {
-    SIN_TURNO: 'rs-estado-pill--sin-turno',
-    OPERANDO: 'rs-estado-pill--operando',
-    EN_CONTEO: 'rs-estado-pill--en-conteo',
-    ESPERANDO_REVISION: 'rs-estado-pill--esperando',
-    BALANCE_REVELADO: 'rs-estado-pill--balance',
-    CERRADO: 'rs-estado-pill--cerrado',
-  }
-  return map[turno.estado] ?? ''
-})
 
 // ── Acciones ──────────────────────────────────────────────────────────────
 
@@ -356,70 +330,6 @@ watch(
 }
 .rs-meta-text strong {
   color: #0b1c30;
-}
-
-/* ── Estado pill ────────────────────────────────────────────────────── */
-.rs-estado-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: 9999px;
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.rs-pill-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-.rs-estado-pill--operando {
-  background: #e0f2f1;
-  color: #00695c;
-}
-.rs-estado-pill--operando .rs-pill-dot {
-  background: #00897b;
-}
-.rs-estado-pill--en-conteo {
-  background: #e3f2fd;
-  color: #1565c0;
-}
-.rs-estado-pill--en-conteo .rs-pill-dot {
-  background: #1e88e5;
-  animation: pulse 1.4s ease-in-out infinite;
-}
-.rs-estado-pill--esperando {
-  background: #fff3e0;
-  color: #e65100;
-}
-.rs-estado-pill--esperando .rs-pill-dot {
-  background: #fb8c00;
-}
-.rs-estado-pill--balance {
-  background: #f3e5f5;
-  color: #6a1b9a;
-}
-.rs-estado-pill--balance .rs-pill-dot {
-  background: #8e24aa;
-}
-.rs-estado-pill--cerrado {
-  background: #e8f5e9;
-  color: #1b5e20;
-}
-.rs-estado-pill--cerrado .rs-pill-dot {
-  background: #43a047;
-}
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
 }
 
 /* ── Empty / loading ────────────────────────────────────────────────── */

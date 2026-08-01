@@ -26,13 +26,13 @@
       <!-- ── Body del Modal (2 columnas) ── -->
       <div class="rs-modal-body">
         <div class="rs-grid-columns">
-          <!-- Columna Izquierda: Desglose del Sistema y Declaración del Cajero -->
+          <!-- Columna Izquierda: Comparativo por método y Declaración del Cajero -->
           <div class="rs-col-left">
-            <!-- Desglose del Sistema -->
+            <!-- Contexto del turno (fondo y retiros, no son "métodos" en sí) -->
             <div class="rs-card-box">
-              <h3 class="rs-box-title">Desglose del Sistema</h3>
+              <h3 class="rs-box-title">Contexto del Turno</h3>
               <div class="rs-detail-list">
-                <div v-if="(turno.fondoInicial || 0) > 0" class="rs-detail-row">
+                <div class="rs-detail-row">
                   <span class="rs-detail-label">Fondo Inicial</span>
                   <span class="rs-detail-val"
                     >${{
@@ -42,15 +42,6 @@
                     }}</span
                   >
                 </div>
-                <div v-if="(turno.totalVentas || 0) > 0" class="rs-detail-row">
-                  <span class="rs-detail-label">Ventas Efectivo</span>
-                  <span class="rs-detail-val"
-                    >${{
-                      (turno.totalVentas || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
-                    }}</span
-                  >
-                </div>
-                <!-- Solo se muestra la fila de retiros si hubo retiros > 0 -->
                 <div v-if="(turno.totalRetiros || 0) > 0" class="rs-detail-row text-negative">
                   <span class="rs-detail-label flex items-center">
                     <q-icon name="remove_circle" size="16px" class="q-mr-xs" /> Retiros Parciales
@@ -63,49 +54,57 @@
                     }}</span
                   >
                 </div>
-                <!-- Filas de métodos de pago dinámicos adicionales (solo si monto > 0) -->
-                <template v-for="m in metodosConMonto" :key="m.metodo">
-                  <div class="rs-detail-row">
-                    <span class="rs-detail-label text-capitalize">{{ m.label || m.metodo }}</span>
-                    <span class="rs-detail-val"
-                      >${{
-                        (m.declarado || m.esperado || 0).toLocaleString('es-MX', {
-                          minimumFractionDigits: 2,
-                        })
-                      }}</span
-                    >
-                  </div>
-                </template>
-
-                <div class="rs-detail-row rs-detail-total">
-                  <span class="rs-total-label">Total Esperado en Caja</span>
-                  <span class="rs-total-val"
-                    >${{
-                      totalEsperadoCalculado.toLocaleString('es-MX', { minimumFractionDigits: 2 })
-                    }}</span
-                  >
-                </div>
               </div>
             </div>
 
-            <!-- Declaración del Cajero -->
-            <div class="rs-card-box rs-card-box--cashier">
-              <h3 class="rs-box-title">Declaración del Cajero</h3>
-              <div class="rs-detail-list">
-                <div class="rs-detail-row">
-                  <span class="rs-detail-label">Efectivo Contado</span>
-                  <span class="rs-detail-val rs-val-bold"
-                    >${{
-                      totalDeclaradoContado.toLocaleString('es-MX', { minimumFractionDigits: 2 })
-                    }}</span
-                  >
-                </div>
+            <!-- Comparativo por Método de Pago: Sistema vs. lo que reportó el Cajero -->
+            <div class="rs-card-box">
+              <h3 class="rs-box-title">Comparativo por Método de Pago</h3>
+              <div class="rs-table-wrap">
+                <table class="rs-balance-table">
+                  <thead>
+                    <tr>
+                      <th>Método</th>
+                      <th class="text-right">Sistema</th>
+                      <th class="text-right">Cajero</th>
+                      <th class="text-right">Diferencia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="fila in turno.balancePorMetodo" :key="fila.metodo">
+                      <td class="text-capitalize">{{ fila.label }}</td>
+                      <td class="text-right">
+                        ${{ fila.esperado.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                      </td>
+                      <td class="text-right">
+                        ${{ fila.declarado.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                      </td>
+                      <td class="text-right" :class="claseDiferenciaFila(fila.diferencia)">
+                        {{ fila.diferencia > 0 ? '+' : fila.diferencia < 0 ? '-' : '' }}${{
+                          Math.abs(fila.diferencia).toLocaleString('es-MX', {
+                            minimumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="rs-table-hint">
+                Transferencia, tarjeta y demás métodos no representan dinero físico en el cajón — el
+                faltante/sobrante que cuenta para el cuadre de caja es solo el de Efectivo.
+              </p>
+            </div>
 
+            <!-- Resumen de cuadre (solo Efectivo, que es lo físico) -->
+            <div class="rs-card-box rs-card-box--cashier">
+              <h3 class="rs-box-title">Cuadre de Efectivo</h3>
+              <div class="rs-detail-list">
                 <div class="rs-detail-row rs-detail-diff">
-                  <span class="rs-diff-label">Diferencia Neta</span>
+                  <span class="rs-diff-label">Diferencia Neta (Efectivo)</span>
                   <span :class="diffClass" class="rs-diff-val">
                     {{ signoDiferencia }}${{
-                      Math.abs(diferenciaCalculada).toLocaleString('es-MX', {
+                      Math.abs(turno.diferenciaNeta).toLocaleString('es-MX', {
                         minimumFractionDigits: 2,
                       })
                     }}
@@ -113,12 +112,12 @@
                 </div>
 
                 <!-- Tag de estado de diferencia -->
-                <div v-if="diferenciaCalculada < 0" class="rs-diff-badge rs-diff-badge--negative">
+                <div v-if="turno.diferenciaNeta < 0" class="rs-diff-badge rs-diff-badge--negative">
                   <q-icon name="warning" size="16px" class="q-mr-xs" />
                   Faltante reportado. Requiere autorización para proceder con el depósito.
                 </div>
                 <div
-                  v-else-if="diferenciaCalculada > 0"
+                  v-else-if="turno.diferenciaNeta > 0"
                   class="rs-diff-badge rs-diff-badge--positive"
                 >
                   <q-icon name="arrow_upward" size="16px" class="q-mr-xs" />
@@ -135,23 +134,21 @@
             <div class="rs-card-box">
               <label class="rs-box-title block mb-2">
                 Observaciones de Cierre
-                <span v-if="diferenciaCalculada !== 0" class="rs-required-tag">Requerido</span>
+                <span v-if="hayDiferenciaAlguna" class="rs-required-tag">Requerido</span>
               </label>
               <textarea
                 v-model="observacionesModal"
                 rows="3"
                 class="rs-textarea"
                 :class="{
-                  'rs-textarea--invalid': diferenciaCalculada !== 0 && !observacionesValidas,
+                  'rs-textarea--invalid': hayDiferenciaAlguna && !observacionesValidas,
                 }"
                 placeholder="Ingrese comentarios, discrepancias o notas adicionales sobre el turno..."
               />
               <div
                 class="text-right text-caption mt-1"
                 :class="
-                  diferenciaCalculada !== 0 && !observacionesValidas
-                    ? 'text-negative'
-                    : 'text-grey-6'
+                  hayDiferenciaAlguna && !observacionesValidas ? 'text-negative' : 'text-grey-6'
                 "
               >
                 {{ observacionesModal.trim().length }} / 15 caracteres mín.
@@ -298,44 +295,37 @@ const cargandoPinCajero = ref(false)
 const cargandoPinAdmin = ref(false)
 const cargandoProceso = ref(false)
 
-const totalEsperadoCalculado = computed(() => {
-  return (
-    turno.totalEsperado ||
-    (turno.fondoInicial || 0) + (turno.totalVentas || 0) - (turno.totalRetiros || 0)
-  )
-})
+// El backend (RevisionAdminResponse) ya entrega el total esperado/declarado y la
+// diferencia real de EFECTIVO — no hace falta recalcularlos ni usar valores de respaldo.
 
-const totalDeclaradoContado = computed(() => {
-  return turno.totalDeclarado || turno.totalContadoDeclarado || turno.desgloseEfectivo.total || 0
-})
+// RN-VAL-005: observaciones obligatorias (mín. 15 caracteres) si hay diferencia en
+// efectivo O en cualquier otro método que el cajero haya declarado.
+const hayDiferenciaAlguna = computed(
+  () => turno.diferenciaNeta !== 0 || turno.balancePorMetodo.some((f) => f.diferencia !== 0),
+)
 
-const diferenciaCalculada = computed(() => {
-  return turno.diferenciaNeta !== 0
-    ? turno.diferenciaNeta
-    : totalDeclaradoContado.value - totalEsperadoCalculado.value
-})
-
-// RN-VAL-005: observaciones obligatorias (mín. 15 caracteres) solo si hay diferencia.
 const observacionesValidas = computed(() => {
-  if (diferenciaCalculada.value === 0) return true
+  if (!hayDiferenciaAlguna.value) return true
   return observacionesModal.value.trim().length >= 15
 })
 
 const signoDiferencia = computed(() => {
-  if (diferenciaCalculada.value > 0) return '+'
-  if (diferenciaCalculada.value < 0) return '-'
+  if (turno.diferenciaNeta > 0) return '+'
+  if (turno.diferenciaNeta < 0) return '-'
   return ''
 })
 
 const diffClass = computed(() => {
-  if (diferenciaCalculada.value < 0) return 'text-negative font-bold'
-  if (diferenciaCalculada.value > 0) return 'text-primary font-bold'
+  if (turno.diferenciaNeta < 0) return 'text-negative font-bold'
+  if (turno.diferenciaNeta > 0) return 'text-primary font-bold'
   return 'text-positive font-bold'
 })
 
-const metodosConMonto = computed(() => {
-  return turno.balancePorMetodo.filter((m) => (m.declarado || 0) > 0 || (m.esperado || 0) > 0)
-})
+function claseDiferenciaFila(diferencia: number): string {
+  if (diferencia < 0) return 'text-negative font-bold'
+  if (diferencia > 0) return 'text-primary font-bold'
+  return 'text-positive'
+}
 
 async function confirmarPinCajero() {
   if (pinCajero.value.length !== 4 || !turno.turnoId) return
@@ -443,7 +433,7 @@ async function ejecutarAutorizacionCierre() {
   const obsText = observacionesModal.value.trim()
 
   // Validar mínimo 15 caracteres en observaciones si hay diferencia neta
-  if (diferenciaCalculada.value !== 0 && obsText.length < 15) {
+  if (hayDiferenciaAlguna.value && obsText.length < 15) {
     $q.notify({
       type: 'warning',
       position: 'top',
@@ -699,6 +689,40 @@ async function ejecutarCierreExtraordinario() {
 .rs-detail-diff {
   padding-top: 12px;
   border-top: 1px solid #e2e8f0;
+}
+
+.rs-table-wrap {
+  overflow-x: auto;
+}
+.rs-balance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+.rs-balance-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+}
+.rs-balance-table td {
+  padding: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #0b1c30;
+}
+.rs-balance-table tr:last-child td {
+  border-bottom: none;
+}
+.rs-table-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
 }
 
 .rs-diff-val {

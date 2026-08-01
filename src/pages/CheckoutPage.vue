@@ -3,11 +3,14 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { useAuthStore } from '@/stores/auth'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { checkout, pagarExtra, fetchMetodoPagoPorDefecto } from '@/api/onboardingClient'
 import { Notify } from 'quasar'
+import SinAperturaCajaPanel from '@/components/cierre-caja/SinAperturaCajaPanel.vue'
 
 const store = useAccessControlStore()
 const authStore = useAuthStore()
+const turno = useTurnoCajaStore()
 const router = useRouter()
 
 const child = computed(() => store.checkoutChild)
@@ -109,7 +112,13 @@ function cancelar() {
 </script>
 
 <template>
-  <q-page v-if="child" class="checkout-page q-pa-lg">
+  <q-page v-if="child && !turno.estaOperando" class="checkout-page q-pa-lg">
+    <SinAperturaCajaPanel>
+      No puedes procesar la salida de un niño sin un turno de caja abierto (operando).
+    </SinAperturaCajaPanel>
+  </q-page>
+
+  <q-page v-else-if="child" class="checkout-page q-pa-lg">
     <!-- Header -->
     <div class="row items-center q-mb-lg">
       <div>

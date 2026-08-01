@@ -2,8 +2,11 @@
   <!--
     Overlay de bloqueo visual de la terminal.
     Se renderiza sobre el contenido principal cuando la fase es
-    ESPERANDO_REVISION: el cajero ya envió su conteo y debe esperar
-    al administrador. Previene ediciones accidentales.
+    ESPERANDO_REVISION, en el caso borde de que el modal de autenticación del
+    administrador no esté abierto todavía (ej. el cajero recargó la página).
+    No se "envía" nada a ningún lado — el conteo queda congelado en la BD y el
+    siguiente paso es que un administrador inicie sesión en ESTE MISMO equipo
+    para revisar el balance. Previene ediciones accidentales mientras tanto.
   -->
   <Teleport to="body">
     <Transition name="overlay-fade">
@@ -14,8 +17,8 @@
           <div class="bloqueo-titulo">Terminal en espera</div>
 
           <div class="bloqueo-mensaje">
-            El conteo ha sido enviado correctamente.<br />
-            Aguarda mientras un administrador verifica el cierre.
+            El conteo quedó registrado.<br />
+            Un administrador debe iniciar sesión en este equipo para revisar el balance.
           </div>
 
           <!-- Spinner de espera -->

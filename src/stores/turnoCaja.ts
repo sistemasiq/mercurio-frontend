@@ -229,6 +229,20 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       credencialesAdmin.error = ''
       mostrarDialogAdmin.value = true
     } catch (err) {
+      const apiErr = err as ApiError
+      // Si el backend dice que el conteo ya estaba enviado (ej. la página se recargó
+      // mientras estaba en ESPERANDO_REVISION y por eso mostraba otra vez este
+      // formulario), no es un error real para el cajero — el conteo sí se registró,
+      // solo falta la revisión del administrador. Se resincroniza el turno real:
+      // _aplicarTurno ya abre el modal automáticamente si el estado es ESPERANDO_REVISION.
+      if (apiErr.code === 'TRANSICION_INVALIDA') {
+        try {
+          await cargarTurnoActivo()
+          if (esperandoRevision.value) return
+        } catch {
+          // si la resincronización falla, se maneja como error normal abajo
+        }
+      }
       error.value = (err as Error).message
     } finally {
       cargando.value = false
@@ -266,15 +280,6 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       credencialesAdmin.email = ''
       credencialesAdmin.password = ''
     }
-  }
-
-  /** Cancela el modal sin autenticar — vuelve a EN_CONTEO en UI. */
-  function cancelarDialogAdmin(): void {
-    mostrarDialogAdmin.value = false
-    mostrarDialogAutorizacion.value = false
-    credencialesAdmin.email = ''
-    credencialesAdmin.password = ''
-    credencialesAdmin.error = ''
   }
 
   /**
@@ -424,6 +429,13 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalVentas.value = turno.totalVentas ?? 0
     estado.value = turno.estado
 
+    // Si el turno ya llega en ESPERANDO_REVISION (ej. el cajero recargó la página
+    // después de enviar el conteo), abre directo el modal de autenticación del
+    // administrador en vez de dejar solo el overlay de espera sin salida.
+    if (turno.estado === 'ESPERANDO_REVISION' && !mostrarDialogAdmin.value) {
+      mostrarDialogAdmin.value = true
+    }
+
     // Precarga las filas de métodos de pago con los movimientos reales del turno.
     // Se conservan las filas agregadas manualmente por el cajero que no vinieron del sistema.
     const filasManuales = metodosPago.value.filter((f) => f.origen === 'manual')
@@ -499,7 +511,6 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     iniciarConteo,
     enviarConteo,
     autenticarAdmin,
-    cancelarDialogAdmin,
     cancelarConteo,
     registrarRetiro,
     confirmarCierre,

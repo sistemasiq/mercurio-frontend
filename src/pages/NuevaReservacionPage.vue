@@ -1,5 +1,11 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
+  <q-page v-if="!turno.estaOperando" class="page-content q-pa-md q-pa-lg-xl">
+    <SinAperturaCajaPanel>
+      No puedes crear una nueva reservación sin un turno de caja abierto (operando).
+    </SinAperturaCajaPanel>
+  </q-page>
+
+  <q-page v-else class="page-content q-pa-md q-pa-lg-xl">
     <div style="width: 100%; max-width: 1800px; margin: 0 auto">
       <!-- Page Title -->
       <div class="q-mb-xl text-left q-px-sm">
@@ -664,6 +670,8 @@ import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import SinAperturaCajaPanel from '@/components/cierre-caja/SinAperturaCajaPanel.vue'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -674,6 +682,7 @@ const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
 const authStore = useAuthStore()
 const pagosStore = usePagosReservacionesStore()
+const turno = useTurnoCajaStore()
 
 onMounted(() => {
   paquetesStore.cargar(authStore.currentBranchId ?? undefined)

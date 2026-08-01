@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useRouter } from 'vue-router'
 import TutorForm from '@/components/registro-infantes/TutorForm.vue'
 import ChildrenSection from '@/components/registro-infantes/ChildrenSection.vue'
 import OrderSummary from '@/components/registro-infantes/OrderSummary.vue'
 import RfidSection from '@/components/registro-infantes/RfidSection.vue'
 import PrintVoucher from '@/components/registro-infantes/PrintVoucher.vue'
+import SinAperturaCajaPanel from '@/components/cierre-caja/SinAperturaCajaPanel.vue'
 
 const store = useRegistrationStore()
+const turno = useTurnoCajaStore()
 const router = useRouter()
 
 onMounted(() => {
@@ -71,6 +74,10 @@ onUnmounted(() => {
         <q-btn flat color="primary" icon="add" label="Volver" @click="router.back()" />
       </div>
     </div>
+
+    <SinAperturaCajaPanel v-else-if="!turno.estaOperando">
+      No puedes registrar el ingreso de un niño sin un turno de caja abierto (operando).
+    </SinAperturaCajaPanel>
 
     <div v-else class="row q-col-gutter-lg">
       <div class="col-12 col-md-8">

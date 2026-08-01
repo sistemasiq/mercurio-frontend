@@ -16,19 +16,6 @@
       />
     </div>
 
-    <!-- Hint de diferencia -->
-    <div v-if="hayDiferencia" class="rs-diferencia" :class="claseDiferenciaLocal">
-      <span class="material-symbols-outlined rs-diferencia-icon">
-        {{ diferencia === 0 ? 'check_circle' : 'warning' }}
-      </span>
-      <span v-if="diferencia === 0">Coincide con el total calculado.</span>
-      <span v-else>
-        Diferencia de {{ formatMXN(Math.abs(diferencia)) }} ({{
-          diferencia > 0 ? 'sobrante' : 'faltante'
-        }}) frente al calculado ({{ formatMXN(totalCalculado) }}).
-      </span>
-    </div>
-
     <button type="button" class="rs-usar-calculado" @click="modelValue = totalCalculado">
       Usar total calculado
     </button>
@@ -36,25 +23,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { formatMXN } from '@/utils/formatoMoneda'
-
-const props = defineProps<{
+defineProps<{
   totalCalculado: number
 }>()
 
 const modelValue = defineModel<number | null>({ default: null })
-
-const hayDiferencia = computed(() => modelValue.value !== null && modelValue.value !== undefined)
-const diferencia = computed(() => {
-  if (!hayDiferencia.value) return 0
-  return Number(((modelValue.value ?? 0) - props.totalCalculado).toFixed(2))
-})
-
-const claseDiferenciaLocal = computed(() => {
-  if (diferencia.value === 0) return 'rs-diferencia--ok'
-  return 'rs-diferencia--warn'
-})
 </script>
 
 <style scoped>
@@ -129,30 +102,6 @@ const claseDiferenciaLocal = computed(() => {
 }
 .rs-declarado-input :deep(input.rs-declarado-native)::placeholder {
   color: #c6c5d4;
-}
-
-/* ── Hint de diferencia ─────────────────────────────────────────────── */
-.rs-diferencia {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-}
-.rs-diferencia-icon {
-  font-size: 16px;
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
-}
-.rs-diferencia--ok {
-  color: #1b5e20;
-}
-.rs-diferencia--warn {
-  color: #b7131a;
 }
 
 /* ── Botón "Usar calculado" ─────────────────────────────────────────── */

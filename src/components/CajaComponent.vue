@@ -7,137 +7,84 @@
           <h1 class="caja-header__titulo">Estación Principal</h1>
           <div class="caja-header__sub">Terminal #01 | Cajero: {{ turno.cajeroNombre || '—' }}</div>
         </div>
+      </div>
 
-        <!-- Acciones y estado del turno -->
-        <div class="row items-center q-gutter-x-sm">
-          <q-chip
-            v-if="turno.estaOperando"
-            dense
-            color="teal-1"
-            text-color="teal-9"
-            icon="check_circle"
-            class="text-weight-bold"
-          >
-            Turno Activo (${{ turno.fondoInicial.toLocaleString('es-MX') }})
-          </q-chip>
-          <q-chip
-            v-else
-            dense
-            color="amber-2"
-            text-color="amber-10"
-            icon="warning"
-            class="text-weight-bold"
-          >
-            Sin Turno Activo
-          </q-chip>
+      <!-- El estado del turno (aperturado / en conteo / sin apertura) ya se ve de
+           forma universal en el encabezado, junto a la sucursal — aquí no se
+           duplica. Sin turno OPERANDO, se bloquea por completo la venta (no solo
+           un aviso al lado del catálogo, que igual dejaba agregar productos). -->
+      <SinAperturaCajaPanel v-if="!turno.estaOperando">
+        No puedes registrar ventas sin un turno de caja abierto (operando).
+      </SinAperturaCajaPanel>
 
+      <template v-else>
+        <div class="caja-cats hide-scrollbar">
+          <button
+            v-for="cat in listaCategorias"
+            :key="cat.value"
+            class="cat-pill"
+            :class="{ 'cat-pill--active': categoriaSeleccionada === cat.value }"
+            @click="seleccionarCategoria(cat.value)"
+          >
+            {{ cat.label }}
+          </button>
+        </div>
+
+        <div class="caja-productos hide-scrollbar">
+          <div v-if="loading" class="caja-grid">
+            <q-card v-for="n in 8" :key="n" flat bordered class="skeleton-card">
+              <q-skeleton type="rect" height="100px" />
+              <q-card-section>
+                <q-skeleton type="text" width="65%" class="q-mb-xs" />
+                <q-skeleton type="text" width="85%" />
+              </q-card-section>
+            </q-card>
+          </div>
+
+          <q-banner v-else-if="error" class="bg-orange-1 text-orange-10" rounded>
+            No se pudieron cargar los productos. Intenta de nuevo.
+          </q-banner>
+
+          <div v-else class="caja-grid">
+            <ProductoCard
+              v-for="producto in productosFiltrados"
+              :key="producto.id"
+              :producto="producto"
+              @agregar="agregarAlTicket"
+            />
+          </div>
+        </div>
+
+        <div class="caja-footer">
+          <div class="caja-footer__stats">
+            <div class="stat-block">
+              <span class="stat-label">PRODUCTOS TOTALES</span>
+              <span class="stat-value text-primary">{{ totalProductos }}</span>
+            </div>
+            <div class="stat-sep"></div>
+            <div class="stat-block">
+              <span class="stat-label">PEDIDOS</span>
+              <span class="stat-value text-orange-9">{{ totalComandasActivas }}</span>
+            </div>
+          </div>
           <q-btn
-            v-if="turno.estaOperando"
-            outline
-            dense
-            no-caps
-            color="primary"
-            icon="point_of_sale"
-            label="Cierre de Caja"
-            class="q-px-sm"
-            @click="router.push('/pos/cierre')"
-          />
-          <q-btn
-            v-else
+            v-if="!ticketAbierto"
             unelevated
-            dense
-            no-caps
-            color="positive"
-            icon="key"
-            label="Abrir Caja"
-            class="q-px-sm"
-            @click="router.push('/pos/cierre')"
-          />
-        </div>
-      </div>
-
-      <!-- Banner de aviso si no hay turno activo -->
-      <q-banner v-if="turno.sinTurno" class="bg-amber-1 text-amber-10 q-mx-md q-mt-md" rounded>
-        <template #avatar><q-icon name="info" color="amber-9" /></template>
-        No hay un turno de caja activo. Es necesario realizar la
-        <strong>Apertura de Caja</strong> antes de procesar comandas.
-        <template #action>
-          <q-btn
-            flat
-            no-caps
             color="primary"
-            label="Ir a Apertura de Caja"
-            @click="router.push('/pos/cierre')"
-          />
-        </template>
-      </q-banner>
-
-      <div class="caja-cats hide-scrollbar">
-        <button
-          v-for="cat in listaCategorias"
-          :key="cat.value"
-          class="cat-pill"
-          :class="{ 'cat-pill--active': categoriaSeleccionada === cat.value }"
-          @click="seleccionarCategoria(cat.value)"
-        >
-          {{ cat.label }}
-        </button>
-      </div>
-
-      <div class="caja-productos hide-scrollbar">
-        <div v-if="loading" class="caja-grid">
-          <q-card v-for="n in 8" :key="n" flat bordered class="skeleton-card">
-            <q-skeleton type="rect" height="100px" />
-            <q-card-section>
-              <q-skeleton type="text" width="65%" class="q-mb-xs" />
-              <q-skeleton type="text" width="85%" />
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <q-banner v-else-if="error" class="bg-orange-1 text-orange-10" rounded>
-          No se pudieron cargar los productos. Intenta de nuevo.
-        </q-banner>
-
-        <div v-else class="caja-grid">
-          <ProductoCard
-            v-for="producto in productosFiltrados"
-            :key="producto.id"
-            :producto="producto"
-            @agregar="agregarAlTicket"
+            icon="add_circle"
+            label="Nuevo Pedido"
+            class="text-weight-bold"
+            style="border-radius: 12px"
+            @click="ticketAbierto = true"
           />
         </div>
-      </div>
-
-      <div class="caja-footer">
-        <div class="caja-footer__stats">
-          <div class="stat-block">
-            <span class="stat-label">PRODUCTOS TOTALES</span>
-            <span class="stat-value text-primary">{{ totalProductos }}</span>
-          </div>
-          <div class="stat-sep"></div>
-          <div class="stat-block">
-            <span class="stat-label">PEDIDOS</span>
-            <span class="stat-value text-orange-9">{{ totalComandasActivas }}</span>
-          </div>
-        </div>
-        <q-btn
-          v-if="!ticketAbierto"
-          unelevated
-          color="primary"
-          icon="add_circle"
-          label="Nuevo Pedido"
-          class="text-weight-bold"
-          style="border-radius: 12px"
-          @click="ticketAbierto = true"
-        />
-      </div>
+      </template>
     </div>
 
     <!-- Columna derecha: panel del ticket -->
     <transition name="slide-ticket">
       <TicketPanel
-        v-if="ticketAbierto"
+        v-if="ticketAbierto && turno.estaOperando"
         :items="itemsTicket"
         :enviando="enviando"
         @cancelar="cancelarOrden"
@@ -181,10 +128,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
+import SinAperturaCajaPanel from '@/components/cierre-caja/SinAperturaCajaPanel.vue'
 import TicketPanel from '@/components/comandas/TicketPanel.vue'
 import { type ItemTicket } from '@/components/comandas/TicketItem.vue'
 import { obtenerProductos } from '@/services/productoService'
@@ -201,7 +148,6 @@ import type {
 } from '@/types/comanda'
 
 const $q = useQuasar()
-const router = useRouter()
 const authStore = useAuthStore()
 const turno = useTurnoCajaStore()
 const props = defineProps<{ searchTerm?: string }>()

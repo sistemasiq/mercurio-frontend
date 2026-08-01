@@ -103,10 +103,23 @@ onMounted(() => {
   }
 })
 
-// Métodos del catálogo real, activos, que aún no aparecen como fila (ni de sistema ni agregados)
+// Métodos del catálogo real, activos, que aún no aparecen como fila (ni de sistema ni agregados).
+// "Efectivo" nunca se ofrece aquí: ya tiene su propio bloque (EfectivoDesgloseForm). El catálogo
+// puede tener varias filas con el mismo nombre (duplicados de captura) — se deja solo una por nombre.
 const opcionesDisponibles = computed(() => {
   const nombresEnUso = new Set(modelValue.value.map((f) => f.metodo.trim().toLowerCase()))
-  return metodosPagoStore.activos.filter((m) => !nombresEnUso.has(m.nombre.trim().toLowerCase()))
+  const vistos = new Set<string>()
+  const disponibles: typeof metodosPagoStore.activos = []
+
+  for (const m of metodosPagoStore.activos) {
+    const nombre = m.nombre.trim().toLowerCase()
+    if (nombre === 'efectivo') continue
+    if (nombresEnUso.has(nombre)) continue
+    if (vistos.has(nombre)) continue
+    vistos.add(nombre)
+    disponibles.push(m)
+  }
+  return disponibles
 })
 
 let nextId = 1
