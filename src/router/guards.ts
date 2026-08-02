@@ -1,5 +1,6 @@
 import type { Router } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAccessControlStore } from '@/stores/accessControl'
 
 export function setupRouterGuards(router: Router): void {
   router.beforeEach(async (to) => {
@@ -28,6 +29,20 @@ export function setupRouterGuards(router: Router): void {
     const esAdminDeSucursal = auth.hasRole('Administrador') && !auth.hasRole('AdministradorSistema')
     if (esAdminDeSucursal && (to.name === 'pos-cierre' || to.name === 'pos-caja')) {
       return { name: 'pos-historial-arqueos' }
+    }
+
+    if (to.name === 'estancias-registro-infantes') {
+      const accessControlStore = useAccessControlStore()
+      if (!accessControlStore.lastUpdated || accessControlStore.pulserasLibres < 2) {
+        return { name: 'estancias-control-acceso' }
+      }
+    }
+
+    if (to.name === 'estancias-checkout') {
+      const accessControlStore = useAccessControlStore()
+      if (!accessControlStore.checkoutChild) {
+        return { name: 'estancias-control-acceso' }
+      }
     }
   })
 }

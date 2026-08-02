@@ -214,6 +214,8 @@
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useExtrasStore } from '@/stores/extras'
 import type { Extras } from '@/types/extras'
@@ -281,8 +283,16 @@ const cerrarDialog = () => {
 }
 
 const guardar = async () => {
-  if (!formDialog.value.nombre.trim() || formDialog.value.precio <= 0) {
+  if (!formDialog.value.nombre.trim()) {
     nombreRef.value?.validate()
+    return
+  }
+  if (formDialog.value.precio <= 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'El precio debe ser mayor a cero.',
+      position: 'top-right',
+    })
     return
   }
   guardando.value = true
@@ -296,6 +306,14 @@ const guardar = async () => {
       })
       $q.notify({ type: 'positive', message: 'Extra actualizado', position: 'top-right' })
     } else {
+      if (!formDialog.value.global && !authStore.currentBranchId) {
+        $q.notify({
+          type: 'negative',
+          message: 'No hay una sucursal activa en la sesión.',
+          position: 'top-right',
+        })
+        return
+      }
       await store.createExtras({
         nombre: formDialog.value.nombre.trim(),
         precio: String(formDialog.value.precio),
@@ -306,10 +324,10 @@ const guardar = async () => {
       $q.notify({ type: 'positive', message: 'Extra creado', position: 'top-right' })
     }
     cerrarDialog()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -327,8 +345,12 @@ const toggleActivo = async (row: Extras) => {
       message: `Extra ${!row.activo ? 'activado' : 'desactivado'}`,
       position: 'top-right',
     })
-  } catch {
-    $q.notify({ type: 'negative', message: 'No se pudo cambiar el estado.', position: 'top-right' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
   }
 }
 
@@ -350,10 +372,10 @@ const ejecutarEliminar = async () => {
     await store.deleteExtras(filaEliminar.value.id)
     $q.notify({ type: 'positive', message: 'Extra eliminado', position: 'top-right' })
     dialogEliminar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {

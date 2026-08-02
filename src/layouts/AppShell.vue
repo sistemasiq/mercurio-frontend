@@ -78,6 +78,23 @@ const navGroups = computed<NavGroup[]>(() => [
         routeName: 'estancias-pulseras',
         permission: 'pulseras:listar',
       },
+      {
+        label: 'Registro de Pulseras',
+        icon: 'qr_code_scanner',
+        routeName: 'estancias-pulseras-registro',
+        permission: 'pulseras:crear',
+      },
+    ],
+  },
+  {
+    label: 'POS',
+    items: [
+      {
+        label: 'Historial',
+        icon: 'receipt_long',
+        routeName: 'pos-historial',
+        permission: 'restaurante:registrar_pago',
+      },
     ],
   },
   {
@@ -154,6 +171,58 @@ const navGroups = computed<NavGroup[]>(() => [
     ],
   },
   {
+    label: 'INVENTARIO',
+    items: [
+      {
+        label: 'Insumos',
+        icon: 'inventory_2',
+        routeName: 'insumos-listar',
+        permission: 'inventario:gestionar_insumos',
+      },
+      {
+        label: 'Proveedores',
+        icon: 'local_shipping',
+        routeName: 'proveedores-listar',
+        permission: 'inventario:gestionar_proveedores',
+      },
+      {
+        label: 'Compras',
+        icon: 'shopping_cart',
+        routeName: 'compras-listar',
+        permission: 'inventario:gestionar_compras',
+      },
+      {
+        label: 'Reporte de Stock',
+        icon: 'query_stats',
+        routeName: 'reportes-inventario',
+        permission: 'reportes:inventario',
+      },
+    ],
+  },
+  {
+    label: 'LEALTAD',
+    items: [
+      {
+        label: 'Configuración',
+        icon: 'loyalty',
+        routeName: 'lealtad-configuracion',
+        permission: 'lealtad:gestionar_configuracion',
+      },
+      {
+        label: 'Kardex',
+        icon: 'history',
+        routeName: 'lealtad-kardex',
+        permission: 'lealtad:ver_saldo',
+      },
+      {
+        label: 'Reporte',
+        icon: 'query_stats',
+        routeName: 'lealtad-reporte',
+        permission: 'lealtad:ver_reporte',
+      },
+    ],
+  },
+  {
     label: 'ADMINISTRACIÓN',
     items: [
       {
@@ -167,6 +236,12 @@ const navGroups = computed<NavGroup[]>(() => [
         icon: 'group',
         routeName: 'usuarios-listar',
         permission: 'usuarios:listar',
+      },
+      {
+        label: 'Roles',
+        icon: 'admin_panel_settings',
+        routeName: 'roles-listar',
+        permission: 'permisos:ver',
       },
       {
         label: 'Reportes',

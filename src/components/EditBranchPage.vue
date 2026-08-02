@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { branchService } from '@/services/branchService'
 import { userService } from '@/services/userService'
 import type { Branch } from '@/types/branch'
+import type { ApiError } from '@/types/auth'
+import { resolveErrorMessage } from '@/utils/errorHandler'
 import { Notify } from 'quasar'
 
 const route = useRoute()
@@ -14,6 +16,7 @@ const loading = ref(true)
 const branchEmail = ref('')
 const branchClave = ref('')
 const administrador = ref<{ id: string; label: string } | null>(null)
+const adminOptionsAll = ref<{ id: string; label: string }[]>([])
 const adminOptions = ref<{ id: string; label: string }[]>([])
 const adminLoading = ref(false)
 
@@ -50,13 +53,14 @@ onMounted(async () => {
   }
 
   if (users.status === 'fulfilled') {
-    adminOptions.value = users.value
+    adminOptionsAll.value = users.value
       .filter((u) => u.role === 'Administrador' && u.isActive)
       .map((u) => ({ id: u.id, label: u.name }))
+    adminOptions.value = adminOptionsAll.value
 
     if (branch.value?.administradorId) {
       administrador.value =
-        adminOptions.value.find((a) => a.id === branch.value!.administradorId) ?? null
+        adminOptionsAll.value.find((a) => a.id === branch.value!.administradorId) ?? null
     }
   }
 
@@ -115,8 +119,8 @@ async function saveChanges() {
     })
     Notify.create({ type: 'positive', message: 'Sucursal actualizada con éxito.' })
     router.push({ name: 'sucursales-listar' })
-  } catch {
-    Notify.create({ type: 'negative', message: 'Error al guardar los cambios.' })
+  } catch (err) {
+    Notify.create({ type: 'negative', message: resolveErrorMessage(err as ApiError) })
   } finally {
     loading.value = false
   }
@@ -124,6 +128,17 @@ async function saveChanges() {
 
 function cancelEdit() {
   router.back()
+}
+
+function filterAdminOptions(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    if (!val) {
+      adminOptions.value = adminOptionsAll.value
+      return
+    }
+    const needle = val.toLowerCase()
+    adminOptions.value = adminOptionsAll.value.filter((o) => o.label.toLowerCase().includes(needle))
+  })
 }
 </script>
 
@@ -291,6 +306,7 @@ function cancelEdit() {
                   clearable
                   class="field-input"
                   map-options
+                  @filter="filterAdminOptions"
                 >
                   <template #prepend><q-icon name="search" color="grey-6" /></template>
                   <template #no-option>

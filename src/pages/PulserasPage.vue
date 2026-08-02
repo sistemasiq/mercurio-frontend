@@ -9,17 +9,6 @@
             Pulseras RFID disponibles para el control de acceso de la sucursal.
           </div>
         </div>
-        <q-space />
-        <q-btn
-          color="primary"
-          icon="add"
-          label="Nueva Pulsera"
-          unelevated
-          no-caps
-          :disable="!authStore.currentBranchId"
-          style="border-radius: 8px; font-weight: 600"
-          @click="abrirCrear"
-        />
       </div>
 
       <!-- Sin sucursal activa -->
@@ -49,25 +38,117 @@
         </template>
       </q-banner>
 
+      <!-- Resumen -->
+      <div class="row q-col-gutter-md q-mb-lg">
+        <div class="col-12 col-sm-4">
+          <div class="stat-card">
+            <div>
+              <div class="stat-card__label">Total</div>
+              <div class="stat-card__value">{{ store.pulseras.length }}</div>
+            </div>
+            <div class="stat-card__icon stat-card__icon--blue">
+              <q-icon name="contactless" />
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-4">
+          <div class="stat-card">
+            <div>
+              <div class="stat-card__label">Activas</div>
+              <div class="stat-card__value">{{ totalActivas }}</div>
+            </div>
+            <div class="stat-card__icon stat-card__icon--green">
+              <q-icon name="check_circle" />
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-4">
+          <div class="stat-card">
+            <div>
+              <div class="stat-card__label">Inactivas</div>
+              <div class="stat-card__value">{{ totalInactivas }}</div>
+            </div>
+            <div class="stat-card__icon stat-card__icon--orange">
+              <q-icon name="do_not_disturb_on" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Tabla -->
       <q-card flat bordered style="border-radius: 12px; overflow: hidden">
+        <!-- Toolbar: búsqueda + filtro de estado -->
+        <div
+          class="row items-center q-pa-md q-gutter-md"
+          style="border-bottom: 1px solid var(--border-color)"
+        >
+          <q-input
+            v-model="busqueda"
+            dense
+            outlined
+            clearable
+            debounce="150"
+            placeholder="Buscar por código RFID…"
+            class="col-12 col-sm"
+            style="max-width: 320px"
+          >
+            <template #prepend><q-icon name="search" size="18px" /></template>
+          </q-input>
+          <q-space />
+          <q-btn-toggle
+            v-model="filtroEstado"
+            no-caps
+            unelevated
+            dense
+            toggle-color="primary"
+            color="white"
+            text-color="grey-8"
+            padding="6px 14px"
+            style="border: 1px solid var(--border-color); border-radius: 8px"
+            :options="[
+              { label: 'Todas', value: 'todas' },
+              { label: 'Activas', value: 'activas' },
+              { label: 'Inactivas', value: 'inactivas' },
+            ]"
+          />
+        </div>
+
         <q-table
-          :rows="store.pulseras"
+          :rows="pulserasEnPagina"
           :columns="columns"
           row-key="id"
           flat
           :loading="store.loading"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="No hay pulseras registradas"
+          hide-pagination
+          :rows-per-page-options="[0]"
           class="fec-table"
         >
+          <template #body-cell-pulsera_rfid="props">
+            <q-td :props="props">
+              <div class="row items-center no-wrap">
+                <div class="rfid-chip q-mr-sm">
+                  <q-icon name="contactless" size="16px" />
+                </div>
+                <span class="rfid-code">{{ props.row.pulsera_rfid }}</span>
+              </div>
+            </q-td>
+          </template>
+
+          <template #body-cell-creado="props">
+            <q-td :props="props" style="color: var(--text-secondary)">
+              {{ formatearFecha(props.row.creado) }}
+            </q-td>
+          </template>
+
           <template #body-cell-activo="props">
             <q-td :props="props">
-              <q-badge
-                :color="props.row.activo ? 'positive' : 'grey-5'"
-                :label="props.row.activo ? 'Activa' : 'Inactiva'"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
-              />
+              <span
+                class="estado-pill"
+                :class="props.row.activo ? 'estado-pill--activa' : 'estado-pill--inactiva'"
+              >
+                <span class="estado-pill__dot" />
+                {{ props.row.activo ? 'Activa' : 'Inactiva' }}
+              </span>
             </q-td>
           </template>
 
@@ -79,7 +160,7 @@
                 dense
                 :icon="props.row.activo ? 'toggle_on' : 'toggle_off'"
                 :color="props.row.activo ? 'positive' : 'grey-5'"
-                size="sm"
+                size="large"
                 class="q-mr-xs"
                 @click="toggleActivo(props.row)"
               >
@@ -99,48 +180,39 @@
               </q-btn>
             </q-td>
           </template>
+
+          <template #no-data>
+            <div class="column items-center q-pa-xl full-width">
+              <q-icon name="contactless" size="42px" style="color: var(--text-muted)" />
+              <div class="q-mt-sm text-body2" style="color: var(--text-secondary)">
+                {{
+                  busqueda || filtroEstado !== 'todas'
+                    ? 'Ninguna pulsera coincide con el filtro.'
+                    : 'No hay pulseras registradas.'
+                }}
+              </div>
+            </div>
+          </template>
         </q-table>
+
+        <!-- Footer paginación -->
+        <div class="pulseras-footer">
+          <div class="pulseras-footer__info">
+            Mostrando {{ inicioPagina }} – {{ finPagina }} de
+            {{ pulserasFiltradas.length }} resultados
+          </div>
+          <q-pagination
+            v-model="paginaActual"
+            :max="totalPaginas"
+            :max-pages="5"
+            direction-links
+            boundary-links
+            color="primary"
+            active-color="primary"
+          />
+        </div>
       </q-card>
     </div>
-
-    <!-- ── Dialog Crear ─────────────────────────────────────────────────────── -->
-    <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 380px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Nueva Pulsera</div>
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">CÓDIGO RFID</div>
-            <q-input
-              ref="rfidRef"
-              v-model="formDialog.pulsera_rfid"
-              dense
-              outlined
-              autofocus
-              placeholder="Ej. RFID-001"
-              :rules="[(v) => !!v || 'El código RFID es requerido']"
-            />
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            label="Crear pulsera"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            @click="guardar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
 
     <!-- ── Dialog Confirmar Eliminar ────────────────────────────────────────── -->
     <q-dialog v-model="dialogEliminar">
@@ -171,9 +243,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { usePulserasStore } from '@/stores/pulseras'
 import type { PulseraAdmin } from '@/types/pulsera'
@@ -196,50 +270,57 @@ const columns: QTableColumn[] = [
     align: 'left',
     sortable: true,
   },
+  { name: 'creado', label: 'REGISTRADA', field: 'creado', align: 'left', sortable: true },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
 
-// ── Estado del dialog ─────────────────────────────────────────────────────────
+// ── Resumen y filtros ─────────────────────────────────────────────────────────
 
-const dialogOpen = ref(false)
-const guardando = ref(false)
-const rfidRef = ref()
+const busqueda = ref('')
+const filtroEstado = ref<'todas' | 'activas' | 'inactivas'>('todas')
+const paginaActual = ref(1)
+const porPagina = 10
 
-const formDialog = ref({ pulsera_rfid: '' })
+const totalActivas = computed(() => store.pulseras.filter((p) => p.activo).length)
+const totalInactivas = computed(() => store.pulseras.length - totalActivas.value)
 
-const abrirCrear = () => {
-  formDialog.value = { pulsera_rfid: '' }
-  dialogOpen.value = true
-}
+const pulserasFiltradas = computed(() => {
+  const q = busqueda.value?.trim().toLowerCase() ?? ''
+  return store.pulseras.filter((p) => {
+    if (filtroEstado.value === 'activas' && !p.activo) return false
+    if (filtroEstado.value === 'inactivas' && p.activo) return false
+    return !q || p.pulsera_rfid.toLowerCase().includes(q)
+  })
+})
 
-const cerrarDialog = () => {
-  dialogOpen.value = false
-}
+const totalPaginas = computed(() =>
+  Math.max(1, Math.ceil(pulserasFiltradas.value.length / porPagina)),
+)
+const inicioPagina = computed(() =>
+  Math.min((paginaActual.value - 1) * porPagina + 1, pulserasFiltradas.value.length || 1),
+)
+const finPagina = computed(() =>
+  Math.min(paginaActual.value * porPagina, pulserasFiltradas.value.length),
+)
+const pulserasEnPagina = computed(() =>
+  pulserasFiltradas.value.slice(
+    (paginaActual.value - 1) * porPagina,
+    paginaActual.value * porPagina,
+  ),
+)
 
-const guardar = async () => {
-  if (!formDialog.value.pulsera_rfid.trim()) {
-    rfidRef.value?.validate()
-    return
-  }
-  if (!authStore.currentBranchId) return
-  guardando.value = true
-  try {
-    await store.crear({
-      pulsera_rfid: formDialog.value.pulsera_rfid.trim(),
-      sucursal_id: authStore.currentBranchId,
-    })
-    $q.notify({ type: 'positive', message: 'Pulsera creada', position: 'top-right' })
-    cerrarDialog()
-  } catch {
-    $q.notify({
-      type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
-      position: 'top-right',
-    })
-  } finally {
-    guardando.value = false
-  }
+watch([busqueda, filtroEstado], () => {
+  paginaActual.value = 1
+})
+
+const formatearFecha = (iso?: string | null) => {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 // ── Toggle activo ─────────────────────────────────────────────────────────────
@@ -252,8 +333,12 @@ const toggleActivo = async (row: PulseraAdmin) => {
       message: `Pulsera ${!row.activo ? 'activada' : 'desactivada'}`,
       position: 'top-right',
     })
-  } catch {
-    $q.notify({ type: 'negative', message: 'No se pudo cambiar el estado.', position: 'top-right' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
   }
 }
 
@@ -275,10 +360,10 @@ const ejecutarEliminar = async () => {
     await store.eliminar(filaEliminar.value.id)
     $q.notify({ type: 'positive', message: 'Pulsera eliminada', position: 'top-right' })
     dialogEliminar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -288,12 +373,64 @@ const ejecutarEliminar = async () => {
 </script>
 
 <style scoped>
-.field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
+.rfid-chip {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--q-primary);
+  flex: 0 0 auto;
+}
+
+.rfid-code {
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  letter-spacing: 0.4px;
+}
+
+.estado-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.estado-pill__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.estado-pill--activa {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.estado-pill--inactiva {
+  background: rgba(148, 163, 184, 0.18);
+  color: #475569;
+}
+
+.pulseras-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pulseras-footer__info {
+  font-size: 12px;
+  color: #1565c0;
+  font-weight: 500;
 }
 </style>

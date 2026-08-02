@@ -1,29 +1,48 @@
 import { productosApi } from '@/api/productosApi'
-import type { Producto, ProductoAdmin, ProductoCreate, ProductoUpdate } from '@/types/producto'
+import type {
+  Producto,
+  ProductoAdmin,
+  ProductoComboHijo,
+  ProductoCreate,
+  ProductoUpdate,
+} from '@/types/producto'
+
+function mapProductoUi(producto: ProductoAdmin): Producto {
+  const { precio_unitario, ...resto } = producto
+  return {
+    ...resto,
+    precio_unitario: Number(precio_unitario),
+  }
+}
 
 export async function obtenerProductos(signal?: AbortSignal): Promise<Producto[]> {
-  const productos = await productosApi.listar(signal)
-  return productos.map((producto) => ({
-    ...producto,
-    precio_unitario: Number(producto.precio_unitario),
-  }))
+  const productos = await productosApi.listarCatalogo(signal)
+  return productos.map(mapProductoUi)
 }
 
-export async function listarProductosAdmin(sucursalId: string): Promise<ProductoAdmin[]> {
-  return productosApi.listarAdmin(sucursalId)
-}
-
-export async function crearProducto(body: ProductoCreate): Promise<ProductoAdmin> {
-  return productosApi.crear(body)
+export async function crearProducto(
+  body: ProductoCreate,
+  imagen?: File | null,
+): Promise<ProductoAdmin> {
+  return productosApi.crear(body, imagen)
 }
 
 export async function actualizarProducto(
   productoId: string,
   body: ProductoUpdate,
+  imagen?: File | null,
 ): Promise<ProductoAdmin> {
-  return productosApi.actualizar(productoId, body)
+  return productosApi.actualizar(productoId, body, imagen)
 }
 
 export async function eliminarProducto(productoId: string): Promise<void> {
   return productosApi.eliminar(productoId)
+}
+
+export async function reactivarProducto(productoId: string): Promise<ProductoAdmin> {
+  return productosApi.reactivar(productoId)
+}
+
+export async function obtenerComboHijos(comboId: string): Promise<ProductoComboHijo[]> {
+  return productosApi.obtenerComboHijos(comboId)
 }

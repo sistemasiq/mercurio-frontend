@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRegistrationStore } from '@/stores/registration'
+import { allowOnlyLettersKeydown } from '@/utils/validators'
 import { ref, onBeforeUnmount } from 'vue'
 
 const store = useRegistrationStore()
@@ -12,8 +13,9 @@ const RELATIONSHIP_OPTIONS = [
   'Otro',
 ]
 
-const TIME_OPTIONS = ['1 hr', '2 hr', '3 hr']
+const TIME_OPTIONS = ['1 hr', '2 hr', '3 hr', '4 hr', '5 hr']
 
+const showSegundoTutor = ref(false)
 const showInePreview = ref(false)
 const showArrivalPreview = ref(false)
 
@@ -70,14 +72,19 @@ function capturePhoto() {
       (blob) => {
         if (!blob) return
 
+        const file = new File([blob], `photo_${currentPhotoTarget}.jpg`, {
+          type: 'image/jpeg',
+          lastModified: Date.now(),
+        })
+
         const previewUrl = URL.createObjectURL(blob)
 
         if (currentPhotoTarget === 'ine') {
-          store.tutor.inePhoto = blob
+          store.tutor.inePhoto = file // Ahora es un File
           if (inePreviewUrl.value) URL.revokeObjectURL(inePreviewUrl.value)
           inePreviewUrl.value = previewUrl
         } else {
-          store.tutor.arrivalPhoto = blob
+          store.tutor.arrivalPhoto = file // Ahora es un File
           if (arrivalPreviewUrl.value) URL.revokeObjectURL(arrivalPreviewUrl.value)
           arrivalPreviewUrl.value = previewUrl
         }
@@ -133,8 +140,8 @@ onBeforeUnmount(() => {
           (val) => !!val || 'El nombre completo es obligatorio',
           (val) =>
             val.trim().split(/\s+/).length >= 2 || 'Por favor, introduce nombre y primer apellido',
-          (val) => /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(val) || 'El nombre solo puede contener letras',
         ]"
+        @keydown="allowOnlyLettersKeydown"
       />
 
       <!-- Relationship + Phone -->
@@ -259,6 +266,53 @@ onBeforeUnmount(() => {
         label="Tiempo Estimado"
         outlined
         dense
+      />
+
+      <q-separator class="q-my-md" />
+
+      <!-- Segundo Tutor -->
+      <div class="row items-center justify-between q-mb-sm">
+        <span
+          class="text-caption text-weight-bold text-grey-7 text-uppercase"
+          style="letter-spacing: 0.06em"
+        >
+          Segundo Tutor (opcional)
+        </span>
+        <q-btn
+          v-if="!showSegundoTutor"
+          flat
+          dense
+          size="sm"
+          icon="person_add"
+          label="Agregar segundo tutor"
+          color="primary"
+          @click="showSegundoTutor = true"
+        />
+        <q-btn
+          v-else
+          flat
+          dense
+          size="sm"
+          icon="close"
+          label="Quitar"
+          color="grey-7"
+          @click="((showSegundoTutor = false), (store.tutor.secondaryGuardian = null))"
+        />
+      </div>
+
+      <q-input
+        v-if="showSegundoTutor"
+        v-model="store.tutor.secondaryGuardian"
+        label="Nombre del segundo tutor"
+        placeholder="Ej. María García"
+        outlined
+        dense
+        lazy-rules
+        :rules="[
+          (val) => !!val || 'El nombre es obligatorio',
+          (val) => val.trim().split(/\s+/).length >= 2 || 'Introduce nombre y apellido',
+        ]"
+        @keydown="allowOnlyLettersKeydown"
       />
     </q-card-section>
   </q-card>

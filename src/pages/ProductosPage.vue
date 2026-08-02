@@ -1,6 +1,6 @@
 <template>
   <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 900px; margin: 0 auto">
+    <div>
       <!-- Encabezado -->
       <div class="row items-center q-mb-lg">
         <div>
@@ -13,26 +13,13 @@
         <q-btn
           color="primary"
           icon="add"
-          label="Nuevo Producto"
+          label="Nuevo producto"
           unelevated
           no-caps
-          :disable="!authStore.currentBranchId"
           style="border-radius: 8px; font-weight: 600"
           @click="abrirCrear"
         />
       </div>
-
-      <!-- Sin sucursal activa -->
-      <q-banner
-        v-if="!authStore.currentBranchId"
-        dense
-        rounded
-        class="bg-orange-1 text-orange-9 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="info" color="orange-9" /></template>
-        No hay una sucursal activa en la sesión.
-      </q-banner>
 
       <!-- Error -->
       <q-banner
@@ -67,45 +54,64 @@
 
           <template #body-cell-tipo="props">
             <q-td :props="props">
-              {{ TIPO_LABELS[props.row.tipo as TipoProducto] }}
+              <ProductoBadgeTipo :tipo="props.row.tipo as TipoProducto" />
             </q-td>
           </template>
 
           <template #body-cell-activo="props">
             <q-td :props="props">
-              <q-badge
-                :color="props.row.activo ? 'positive' : 'grey-5'"
-                :label="props.row.activo ? 'Activo' : 'Inactivo'"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
-              />
+              <ProductoBadgeEstado :activo="props.row.activo" />
             </q-td>
           </template>
 
           <template #body-cell-actions="props">
             <q-td :props="props" class="text-right">
               <q-btn
+                v-if="props.row.tipo === 'A' || props.row.tipo === 'B'"
                 flat
-                round
                 dense
-                icon="edit"
-                color="primary"
+                color="grey-8"
                 size="sm"
-                class="q-mr-xs"
-                @click="abrirEditar(props.row)"
+                class="action-btn q-mr-xs"
+                @click="abrirReceta(props.row)"
               >
-                <q-tooltip>Editar</q-tooltip>
+                <span class="material-symbols-outlined">restaurant_menu</span>
+                <q-tooltip>Receta</q-tooltip>
               </q-btn>
               <q-btn
                 flat
-                round
                 dense
-                icon="delete_outline"
-                color="negative"
+                color="grey-8"
                 size="sm"
-                :disable="!props.row.activo"
+                class="action-btn q-mr-xs"
+                @click="abrirEditar(props.row)"
+              >
+                <span class="material-symbols-outlined">edit</span>
+                <q-tooltip>Editar</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="props.row.activo"
+                flat
+                dense
+                color="grey-8"
+                size="sm"
+                class="action-btn"
                 @click="confirmarEliminar(props.row)"
               >
+                <span class="material-symbols-outlined">delete_outline</span>
                 <q-tooltip>Eliminar</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-else
+                flat
+                dense
+                color="grey-8"
+                size="sm"
+                class="action-btn"
+                @click="confirmarReactivar(props.row)"
+              >
+                <span class="material-symbols-outlined">restore</span>
+                <q-tooltip>Reactivar</q-tooltip>
               </q-btn>
             </q-td>
           </template>
@@ -115,18 +121,20 @@
 
     <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
     <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 420px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
+      <q-card class="producto-dialog-card" style="border-radius: 12px">
+        <q-card-section class="q-pb-sm row items-center" style="flex-shrink: 0">
           <div class="text-h6 text-weight-bold">
-            {{ editando ? 'Editar Producto' : 'Nuevo Producto' }}
+            {{ editando ? 'Editar producto' : 'Nuevo producto' }}
           </div>
+          <q-space />
+          <q-btn flat round dense icon="close" color="grey-7" @click="cerrarDialog" />
         </q-card-section>
 
         <q-separator />
 
-        <q-card-section class="q-gutter-md q-pt-md">
+        <q-card-section class="q-gutter-md q-pt-md producto-dialog-body">
           <div>
-            <div class="field-label">NOMBRE</div>
+            <div class="field-label">Nombre</div>
             <q-input
               ref="nombreRef"
               v-model="formDialog.nombre"
@@ -138,7 +146,7 @@
             />
           </div>
           <div>
-            <div class="field-label">TIPO</div>
+            <div class="field-label">Tipo</div>
             <q-select
               v-model="formDialog.tipo"
               dense
@@ -149,7 +157,7 @@
             />
           </div>
           <div>
-            <div class="field-label">PRECIO UNITARIO</div>
+            <div class="field-label">Precio unitario</div>
             <q-input
               v-model.number="formDialog.precio_unitario"
               dense
@@ -162,7 +170,146 @@
             />
           </div>
           <div>
-            <div class="field-label">DESCRIPCIÓN (opcional)</div>
+            <div class="field-label">Foto / miniatura (opcional)</div>
+            <div class="row items-center q-gutter-md">
+              <q-avatar square size="64px" class="imagen-preview-avatar">
+                <img v-if="imagenPreviewUrl" :src="imagenPreviewUrl" />
+                <q-icon v-else name="image" size="32px" color="grey-5" />
+              </q-avatar>
+              <q-file
+                v-model="imagenFile"
+                dense
+                outlined
+                clearable
+                accept="image/*"
+                label="Seleccionar imagen"
+                style="flex: 1"
+              >
+                <template #prepend><q-icon name="attach_file" /></template>
+              </q-file>
+            </div>
+          </div>
+          <div
+            v-if="formDialog.tipo === 'C'"
+            class="q-p-sm bg-grey-1 rounded-borders q-mt-md"
+            style="border: 1px dashed #ccc; border-radius: 8px; padding: 12px"
+          >
+            <div class="text-subtitle2 text-weight-bold q-mb-sm text-primary">
+              PRODUCTOS DEL COMBO
+            </div>
+
+            <div class="row q-col-gutter-sm items-end">
+              <div class="col-7">
+                <div class="field-label">Seleccionar producto</div>
+                <q-select
+                  v-model="productoComboTemporal.producto_id"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  option-value="id"
+                  option-label="nombre"
+                  :options="productosDisponiblesParaCombo"
+                  placeholder="Elige un producto"
+                  no-options-label="No hay más productos disponibles"
+                />
+              </div>
+              <div class="col-3">
+                <div class="field-label">Cant.</div>
+                <q-input
+                  v-model.number="productoComboTemporal.cantidad"
+                  dense
+                  outlined
+                  type="number"
+                  min="1"
+                />
+              </div>
+              <div class="col-2 flex flex-center">
+                <q-btn
+                  color="primary"
+                  icon="add"
+                  unelevated
+                  style="height: 40px; border-radius: 8px"
+                  @click="agregarItemAlCombo"
+                >
+                  <q-tooltip>Agregar al combo</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+
+            <div class="q-mt-md">
+              <div
+                v-if="formDialog.productos_combo.length === 0"
+                class="text-caption text-grey-6 text-center q-py-sm"
+              >
+                No has añadido productos a este combo todavía.
+              </div>
+
+              <template v-else>
+                <q-list
+                  separator
+                  dense
+                  class="bg-white rounded-borders"
+                  style="border: 1px solid #e2e8f0"
+                >
+                  <q-item
+                    v-for="(item, index) in formDialog.productos_combo"
+                    :key="item.producto_id"
+                    class="q-py-sm"
+                  >
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">{{
+                        obtenerNombreProducto(item.producto_id)
+                      }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <div class="row items-center q-gutter-sm">
+                        <div class="qty-stepper bg-blue-2 text-blue-9">
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            class="qty-btn"
+                            @click="ajustarCantidadCombo(item, -1)"
+                          >
+                            <span class="material-symbols-outlined qty-icon">remove</span>
+                          </q-btn>
+                          <span class="qty-value">{{ item.cantidad }}</span>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            class="qty-btn"
+                            @click="ajustarCantidadCombo(item, 1)"
+                          >
+                            <span class="material-symbols-outlined qty-icon">add</span>
+                          </q-btn>
+                        </div>
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          color="grey-8"
+                          size="sm"
+                          @click="removerItemDelCombo(index)"
+                        >
+                          <span class="material-symbols-outlined">delete</span>
+                        </q-btn>
+                      </div>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+                <div
+                  v-if="formDialog.productos_combo.length === 1"
+                  class="text-caption text-orange-8 q-mt-xs q-px-sm"
+                >
+                  Agrega al menos un producto más para poder guardar.
+                </div>
+              </template>
+            </div>
+          </div>
+          <div>
+            <div class="field-label">Descripción opcional</div>
             <q-input
               v-model="formDialog.descripcion"
               dense
@@ -174,7 +321,7 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
+        <q-card-actions align="right" class="q-pa-md q-pt-sm" style="flex-shrink: 0">
           <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
           <q-btn
             unelevated
@@ -183,6 +330,7 @@
             :label="editando ? 'Guardar cambios' : 'Crear producto'"
             style="border-radius: 8px; font-weight: 600"
             :loading="guardando"
+            :disable="!formularioValido"
             @click="guardar"
           />
         </q-card-actions>
@@ -214,37 +362,160 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- ── Dialog Receta ──────────────────────────────────────────────────── -->
+    <q-dialog v-model="dialogReceta">
+      <q-card style="min-width: 480px; border-radius: 12px">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold">Receta de {{ productoReceta?.nombre }}</div>
+          <div class="text-body2 text-grey-7">Insumos que consume una unidad de este producto.</div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-section>
+          <q-banner
+            v-if="recetaStore.error"
+            dense
+            rounded
+            class="bg-red-1 text-red-8 q-mb-md"
+            style="border-radius: 10px"
+          >
+            {{ recetaStore.error }}
+          </q-banner>
+
+          <q-list v-if="recetaStore.items.length" separator>
+            <q-item v-for="item in recetaStore.items" :key="item.insumo_id">
+              <q-item-section>
+                <q-item-label>{{ item.insumo_nombre }}</q-item-label>
+                <q-item-label caption>
+                  {{ Number(item.cantidad) }} {{ item.unidad_base_codigo }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="delete_outline"
+                  color="negative"
+                  size="sm"
+                  @click="quitarInsumo(item.insumo_id)"
+                >
+                  <q-tooltip>Quitar</q-tooltip>
+                </q-btn>
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-else class="text-body2 text-grey-7 q-py-sm">
+            Este producto todavía no tiene insumos en su receta.
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-section class="q-gutter-md">
+          <div class="row q-col-gutter-sm items-start">
+            <div class="col-7">
+              <div class="field-label">INSUMO</div>
+              <q-select
+                v-model="formReceta.insumo_id"
+                dense
+                outlined
+                emit-value
+                map-options
+                :options="insumoOptions"
+                placeholder="Selecciona un insumo"
+              />
+            </div>
+            <div class="col-5">
+              <div class="field-label">CANTIDAD</div>
+              <q-input
+                v-model.number="formReceta.cantidad"
+                dense
+                outlined
+                type="number"
+                min="0"
+                step="0.001"
+              />
+            </div>
+          </div>
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            label="Agregar / actualizar"
+            style="border-radius: 8px; font-weight: 600"
+            :loading="guardandoReceta"
+            :disable="!formReceta.insumo_id || !formReceta.cantidad"
+            @click="guardarRecetaItem"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md q-pt-sm">
+          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="dialogReactivar">
+      <q-card style="min-width: 360px; border-radius: 12px">
+        <q-card-section>
+          <div class="text-h6 text-weight-bold">Reactivar producto</div>
+          <div class="q-mt-sm text-body2 text-grey-8">
+            ¿Deseas reactivar <strong>{{ filaReactivar?.nombre }}</strong
+            >? Volverá a estar disponible en el catálogo.
+          </div>
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-md q-pt-xs">
+          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
+          <q-btn
+            unelevated
+            no-caps
+            color="positive"
+            label="Reactivar"
+            style="border-radius: 8px; font-weight: 600"
+            :loading="reactivando"
+            @click="ejecutarReactivar"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useProductosStore } from '@/stores/productos'
-import type { ProductoAdmin, TipoProducto } from '@/types/producto'
+import { useInsumosStore } from '@/stores/insumos'
+import { useRecetaProductoStore } from '@/stores/recetaProducto'
+import type { ComboItemCreate, ProductoAdmin, TipoProducto } from '@/types/producto'
+import { apiClient } from '@/api/axiosClient.ts'
+import { getProductoImagenUrl } from '@/api/productosApi'
+import ProductoBadgeTipo from '@/components/productos/ProductoBadgeTipo.vue'
+import ProductoBadgeEstado from '@/components/productos/ProductoBadgeEstado.vue'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
 const store = useProductosStore()
-
-const TIPO_LABELS: Record<TipoProducto, string> = {
-  A: 'Alimento',
-  B: 'Bebida',
-  E: 'Estancia',
-  S: 'Servicio',
-}
+const insumosStore = useInsumosStore()
+const recetaStore = useRecetaProductoStore()
 
 const TIPO_OPTIONS = [
   { label: 'Alimento', value: 'A' },
   { label: 'Bebida', value: 'B' },
+  { label: 'Combo', value: 'C' },
   { label: 'Estancia', value: 'E' },
   { label: 'Servicio', value: 'S' },
 ]
 
 const cargar = () => {
-  if (authStore.currentBranchId) store.cargar(authStore.currentBranchId)
+  store.cargar(authStore.currentBranchId)
 }
 
 onMounted(cargar)
@@ -264,6 +535,58 @@ const columns: QTableColumn[] = [
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
 
+const productosDisponiblesParaCombo = computed(() => {
+  const yaAgregados = new Set(formDialog.value.productos_combo.map((i) => i.producto_id))
+  return store.productos.filter(
+    (p) => p.tipo !== 'C' && p.tipo !== 'S' && p.tipo !== 'E' && p.activo && !yaAgregados.has(p.id),
+  )
+})
+
+const formularioValido = computed(() => {
+  const { nombre, precio_unitario, tipo, productos_combo } = formDialog.value
+  if (!nombre.trim() || precio_unitario <= 0) return false
+  if (tipo === 'C') {
+    if (productos_combo.length < 2) return false
+    if (productos_combo.some((item) => !item.cantidad || item.cantidad <= 0)) return false
+  }
+  return true
+})
+
+const agregarItemAlCombo = () => {
+  const { producto_id, cantidad } = productoComboTemporal.value
+
+  if (!producto_id || cantidad <= 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'Selecciona un producto y una cantidad válida.',
+      position: 'top-right',
+    })
+    return
+  }
+  const existente = formDialog.value.productos_combo.find(
+    (item) => item.producto_id === producto_id,
+  )
+  if (existente) {
+    existente.cantidad += cantidad
+  } else {
+    formDialog.value.productos_combo.push({ producto_id, cantidad })
+  }
+  productoComboTemporal.value = { producto_id: '', cantidad: 1 }
+}
+
+const ajustarCantidadCombo = (item: ComboItemCreate, delta: number) => {
+  item.cantidad = Math.max(1, item.cantidad + delta)
+}
+
+const removerItemDelCombo = (index: number) => {
+  formDialog.value.productos_combo.splice(index, 1)
+}
+
+const obtenerNombreProducto = (id: string) => {
+  const prod = store.productos.find((p) => p.id === id)
+  return prod ? prod.nombre : 'Producto no encontrado'
+}
+
 // ── Estado del dialog ─────────────────────────────────────────────────────────
 
 const dialogOpen = ref(false)
@@ -276,61 +599,164 @@ const formDialog = ref({
   tipo: 'A' as TipoProducto,
   precio_unitario: 0,
   descripcion: '',
+  productos_combo: [] as ComboItemCreate[],
 })
+
+const productoComboTemporal = ref({
+  producto_id: '',
+  cantidad: 1,
+})
+
+const imagenFile = ref<File | null>(null)
+const imagenPreviewLocal = ref<string | null>(null)
+
+watch(imagenFile, (file, _oldFile, onCleanup) => {
+  if (!file) {
+    imagenPreviewLocal.value = null
+    return
+  }
+  const url = URL.createObjectURL(file)
+  imagenPreviewLocal.value = url
+  onCleanup(() => URL.revokeObjectURL(url))
+})
+
+const imagenPreviewUrl = computed(
+  () => imagenPreviewLocal.value ?? getProductoImagenUrl(editando.value?.imagen) ?? null,
+)
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', tipo: 'A', precio_unitario: 0, descripcion: '' }
+  formDialog.value = {
+    nombre: '',
+    tipo: 'A',
+    precio_unitario: 0,
+    descripcion: '',
+    productos_combo: [],
+  }
+  productoComboTemporal.value = { producto_id: '', cantidad: 1 }
+  imagenFile.value = null
   dialogOpen.value = true
 }
 
-const abrirEditar = (row: ProductoAdmin) => {
+const abrirEditar = async (row: ProductoAdmin) => {
   editando.value = row
+  let productosComboCargados: ComboItemCreate[] = []
+
+  if (row.tipo === 'C') {
+    try {
+      const { data } = await apiClient.get<ProductoAdmin>(`/productos/${row.id}`)
+      if (data && data.productos_combo) {
+        productosComboCargados = data.productos_combo.map((item) => ({
+          producto_id: item.producto_id,
+          cantidad: item.cantidad,
+        }))
+      }
+    } catch {
+      $q.notify({
+        type: 'negative',
+        message: 'No se pudieron recuperar los productos del combo desde el servidor.',
+        position: 'top-right',
+      })
+      return
+    }
+  }
+
   formDialog.value = {
     nombre: row.nombre,
     tipo: row.tipo,
     precio_unitario: Number(row.precio_unitario),
     descripcion: row.descripcion ?? '',
+    productos_combo: productosComboCargados,
   }
+
+  productoComboTemporal.value = { producto_id: '', cantidad: 1 }
+  imagenFile.value = null
   dialogOpen.value = true
 }
 
 const cerrarDialog = () => {
   dialogOpen.value = false
   editando.value = null
+  imagenFile.value = null
 }
 
 const guardar = async () => {
-  if (!formDialog.value.nombre.trim() || formDialog.value.precio_unitario <= 0) {
+  if (!formDialog.value.nombre.trim()) {
     nombreRef.value?.validate()
     return
   }
+  if (formDialog.value.precio_unitario <= 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'El precio debe ser mayor a cero.',
+      position: 'top-right',
+    })
+    return
+  }
+
+  if (formDialog.value.tipo === 'C') {
+    if (formDialog.value.productos_combo.length < 2) {
+      $q.notify({
+        type: 'warning',
+        message: 'Un combo debe incluir un mínimo de 2 productos.',
+        position: 'top-right',
+      })
+      return
+    }
+    if (productoComboTemporal.value.producto_id) {
+      $q.notify({
+        type: 'warning',
+        message: 'Tienes un producto seleccionado. Confírmalo con "+" antes de guardar.',
+        position: 'top-right',
+      })
+      return
+    }
+  }
+
   guardando.value = true
   try {
     if (editando.value) {
-      await store.actualizar(editando.value.id, {
-        nombre: formDialog.value.nombre.trim(),
-        tipo: formDialog.value.tipo,
-        precio_unitario: String(formDialog.value.precio_unitario),
-        descripcion: formDialog.value.descripcion.trim() || null,
-      })
+      await store.actualizar(
+        editando.value.id,
+        {
+          nombre: formDialog.value.nombre.trim(),
+          tipo: formDialog.value.tipo,
+          precio_unitario: String(formDialog.value.precio_unitario),
+          descripcion: formDialog.value.descripcion.trim() || null,
+          productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
+        },
+        imagenFile.value,
+      )
       $q.notify({ type: 'positive', message: 'Producto actualizado', position: 'top-right' })
     } else {
-      if (!authStore.currentBranchId) return
-      await store.crear({
-        nombre: formDialog.value.nombre.trim(),
-        tipo: formDialog.value.tipo,
-        precio_unitario: String(formDialog.value.precio_unitario),
-        descripcion: formDialog.value.descripcion.trim() || null,
-        sucursal_id: authStore.currentBranchId,
-      })
+      const sucursalId = authStore.currentBranchId
+      if (!sucursalId) {
+        $q.notify({
+          type: 'negative',
+          message: 'No hay una sucursal activa en la sesión.',
+          position: 'top-right',
+        })
+        return
+      }
+
+      await store.crear(
+        {
+          nombre: formDialog.value.nombre.trim(),
+          tipo: formDialog.value.tipo,
+          precio_unitario: String(formDialog.value.precio_unitario),
+          descripcion: formDialog.value.descripcion.trim() || null,
+          sucursal_id: sucursalId,
+          productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
+        },
+        imagenFile.value,
+      )
       $q.notify({ type: 'positive', message: 'Producto creado', position: 'top-right' })
     }
     cerrarDialog()
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'Ocurrió un error. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
@@ -356,25 +782,177 @@ const ejecutarEliminar = async () => {
     await store.eliminar(filaEliminar.value.id)
     $q.notify({ type: 'positive', message: 'Producto eliminado', position: 'top-right' })
     dialogEliminar.value = false
-  } catch {
+  } catch (err) {
     $q.notify({
       type: 'negative',
-      message: 'No se pudo eliminar. Intenta de nuevo.',
+      message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
   } finally {
     eliminando.value = false
   }
 }
+
+// ── Receta ────────────────────────────────────────────────────────────────────
+
+const dialogReceta = ref(false)
+const productoReceta = ref<ProductoAdmin | null>(null)
+const guardandoReceta = ref(false)
+
+const formReceta = ref({
+  insumo_id: null as string | null,
+  cantidad: 0,
+})
+
+const insumoOptions = computed(() =>
+  insumosStore.insumos.filter((i) => i.activo).map((i) => ({ label: i.nombre, value: i.id })),
+)
+
+const abrirReceta = (row: ProductoAdmin) => {
+  productoReceta.value = row
+  formReceta.value = { insumo_id: null, cantidad: 0 }
+  dialogReceta.value = true
+  recetaStore.cargar(row.id)
+  if (authStore.currentBranchId) insumosStore.cargar(authStore.currentBranchId)
+}
+
+const guardarRecetaItem = async () => {
+  if (!productoReceta.value || !formReceta.value.insumo_id || !formReceta.value.cantidad) return
+  guardandoReceta.value = true
+  try {
+    await recetaStore.upsert(productoReceta.value.id, formReceta.value.insumo_id, {
+      cantidad: String(formReceta.value.cantidad),
+    })
+    formReceta.value = { insumo_id: null, cantidad: 0 }
+    $q.notify({ type: 'positive', message: 'Receta actualizada', position: 'top-right' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+  } finally {
+    guardandoReceta.value = false
+  }
+}
+
+const quitarInsumo = async (insumoId: string) => {
+  if (!productoReceta.value) return
+  try {
+    await recetaStore.eliminar(productoReceta.value.id, insumoId)
+    $q.notify({ type: 'positive', message: 'Insumo quitado de la receta', position: 'top-right' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+  }
+}
+
+// ── Reactivar ─────────────────────────────────────────────────────────────────
+
+const dialogReactivar = ref(false)
+const filaReactivar = ref<ProductoAdmin | null>(null)
+const reactivando = ref(false)
+
+const confirmarReactivar = (row: ProductoAdmin) => {
+  filaReactivar.value = row
+  dialogReactivar.value = true
+}
+
+const ejecutarReactivar = async () => {
+  if (!filaReactivar.value) return
+  reactivando.value = true
+  try {
+    await store.reactivar(filaReactivar.value.id)
+    $q.notify({ type: 'positive', message: 'Producto reactivado', position: 'top-right' })
+    dialogReactivar.value = false
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+  } finally {
+    reactivando.value = false
+  }
+}
 </script>
 
 <style scoped>
 .field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 6px;
+}
+
+.action-btn {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.imagen-preview-avatar {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.imagen-preview-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+  font-size: 20px;
+  line-height: 1;
+  text-transform: none;
+}
+
+.producto-dialog-card {
+  width: 460px;
+  height: 620px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.producto-dialog-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 999px;
+}
+
+.qty-value {
+  min-width: 16px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.qty-btn {
+  min-height: 22px;
+  min-width: 22px;
+  padding: 0;
+}
+
+.qty-icon {
+  font-size: 14px;
+  line-height: 1;
 }
 </style>

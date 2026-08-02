@@ -73,22 +73,20 @@ function getChildFirstName(child: Child, index: number) {
         />
       </div>
 
-      <!-- Aviso de límite de pulseras -->
+      <!-- Aviso de límite de pulseras (Solo aparece a partir del segundo niño si se llega al límite) -->
       <q-banner
-        v-if="store.reachedBraceletLimit"
+        v-if="store.showBraceletLimitBanner"
         dense
         rounded
         class="bg-orange-1 text-orange-9 q-mb-sm"
-        style="font-size: 12px"
+        style="font-size: 13px"
       >
         <template #avatar>
           <q-icon name="warning" color="orange-9" size="18px" />
         </template>
-        Solo hay {{ store.maxChildrenAllowed }} pulsera{{
-          store.maxChildrenAllowed === 1 ? '' : 's'
-        }}
-        disponible{{ store.maxChildrenAllowed === 1 ? '' : 's' }} en este momento. No puedes
-        registrar más niños.
+        Hay {{ store.pulseras.length }} pulseras disponibles en este momento, pero una corresponde
+        al tutor. No es posible registrar más de {{ store.maxChildrenAllowed }}
+        {{ store.maxChildrenAllowed === 1 ? 'niño' : 'niños' }}.
       </q-banner>
 
       <!-- Show only the current child -->

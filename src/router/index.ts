@@ -84,6 +84,12 @@ const routes: RouteRecordRaw[] = [
           title: 'Historial de Arqueos',
         },
       },
+      {
+        path: 'historial',
+        name: 'pos-historial',
+        component: () => import('@/components/historial/HistorialView.vue'),
+        meta: { permissions: ['restaurante:registrar_pago'], title: 'Historial' },
+      },
     ],
   },
   {
@@ -108,6 +114,19 @@ const routes: RouteRecordRaw[] = [
         name: 'usuarios-editar',
         component: () => import('@/pages/sysadmin/UserEditPage.vue'),
         meta: { permissions: ['usuarios:editar'] },
+      },
+    ],
+  },
+  {
+    path: '/roles',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'roles-listar',
+        component: () => import('@/pages/RolesPage.vue'),
+        meta: { permissions: ['permisos:ver'], title: 'Roles' },
       },
     ],
   },
@@ -153,6 +172,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/sysadmin/SysAdminDashboardPage.vue'),
         meta: { permissions: ['reportes:dashboard'] },
       },
+      {
+        path: 'inventario',
+        name: 'reportes-inventario',
+        component: () => import('@/pages/ReporteInventarioPage.vue'),
+        meta: { permissions: ['reportes:inventario'], title: 'Reporte de Stock' },
+      },
     ],
   },
   {
@@ -184,6 +209,12 @@ const routes: RouteRecordRaw[] = [
         name: 'eventos-calendario',
         component: () => import('@/pages/CalendarioPage.vue'),
         meta: { permissions: ['reservaciones:listar'], title: 'Calendario' },
+      },
+      {
+        path: 'reservaciones/:id/cierre',
+        name: 'eventos-reservaciones-cierre',
+        component: () => import('@/pages/CierreEventoPage.vue'),
+        meta: { permissions: ['reservaciones:editar'], title: 'Cierre de Evento' },
       },
       {
         path: 'pagos',
@@ -271,6 +302,12 @@ const routes: RouteRecordRaw[] = [
         meta: { permissions: ['estancias:checkout'], title: 'Checkout' },
       },
       {
+        path: 'pulseras/registro',
+        name: 'estancias-pulseras-registro',
+        component: () => import('@/pages/RegistroPulserasPage.vue'),
+        meta: { permissions: ['pulseras:crear'], title: 'Registro de Pulseras' },
+      },
+      {
         path: 'pulseras',
         name: 'estancias-pulseras',
         component: () => import('@/pages/PulserasPage.vue'),
@@ -288,6 +325,76 @@ const routes: RouteRecordRaw[] = [
         name: 'productos-listar',
         component: () => import('@/pages/ProductosPage.vue'),
         meta: { permissions: ['inventario:gestionar_productos'], title: 'Productos' },
+      },
+    ],
+  },
+  {
+    path: '/proveedores',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'proveedores-listar',
+        component: () => import('@/pages/ProveedoresPage.vue'),
+        meta: { permissions: ['inventario:gestionar_proveedores'], title: 'Proveedores' },
+      },
+    ],
+  },
+  {
+    path: '/insumos',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'insumos-listar',
+        component: () => import('@/pages/InsumosPage.vue'),
+        meta: { permissions: ['inventario:gestionar_insumos'], title: 'Insumos' },
+      },
+      {
+        path: ':id/kardex',
+        name: 'insumos-kardex',
+        component: () => import('@/pages/KardexInsumoPage.vue'),
+        meta: { permissions: ['inventario:ver_movimientos'], title: 'Kardex' },
+      },
+    ],
+  },
+  {
+    path: '/compras',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'compras-listar',
+        component: () => import('@/pages/ComprasPage.vue'),
+        meta: { permissions: ['inventario:gestionar_compras'], title: 'Compras' },
+      },
+    ],
+  },
+  {
+    path: '/lealtad',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'configuracion',
+        name: 'lealtad-configuracion',
+        component: () => import('@/pages/LealtadConfiguracionPage.vue'),
+        meta: { permissions: ['lealtad:gestionar_configuracion'], title: 'Puntos de Lealtad' },
+      },
+      {
+        path: 'kardex',
+        name: 'lealtad-kardex',
+        component: () => import('@/pages/KardexLealtadPage.vue'),
+        meta: { permissions: ['lealtad:ver_saldo'], title: 'Kardex de Lealtad' },
+      },
+      {
+        path: 'reporte',
+        name: 'lealtad-reporte',
+        component: () => import('@/pages/ReporteLealtadPage.vue'),
+        meta: { permissions: ['lealtad:ver_reporte'], title: 'Reporte de Lealtad' },
       },
     ],
   },

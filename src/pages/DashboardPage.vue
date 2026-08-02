@@ -1,67 +1,109 @@
 <template>
   <q-page class="page-content">
-    <!-- Stats Row -->
-    <div class="row q-gutter-md q-mb-md">
-      <div class="col">
-        <div class="stat-card">
-          <div>
-            <div class="stat-card__label">Eventos Próximos</div>
-            <div class="stat-card__value">{{ store.loading ? '—' : eventosPróximos }}</div>
-          </div>
-          <div class="stat-card__icon stat-card__icon--blue">
-            <q-icon name="event" />
-          </div>
+    <!-- Header -->
+    <div class="row items-start q-mb-lg">
+      <div>
+        <div class="text-h4 text-weight-bold" style="color: var(--text-primary)">
+          Resumen de Eventos
+        </div>
+        <div class="text-body2 text-grey-6 q-mt-xs">
+          Gestiona próximas reservaciones, paquetes y pagos.
         </div>
       </div>
-      <div class="col">
-        <div class="stat-card">
-          <div>
-            <div class="stat-card__label">Eventos Confirmados</div>
-            <div class="stat-card__value text-positive">
-              {{ store.loading ? '—' : eventosConfirmados }}
-            </div>
-          </div>
-          <div class="stat-card__icon stat-card__icon--green">
-            <q-icon name="check_circle_outline" />
-          </div>
-        </div>
-      </div>
-      <div class="col">
-        <div class="stat-card">
-          <div>
-            <div class="stat-card__label">Ingresos del Mes</div>
-            <div class="stat-card__value">{{ store.loading ? '—' : ingresosDelMes }}</div>
-          </div>
-          <div class="stat-card__icon stat-card__icon--orange">
-            <q-icon name="trending_up" />
-          </div>
-        </div>
+      <q-space />
+      <div class="row q-gutter-sm">
+        <q-btn
+          outline
+          no-caps
+          color="grey-8"
+          icon="filter_list"
+          label="Filtrar"
+          style="border-radius: 8px"
+        >
+          <q-tooltip>Función en desarrollo</q-tooltip>
+        </q-btn>
+        <q-btn
+          unelevated
+          no-caps
+          color="primary"
+          icon="add"
+          label="Nueva Reservación"
+          style="border-radius: 8px; font-weight: 600"
+          @click="router.push({ name: 'eventos-reservaciones-crear' })"
+        />
       </div>
     </div>
 
-    <!-- Main Content Row -->
-    <div class="row q-gutter-md">
-      <!-- Events Table -->
+    <div class="row q-col-gutter-lg">
+      <!-- Columna izquierda: stats + agenda -->
       <div class="col-12 col-md-8">
+        <div class="row q-col-gutter-md q-mb-md">
+          <div class="col-12 col-sm-4">
+            <div class="stat-card">
+              <div class="stat-card__top">
+                <div class="stat-card__icon stat-card__icon--blue">
+                  <q-icon name="celebration" />
+                </div>
+                <div
+                  v-if="eventosEstaSemana > 0"
+                  class="stat-card__corner-badge stat-card__corner-badge--positive"
+                >
+                  +{{ eventosEstaSemana }} esta semana
+                </div>
+              </div>
+              <div class="stat-card__value">{{ store.loading ? '—' : eventosProximos }}</div>
+              <div class="stat-card__label">Fiestas Próximas</div>
+            </div>
+          </div>
+          <div class="col-12 col-sm-4">
+            <div class="stat-card">
+              <div class="stat-card__top">
+                <div class="stat-card__icon stat-card__icon--orange">
+                  <q-icon name="pending_actions" />
+                </div>
+                <div
+                  v-if="depositosUrgentes > 0"
+                  class="stat-card__corner-badge stat-card__corner-badge--negative"
+                >
+                  {{ depositosUrgentes }} urgentes
+                </div>
+              </div>
+              <div class="stat-card__value text-warning">
+                {{ store.loading ? '—' : depositosPendientes }}
+              </div>
+              <div class="stat-card__label">Depósitos Pendientes</div>
+            </div>
+          </div>
+          <div class="col-12 col-sm-4">
+            <div class="stat-card">
+              <div class="stat-card__top">
+                <div class="stat-card__icon stat-card__icon--green">
+                  <q-icon name="diamond" />
+                </div>
+              </div>
+              <div class="stat-card__value" style="font-size: 1.4rem">
+                {{ store.loading || paquetesStore.loading ? '—' : paqueteMasPopular }}
+              </div>
+              <div class="stat-card__label">Paquete Más Popular</div>
+            </div>
+          </div>
+        </div>
+
         <div class="panel-card">
           <div class="panel-card__header">
             <h3>
-              <q-icon name="list_alt" size="18px" color="primary" class="q-mr-xs" />
-              Eventos Próximos por Liquidar
+              <q-icon name="event_note" size="18px" color="primary" class="q-mr-xs" />
+              Agenda de Esta Semana
             </h3>
-            <q-btn
-              flat
-              dense
-              no-caps
-              label="Exportar PDF"
-              icon="picture_as_pdf"
-              color="grey-7"
-              style="font-size: 0.8rem"
-            />
+            <div class="week-nav">
+              <q-btn flat round dense icon="chevron_left" size="sm" @click="semanaOffset--" />
+              <div class="text-caption text-grey-6 week-nav__label">{{ rangoSemanaLabel }}</div>
+              <q-btn flat round dense icon="chevron_right" size="sm" @click="semanaOffset++" />
+            </div>
           </div>
 
           <q-table
-            :rows="upcomingEvents"
+            :rows="agendaSemana"
             :columns="columns"
             row-key="id"
             flat
@@ -69,107 +111,108 @@
             :loading="store.loading"
             hide-pagination
             :rows-per-page-options="[0]"
-            no-data-label="No hay eventos próximos"
+            no-data-label="No hay eventos programados esta semana"
           >
-            <template #body-cell-nombre="props">
+            <template #body-cell-fecha="props">
               <q-td :props="props">
-                <span class="event-name">{{ props.row.nombre }}</span>
+                <div class="event-name">{{ props.row.diaLabel }}, {{ props.row.hora }}</div>
+                <div class="text-caption text-grey-6">{{ props.row.duracion }}</div>
               </q-td>
             </template>
-            <template #body-cell-pendiente="props">
+            <template #body-cell-cliente="props">
               <q-td :props="props">
-                <span :class="props.row.pendienteNum === 0 ? 'amount-paid' : 'amount-pending'">
-                  {{ props.row.pendiente }}
+                <div class="event-name">{{ props.row.cliente }}</div>
+                <div v-if="props.row.festejado" class="text-caption text-grey-6">
+                  {{ props.row.festejado }}
+                </div>
+              </q-td>
+            </template>
+            <template #body-cell-paquete="props">
+              <q-td :props="props">
+                <q-badge
+                  outline
+                  color="primary"
+                  :label="props.row.paquete"
+                  style="font-size: 0.7rem; padding: 4px 8px; border-radius: 6px"
+                />
+              </q-td>
+            </template>
+            <template #body-cell-deposito="props">
+              <q-td :props="props">
+                <span
+                  class="status-dot"
+                  :class="props.row.pendienteNum > 0 ? 'status-dot--pending' : 'status-dot--paid'"
+                />
+                <span
+                  :class="props.row.pendienteNum > 0 ? 'text-warning' : 'text-positive'"
+                  class="text-weight-medium"
+                >
+                  {{ props.row.pendienteNum > 0 ? 'Pendiente' : 'Pagado' }}
                 </span>
               </q-td>
             </template>
+            <template #body-cell-actions="props">
+              <q-td :props="props" auto-width>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  size="sm"
+                  icon="point_of_sale"
+                  color="grey-7"
+                  @click="
+                    router.push({
+                      name: 'eventos-reservaciones-cierre',
+                      params: { id: props.row.id },
+                    })
+                  "
+                >
+                  <q-tooltip>Cerrar evento</q-tooltip>
+                </q-btn>
+              </q-td>
+            </template>
           </q-table>
+
+          <div class="panel-card__footer">
+            <q-btn
+              flat
+              no-caps
+              color="primary"
+              label="Ver Calendario Completo"
+              style="font-weight: 600"
+              @click="router.push({ name: 'eventos-calendario' })"
+            />
+          </div>
         </div>
       </div>
 
-      <!-- Right Column -->
-      <div class="col">
-        <!-- Mini Calendar -->
-        <div class="panel-card q-mb-md">
-          <div class="panel-card__header">
-            <h3>Calendario</h3>
+      <!-- Columna derecha: paquetes más pedidos -->
+      <div class="col-12 col-md-4">
+        <div class="panel-card panel-packages">
+          <div class="panel-packages__header">
+            <div class="text-h6 text-weight-bold">Paquetes de Fiesta</div>
+            <div class="text-caption" style="opacity: 0.85">Los 3 más solicitados</div>
           </div>
-          <div class="mini-calendar">
-            <div class="mini-calendar__header">
-              <q-btn
-                flat
-                dense
-                round
-                icon="chevron_left"
-                size="sm"
-                color="grey-7"
-                @click="prevMonth"
-              />
-              <span class="month-label">{{ monthLabel }}</span>
-              <q-btn
-                flat
-                dense
-                round
-                icon="chevron_right"
-                size="sm"
-                color="grey-7"
-                @click="nextMonth"
-              />
+          <div class="q-pa-md">
+            <div v-if="paquetesStore.loading" class="q-pa-sm text-grey">Cargando...</div>
+            <div v-else-if="topPaquetes.length === 0" class="q-pa-sm text-grey">
+              Aún no hay paquetes solicitados
             </div>
-
-            <div class="mini-calendar__grid">
-              <div v-for="(dow, di) in daysOfWeek" :key="di" class="mini-calendar__dow">
-                {{ dow }}
+            <div
+              v-for="(p, i) in topPaquetes"
+              v-else
+              :key="p.id"
+              class="mini-package"
+              :class="{ 'mini-package--top': i === 0 }"
+            >
+              <div class="mini-package__icon">
+                <q-icon :name="i === 0 ? 'diamond' : 'celebration'" />
               </div>
-              <div
-                v-for="(day, idx) in calendarDays"
-                :key="idx"
-                class="mini-calendar__day"
-                :class="{
-                  'mini-calendar__day--today': day.isToday,
-                  'mini-calendar__day--pending': day.isPending,
-                  'mini-calendar__day--confirmed': day.isConfirmed,
-                  'mini-calendar__day--other-month': day.isOtherMonth,
-                }"
-              >
-                {{ day.day }}
+              <div class="mini-package__info">
+                <div class="mini-package__name">{{ p.nombre }}</div>
+                <div class="mini-package__desc">{{ descripcionPaquete(p) }}</div>
               </div>
-            </div>
-
-            <div class="mini-calendar__legend">
-              <div>
-                <span class="legend-dot legend-dot--pending"></span>
-                Pendiente de Pago
-              </div>
-              <div>
-                <span class="legend-dot legend-dot--confirmed"></span>
-                Confirmado
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Upcoming Events This Month -->
-        <div class="panel-card">
-          <div class="panel-card__header">
-            <h3 style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.8px">
-              Próximos Eventos Este Mes
-            </h3>
-          </div>
-          <div v-if="store.loading" class="q-pa-sm text-grey">Cargando...</div>
-          <div v-else-if="upcomingThisMonth.length === 0" class="q-pa-sm text-grey">
-            Sin eventos este mes
-          </div>
-          <div v-else>
-            <div v-for="event in upcomingThisMonth" :key="event.id" class="event-item">
-              <div class="event-item__left">
-                <div class="event-item__name">{{ event.nombre }}</div>
-                <div class="event-item__time">
-                  <q-icon name="access_time" size="12px" />
-                  {{ event.horario }}
-                </div>
-              </div>
-              <div class="event-item__badge">{{ event.mesCorto }} {{ event.dia }}</div>
+              <div class="mini-package__price">{{ formatCurrency(p.precio_base) }}</div>
             </div>
           </div>
         </div>
@@ -180,31 +223,26 @@
 
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import type { QTableColumn } from 'quasar'
 import { useReservacionesStore } from '@/stores/reservaciones'
+import { usePaquetesStore } from '@/stores/paquetes'
+import { useAuthStore } from '@/stores/auth'
+import type { Paquetes } from '@/types/paquetes'
 
+const router = useRouter()
 const store = useReservacionesStore()
-onMounted(() => store.cargar())
+const paquetesStore = usePaquetesStore()
+const authStore = useAuthStore()
+
+onMounted(() => {
+  store.cargar(authStore.currentBranchId ?? undefined)
+  paquetesStore.cargar(authStore.currentBranchId ?? undefined)
+})
 
 // Fecha actual normalizada a medianoche (hora local)
 const today = new Date()
 today.setHours(0, 0, 0, 0)
-
-// Estado del calendario (mes visible, navegable)
-const calendarCursor = ref(new Date(today.getFullYear(), today.getMonth(), 1))
-
-const calendarYear = computed(() => calendarCursor.value.getFullYear())
-const calendarMonth = computed(() => calendarCursor.value.getMonth())
-const monthLabel = computed(() =>
-  calendarCursor.value.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }),
-)
-
-function prevMonth() {
-  calendarCursor.value = new Date(calendarYear.value, calendarMonth.value - 1, 1)
-}
-function nextMonth() {
-  calendarCursor.value = new Date(calendarYear.value, calendarMonth.value + 1, 1)
-}
 
 // Parsea "YYYY-MM-DD" como fecha local para evitar desfase de zona horaria
 function parseLocalDate(str: string): Date {
@@ -218,157 +256,250 @@ function formatCurrency(value: string | null | undefined): string {
   return `$${num.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function nombreEvento(r: (typeof store.reservaciones)[0]): string {
-  return (
-    r.nombre_festejado ||
-    `${r.nombre_cliente}${r.apellidos_cliente ? ' ' + r.apellidos_cliente : ''}`.trim()
-  )
-}
+// ── Semana mostrada (lunes a domingo), navegable con semanaOffset ────────────
+
+const semanaOffset = ref(0)
+
+const inicioSemana = computed(() => {
+  const d = new Date(today)
+  const dia = d.getDay() // 0 (dom) - 6 (sáb)
+  const diff = dia === 0 ? -6 : 1 - dia
+  d.setDate(d.getDate() + diff + semanaOffset.value * 7)
+  return d
+})
+
+const finSemana = computed(() => {
+  const d = new Date(inicioSemana.value)
+  d.setDate(d.getDate() + 6)
+  return d
+})
+
+const rangoSemanaLabel = computed(
+  () =>
+    `${inicioSemana.value.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} – ${finSemana.value.toLocaleDateString(
+      'es-MX',
+      { day: '2-digit', month: 'short' },
+    )}`,
+)
+
+const eventosSemana = computed(() =>
+  store.reservaciones
+    .filter((r) => {
+      const d = parseLocalDate(r.fecha_evento)
+      return d >= inicioSemana.value && d <= finSemana.value && r.estado !== 'cancelada'
+    })
+    .sort((a, b) => {
+      const fa = parseLocalDate(a.fecha_evento).getTime()
+      const fb = parseLocalDate(b.fecha_evento).getTime()
+      return fa !== fb ? fa - fb : a.hora_inicio.localeCompare(b.hora_inicio)
+    }),
+)
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 
-const eventosPróximos = computed(
+const eventosProximos = computed(
   () =>
     store.reservaciones.filter(
       (r) => parseLocalDate(r.fecha_evento) >= today && r.estado !== 'cancelada',
     ).length,
 )
 
-const eventosConfirmados = computed(
-  () => store.reservaciones.filter((r) => r.estado === 'confirmada').length,
-)
-
-const ingresosDelMes = computed(() => {
-  const y = today.getFullYear()
-  const m = today.getMonth()
-  const total = store.reservaciones
-    .filter((r) => {
-      const d = parseLocalDate(r.fecha_evento)
-      return d.getFullYear() === y && d.getMonth() === m
-    })
-    .reduce((sum, r) => sum + parseFloat(r.anticipo || '0'), 0)
-  if (total >= 1000) return `$${(total / 1000).toFixed(1)}k`
-  return formatCurrency(String(total))
+// Semana calendario real (independiente de la navegación de la agenda) para el badge del stat card
+const eventosEstaSemana = computed(() => {
+  const dia = today.getDay()
+  const inicio = new Date(today)
+  inicio.setDate(inicio.getDate() + (dia === 0 ? -6 : 1 - dia))
+  const fin = new Date(inicio)
+  fin.setDate(fin.getDate() + 6)
+  return store.reservaciones.filter((r) => {
+    const d = parseLocalDate(r.fecha_evento)
+    return d >= inicio && d <= fin && r.estado !== 'cancelada'
+  }).length
 })
 
-// ── Tabla de eventos próximos ─────────────────────────────────────────────────
-
-const columns: QTableColumn[] = [
-  { name: 'nombre', label: 'NOMBRE DEL EVENTO', field: 'nombre', align: 'left' },
-  { name: 'fecha', label: 'FECHA', field: 'fecha', align: 'left' },
-  { name: 'monto', label: 'MONTO TOTAL', field: 'monto', align: 'left' },
-  { name: 'contacto', label: 'NÚMERO DE CONTACTO', field: 'contacto', align: 'left' },
-  { name: 'pendiente', label: 'PENDIENTE', field: 'pendiente', align: 'left' },
-]
-
-const upcomingEvents = computed(() =>
-  store.reservaciones
-    .filter((r) => parseLocalDate(r.fecha_evento) >= today && r.estado !== 'cancelada')
-    .sort(
-      (a, b) => parseLocalDate(a.fecha_evento).getTime() - parseLocalDate(b.fecha_evento).getTime(),
-    )
-    .slice(0, 10)
-    .map((r) => ({
-      id: r.id,
-      nombre: nombreEvento(r),
-      fecha: parseLocalDate(r.fecha_evento).toLocaleDateString('es-MX', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
-      monto: formatCurrency(r.precio_total),
-      contacto: r.telefono_cliente,
-      pendiente: formatCurrency(r.saldo_pendiente),
-      pendienteNum: parseFloat(r.saldo_pendiente || '0'),
-    })),
+const depositosPendientes = computed(
+  () =>
+    store.reservaciones.filter(
+      (r) =>
+        r.estado !== 'cancelada' &&
+        parseLocalDate(r.fecha_evento) >= today &&
+        parseFloat(r.saldo_pendiente || '0') > 0,
+    ).length,
 )
 
-// ── Calendario mini ───────────────────────────────────────────────────────────
+const depositosUrgentes = computed(() => {
+  const en3Dias = new Date(today)
+  en3Dias.setDate(en3Dias.getDate() + 3)
+  return store.reservaciones.filter((r) => {
+    const d = parseLocalDate(r.fecha_evento)
+    return (
+      r.estado !== 'cancelada' &&
+      d >= today &&
+      d <= en3Dias &&
+      parseFloat(r.saldo_pendiente || '0') > 0
+    )
+  }).length
+})
 
-interface CalendarDay {
-  day: number
-  isToday: boolean
-  isPending: boolean
-  isConfirmed: boolean
-  isOtherMonth: boolean
+// ── Paquetes más solicitados ──────────────────────────────────────────────────
+
+const topPaquetes = computed(() => {
+  const conteos = new Map<string, number>()
+  store.reservaciones.forEach((r) => {
+    if (r.estado === 'cancelada') return
+    conteos.set(r.paquete_id, (conteos.get(r.paquete_id) ?? 0) + 1)
+  })
+  return [...conteos.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([paqueteId]) => paquetesStore.paquetes.find((p) => p.id === paqueteId))
+    .filter((p): p is Paquetes => !!p)
+})
+
+const paqueteMasPopular = computed(() => topPaquetes.value[0]?.nombre ?? '—')
+
+function descripcionPaquete(p: Paquetes): string {
+  if (p.descripcion) return p.descripcion
+  return `${p.personas_incluidas} personas · ${p.duracion_minutos} min`
 }
 
-const daysOfWeek = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
+// ── Tabla de agenda semanal ───────────────────────────────────────────────────
 
-const calendarDays = computed((): CalendarDay[] => {
-  const y = calendarYear.value
-  const m = calendarMonth.value
-  const firstWeekday = new Date(y, m, 1).getDay()
-  const daysInMonth = new Date(y, m + 1, 0).getDate()
-  const daysInPrevMonth = new Date(y, m, 0).getDate()
+const columns: QTableColumn[] = [
+  { name: 'fecha', label: 'FECHA Y HORA', field: 'diaLabel', align: 'left' },
+  { name: 'cliente', label: 'CLIENTE / FESTEJADO', field: 'cliente', align: 'left' },
+  { name: 'paquete', label: 'PAQUETE', field: 'paquete', align: 'left' },
+  { name: 'deposito', label: 'DEPÓSITO', field: 'pendienteNum', align: 'left' },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
+]
 
-  const pendingDays = new Set<number>()
-  const confirmedDays = new Set<number>()
-  store.reservaciones.forEach((r) => {
+const agendaSemana = computed(() =>
+  eventosSemana.value.map((r) => {
     const d = parseLocalDate(r.fecha_evento)
-    if (d.getFullYear() === y && d.getMonth() === m) {
-      const day = d.getDate()
-      if (parseFloat(r.saldo_pendiente || '0') > 0) {
-        pendingDays.add(day)
-      } else {
-        confirmedDays.add(day)
-      }
+    const diffDias = Math.round((d.getTime() - today.getTime()) / 86400000)
+    const diaLabel =
+      diffDias === 0
+        ? 'Hoy'
+        : diffDias === 1
+          ? 'Mañana'
+          : d.toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short' })
+
+    const [h1, m1] = r.hora_inicio.split(':').map(Number)
+    const [h2, m2] = r.hora_fin.split(':').map(Number)
+    const minutos = h2! * 60 + m2! - (h1! * 60 + m1!)
+    const horas = Math.max(1, Math.ceil(minutos / 60))
+
+    return {
+      id: r.id,
+      diaLabel,
+      hora: r.hora_inicio.slice(0, 5),
+      duracion: `${horas} ${horas === 1 ? 'Hora' : 'Horas'}`,
+      cliente: `${r.nombre_cliente}${r.apellidos_cliente ? ' ' + r.apellidos_cliente : ''}`.trim(),
+      festejado: r.nombre_festejado
+        ? `${r.nombre_festejado}${r.edad_festejado ? ' (Cumple ' + r.edad_festejado + ')' : ''}`
+        : null,
+      paquete: paquetesStore.paquetes.find((p) => p.id === r.paquete_id)?.nombre ?? '—',
+      pendienteNum: parseFloat(r.saldo_pendiente || '0'),
     }
-  })
-
-  const days: CalendarDay[] = []
-
-  for (let i = firstWeekday - 1; i >= 0; i--) {
-    days.push({
-      day: daysInPrevMonth - i,
-      isToday: false,
-      isPending: false,
-      isConfirmed: false,
-      isOtherMonth: true,
-    })
-  }
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const thisDate = new Date(y, m, d)
-    days.push({
-      day: d,
-      isToday: thisDate.getTime() === today.getTime(),
-      isPending: pendingDays.has(d),
-      isConfirmed: confirmedDays.has(d),
-      isOtherMonth: false,
-    })
-  }
-
-  const remaining = 42 - days.length
-  for (let d = 1; d <= remaining; d++) {
-    days.push({ day: d, isToday: false, isPending: false, isConfirmed: false, isOtherMonth: true })
-  }
-
-  return days
-})
-
-// ── Próximos eventos este mes ─────────────────────────────────────────────────
-
-const upcomingThisMonth = computed(() => {
-  const y = today.getFullYear()
-  const m = today.getMonth()
-  return store.reservaciones
-    .filter((r) => {
-      const d = parseLocalDate(r.fecha_evento)
-      return d.getFullYear() === y && d.getMonth() === m && d >= today && r.estado !== 'cancelada'
-    })
-    .sort(
-      (a, b) => parseLocalDate(a.fecha_evento).getTime() - parseLocalDate(b.fecha_evento).getTime(),
-    )
-    .map((r) => {
-      const d = parseLocalDate(r.fecha_evento)
-      return {
-        id: r.id,
-        nombre: nombreEvento(r),
-        horario: `${r.hora_inicio.slice(0, 5)} – ${r.hora_fin.slice(0, 5)}`,
-        mesCorto: d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''),
-        dia: d.getDate(),
-      }
-    })
-})
+  }),
+)
 </script>
+
+<style scoped>
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.week-nav__label {
+  min-width: 100px;
+  text-align: center;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+
+  &--paid {
+    background: var(--q-positive, #10b981);
+  }
+
+  &--pending {
+    background: var(--q-warning, #f59e0b);
+  }
+}
+
+.panel-card__footer {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.panel-packages__header {
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(139, 92, 246, 0.1));
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mini-package {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.mini-package:last-child {
+  margin-bottom: 0;
+}
+
+.mini-package--top {
+  border-color: var(--q-primary, #4f46e5);
+  background: rgba(79, 70, 229, 0.04);
+}
+
+.mini-package__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--q-primary, #4f46e5);
+  flex-shrink: 0;
+}
+
+.mini-package__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mini-package__name {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.mini-package__desc {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-package__price {
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+</style>

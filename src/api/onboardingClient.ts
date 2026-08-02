@@ -1,16 +1,24 @@
 import { apiClient } from '@/api/axiosClient'
 import { metodosPagoApi } from '@/api/metodosPagoApi'
 
-const ONBOARDING_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000'
-
 const onboardingClient = apiClient
 
-export function getFotoIneUrl(registroId: string): string {
-  return `${ONBOARDING_BASE_URL}/uploads/identificaciones/${registroId}.jpg`
+// Las fotos de INE/llegada se sirven en una ruta protegida por JWT, que un
+// <img src="..."> no puede enviar. Se descargan con el cliente autenticado y
+// se exponen como blob URL para usarlas en <img>.
+async function fetchFotoBlobUrl(carpeta: 'identificaciones' | 'llegadas', registroId: string) {
+  const { data } = await onboardingClient.get(`/uploads/${carpeta}/${registroId}.jpg`, {
+    responseType: 'blob',
+  })
+  return URL.createObjectURL(data)
 }
 
-export function getFotoLlegadaUrl(registroId: string): string {
-  return `${ONBOARDING_BASE_URL}/uploads/llegadas/${registroId}.jpg`
+export function fetchFotoIneUrl(registroId: string): Promise<string> {
+  return fetchFotoBlobUrl('identificaciones', registroId)
+}
+
+export function fetchFotoLlegadaUrl(registroId: string): Promise<string> {
+  return fetchFotoBlobUrl('llegadas', registroId)
 }
 
 export interface FotosUploadResponse {
@@ -21,13 +29,13 @@ export interface FotosUploadResponse {
 export interface ProductoDto {
   id: string
   nombre: string
-  precio_unitario: number
+  precioUnitario: number
   descripcion: string
 }
 
 export interface PulseraDto {
   id: string
-  pulsera_rfid: string
+  pulseraRfid: string
 }
 
 export interface OnboardingDetalle {
@@ -52,6 +60,8 @@ export interface OnboardingPayload {
     nombreCompleto: string
     telefono: string
   }
+  nombreSegundoTutor: string | null
+  pulseraTutorId: string
   parentesco: string
   detalles: OnboardingDetalle[]
   pagos: OnboardingPago[]
@@ -65,8 +75,11 @@ export interface OnboardingResponse {
 }
 
 export interface ActivoDto {
-  registro_id: string
-  detalle_id: string
+  registroId: string
+  nombreSegundoTutor: string | null
+  pulseraTutorId: string
+  pulseraTutorRfid: string
+  detalleId: string
   nino: string
   notas: string | null
   edad: number
@@ -74,8 +87,8 @@ export interface ActivoDto {
   telefono: string
   parentesco: string
   pulsera: string
-  minutos_pagados: number
-  minutos_transcurridos: number
+  minutosPagados: number
+  minutosTranscurridos: number
 }
 
 export interface CheckoutResponse {
@@ -129,16 +142,21 @@ export async function postOnboarding(
 
   return data
 }
-// GET /estancias/activos/{sucursalId}
 
+// GET /estancias/activos/{sucursalId}
 export async function fetchActivos(sucursalId: string): Promise<ActivoDto[]> {
   const { data } = await onboardingClient.get<ActivoDto[]>(`/estancias/activos/${sucursalId}`)
   return data
 }
 
 // POST /estancias/{detalleId}/checkout
-export async function checkout(detalleId: string): Promise<CheckoutResponse> {
-  const { data } = await onboardingClient.post(`/estancias/${detalleId}/checkout`)
+export async function checkout(
+  detalleId: string,
+  pulseraTutorId: string,
+): Promise<CheckoutResponse> {
+  const { data } = await onboardingClient.post(`/estancias/${detalleId}/checkout`, {
+    pulseraTutorId: pulseraTutorId,
+  })
 
   return data
 }

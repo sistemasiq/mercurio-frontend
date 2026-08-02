@@ -59,12 +59,16 @@
           <div class="caja-footer__stats">
             <div class="stat-block">
               <span class="stat-label">PRODUCTOS TOTALES</span>
-              <span class="stat-value text-primary">{{ totalProductos }}</span>
+              <span class="stat-value text-primary" :class="{ 'stat-pulse': pulseProductos }">{{
+                totalProductos
+              }}</span>
             </div>
             <div class="stat-sep"></div>
             <div class="stat-block">
               <span class="stat-label">PEDIDOS</span>
-              <span class="stat-value text-orange-9">{{ totalComandasActivas }}</span>
+              <span class="stat-value text-orange-9" :class="{ 'stat-pulse': pulsePedidos }">{{
+                totalComandasActivas
+              }}</span>
             </div>
           </div>
           <q-btn
@@ -87,13 +91,13 @@
         v-if="ticketAbierto && turno.estaOperando"
         :items="itemsTicket"
         :enviando="enviando"
-        @cancelar="cancelarOrden"
+        @cancelar="cancelarTicket"
         @cambiar-cantidad="cambiarCantidad"
         @editar-notas="abrirNotasDialog"
-        @pagar="procesarPago"
+        @split-combo="handleSplitCombo"
+        @pagar="abrirModalPago"
       />
     </transition>
-
     <!-- Dialog de notas especiales -->
     <q-dialog v-model="notasDialog">
       <q-card style="min-width: 320px; border-radius: 16px">
@@ -118,34 +122,52 @@
             label="Guardar"
             color="primary"
             style="border-radius: 8px"
-            @click="guardarNotas"
+            @click="() => guardarNotas(itemEditando!, notasTemp)"
           />
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- MODAL DE PAGO MULTIMODAL CON EL TOTAL REAL -->
+    <PaymentModal
+      v-model="modalPagoAbierto"
+      :total-to-pay="totalTicket"
+      @pago-exitoso="onPagoExitoso"
+    />
+
+    <!-- MODALES DE PERSONALIZACIÓN -->
+    <ProductNoteModal v-model="notasDialog" :item="itemEditando" @guardar="guardarNotasLocal" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
+import { ref, computed, onBeforeUnmount, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
 import SinAperturaCajaPanel from '@/components/cierre-caja/SinAperturaCajaPanel.vue'
 import TicketPanel from '@/components/comandas/TicketPanel.vue'
-import { type ItemTicket } from '@/components/comandas/TicketItem.vue'
-import { obtenerProductos } from '@/services/productoService'
-import { crearComanda, obtenerComandas } from '@/services/comandaService'
+import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
+import ProductNoteModal from '@/components/comandas/ProductNoteModal.vue'
+import type { ItemTicket } from '@/components/comandas/TicketItem.vue'
+import { pagosApi } from '@/api/pagosApi'
+import { metodosPagoApi } from '@/api/metodosPagoApi'
 import { useComandasSocket } from '@/composables/useComandasSocket'
+import { useTicketComanda } from '@/composables/useTicketComanda'
+import { useCajaMetrics } from '@/composables/useCajaMetrics'
 import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
-import type { Producto, TipoProducto } from '@/types/producto'
-import type {
-  Comanda,
-  ComandaWsMessage,
-  CrearComandaRequest,
-  DetalleComandaRequest,
-} from '@/types/comanda'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
+import type { TipoProducto } from '@/types/producto'
+import type { MetodosPago } from '@/types/metodos_pago'
+import type { AppliedPayment, PagoCompletoRequest } from '@/types/payments'
+import type { ComandaWsMessage, DetalleComandaRequest } from '@/types/comanda'
+
+const modalPagoAbierto = ref(false)
+const abrirModalPago = () => {
+  modalPagoAbierto.value = true
+}
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -153,48 +175,80 @@ const turno = useTurnoCajaStore()
 const props = defineProps<{ searchTerm?: string }>()
 const abortController = new AbortController()
 
-// Estado
+const { itemsTicket, agregarProducto, splitCombo, cambiarCantidad, cancelarOrden, guardarNotas } =
+  useTicketComanda()
+
+const { comandasActivas, productos, refrescarComandas } = useCajaMetrics()
+
 const loading = ref(false)
 const error = ref<string | null>(null)
 const enviando = ref(false)
 const ticketAbierto = ref(false)
-const productos = ref<Producto[]>([])
-const comandasActivas = ref<Comanda[]>([])
-const itemsTicket = ref<ItemTicket[]>([])
+const metodosPagoDisponibles = ref<MetodosPago[]>([])
 
-// Dialog de notas
 const notasDialog = ref(false)
-const notasTemp = ref('')
 const itemEditando = ref<ItemTicket | null>(null)
+const notasTemp = ref('')
 
-// La caja solo muestra A (Alimento) y B (Bebida).
+// La caja solo muestra A (Alimento), B (Bebida) y combos.
 const listaCategorias: { value: TipoProducto | 'Todos'; label: string }[] = [
   { value: 'Todos', label: 'Todos' },
   { value: 'A', label: 'Alimentos' },
   { value: 'B', label: 'Bebidas' },
+  { value: 'C', label: 'Combos' },
 ]
 const categoriaSeleccionada = ref<TipoProducto | 'Todos'>('Todos')
 
 const productosFiltrados = computed(() => {
   const term = (props.searchTerm ?? '').trim().toLowerCase()
-  let base = productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B')
+  let base = productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B' || p.es_combo)
   if (categoriaSeleccionada.value !== 'Todos') {
     base = base.filter((p) => p.tipo === categoriaSeleccionada.value)
   }
-  if (!term) return base
-  return base.filter(
-    (p) =>
-      (p.nombre ?? '').toLowerCase().includes(term) ||
-      (p.descripcion ?? '').toLowerCase().includes(term),
-  )
+  if (term) {
+    base = base.filter(
+      (p) =>
+        (p.nombre ?? '').toLowerCase().includes(term) ||
+        (p.descripcion ?? '').toLowerCase().includes(term),
+    )
+  }
+  return base
 })
 
 const totalProductos = computed(
-  () => productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B').length,
+  () => productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B' || p.es_combo).length,
 )
 const totalComandasActivas = computed(() => comandasActivas.value.length)
 
-// WebSocket — actualiza el contador de pedidos activos en tiempo real
+const totalTicket = computed(() => {
+  return itemsTicket.value.reduce(
+    (suma, item) => suma + item.producto.precio_unitario * item.cantidad,
+    0,
+  )
+})
+
+// ── Pulse animation on stat changes ────────────────────────────────
+const pulseProductos = ref(false)
+const pulsePedidos = ref(false)
+
+watch(totalProductos, (newVal, oldVal) => {
+  if (oldVal !== undefined && newVal !== oldVal) {
+    pulseProductos.value = true
+    setTimeout(() => {
+      pulseProductos.value = false
+    }, 600)
+  }
+})
+watch(totalComandasActivas, (newVal, oldVal) => {
+  if (oldVal !== undefined && newVal !== oldVal) {
+    pulsePedidos.value = true
+    setTimeout(() => {
+      pulsePedidos.value = false
+    }, 600)
+  }
+})
+
+// ── WebSocket ──────────────────────────────────────────────────────
 function handleMensajeSocket(msg: ComandaWsMessage) {
   const idx = comandasActivas.value.findIndex((c) => c.id === msg.comanda.id)
   if (idx === -1) {
@@ -207,62 +261,99 @@ function handleMensajeSocket(msg: ComandaWsMessage) {
 }
 useComandasSocket(handleMensajeSocket)
 
-// Acciones del catálogo
 const seleccionarCategoria = (cat: TipoProducto | 'Todos') => {
   categoriaSeleccionada.value = cat
 }
 
-const agregarAlTicket = (producto: Producto) => {
+const agregarAlTicket = async (producto: ReturnType<typeof Object> & { id: string }) => {
   ticketAbierto.value = true
-  const existente = itemsTicket.value.find((i) => i.producto.id === producto.id)
-  if (existente) {
-    existente.cantidad++
-  } else {
-    itemsTicket.value.push({ producto, cantidad: 1, notas: '' })
+  const ok = await agregarProducto(producto as Parameters<typeof agregarProducto>[0])
+  if (!ok) {
+    $q.notify({
+      type: 'negative',
+      message: 'No se pudieron cargar los hijos del combo.',
+      position: 'top-right',
+    })
   }
 }
 
-// Acciones del ticket
-const cancelarOrden = () => {
-  itemsTicket.value = []
+const cancelarTicket = () => {
+  cancelarOrden()
   ticketAbierto.value = false
 }
 
-const cambiarCantidad = (item: ItemTicket, delta: number) => {
-  item.cantidad += delta
-  if (item.cantidad <= 0) {
-    itemsTicket.value = itemsTicket.value.filter((i) => i.producto.id !== item.producto.id)
-    if (itemsTicket.value.length === 0) ticketAbierto.value = false
-  }
+const handleSplitCombo = async (item: ItemTicket) => {
+  await splitCombo(item)
+}
+
+function promptSplitThenEdit(item: ItemTicket) {
+  $q.dialog({
+    title: 'Dividir combo',
+    message: `Este combo tiene cantidad ${item.cantidad}. ¿Quieres dividirlo para personalizar una unidad independiente?`,
+    cancel: { label: 'Cancelar', flat: true, color: 'grey-7' },
+    ok: { label: 'Dividir y personalizar', color: 'blue-7' },
+    persistent: true,
+  }).onOk(async () => {
+    const nuevo = await splitCombo(item)
+    if (nuevo) {
+      itemEditando.value = nuevo
+      notasDialog.value = true
+    }
+  })
 }
 
 const abrirNotasDialog = (item: ItemTicket) => {
+  const esComboConMultiples = item.producto.es_combo && !item.es_hijo_combo && item.cantidad > 1
+  if (esComboConMultiples) {
+    promptSplitThenEdit(item)
+    return
+  }
   itemEditando.value = item
-  notasTemp.value = item.notas
+  notasTemp.value = item.notas ?? ''
   notasDialog.value = true
 }
 
-const guardarNotas = () => {
-  if (itemEditando.value) itemEditando.value.notas = notasTemp.value
-  notasDialog.value = false
+const guardarNotasLocal = (item: ItemTicket, notas: string) => {
+  guardarNotas(item, notas)
+}
+
+// ── Pago multimodal ────────────────────────────────────────────────
+const onPagoExitoso = (
+  pagos: AppliedPayment[],
+  celularCliente: string | null,
+  puntosARedimir: number,
+  descuentoPuntos: number,
+) => {
+  void procesarPago(pagos, celularCliente, puntosARedimir, descuentoPuntos)
+}
+
+const mapearMetodoPago = (nombreMetodo: string): string => {
+  if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
+    throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
+  }
+  const metodo = metodosPagoDisponibles.value.find(
+    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
+  )
+  if (!metodo) {
+    const disponibles = metodosPagoDisponibles.value
+      .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
+      .join(', ')
+    const detalle = `Método buscado: "${nombreMetodo}". Métodos disponibles: [${disponibles}]`
+    console.error(`[mapearMetodoPago] ${detalle}`)
+    throw new Error(
+      `El método de pago "${nombreMetodo}" no está configurado o no está activo. ${detalle}`,
+    )
+  }
+  return metodo.id
 }
 
 // Pago
-const obtenerMensajeError = (err: unknown): string => {
-  if (axios.isAxiosError(err)) {
-    const data = err.response?.data as
-      | { detail?: string | string[]; message?: string; error?: string }
-      | undefined
-    if (typeof data?.detail === 'string') return data.detail
-    if (Array.isArray(data?.detail)) return data.detail.join(', ')
-    if (data?.message) return data.message
-    if (data?.error) return data.error
-    if (err.response?.status) return `Error HTTP ${err.response.status}`
-  }
-  return err instanceof Error ? err.message : 'No se pudo enviar la comanda.'
-}
-
-const procesarPago = async () => {
+const procesarPago = async (
+  pagos: AppliedPayment[],
+  celularCliente: string | null,
+  puntosARedimir: number,
+  descuentoPuntos: number,
+) => {
   if (itemsTicket.value.length === 0 || enviando.value) return
 
   if (!authStore.currentBranchId) {
@@ -276,39 +367,63 @@ const procesarPago = async () => {
 
   enviando.value = true
 
-  const detalles: DetalleComandaRequest[] = itemsTicket.value.map((item) => ({
-    producto_id: item.producto.id,
-    nombre: item.producto.nombre,
-    cantidad: item.cantidad,
-    precio_unitario: item.producto.precio_unitario,
-    subtotal: item.producto.precio_unitario * item.cantidad,
-    notas_especiales: item.notas || undefined,
-  }))
-
-  const payload: CrearComandaRequest = {
-    ticket_numero: `TICK-${String(Date.now() % 10000).padStart(4, '0')}`,
-    total_final: itemsTicket.value.reduce((s, i) => s + i.producto.precio_unitario * i.cantidad, 0),
-    sucursal_id: authStore.currentBranchId,
-    estado_actual: 'P',
-    detalles_comanda: detalles,
-  }
-
   try {
-    await crearComanda(payload)
+    const detalles: DetalleComandaRequest[] = itemsTicket.value.map((item) => ({
+      producto_id: item.producto.id,
+      nombre: item.producto.nombre,
+      cantidad: item.cantidad,
+      precio_unitario: item.producto.precio_unitario,
+      subtotal: item.producto.precio_unitario * item.cantidad,
+      notas_especiales: item.notas || undefined,
+      nombre_combo_padre: item.nombre_combo_padre || undefined,
+      es_hijo_de: item.es_hijo_de || undefined,
+      es_hijo_combo: item.es_hijo_combo || undefined,
+    }))
+
+    const totalBruto = itemsTicket.value
+      .filter((i) => !i.es_hijo_combo)
+      .reduce((s, i) => s + i.producto.precio_unitario * i.cantidad, 0)
+    const totalFinal = totalBruto - descuentoPuntos
+
+    const payload: PagoCompletoRequest = {
+      ticket_numero: `TICK-${String(Date.now() % 10000).padStart(4, '0')}`,
+      total_final: totalFinal,
+      detalles_comanda: detalles,
+      pagos: pagos.map((p) => ({
+        metodo_pago_id: mapearMetodoPago(p.method),
+        monto: p.amount,
+        notas_pago: p.cardType ? `${p.cardType} - Folio: ${p.authCode ?? ''}` : '',
+      })),
+      ...(celularCliente ? { celular_cliente: celularCliente } : {}),
+      ...(puntosARedimir > 0 ? { puntos_a_redimir: puntosARedimir } : {}),
+    }
+
+    const comanda = await pagosApi.completarPago(payload)
+
     $q.notify({
       type: 'positive',
       message: '¡Pedido enviado a cocina!',
-      caption: `${itemsTicket.value.length} producto(s) en camino`,
+      caption: `Comanda ${comanda.id.slice(0, 8)} · ${itemsTicket.value.length} producto(s) en camino`,
       position: 'top-right',
       timeout: 2500,
       icon: 'check_circle',
     })
-    cancelarOrden()
+
+    cancelarTicket()
+
+    // Actualización optimista: refrescar comandas de inmediato
+    void refrescarComandas()
   } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.data) {
+      console.error(
+        '[CajaComponent] backend error detail:',
+        err.response.data.detail ?? err.response.data,
+      )
+    }
     $q.notify({
       type: 'negative',
-      message: 'Error al enviar el pedido',
-      caption: obtenerMensajeError(err),
+      message: 'Error al procesar el pago',
+      caption: resolveErrorMessage(err as ApiError),
       position: 'top-right',
       timeout: 4000,
     })
@@ -318,12 +433,18 @@ const procesarPago = async () => {
   }
 }
 
-// Carga inicial
+// Carga inicial de productos (comandas ya las maneja useCajaMetrics)
 const cargarProductos = async () => {
+  if (!authStore.currentBranchId) {
+    error.value = 'No hay una sucursal activa en la sesión.'
+    return
+  }
   loading.value = true
   error.value = null
   try {
-    const resultado = await obtenerProductos(abortController.signal)
+    const resultado = await import('@/services/productoService').then((m) =>
+      m.obtenerProductos(abortController.signal),
+    )
     if (!abortController.signal.aborted) productos.value = resultado
   } catch (err) {
     if (!abortController.signal.aborted) {
@@ -335,20 +456,29 @@ const cargarProductos = async () => {
   }
 }
 
-const cargarComandasActivas = async () => {
+const cargarMetodosPago = async () => {
   try {
-    comandasActivas.value = await obtenerComandas(abortController.signal)
+    metodosPagoDisponibles.value = await metodosPagoApi.listar()
   } catch (err) {
-    if (!abortController.signal.aborted)
-      console.error('[CajaComponent] cargarComandasActivas:', err)
+    if (!abortController.signal.aborted) {
+      console.error('[CajaComponent] cargarMetodosPago:', err)
+      $q.notify({
+        type: 'warning',
+        message: 'No se pudieron cargar los métodos de pago.',
+        caption: 'El cobro multimodal no estará disponible hasta recargar la página.',
+        position: 'top-right',
+        timeout: 6000,
+      })
+    }
   }
 }
 
-onMounted(() => {
-  void cargarProductos()
-  void cargarComandasActivas()
-  void turno.cargarTurnoActivo()
-})
+// refrescarTodo se llama en mount para initial load a través del composable
+// pero productos se cargan por separado (no están en el composable)
+void cargarProductos()
+void cargarMetodosPago()
+void turno.cargarTurnoActivo()
+
 onBeforeUnmount(() => abortController.abort())
 </script>
 
@@ -473,6 +603,26 @@ onBeforeUnmount(() => abortController.abort())
   font-size: 20px;
   font-weight: 700;
   line-height: 1;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+.stat-pulse {
+  animation: stat-pulse-anim 0.6s ease;
+}
+@keyframes stat-pulse-anim {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.25);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 .stat-sep {
   width: 1px;

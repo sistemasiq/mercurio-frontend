@@ -21,7 +21,7 @@ export function setupPlugins(app: App, router: Router): void {
   app.use(router)
   app.use(Quasar, {
     plugins: { Notify, Loading, Dialog },
-    lang: langEs,
+    lang: { ...langEs, table: { ...langEs.table, recordsPerPage: 'Registros por página:' } },
     config: {
       notify: { position: 'top', timeout: 4000 },
     },

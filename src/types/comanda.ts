@@ -16,19 +16,36 @@
 import type { TipoProducto } from './producto'
 
 // Estados del ciclo de vida de una comanda (códigos del backend)
-export type EstadoActualComanda = 'P' | 'E' | 'L' | 'T'
+export type EstadoActualComanda = 'P' | 'E' | 'L' | 'T' | 'C'
+
+// Producto individual dentro del desglose de un combo (solo cuando
+// producto_tipo === 'C'). cantidad ya viene multiplicada por la cantidad
+// de combos pedidos en este detalle.
+export interface ComboItemComanda {
+  producto_id: string
+  nombre: string
+  cantidad: number
+}
 
 // Detalle de un ítem dentro de una comanda — shape exacto del backend
 export interface DetalleComanda {
   id: string
   producto_id: string
+  nombre?: string | null
   producto_nombre: string | null
+  nombre_combo_padre?: string | null
   // Viene del JOIN LEFT con public.productos (p.tipo AS producto_tipo)
   // Necesario para que el KDS filtre ítems no consumibles (S, E)
   producto_tipo?: TipoProducto | null
   cantidad: number
   precio_unitario: number
+  subtotal?: number
+  importe?: number
   notas_especiales?: string | null
+  // Solo presente si producto_tipo === 'C'; desglose de lo que incluye el combo
+  productos_combo?: ComboItemComanda[] | null
+  es_hijo_de?: string | null
+  es_hijo_combo?: boolean
 }
 
 // Shape de la comanda tal como la retorna el backend (asdict de models/Comanda)
@@ -50,13 +67,13 @@ export interface Comanda {
 
 // Mensajes WebSocket del canal de comandas (app/api/routers/comandas.py)
 export type ComandaWsMessage =
-  { type: 'comanda_creada'; comanda: Comanda } | { type: 'comanda_actualizada'; comanda: Comanda }
+  | { type: 'comanda_creada'; comanda: Comanda }
+  | { type: 'comanda_actualizada'; comanda: Comanda }
 
 // Payload para crear una comanda (POST /api/comandas/)
 export interface CrearComandaRequest {
   ticket_numero: string
   total_final: number
-  sucursal_id: string
   estado_actual: EstadoActualComanda
   detalles_comanda: DetalleComandaRequest[]
 }
@@ -71,4 +88,7 @@ export interface DetalleComandaRequest {
   precio_unitario: number
   subtotal: number
   notas_especiales?: string
+  nombre_combo_padre?: string
+  es_hijo_de?: string
+  es_hijo_combo?: boolean
 }
