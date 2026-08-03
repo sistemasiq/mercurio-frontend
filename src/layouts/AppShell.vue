@@ -49,12 +49,6 @@ const navGroups: NavGroup[] = [
         routeName: 'estancias-pulseras',
         permission: 'pulseras:listar',
       },
-      {
-        label: 'Registro de Pulseras',
-        icon: 'qr_code_scanner',
-        routeName: 'estancias-pulseras-registro',
-        permission: 'pulseras:crear',
-      },
     ],
   },
   {
