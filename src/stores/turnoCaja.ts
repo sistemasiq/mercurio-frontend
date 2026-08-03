@@ -438,13 +438,17 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
 
     // Precarga las filas de métodos de pago con los movimientos reales del turno.
     // Se conservan las filas agregadas manualmente por el cajero que no vinieron del sistema.
+    // "Efectivo" nunca entra aquí: ya tiene su propio bloque (EfectivoDesgloseForm) —
+    // incluirlo también en este listado duplicaba la fila en pantalla.
     const filasManuales = metodosPago.value.filter((f) => f.origen === 'manual')
-    const filasSistema = turno.movimientos.map((m, idx) => ({
-      id: idx + 1,
-      metodo: m.metodo,
-      monto: null,
-      origen: 'sistema' as const,
-    }))
+    const filasSistema = turno.movimientos
+      .filter((m) => m.metodo.trim().toLowerCase() !== 'efectivo')
+      .map((m, idx) => ({
+        id: idx + 1,
+        metodo: m.metodo,
+        monto: null,
+        origen: 'sistema' as const,
+      }))
     metodosPago.value = [...filasSistema, ...filasManuales]
   }
 
