@@ -28,14 +28,17 @@
         <div class="rs-grid-columns">
           <!-- Columna Izquierda: Comparativo por método y Declaración del Cajero -->
           <div class="rs-col-left">
-            <!-- Contexto del turno (fondo y retiros, no son "métodos" en sí) -->
+            <!-- Contexto del turno: fondo, retiros, y cada método de pago que tuvo
+                 movimientos en el corte — así el cajero/admin ve de un vistazo cómo se
+                 arma el total del sistema (fondo + métodos - retiros) antes de cotejarlo
+                 contra el papel físico (billetes, baucher de tarjeta, cupones, etc.). -->
             <div class="rs-card-box">
               <h3 class="rs-box-title">Contexto del Turno</h3>
               <div class="rs-detail-list">
                 <div class="rs-detail-row">
                   <span class="rs-detail-label">Fondo Inicial</span>
                   <span class="rs-detail-val"
-                    >${{
+                    >+${{
                       (turno.fondoInicial || 0).toLocaleString('es-MX', {
                         minimumFractionDigits: 2,
                       })
@@ -51,6 +54,20 @@
                       (turno.totalRetiros || 0).toLocaleString('es-MX', {
                         minimumFractionDigits: 2,
                       })
+                    }}</span
+                  >
+                </div>
+                <div
+                  v-for="fila in turno.balancePorMetodo"
+                  :key="'ctx-' + fila.metodo"
+                  class="rs-detail-row text-positive"
+                >
+                  <span class="rs-detail-label flex items-center">
+                    <q-icon name="add_circle" size="16px" class="q-mr-xs" /> {{ fila.label }}
+                  </span>
+                  <span class="rs-detail-val"
+                    >+${{
+                      fila.esperado.toLocaleString('es-MX', { minimumFractionDigits: 2 })
                     }}</span
                   >
                 </div>
@@ -130,29 +147,15 @@
               </div>
             </div>
 
-            <!-- Observaciones de Cierre -->
+            <!-- Observaciones de Cierre (opcionales, sin importar si hay diferencia) -->
             <div class="rs-card-box">
-              <label class="rs-box-title block mb-2">
-                Observaciones de Cierre
-                <span v-if="hayDiferenciaAlguna" class="rs-required-tag">Requerido</span>
-              </label>
+              <label class="rs-box-title block mb-2">Observaciones de Cierre (opcional)</label>
               <textarea
                 v-model="observacionesModal"
                 rows="3"
                 class="rs-textarea"
-                :class="{
-                  'rs-textarea--invalid': hayDiferenciaAlguna && !observacionesValidas,
-                }"
-                placeholder="Ingrese comentarios, discrepancias o notas adicionales sobre el turno..."
+                placeholder="Ingrese comentarios, discrepancias o notas adicionales sobre el turno (opcional)..."
               />
-              <div
-                class="text-right text-caption mt-1"
-                :class="
-                  hayDiferenciaAlguna && !observacionesValidas ? 'text-negative' : 'text-grey-6'
-                "
-              >
-                {{ observacionesModal.trim().length }} / 15 caracteres mín.
-              </div>
             </div>
           </div>
 
@@ -255,7 +258,7 @@
           label="Cierre Extraordinario"
           icon="warning"
           :loading="cargandoProceso"
-          :disable="!pinAdminConfirmado || !observacionesValidas"
+          :disable="!pinAdminConfirmado"
           @click="ejecutarCierreExtraordinario"
         />
 
@@ -267,7 +270,7 @@
           label="Autorizar Cierre"
           icon-right="lock"
           :loading="cargandoProceso"
-          :disable="!pinCajeroConfirmado || !pinAdminConfirmado || !observacionesValidas"
+          :disable="!pinCajeroConfirmado || !pinAdminConfirmado"
           @click="ejecutarAutorizacionCierre"
         />
       </div>
@@ -297,17 +300,6 @@ const cargandoProceso = ref(false)
 
 // El backend (RevisionAdminResponse) ya entrega el total esperado/declarado y la
 // diferencia real de EFECTIVO — no hace falta recalcularlos ni usar valores de respaldo.
-
-// RN-VAL-005: observaciones obligatorias (mín. 15 caracteres) si hay diferencia en
-// efectivo O en cualquier otro método que el cajero haya declarado.
-const hayDiferenciaAlguna = computed(
-  () => turno.diferenciaNeta !== 0 || turno.balancePorMetodo.some((f) => f.diferencia !== 0),
-)
-
-const observacionesValidas = computed(() => {
-  if (!hayDiferenciaAlguna.value) return true
-  return observacionesModal.value.trim().length >= 15
-})
 
 const signoDiferencia = computed(() => {
   if (turno.diferenciaNeta > 0) return '+'
@@ -430,31 +422,6 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
 }
 
 async function ejecutarAutorizacionCierre() {
-  const obsText = observacionesModal.value.trim()
-
-  // Validar mínimo 15 caracteres en observaciones si hay diferencia neta
-  if (hayDiferenciaAlguna.value && obsText.length < 15) {
-    $q.notify({
-      type: 'warning',
-      position: 'top',
-      icon: 'warning',
-      message:
-        'Las observaciones son obligatorias (mínimo 15 caracteres) cuando existe una diferencia en el balance.',
-    })
-    return
-  }
-
-  // Validar si el usuario escribió algo corto (< 15 chars)
-  if (obsText.length > 0 && obsText.length < 15) {
-    $q.notify({
-      type: 'warning',
-      position: 'top',
-      icon: 'warning',
-      message: 'Las observaciones deben contener al menos 15 caracteres.',
-    })
-    return
-  }
-
   if (!pinCajeroConfirmado.value || !pinAdminConfirmado.value) {
     $q.notify({
       type: 'warning',
@@ -756,18 +723,6 @@ async function ejecutarCierreExtraordinario() {
   border: 1px solid #bbf7d0;
 }
 
-.rs-required-tag {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: #fef2f2;
-  color: #dc2626;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
 .rs-textarea {
   width: 100%;
   border: 1px solid #cbd5e1;
@@ -777,9 +732,6 @@ async function ejecutarCierreExtraordinario() {
   font-size: 13px;
   color: #0b1c30;
   outline: none;
-}
-.rs-textarea--invalid {
-  border-color: #dc2626;
 }
 .rs-textarea:focus {
   border-color: #025fe0;
