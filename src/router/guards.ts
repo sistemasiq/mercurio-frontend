@@ -33,7 +33,14 @@ export function setupRouterGuards(router: Router): void {
 
     if (to.name === 'estancias-registro-infantes') {
       const accessControlStore = useAccessControlStore()
-      if (!accessControlStore.lastUpdated || accessControlStore.pulserasLibres < 2) {
+      // El Cajero no tiene el permiso "pulseras:listar" — nunca puede saber el
+      // conteo real, así que este guard no aplica para él (quedaría en 0 para
+      // siempre y lo bloquearía sin importar el inventario real). Solo se
+      // exige el mínimo de 2 libres a roles que sí pueden verlo.
+      if (
+        accessControlStore.puedeVerPulseras &&
+        (!accessControlStore.lastUpdated || accessControlStore.pulserasLibres < 2)
+      ) {
         return { name: 'estancias-control-acceso' }
       }
     }
