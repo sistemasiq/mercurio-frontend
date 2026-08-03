@@ -3,10 +3,12 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { ActiveChild } from '@/stores/accessControl'
 import { useAccessControlStore } from '@/stores/accessControl'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { fetchFotoIneUrl, fetchFotoLlegadaUrl } from '@/api/onboardingClient'
 
 const props = defineProps<{ child: ActiveChild }>()
 const store = useAccessControlStore()
+const turno = useTurnoCajaStore()
 const router = useRouter()
 
 const showDetails = ref(false)
@@ -57,6 +59,10 @@ const statusConfig = computed(() => {
 })
 
 function handleCheckout() {
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
   store.setCheckoutChild(props.child)
   router.push({ name: 'estancias-checkout' })
 }

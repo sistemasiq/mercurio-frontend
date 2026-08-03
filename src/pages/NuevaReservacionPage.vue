@@ -1,11 +1,5 @@
 <template>
-  <q-page v-if="!turno.estaOperando" class="page-content q-pa-md q-pa-lg-xl">
-    <SinAperturaCajaPanel>
-      No puedes crear una nueva reservación sin un turno de caja abierto (operando).
-    </SinAperturaCajaPanel>
-  </q-page>
-
-  <q-page v-else class="page-content q-pa-md q-pa-lg-xl">
+  <q-page class="page-content q-pa-md q-pa-lg-xl">
     <div style="width: 100%; max-width: 1800px; margin: 0 auto">
       <!-- Page Title -->
       <div class="q-mb-xl text-left q-px-sm">
@@ -664,7 +658,6 @@ import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
-import SinAperturaCajaPanel from '@/components/cierre-caja/SinAperturaCajaPanel.vue'
 import { useReservacionExtrasStore } from '@/stores/reservacion_extras'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
@@ -682,6 +675,13 @@ const turno = useTurnoCajaStore()
 const reservacionExtrasStore = useReservacionExtrasStore()
 
 onMounted(() => {
+  // Se valida al entrar, no hasta el paso de pago: si el cajero no tiene turno
+  // abierto no tiene sentido dejarlo llenar todo el formulario para enterarse
+  // hasta el final. Se redirige de inmediato, sin bloquear con un panel.
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
   paquetesStore.cargar(authStore.currentBranchId ?? undefined)
   extrasStore.cargar(authStore.currentBranchId ?? undefined)
   tiposEventoStore.cargar()

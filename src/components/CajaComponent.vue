@@ -13,73 +13,74 @@
            forma universal en el encabezado, junto a la sucursal — aquí no se
            duplica. El catálogo y el armado del pedido SÍ se pueden ver y usar sin
            turno abierto; lo único que se bloquea es el cobro (ver abrirModalPago),
-           que redirige a Apertura de Caja en vez de dejar pagar sin turno. -->
-      <template>
-        <div class="caja-cats hide-scrollbar">
-          <button
-            v-for="cat in listaCategorias"
-            :key="cat.value"
-            class="cat-pill"
-            :class="{ 'cat-pill--active': categoriaSeleccionada === cat.value }"
-            @click="seleccionarCategoria(cat.value)"
-          >
-            {{ cat.label }}
-          </button>
+           que redirige a Apertura de Caja en vez de dejar pagar sin turno.
+           (Un <template> sin v-if/v-for/#slot no es un agrupador transparente:
+           Vue lo compila como una etiqueta <template> real de HTML, que el
+           navegador oculta — por eso no se usa aquí, solo un fragmento normal.) -->
+      <div class="caja-cats hide-scrollbar">
+        <button
+          v-for="cat in listaCategorias"
+          :key="cat.value"
+          class="cat-pill"
+          :class="{ 'cat-pill--active': categoriaSeleccionada === cat.value }"
+          @click="seleccionarCategoria(cat.value)"
+        >
+          {{ cat.label }}
+        </button>
+      </div>
+
+      <div class="caja-productos hide-scrollbar">
+        <div v-if="loading" class="caja-grid">
+          <q-card v-for="n in 8" :key="n" flat bordered class="skeleton-card">
+            <q-skeleton type="rect" height="100px" />
+            <q-card-section>
+              <q-skeleton type="text" width="65%" class="q-mb-xs" />
+              <q-skeleton type="text" width="85%" />
+            </q-card-section>
+          </q-card>
         </div>
 
-        <div class="caja-productos hide-scrollbar">
-          <div v-if="loading" class="caja-grid">
-            <q-card v-for="n in 8" :key="n" flat bordered class="skeleton-card">
-              <q-skeleton type="rect" height="100px" />
-              <q-card-section>
-                <q-skeleton type="text" width="65%" class="q-mb-xs" />
-                <q-skeleton type="text" width="85%" />
-              </q-card-section>
-            </q-card>
-          </div>
+        <q-banner v-else-if="error" class="bg-orange-1 text-orange-10" rounded>
+          No se pudieron cargar los productos. Intenta de nuevo.
+        </q-banner>
 
-          <q-banner v-else-if="error" class="bg-orange-1 text-orange-10" rounded>
-            No se pudieron cargar los productos. Intenta de nuevo.
-          </q-banner>
-
-          <div v-else class="caja-grid">
-            <ProductoCard
-              v-for="producto in productosFiltrados"
-              :key="producto.id"
-              :producto="producto"
-              @agregar="agregarAlTicket"
-            />
-          </div>
-        </div>
-
-        <div class="caja-footer">
-          <div class="caja-footer__stats">
-            <div class="stat-block">
-              <span class="stat-label">PRODUCTOS TOTALES</span>
-              <span class="stat-value text-primary" :class="{ 'stat-pulse': pulseProductos }">{{
-                totalProductos
-              }}</span>
-            </div>
-            <div class="stat-sep"></div>
-            <div class="stat-block">
-              <span class="stat-label">PEDIDOS</span>
-              <span class="stat-value text-orange-9" :class="{ 'stat-pulse': pulsePedidos }">{{
-                totalComandasActivas
-              }}</span>
-            </div>
-          </div>
-          <q-btn
-            v-if="!ticketAbierto"
-            unelevated
-            color="primary"
-            icon="add_circle"
-            label="Nuevo Pedido"
-            class="text-weight-bold"
-            style="border-radius: 12px"
-            @click="ticketAbierto = true"
+        <div v-else class="caja-grid">
+          <ProductoCard
+            v-for="producto in productosFiltrados"
+            :key="producto.id"
+            :producto="producto"
+            @agregar="agregarAlTicket"
           />
         </div>
-      </template>
+      </div>
+
+      <div class="caja-footer">
+        <div class="caja-footer__stats">
+          <div class="stat-block">
+            <span class="stat-label">PRODUCTOS TOTALES</span>
+            <span class="stat-value text-primary" :class="{ 'stat-pulse': pulseProductos }">{{
+              totalProductos
+            }}</span>
+          </div>
+          <div class="stat-sep"></div>
+          <div class="stat-block">
+            <span class="stat-label">PEDIDOS</span>
+            <span class="stat-value text-orange-9" :class="{ 'stat-pulse': pulsePedidos }">{{
+              totalComandasActivas
+            }}</span>
+          </div>
+        </div>
+        <q-btn
+          v-if="!ticketAbierto"
+          unelevated
+          color="primary"
+          icon="add_circle"
+          label="Nuevo Pedido"
+          class="text-weight-bold"
+          style="border-radius: 12px"
+          @click="iniciarNuevoPedido"
+        />
+      </div>
     </div>
 
     <!-- Columna derecha: panel del ticket -->
@@ -168,13 +169,9 @@ const turno = useTurnoCajaStore()
 
 const modalPagoAbierto = ref(false)
 const abrirModalPago = () => {
+  // El turno pudo haberse cerrado entre "Nuevo Pedido" y este punto — mismo
+  // redirect silencioso, sin bloquear ni avisar, como defensa adicional.
   if (!turno.estaOperando) {
-    $q.notify({
-      type: 'warning',
-      position: 'top',
-      icon: 'lock',
-      message: 'Necesitas abrir caja antes de cobrar. Te llevamos a Apertura de Caja.',
-    })
     void router.push('/pos/cierre')
     return
   }
@@ -193,6 +190,17 @@ const error = ref<string | null>(null)
 const enviando = ref(false)
 const ticketAbierto = ref(false)
 const metodosPagoDisponibles = ref<MetodosPago[]>([])
+
+const iniciarNuevoPedido = () => {
+  // Se valida al hacer clic en "Nuevo Pedido", no hasta el cobro: sin turno
+  // abierto no tiene sentido dejar armar todo el ticket para enterarse hasta
+  // el final. Redirige de inmediato, sin bloquear ni avisar.
+  if (!turno.estaOperando) {
+    void router.push('/pos/cierre')
+    return
+  }
+  ticketAbierto.value = true
+}
 
 const notasDialog = ref(false)
 const itemEditando = ref<ItemTicket | null>(null)

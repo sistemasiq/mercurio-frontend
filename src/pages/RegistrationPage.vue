@@ -8,13 +8,19 @@ import ChildrenSection from '@/components/registro-infantes/ChildrenSection.vue'
 import OrderSummary from '@/components/registro-infantes/OrderSummary.vue'
 import RfidSection from '@/components/registro-infantes/RfidSection.vue'
 import PrintVoucher from '@/components/registro-infantes/PrintVoucher.vue'
-import SinAperturaCajaPanel from '@/components/cierre-caja/SinAperturaCajaPanel.vue'
 
 const store = useRegistrationStore()
 const turno = useTurnoCajaStore()
 const router = useRouter()
 
 onMounted(() => {
+  // Se valida al entrar, no hasta el final del registro: si no hay turno
+  // abierto no tiene sentido dejar llenar todo el formulario del tutor/niño
+  // para enterarse hasta el final. Redirige de inmediato, sin bloquear con un panel.
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
   store.loadProductos()
 })
 
@@ -72,10 +78,6 @@ onUnmounted(() => {
         <q-btn flat color="primary" icon="add" label="Volver" @click="router.back()" />
       </div>
     </div>
-
-    <SinAperturaCajaPanel v-else-if="!turno.estaOperando">
-      No puedes registrar el ingreso de un niño sin un turno de caja abierto (operando).
-    </SinAperturaCajaPanel>
 
     <div v-else class="row q-col-gutter-lg">
       <div class="col-12 col-md-8">

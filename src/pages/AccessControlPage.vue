@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useEstanciasSocket } from '@/composables/useEstanciasSocket'
 import type { EstanciaWsMessage } from '@/types/estancia'
 import StatCard from '@/components/control-acceso/StatCard.vue'
@@ -11,6 +12,7 @@ import ActiveChildCard from '@/components/control-acceso/ActiveChildCard.vue'
 const POLLING_FALLBACK_MS = 15000
 
 const store = useAccessControlStore()
+const turno = useTurnoCajaStore()
 const router = useRouter()
 
 const scrollContainer = ref<HTMLElement | null>(null)
@@ -19,6 +21,7 @@ const fallbackIntervalId = ref<ReturnType<typeof setInterval> | null>(null)
 onMounted(() => {
   store.loadActivos()
   store.startTicking()
+  void turno.cargarTurnoActivo()
 })
 
 onUnmounted(() => {
@@ -70,6 +73,10 @@ function scrollByCards(direction: 1 | -1) {
 }
 
 function goToNewRegistration() {
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
   router.push({ name: 'estancias-registro-infantes' })
 }
 </script>
@@ -89,7 +96,6 @@ function goToNewRegistration() {
         icon="person_add"
         label="Nuevo Registro"
         no-caps
-        :disable="store.pulserasLibres < 2"
         @click="goToNewRegistration"
       />
     </div>

@@ -179,7 +179,7 @@
                   style="border-radius: 8px; height: 44px; font-weight: 700"
                   :loading="procesandoPago"
                   :disable="saldoPendiente <= 0"
-                  @click="modalPagoAbierto = true"
+                  @click="abrirModalPago"
                 />
 
                 <q-banner
@@ -229,7 +229,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { reservacionesApi } from '@/api/reservacionesApi'
 import { pagosReservacionApi } from '@/api/pagosReservacionApi'
@@ -238,6 +238,7 @@ import { usePaquetesStore } from '@/stores/paquetes'
 import { useExtrasStore } from '@/stores/extras'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import type { Reservaciones } from '@/types/reservaciones'
 import type { Pagos_reservacion } from '@/types/pagos_reservacion'
 import type { Reservacion_extras } from '@/types/reservacion_extras'
@@ -245,12 +246,24 @@ import type { AppliedPayment } from '@/types/payments'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 
 const route = useRoute()
+const router = useRouter()
 const $q = useQuasar()
 
 const paquetesStore = usePaquetesStore()
 const extrasStore = useExtrasStore()
 const metodosPagoStore = useMetodosPagoStore()
 const tiposEventoStore = useTiposEventoStore()
+const turno = useTurnoCajaStore()
+
+function abrirModalPago() {
+  // Se valida al hacer clic en "Procesar Pago", antes de abrir el modal —
+  // sin turno abierto no se puede registrar el movimiento de caja.
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
+  modalPagoAbierto.value = true
+}
 
 const cargando = ref(true)
 const error = ref<string | null>(null)

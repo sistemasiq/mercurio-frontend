@@ -1,17 +1,25 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { checkout, pagarExtra, fetchMetodoPagoPorDefecto } from '@/api/onboardingClient'
 import { Notify } from 'quasar'
-import SinAperturaCajaPanel from '@/components/cierre-caja/SinAperturaCajaPanel.vue'
 
 const store = useAccessControlStore()
 const authStore = useAuthStore()
 const turno = useTurnoCajaStore()
 const router = useRouter()
+
+onMounted(() => {
+  // Se valida al entrar, no hasta el final del checkout: si no hay turno
+  // abierto no tiene sentido dejar revisar todo el checkout para enterarse
+  // hasta el final. Redirige de inmediato, sin bloquear con un panel.
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+  }
+})
 
 const child = computed(() => store.checkoutChild)
 
@@ -140,13 +148,7 @@ function cancelar() {
 </script>
 
 <template>
-  <q-page v-if="child && !turno.estaOperando" class="checkout-page q-pa-lg">
-    <SinAperturaCajaPanel>
-      No puedes procesar la salida de un niño sin un turno de caja abierto (operando).
-    </SinAperturaCajaPanel>
-  </q-page>
-
-  <q-page v-else-if="child" class="checkout-page q-pa-lg">
+  <q-page v-if="child" class="checkout-page q-pa-lg">
     <!-- Header -->
     <div class="row items-center q-mb-lg">
       <div>
