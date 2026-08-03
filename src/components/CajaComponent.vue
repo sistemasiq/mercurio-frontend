@@ -11,13 +11,10 @@
 
       <!-- El estado del turno (aperturado / en conteo / sin apertura) ya se ve de
            forma universal en el encabezado, junto a la sucursal — aquí no se
-           duplica. Sin turno OPERANDO, se bloquea por completo la venta (no solo
-           un aviso al lado del catálogo, que igual dejaba agregar productos). -->
-      <SinAperturaCajaPanel v-if="!turno.estaOperando">
-        No puedes registrar ventas sin un turno de caja abierto (operando).
-      </SinAperturaCajaPanel>
-
-      <template v-else>
+           duplica. El catálogo y el armado del pedido SÍ se pueden ver y usar sin
+           turno abierto; lo único que se bloquea es el cobro (ver abrirModalPago),
+           que redirige a Apertura de Caja en vez de dejar pagar sin turno. -->
+      <template>
         <div class="caja-cats hide-scrollbar">
           <button
             v-for="cat in listaCategorias"
@@ -88,7 +85,7 @@
     <!-- Columna derecha: panel del ticket -->
     <transition name="slide-ticket">
       <TicketPanel
-        v-if="ticketAbierto && turno.estaOperando"
+        v-if="ticketAbierto"
         :items="itemsTicket"
         :enviando="enviando"
         @cancelar="cancelarTicket"
@@ -142,10 +139,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
-import SinAperturaCajaPanel from '@/components/cierre-caja/SinAperturaCajaPanel.vue'
 import TicketPanel from '@/components/comandas/TicketPanel.vue'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import ProductNoteModal from '@/components/comandas/ProductNoteModal.vue'
@@ -164,14 +161,25 @@ import type { MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment, PagoCompletoRequest } from '@/types/payments'
 import type { ComandaWsMessage, DetalleComandaRequest } from '@/types/comanda'
 
-const modalPagoAbierto = ref(false)
-const abrirModalPago = () => {
-  modalPagoAbierto.value = true
-}
-
+const router = useRouter()
 const $q = useQuasar()
 const authStore = useAuthStore()
 const turno = useTurnoCajaStore()
+
+const modalPagoAbierto = ref(false)
+const abrirModalPago = () => {
+  if (!turno.estaOperando) {
+    $q.notify({
+      type: 'warning',
+      position: 'top',
+      icon: 'lock',
+      message: 'Necesitas abrir caja antes de cobrar. Te llevamos a Apertura de Caja.',
+    })
+    void router.push('/pos/cierre')
+    return
+  }
+  modalPagoAbierto.value = true
+}
 const props = defineProps<{ searchTerm?: string }>()
 const abortController = new AbortController()
 
