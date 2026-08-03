@@ -68,6 +68,7 @@
                 <th class="rs-th">Sucursal</th>
                 <th class="rs-th">Caja</th>
                 <th class="rs-th rs-th--center">Hora Cierre</th>
+                <th class="rs-th rs-th--right">Total Declarado</th>
                 <th class="rs-th rs-th--right">Diferencia</th>
                 <th class="rs-th">Administrador</th>
                 <th class="rs-th rs-th--center">PDF</th>
@@ -76,13 +77,13 @@
             <tbody>
               <!-- Cargando -->
               <tr v-if="cargando">
-                <td colspan="7" class="rs-td rs-td--center rs-td--loading">
+                <td colspan="8" class="rs-td rs-td--center rs-td--loading">
                   <q-spinner-dots color="primary" size="28px" />
                 </td>
               </tr>
               <!-- Sin resultados -->
               <tr v-else-if="items.length === 0">
-                <td colspan="7" class="rs-td rs-td--center rs-td--empty">
+                <td colspan="8" class="rs-td rs-td--center rs-td--empty">
                   <span class="material-symbols-outlined rs-empty-icon">inbox</span>
                   <span>No se encontraron arqueos con los filtros actuales.</span>
                 </td>
@@ -107,6 +108,7 @@
                 <td class="rs-td">{{ item.sucursalNombre }}</td>
                 <td class="rs-td rs-td--mono">{{ item.terminal }}</td>
                 <td class="rs-td rs-td--center">{{ formatHora(item.fechaCierre) }}</td>
+                <td class="rs-td rs-td--right">{{ formatMXN(item.totalDeclarado) }}</td>
                 <td
                   class="rs-td rs-td--right rs-td--bold"
                   :class="claseDiferenciaLocal(item.diferenciaNeta)"
@@ -155,7 +157,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { turnoCajaService } from '@/services/turnoCajaService'
-import { formatDiferencia } from '@/utils/formatoMoneda'
+import { formatDiferencia, formatMXN } from '@/utils/formatoMoneda'
 import { getAvatarColor, getInitials } from '@/utils/avatar'
 import type { ArqueoResumen, FiltrosHistorial } from '@/types/turnoCaja'
 import DetalleArqueoDialog from '@/components/cierre-caja/DetalleArqueoDialog.vue'
