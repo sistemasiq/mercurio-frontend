@@ -215,6 +215,18 @@ const navGroups: NavGroup[] = [
         permission: 'permisos:ver',
       },
       {
+        label: 'Horarios',
+        icon: 'schedule',
+        routeName: 'admin-horarios',
+        permission: 'horarios:listar',
+      },
+      {
+        label: 'Cajas',
+        icon: 'point_of_sale',
+        routeName: 'admin-cajas',
+        permission: 'cajas:crear',
+      },
+      {
         label: 'Reportes',
         icon: 'query_stats',
         routeName: 'reportes-dashboard',

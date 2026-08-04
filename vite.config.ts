@@ -9,7 +9,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         // En Docker, VITE_PROXY_TARGET apunta al servicio "backend" del compose.
-        target: process.env.VITE_PROXY_TARGET || 'http://localhost:8000',
+        target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000',
         changeOrigin: true,
         ws: true,
       },

@@ -347,6 +347,25 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/admin',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'horarios',
+        name: 'admin-horarios',
+        component: () => import('@/pages/admin/HorariosPage.vue'),
+        meta: { permissions: ['horarios:listar'], title: 'Horarios' },
+      },
+      {
+        path: 'cajas',
+        name: 'admin-cajas',
+        component: () => import('@/pages/admin/CajasAdminPage.vue'),
+        meta: { permissions: ['cajas:crear'], title: 'Cajas' },
+      },
+    ],
+  },
+  {
     path: '/lealtad',
     component: () => import('@/layouts/AppShell.vue'),
     meta: { requiresAuth: true },
