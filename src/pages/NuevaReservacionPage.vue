@@ -73,7 +73,33 @@
                       emit-value
                       map-options
                       placeholder="Selecciona un tipo"
-                    />
+                      :error="!!tiposEventoStore.error"
+                      :error-message="tiposEventoStore.error ?? undefined"
+                      no-error-icon
+                    >
+                      <template
+                        v-if="!tiposEventoStore.loading && !tiposEventoOptions.length"
+                        #no-option
+                      >
+                        <q-item>
+                          <q-item-section class="text-grey-6 text-caption">
+                            <span v-if="tiposEventoStore.error">
+                              Error al cargar.
+                              <q-btn
+                                flat
+                                dense
+                                no-caps
+                                size="sm"
+                                color="primary"
+                                label="Reintentar"
+                                @click.stop="tiposEventoStore.cargar()"
+                              />
+                            </span>
+                            <span v-else>No hay tipos de evento configurados.</span>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                    </q-select>
                   </div>
                 </div>
               </div>
@@ -211,38 +237,34 @@
                 <div v-else-if="!paquetesStore.activos.length" class="q-pa-md text-grey">
                   No hay paquetes disponibles
                 </div>
+                <div v-else-if="!paquetesDisponibles.length" class="q-pa-md text-orange-9">
+                  <q-icon name="info" size="20px" class="q-mr-xs" />
+                  Ningún paquete cubre {{ form.ninos }} niños. Ajusta el número de niños en el paso
+                  anterior o crea un paquete con ese rango.
+                </div>
                 <div v-else class="row q-gutter-md">
                   <div
-                    v-for="pkg in paquetesStore.activos"
+                    v-for="pkg in paquetesDisponibles"
                     :key="pkg.id"
                     class="col package-card"
                     :class="{ 'package-card--selected': form.selectedPackage === pkg.id }"
                     @click="selectPackage(pkg.id)"
                   >
-                    <div
-                      v-if="paquetesStore.activos.indexOf(pkg) === 0"
-                      class="package-card__badge"
-                    >
-                      Recomendado
+                    <div v-if="pkg.id === paqueteMasContratadoId" class="package-card__badge">
+                      Más contratado
                     </div>
                     <div class="package-card__name">{{ pkg.nombre }}</div>
                     <div class="package-card__capacity">
-                      Hasta {{ pkg.personas_incluidas }} personas
+                      De {{ pkg.min_invitados }} a {{ pkg.max_invitados }} invitados
                     </div>
                     <div class="package-card__price">{{ fmt(parseFloat(pkg.precio_base)) }}</div>
                     <ul class="package-card__features">
                       <li v-if="pkg.descripcion">
                         <q-icon name="check_circle" />{{ pkg.descripcion }}
                       </li>
-                      <li v-if="parseFloat(pkg.precio_persona_extra) > 0">
-                        <q-icon name="check_circle" />+{{
-                          fmt(parseFloat(pkg.precio_persona_extra))
-                        }}
-                        por persona extra
-                      </li>
-                      <li v-if="parseFloat(pkg.precio_hora) > 0">
-                        <q-icon name="check_circle" />+{{ fmt(parseFloat(pkg.precio_hora)) }} por
-                        hora del evento
+                      <li v-if="parseFloat(pkg.precio_pulsera) > 0">
+                        <q-icon name="check_circle" />+{{ fmt(parseFloat(pkg.precio_pulsera)) }}
+                        por pulsera de cada invitado
                       </li>
                       <li v-for="item in pkg.productos_incluidos ?? []" :key="item.producto_id">
                         <q-icon name="check_circle" />Incluye {{ item.cantidad }}x
@@ -263,16 +285,14 @@
                 </div>
 
                 <div
-                  v-if="selectedPkg && personasExtraCount > 0"
+                  v-if="selectedPkg && precioPulserasNum > 0"
                   class="q-pa-sm q-mt-md bg-orange-1 text-orange-9 rounded-borders"
                   style="border-radius: 8px; font-size: 0.85rem"
                 >
                   <q-icon name="info" size="18px" class="q-mr-xs" />
-                  {{ form.ninos }} niños seleccionados, {{ personasExtraCount }} más de los
-                  {{ selectedPkg.personas_incluidas }} incluidos en el paquete — se cobrarán
-                  {{ personasExtraCount }} persona{{ personasExtraCount === 1 ? '' : 's' }} extra a
-                  {{ fmt(parseFloat(selectedPkg.precio_persona_extra)) }} c/u, total
-                  <strong>{{ fmt(precioPersonasExtraNum) }}</strong>
+                  {{ form.ninos }} pulsera{{ form.ninos === 1 ? '' : 's' }} a
+                  {{ fmt(parseFloat(selectedPkg.precio_pulsera)) }} c/u, total
+                  <strong>{{ fmt(precioPulserasNum) }}</strong>
                 </div>
               </div>
 
@@ -286,11 +306,11 @@
                 <div v-else-if="!extrasStore.activos.length" class="q-pa-md text-grey">
                   No hay extras disponibles
                 </div>
-                <div v-else class="row q-gutter-md">
+                <div v-else class="services-grid">
                   <div
                     v-for="svc in extrasStore.activos"
                     :key="svc.id"
-                    class="col service-card"
+                    class="service-card"
                     :class="{ 'service-card--selected': selectedExtraIds.includes(svc.id) }"
                   >
                     <div class="service-card__img">
@@ -593,13 +613,8 @@
                 <div class="resumen-row">
                   <span>Precio base</span><span>{{ packagePrice }}</span>
                 </div>
-                <div v-if="packageHoursPriceNum > 0" class="resumen-row">
-                  <span>Horas del evento ({{ horasSeleccionadas }})</span
-                  ><span>{{ fmt(packageHoursPriceNum) }}</span>
-                </div>
-                <div v-if="personasExtraCount > 0" class="resumen-row">
-                  <span>Personas extra ({{ personasExtraCount }})</span
-                  ><span>{{ fmt(precioPersonasExtraNum) }}</span>
+                <div v-if="precioPulserasNum > 0" class="resumen-row">
+                  <span>Pulseras ({{ form.ninos }})</span><span>{{ fmt(precioPulserasNum) }}</span>
                 </div>
                 <div
                   v-for="item in productosAdicionales"
@@ -700,13 +715,9 @@
                 <span>Paquete {{ selectedPackageName || '—' }}</span>
                 <span class="amount">{{ selectedPkg ? packagePrice : '—' }}</span>
               </div>
-              <div v-if="packageHoursPriceNum > 0" class="payment-card__row">
-                <span>Horas del evento ({{ horasSeleccionadas }})</span>
-                <span class="amount">{{ fmt(packageHoursPriceNum) }}</span>
-              </div>
-              <div v-if="personasExtraCount > 0" class="payment-card__row">
-                <span>Personas extra ({{ personasExtraCount }})</span>
-                <span class="amount">{{ fmt(precioPersonasExtraNum) }}</span>
+              <div v-if="precioPulserasNum > 0" class="payment-card__row">
+                <span>Pulseras ({{ form.ninos }})</span>
+                <span class="amount">{{ fmt(precioPulserasNum) }}</span>
               </div>
               <div
                 v-for="item in productosAdicionales"
@@ -804,6 +815,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { usePaquetesStore } from '@/stores/paquetes'
+import type { Paquetes } from '@/types/paquetes'
 import { useExtrasStore } from '@/stores/extras'
 import { useProductosStore } from '@/stores/productos'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
@@ -1111,21 +1123,64 @@ const fmt = (n: number) => `$${n.toLocaleString('es-MX', { minimumFractionDigits
 const selectedPkg = computed(() =>
   paquetesStore.activos.find((p) => p.id === form.value.selectedPackage),
 )
+
+/**
+ * Paquetes que cubren el número de niños capturado en el paso 1. Un paquete
+ * declara el rango de invitados que soporta (min_invitados..max_invitados) y
+ * solo se ofrece si ese rango incluye lo que pidió el cliente, para que el
+ * staff no pueda vender un paquete que no da abasto o que queda muy holgado.
+ */
+const paquetesDisponibles = computed(() =>
+  paquetesStore.activos.filter(
+    (p) => form.value.ninos >= p.min_invitados && form.value.ninos <= p.max_invitados,
+  ),
+)
+
+// Si el usuario vuelve al paso 1 y cambia el número de niños, el paquete que
+// tenía elegido puede quedar fuera de rango: se deselecciona para que no se
+// levante una reservación con un paquete que ya no se le está ofreciendo.
+watch(paquetesDisponibles, (disponibles) => {
+  if (form.value.selectedPackage && !disponibles.some((p) => p.id === form.value.selectedPackage)) {
+    form.value.selectedPackage = null
+  }
+})
+
+/**
+ * Paquete con más reservaciones vigentes de la sucursal actual: es el que lleva el badge
+ * "Más contratado". Se recalcula solo cuando cambia el listado, así que el badge se mueve
+ * al paquete que pase al primer lugar. Si hay empate en el número de contrataciones gana
+ * el que tenga la reservación más reciente. Si nadie ha contratado nada todavía, no se
+ * marca ninguno.
+ */
+const paqueteMasContratadoId = computed<string | null>(() => {
+  const paquetes = paquetesStore.activos
+  if (!paquetes.length) return null
+
+  const maximo = Math.max(...paquetes.map((p) => p.contrataciones ?? 0))
+  if (maximo === 0) return null
+
+  const lideres = paquetes.filter((p) => (p.contrataciones ?? 0) === maximo)
+  if (lideres.length === 1) return lideres[0]?.id ?? null
+
+  const masReciente = (p: Paquetes) =>
+    p.ultima_contratacion ? new Date(p.ultima_contratacion).getTime() : 0
+
+  // El orden del listado ya es estable, así que reduce() deja un ganador determinista
+  // aun si dos paquetes empataran también en la fecha.
+  return lideres.reduce((a, b) => (masReciente(b) > masReciente(a) ? b : a)).id
+})
 const selectedPackageName = computed(() => selectedPkg.value?.nombre ?? '')
 const packagePriceNum = computed(() => parseFloat(selectedPkg.value?.precio_base ?? '0'))
 
+// Se sigue registrando la duración real del evento (dato operativo para la
+// sucursal), pero ya no se cobra por hora: el paquete dejó de tener precio_hora.
 const horasSeleccionadas = computed(() =>
   horasFacturables(form.value.horaInicio, form.value.horaFin),
 )
-const packageHoursPriceNum = computed(
-  () => parseFloat(selectedPkg.value?.precio_hora ?? '0') * horasSeleccionadas.value,
-)
 
-const personasExtraCount = computed(() =>
-  selectedPkg.value ? Math.max(0, form.value.ninos - selectedPkg.value.personas_incluidas) : 0,
-)
-const precioPersonasExtraNum = computed(
-  () => personasExtraCount.value * parseFloat(selectedPkg.value?.precio_persona_extra ?? '0'),
+// La pulsera se cobra por cada invitado del evento, no solo por un excedente.
+const precioPulserasNum = computed(
+  () => form.value.ninos * parseFloat(selectedPkg.value?.precio_pulsera ?? '0'),
 )
 
 const extraServicesNum = computed(() =>
@@ -1137,8 +1192,7 @@ const extraServicesNum = computed(() =>
 const subtotal = computed(
   () =>
     packagePriceNum.value +
-    packageHoursPriceNum.value +
-    precioPersonasExtraNum.value +
+    precioPulserasNum.value +
     productosAdicionalesNum.value +
     extraServicesNum.value,
 )
@@ -1213,9 +1267,11 @@ const confirmarReservacion = async () => {
       numero_personas: form.value.ninos,
       precio_base: String(packagePriceNum.value),
       precio_extras: String(extraServicesNum.value),
-      precio_personas_extra: String(precioPersonasExtraNum.value),
+      // La columna conserva su nombre en reservaciones por compatibilidad con
+      // los eventos ya levantados; ahora almacena el total de pulseras.
+      precio_personas_extra: String(precioPulserasNum.value),
       horas_reservadas: horasSeleccionadas.value,
-      precio_horas: String(packageHoursPriceNum.value),
+      precio_horas: '0',
       precio_productos: String(productosAdicionalesNum.value),
       descuento: '0',
       precio_total: String(totalNum.value),
