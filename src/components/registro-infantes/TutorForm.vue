@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRegistrationStore } from '@/stores/registration'
 import { allowOnlyLettersKeydown } from '@/utils/validators'
+import { DB_LIMITS } from '@/utils/constants'
 import { ref, onBeforeUnmount } from 'vue'
 
 const store = useRegistrationStore()
@@ -136,6 +137,8 @@ onBeforeUnmount(() => {
         dense
         class="q-mb-md"
         lazy-rules
+        :readonly="store.isEventoMode"
+        :maxlength="DB_LIMITS.GUARDIAN.NAME_MAX_LENGTH"
         :rules="[
           (val) => !!val || 'El nombre completo es obligatorio',
           (val) =>
@@ -153,6 +156,7 @@ onBeforeUnmount(() => {
             label="Parentesco"
             outlined
             dense
+            :readonly="store.isEventoMode"
           />
         </div>
         <div class="col-12 col-sm-6">
@@ -164,6 +168,7 @@ onBeforeUnmount(() => {
             dense
             mask="##########"
             lazy-rules
+            :readonly="store.isEventoMode"
             :rules="[
               (val) => !!val || 'El teléfono es obligatorio',
               (val) => val.length === 10 || 'El teléfono debe tener exactamente 10 dígitos',
@@ -261,11 +266,13 @@ onBeforeUnmount(() => {
 
       <!-- Estimated Time -->
       <q-select
-        v-model="store.tutor.estimatedTime"
+        :model-value="store.isEventoMode ? store.horasEvento : store.tutor.estimatedTime"
         :options="TIME_OPTIONS"
         label="Tiempo Estimado"
         outlined
         dense
+        :readonly="store.isEventoMode"
+        @update:model-value="store.tutor.estimatedTime = $event"
       />
 
       <q-separator class="q-my-md" />
@@ -308,6 +315,7 @@ onBeforeUnmount(() => {
         outlined
         dense
         lazy-rules
+        :maxlength="DB_LIMITS.GUARDIAN.NAME_MAX_LENGTH"
         :rules="[
           (val) => !!val || 'El nombre es obligatorio',
           (val) => val.trim().split(/\s+/).length >= 2 || 'Introduce nombre y apellido',

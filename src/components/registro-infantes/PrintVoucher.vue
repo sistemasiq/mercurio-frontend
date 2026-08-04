@@ -1,7 +1,25 @@
 <script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
+import { useAuthStore } from '@/stores/auth'
+import QRCode from 'qrcode'
 
 const store = useRegistrationStore()
+const authStore = useAuthStore()
+const qrCodeUrl = ref('')
+
+const branchName = computed(() => authStore.currentBranchName || 'Sucursal')
+
+onMounted(async () => {
+  if (store.registroId) {
+    const url = `${window.location.origin}/padres/access?code=${store.registroId}`
+    qrCodeUrl.value = await QRCode.toDataURL(url, {
+      width: 120,
+      margin: 1,
+      errorCorrectionLevel: 'L',
+    })
+  }
+})
 
 function formatDate() {
   const now = new Date()
@@ -26,7 +44,7 @@ function scheduledExit() {
 
 function printVoucher() {
   const originalTitle = document.title
-  document.title = `Ticket_Folio_${store.folioId || '000'}`
+  document.title = 'Ticket_Registro'
   window.print()
   document.title = originalTitle
 }
@@ -42,21 +60,17 @@ function getBraceletLabel(braceletId: string) {
     <div id="printable-voucher" class="voucher">
       <!-- Header -->
       <div class="voucher-header text-center q-mb-md">
-        <div class="text-h6 text-weight-bold">KidCenter Pro</div>
-        <div class="text-caption text-grey-7">Downtown Branch</div>
+        <div class="text-h6 text-weight-bold">Wow Kids</div>
+        <div class="text-caption text-grey-7">{{ branchName }}</div>
       </div>
 
       <q-separator class="q-mb-sm" />
 
-      <!-- Folio + Date -->
+      <!-- Date -->
       <div class="row justify-between q-mb-md">
         <div>
-          <div class="voucher-label">DATE &amp; TIME</div>
+          <div class="voucher-label">FECHA &amp; HORA</div>
           <div class="voucher-value">{{ formatDate() }}</div>
-        </div>
-        <div class="text-right">
-          <div class="voucher-label">FOLIO ID</div>
-          <div class="voucher-value text-weight-bold">{{ store.folioId }}</div>
         </div>
       </div>
 
@@ -73,6 +87,14 @@ function getBraceletLabel(braceletId: string) {
         <span class="text-body2 text-weight-medium">{{ store.tutor.phone }}</span>
       </div>
 
+      <!-- Second Tutor -->
+      <div v-if="store.tutor.secondaryGuardian" class="q-mb-md">
+        <div class="row justify-between q-mb-xs">
+          <span class="text-body2">Segundo Tutor:</span>
+          <span class="text-body2 text-weight-medium">{{ store.tutor.secondaryGuardian }}</span>
+        </div>
+      </div>
+
       <q-separator class="q-mb-sm" />
 
       <!-- Children -->
@@ -80,19 +102,15 @@ function getBraceletLabel(braceletId: string) {
       <div class="row text-caption text-grey-7 q-mb-xs">
         <div class="col">Nombre</div>
         <div style="width: 50px" class="text-center">Edad</div>
-        <div style="width: 80px" class="text-right">Pulsera</div>
+        <div style="width: 100px" class="text-right">Pulsera</div>
       </div>
       <div v-for="child in store.savedChildren" :key="child.id" class="row items-center q-mb-xs">
         <div class="col text-weight-medium" style="font-size: 14px">{{ child.name }}</div>
         <div style="width: 50px" class="text-center text-body2">{{ child.age }}</div>
-        <div style="width: 80px" class="text-right">
-          <q-chip
-            dense
-            color="blue-2"
-            text-color="black-9"
-            :label="getBraceletLabel(child.rfidBracelet)"
-            size="md"
-          />
+        <div style="width: 100px" class="text-right">
+          <span class="text-caption text-grey-7 bracelet-code">{{
+            getBraceletLabel(child.rfidBracelet)
+          }}</span>
         </div>
       </div>
 
@@ -119,6 +137,12 @@ function getBraceletLabel(braceletId: string) {
       </div>
 
       <q-separator class="q-mb-md" />
+
+      <!-- QR Code -->
+      <div v-if="qrCodeUrl" class="text-center q-mb-md">
+        <img :src="qrCodeUrl" alt="QR del registro" class="qr-code" />
+        <div class="text-caption text-grey-7 q-mt-xs">Escanea para ver detalles del registro</div>
+      </div>
 
       <div class="text-center text-caption text-grey-7 q-mb-md">¡Gracias por visitarnos!</div>
 
@@ -177,6 +201,21 @@ function getBraceletLabel(braceletId: string) {
   background: #f5f9ff;
   border-radius: 8px;
   border: 1px solid #e3f0ff;
+}
+
+.qr-code {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+}
+
+.bracelet-code {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 </style>
 
