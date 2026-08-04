@@ -101,6 +101,19 @@
                 flat
                 round
                 dense
+                :icon="props.row.activo ? 'toggle_on' : 'toggle_off'"
+                :color="props.row.activo ? 'positive' : 'grey-5'"
+                size="large"
+                class="q-mr-xs"
+                @click="toggleActivo(props.row)"
+              >
+                <q-tooltip>{{ props.row.activo ? 'Desactivar' : 'Activar' }}</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="puedeEditar"
+                flat
+                round
+                dense
                 color="grey-7"
                 size="sm"
                 class="q-mr-xs"
@@ -114,7 +127,7 @@
                 flat
                 round
                 dense
-                color="grey-7"
+                color="red"
                 size="sm"
                 @click="confirmarEliminar(props.row)"
               >
@@ -293,6 +306,27 @@ const cargar = async () => {
 }
 
 onMounted(cargar)
+
+// ── Toggle activo ─────────────────────────────────────────────────────────────
+
+const toggleActivo = async (row: Horario) => {
+  try {
+    const actualizado = await horarioService.updateHorario(row.id, { activo: !row.activo })
+    const idx = horarios.value.findIndex((h) => h.id === row.id)
+    if (idx !== -1) horarios.value[idx] = actualizado
+    $q.notify({
+      type: 'positive',
+      message: `Horario ${!row.activo ? 'activado' : 'desactivado'}`,
+      position: 'top-right',
+    })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+  }
+}
 
 // ── Dialog Crear / Editar ─────────────────────────────────────────────────────
 
