@@ -53,8 +53,8 @@
           <q-td :props="props"> ${{ Number(props.row.precio_base).toFixed(2) }} </q-td>
         </template>
 
-        <template #body-cell-precio_hora="props">
-          <q-td :props="props"> ${{ Number(props.row.precio_hora).toFixed(2) }} </q-td>
+        <template #body-cell-precio_pulsera="props">
+          <q-td :props="props"> ${{ Number(props.row.precio_pulsera).toFixed(2) }} </q-td>
         </template>
 
         <template #body-cell-productos_incluidos="props">
@@ -164,23 +164,9 @@
               />
             </div>
             <div class="col-6">
-              <div class="field-label">PRECIO POR PERSONA EXTRA</div>
+              <div class="field-label">PRECIO DE LA PULSERA</div>
               <q-input
-                v-model.number="formDialog.precio_persona_extra"
-                dense
-                outlined
-                type="number"
-                min="0"
-                step="0.01"
-                prefix="$"
-              />
-            </div>
-          </div>
-          <div class="row q-col-gutter-md">
-            <div class="col-6">
-              <div class="field-label">PRECIO POR HORA</div>
-              <q-input
-                v-model.number="formDialog.precio_hora"
+                v-model.number="formDialog.precio_pulsera"
                 dense
                 outlined
                 type="number"
@@ -189,21 +175,40 @@
                 prefix="$"
               />
               <div class="text-caption text-grey-6 q-mt-xs">
-                Se cobra por cada hora que dure el evento, además del precio base.
+                Se cobra por cada invitado del evento, además del precio base.
               </div>
             </div>
           </div>
           <div class="row q-col-gutter-md">
             <div class="col-6">
-              <div class="field-label">PERSONAS INCLUIDAS</div>
+              <div class="field-label">MÍN. DE INVITADOS</div>
               <q-input
-                v-model.number="formDialog.personas_incluidas"
+                v-model.number="formDialog.min_invitados"
                 dense
                 outlined
                 type="number"
                 min="1"
+                :rules="[(v) => v > 0 || 'Debe ser mayor a 0']"
               />
             </div>
+            <div class="col-6">
+              <div class="field-label">MÁX. DE INVITADOS</div>
+              <q-input
+                v-model.number="formDialog.max_invitados"
+                dense
+                outlined
+                type="number"
+                min="1"
+                :rules="[
+                  (v) => v > 0 || 'Debe ser mayor a 0',
+                  (v) => v >= formDialog.min_invitados || 'No puede ser menor que el mínimo',
+                ]"
+              />
+            </div>
+          </div>
+          <div class="text-caption text-grey-6 q-mb-sm">
+            Al reservar solo se ofrecerán los paquetes cuyo rango cubra el número de niños que pida
+            el cliente.
           </div>
           <div>
             <div class="field-label">DESCRIPCIÓN (opcional)</div>
@@ -454,13 +459,18 @@ const columns: QTableColumn[] = [
     sortable: true,
   },
   {
-    name: 'precio_hora',
-    label: 'PRECIO/HORA',
-    field: 'precio_hora',
+    name: 'precio_pulsera',
+    label: 'PULSERA',
+    field: 'precio_pulsera',
     align: 'left',
     sortable: true,
   },
-  { name: 'personas_incluidas', label: 'PERSONAS', field: 'personas_incluidas', align: 'left' },
+  {
+    name: 'invitados',
+    label: 'INVITADOS',
+    field: (row: Paquetes) => `${row.min_invitados} a ${row.max_invitados}`,
+    align: 'left',
+  },
   {
     name: 'productos_incluidos',
     label: 'ALIMENTOS INCLUIDOS',
@@ -481,10 +491,10 @@ const nombreRef = ref()
 const formDialog = ref({
   nombre: '',
   descripcion: '',
-  personas_incluidas: 10,
+  min_invitados: 1,
+  max_invitados: 10,
   precio_base: 0,
-  precio_persona_extra: 0,
-  precio_hora: 0,
+  precio_pulsera: 0,
   productos_incluidos: [] as PaqueteProductoItem[],
 })
 
@@ -493,10 +503,10 @@ const abrirCrear = () => {
   formDialog.value = {
     nombre: '',
     descripcion: '',
-    personas_incluidas: 10,
+    min_invitados: 1,
+    max_invitados: 10,
     precio_base: 0,
-    precio_persona_extra: 0,
-    precio_hora: 0,
+    precio_pulsera: 0,
     productos_incluidos: [],
   }
   productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
@@ -525,10 +535,10 @@ const abrirEditar = async (row: Paquetes) => {
   formDialog.value = {
     nombre: row.nombre,
     descripcion: row.descripcion ?? '',
-    personas_incluidas: row.personas_incluidas,
+    min_invitados: row.min_invitados,
+    max_invitados: row.max_invitados,
     precio_base: Number(row.precio_base),
-    precio_persona_extra: Number(row.precio_persona_extra),
-    precio_hora: Number(row.precio_hora),
+    precio_pulsera: Number(row.precio_pulsera),
     productos_incluidos: productosIncluidosCargados,
   }
   productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
@@ -553,16 +563,25 @@ const guardar = async () => {
     })
     return
   }
+  // Un rango invertido dejaría el paquete invisible en el asistente de reservación.
+  if (formDialog.value.max_invitados < formDialog.value.min_invitados) {
+    $q.notify({
+      type: 'warning',
+      message: 'El máximo de invitados no puede ser menor que el mínimo.',
+      position: 'top-right',
+    })
+    return
+  }
   guardando.value = true
   try {
     if (editando.value) {
       await store.editarPaquete(editando.value.id, {
         nombre: formDialog.value.nombre.trim(),
         descripcion: formDialog.value.descripcion.trim() || null,
-        personas_incluidas: formDialog.value.personas_incluidas,
+        min_invitados: formDialog.value.min_invitados,
+        max_invitados: formDialog.value.max_invitados,
         precio_base: String(formDialog.value.precio_base),
-        precio_persona_extra: String(formDialog.value.precio_persona_extra),
-        precio_hora: String(formDialog.value.precio_hora),
+        precio_pulsera: String(formDialog.value.precio_pulsera),
         productos_incluidos: formDialog.value.productos_incluidos,
       })
       $q.notify({ type: 'positive', message: 'Paquete actualizado', position: 'top-right' })
@@ -571,10 +590,10 @@ const guardar = async () => {
       await store.crearPaquete({
         nombre: formDialog.value.nombre.trim(),
         descripcion: formDialog.value.descripcion.trim() || null,
-        personas_incluidas: formDialog.value.personas_incluidas,
+        min_invitados: formDialog.value.min_invitados,
+        max_invitados: formDialog.value.max_invitados,
         precio_base: String(formDialog.value.precio_base),
-        precio_persona_extra: String(formDialog.value.precio_persona_extra),
-        precio_hora: String(formDialog.value.precio_hora),
+        precio_pulsera: String(formDialog.value.precio_pulsera),
         productos_incluidos: formDialog.value.productos_incluidos,
         sucursal_id: authStore.currentBranchId,
       })

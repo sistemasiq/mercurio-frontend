@@ -360,7 +360,7 @@ const paqueteMasPopular = computed(() => topPaquetes.value[0]?.nombre ?? '—')
 
 function descripcionPaquete(p: Paquetes): string {
   if (p.descripcion) return p.descripcion
-  return `${p.personas_incluidas} personas`
+  return `${p.min_invitados} a ${p.max_invitados} invitados`
 }
 
 // ── Tabla de agenda semanal ───────────────────────────────────────────────────
