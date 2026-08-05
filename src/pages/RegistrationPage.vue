@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useRouter } from 'vue-router'
 import TutorForm from '@/components/registro-infantes/TutorForm.vue'
 import ChildrenSection from '@/components/registro-infantes/ChildrenSection.vue'
@@ -10,9 +11,17 @@ import PrintVoucher from '@/components/registro-infantes/PrintVoucher.vue'
 import type { EventoDelDia } from '@/types/reservaciones'
 
 const store = useRegistrationStore()
+const turno = useTurnoCajaStore()
 const router = useRouter()
 
 onMounted(() => {
+  // Se valida al entrar, no hasta el final del registro: si no hay turno
+  // abierto no tiene sentido dejar llenar todo el formulario del tutor/niño
+  // para enterarse hasta el final. Redirige de inmediato, sin bloquear con un panel.
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
   store.loadProductos()
 })
 

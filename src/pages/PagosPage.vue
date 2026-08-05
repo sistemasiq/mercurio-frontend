@@ -170,6 +170,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
@@ -177,8 +178,12 @@ import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
 import { useAuthStore } from '@/stores/auth'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import type { ApiError } from '@/types/auth'
 
 const $q = useQuasar()
+const router = useRouter()
+const turno = useTurnoCajaStore()
 const pagosStore = usePagosReservacionesStore()
 const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
@@ -287,6 +292,13 @@ const metodoOptions = computed(() =>
 )
 
 const abrirDialog = () => {
+  // Se valida al hacer clic en "Registrar Pago", no hasta guardar: si no hay
+  // turno abierto no tiene sentido dejar llenar el formulario para enterarse
+  // hasta el final. Redirige de inmediato, sin bloquear ni avisar.
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
   form.value = { reservacion_id: null, metodo_pago_id: null, monto: null, notas: '' }
   reservacionOptions.value = todasReservaciones.value
   dialogOpen.value = true
@@ -304,8 +316,16 @@ const guardar = async () => {
     })
     $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
     dialogOpen.value = false
-  } catch {
-    $q.notify({ type: 'negative', message: 'Error al registrar el pago', position: 'top-right' })
+  } catch (err) {
+    const apiErr = err as ApiError
+    if (apiErr.code === 'TURNO_NO_ABIERTO') {
+      // El turno se cerró entre abrir el diálogo y guardar (caso raro) — mismo
+      // redirect silencioso, sin aviso.
+      dialogOpen.value = false
+      router.push('/pos/cierre')
+    } else {
+      $q.notify({ type: 'negative', message: 'Error al registrar el pago', position: 'top-right' })
+    }
   } finally {
     guardando.value = false
   }

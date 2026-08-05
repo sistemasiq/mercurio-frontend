@@ -9,7 +9,7 @@
         label="Nueva Reservación"
         unelevated
         no-caps
-        @click="router.push({ name: 'eventos-reservaciones-crear' })"
+        @click="irANuevaReservacion"
       />
     </div>
     <q-card flat bordered>
@@ -69,11 +69,21 @@ import type { QTableColumn } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useAuthStore } from '@/stores/auth'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 
 const router = useRouter()
 const store = useReservacionesStore()
 const authStore = useAuthStore()
+const turno = useTurnoCajaStore()
 onMounted(() => store.cargar(authStore.currentBranchId ?? undefined))
+
+function irANuevaReservacion() {
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
+  router.push({ name: 'eventos-reservaciones-crear' })
+}
 
 const opcionesEstado = [
   { label: 'Todos', value: 'todos' },

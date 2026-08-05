@@ -657,6 +657,7 @@ import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useReservacionExtrasStore } from '@/stores/reservacion_extras'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
@@ -670,9 +671,17 @@ const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
 const authStore = useAuthStore()
 const pagosStore = usePagosReservacionesStore()
+const turno = useTurnoCajaStore()
 const reservacionExtrasStore = useReservacionExtrasStore()
 
 onMounted(() => {
+  // Se valida al entrar, no hasta el paso de pago: si el cajero no tiene turno
+  // abierto no tiene sentido dejarlo llenar todo el formulario para enterarse
+  // hasta el final. Se redirige de inmediato, sin bloquear con un panel.
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
   paquetesStore.cargar(authStore.currentBranchId ?? undefined)
   extrasStore.cargar(authStore.currentBranchId ?? undefined)
   tiposEventoStore.cargar()

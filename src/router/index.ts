@@ -12,6 +12,17 @@ declare module 'vue-router' {
 }
 
 const routes: RouteRecordRaw[] = [
+  // ── Ruta de desarrollo (solo disponible en DEV, árbol eliminado en build) ──
+  ...(import.meta.env.DEV
+    ? ([
+        {
+          path: '/dev',
+          name: 'dev-menu',
+          component: () => import('@/pages/DevMenuPage.vue'),
+          meta: { title: '⚗ Dev Menu' },
+        },
+      ] as RouteRecordRaw[])
+    : []),
   {
     path: '/',
     redirect: '/login',
@@ -56,6 +67,22 @@ const routes: RouteRecordRaw[] = [
         name: 'pos-cocina',
         component: () => import('@/components/comandas/VisorCocina.vue'),
         meta: { permissions: ['restaurante:gestionar_cocina'], title: 'Visor Cocina' },
+      },
+      {
+        path: 'cierre',
+        name: 'pos-cierre',
+        component: () => import('@/pages/CierreCajaPage.vue'),
+        meta: { requiresAuth: true, title: 'Cierre de Caja' },
+      },
+      {
+        path: 'historial-arqueos',
+        name: 'pos-historial-arqueos',
+        component: () => import('@/pages/HistorialArqueosPage.vue'),
+        meta: {
+          requiresAuth: true,
+          permissions: ['turnos_caja:historial'],
+          title: 'Historial de Arqueos',
+        },
       },
       {
         path: 'historial',

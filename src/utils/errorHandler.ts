@@ -30,9 +30,10 @@ export function resolveErrorMessage(error: ApiError | null): string {
     return API_ERROR_CODE_MESSAGES[error.code]
   }
 
-  // El mensaje real del backend (ej. "No hay stock suficiente de «Harina»...")
-  // tiene prioridad sobre el texto genérico por código HTTP — ese texto es
-  // solo un último recurso cuando el backend no mandó ningún detalle.
+  // El mensaje real del backend (ej. "No hay stock suficiente de «Harina»...",
+  // extraído correctamente de "detail") tiene prioridad sobre el texto genérico
+  // por código HTTP — ese texto es solo un último recurso cuando el backend no
+  // mandó ningún detalle específico.
   if (error.message) return error.message
 
   if (error.statusCode && HTTP_ERROR_MESSAGES[error.statusCode]) {
