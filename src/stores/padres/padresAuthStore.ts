@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import type { Tutor, NinoActivo, PadresAuthState } from '@/types/padres'
 import { padresApi } from '@/api/padresApi'
 
-const STORAGE_KEY = 'padres_token'
+const STORAGE_KEY = 'padres_registro_id'
 
 export const usePadresAuthStore = defineStore('padresAuth', () => {
   const token = ref<PadresAuthState['token']>(null)
@@ -18,26 +18,34 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
 
   const currentTutor = computed<Tutor | null>(() => tutor.value)
 
-  const activeChildren = computed<NinoActivo[]>(() => ninosActivos.value)
+  const activeChildren = computed<NinoActivo[]>(() =>
+    ninosActivos.value.filter((n) => n.estadoVisita === 'activo'),
+  )
 
-  function _persistToken(newToken: string): void {
-    localStorage.setItem(STORAGE_KEY, newToken)
+  const terminatedChildren = computed<NinoActivo[]>(() =>
+    ninosActivos.value.filter((n) => n.estadoVisita === 'terminado'),
+  )
+
+  const allChildren = computed<NinoActivo[]>(() => ninosActivos.value)
+
+  function _persistKey(newKey: string): void {
+    localStorage.setItem(STORAGE_KEY, newKey)
   }
 
-  function _clearPersistedToken(): void {
+  function _clearPersistedKey(): void {
     localStorage.removeItem(STORAGE_KEY)
   }
 
-  function _loadPersistedToken(): string | null {
+  function _loadPersistedKey(): string | null {
     return localStorage.getItem(STORAGE_KEY)
   }
 
-  async function loginConToken(rawToken: string): Promise<void> {
+  async function loginConCode(rawCode: string): Promise<void> {
     loading.value = true
     error.value = null
 
     try {
-      const data = await padresApi.loginConToken(rawToken)
+      const data = await padresApi.loginConCode(rawCode)
 
       token.value = data.token
       tokenType.value = data.token_type
@@ -45,7 +53,7 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
       tutor.value = data.tutor
       ninosActivos.value = data.ninosActivos
 
-      _persistToken(data.token)
+      _persistKey(rawCode)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al iniciar sesión'
       error.value = message
@@ -55,12 +63,17 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
     }
   }
 
-  function restoreSession(): boolean {
-    const savedToken = _loadPersistedToken()
-    if (!savedToken) return false
+  async function restoreOrFetchSession(): Promise<boolean> {
+    const savedCode = _loadPersistedKey()
+    if (!savedCode) return false
 
-    token.value = savedToken
-    return true
+    try {
+      await loginConCode(savedCode)
+      return true
+    } catch {
+      _clearPersistedKey()
+      return false
+    }
   }
 
   function logout(): void {
@@ -70,7 +83,7 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
     tutor.value = null
     ninosActivos.value = []
     error.value = null
-    _clearPersistedToken()
+    _clearPersistedKey()
   }
 
   function clearError(): void {
@@ -88,8 +101,10 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
     isAuthenticated,
     currentTutor,
     activeChildren,
-    loginConToken,
-    restoreSession,
+    terminatedChildren,
+    allChildren,
+    loginConCode,
+    restoreOrFetchSession,
     logout,
     clearError,
   }

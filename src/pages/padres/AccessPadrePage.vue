@@ -14,9 +14,9 @@ const errorMessage = ref('')
 let isMounted = true
 
 onMounted(async () => {
-  const token = route.query.token as string | undefined
+  const code = route.query.code as string | undefined
 
-  if (!token) {
+  if (!code) {
     hasError.value = true
     errorMessage.value = 'No se recibió un token de acceso. Revisa el enlace que te proporcionamos.'
     return
@@ -26,7 +26,7 @@ onMounted(async () => {
   store.clearError()
 
   try {
-    await store.loginConToken(token)
+    await store.loginConCode(code)
     if (!isMounted) return
     router.replace('/padres/dashboard')
   } catch {

@@ -26,17 +26,21 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/auth/LoginPage.vue'),
         meta: { publicOnly: true },
       },
+    ],
+  },
+  {
+    path: '/padres',
+    component: () => import('@/layouts/PadresLayout.vue'),
+    children: [
       {
-        path: '/padres/access',
+        path: 'access',
         name: 'padres-access',
         component: () => import('@/pages/padres/AccessPadrePage.vue'),
-        meta: { publicOnly: true }, // Ajusta tus meta-tags de seguridad según tu proyecto
       },
       {
-        path: 'padres/dashboard',
+        path: 'dashboard',
         name: 'padres-dashboard',
         component: () => import('@/pages/padres/DashboardPadrePage.vue'),
-        meta: { publicOnly: true },
       },
     ],
   },
