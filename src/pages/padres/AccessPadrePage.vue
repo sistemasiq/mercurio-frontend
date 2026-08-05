@@ -14,7 +14,9 @@ const errorMessage = ref('')
 let isMounted = true
 
 onMounted(async () => {
-  const code = route.query.code as string | undefined
+  const rawCode = route.query.code
+  const code =
+    typeof rawCode === 'string' ? rawCode : Array.isArray(rawCode) ? rawCode[0] : undefined
 
   if (!code) {
     hasError.value = true

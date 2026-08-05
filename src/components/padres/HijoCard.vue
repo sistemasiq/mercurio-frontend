@@ -2,8 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { NinoActivo } from '@/types/padres'
 
-const props = defineProps<{ nino: NinoActivo }>()
-const { nino } = props
+const { nino } = defineProps<{ nino: NinoActivo }>()
 
 const now = ref(new Date())
 let timerId: ReturnType<typeof setInterval> | undefined

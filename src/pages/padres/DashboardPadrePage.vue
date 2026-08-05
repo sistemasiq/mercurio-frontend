@@ -9,7 +9,9 @@ const router = useRouter()
 const store = usePadresAuthStore()
 
 onMounted(async () => {
-  const codeFromQuery = route.query.code as string | undefined
+  const rawCode = route.query.code
+  const codeFromQuery =
+    typeof rawCode === 'string' ? rawCode : Array.isArray(rawCode) ? rawCode[0] : undefined
 
   if (codeFromQuery) {
     try {

@@ -19,25 +19,25 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
   const currentTutor = computed<Tutor | null>(() => tutor.value)
 
   const activeChildren = computed<NinoActivo[]>(() =>
-    ninosActivos.value.filter((n) => n.estadoVisita === 'activo'),
+    ninosActivos.value.filter((n) => (n.estadoVisita ?? '').toLowerCase() === 'activo'),
   )
 
   const terminatedChildren = computed<NinoActivo[]>(() =>
-    ninosActivos.value.filter((n) => n.estadoVisita === 'terminado'),
+    ninosActivos.value.filter((n) => (n.estadoVisita ?? '').toLowerCase() === 'terminado'),
   )
 
   const allChildren = computed<NinoActivo[]>(() => ninosActivos.value)
 
   function _persistKey(newKey: string): void {
-    localStorage.setItem(STORAGE_KEY, newKey)
+    sessionStorage.setItem(STORAGE_KEY, newKey)
   }
 
   function _clearPersistedKey(): void {
-    localStorage.removeItem(STORAGE_KEY)
+    sessionStorage.removeItem(STORAGE_KEY)
   }
 
   function _loadPersistedKey(): string | null {
-    return localStorage.getItem(STORAGE_KEY)
+    return sessionStorage.getItem(STORAGE_KEY)
   }
 
   async function loginConCode(rawCode: string): Promise<void> {
