@@ -120,13 +120,14 @@ const onPagoExitoso = (pagos: AppliedPayment[]) => {
           unelevated
           color="primary"
           class="full-width q-mb-xs"
-          label="Completar pago"
-          icon="payment"
+          :label="store.isEventoMode ? 'Continuar a pulseras' : 'Completar pago'"
+          :icon="store.isEventoMode ? 'nfc' : 'payment'"
           :disable="!store.canProceedToRFID"
-          @click="abrirModalPago"
+          @click="store.isEventoMode ? store.proceedToRFID() : abrirModalPago()"
         />
 
         <PaymentModal
+          v-if="!store.isEventoMode"
           v-model="mostrarModalPago"
           :total-to-pay="store.total"
           @pago-exitoso="onPagoExitoso"

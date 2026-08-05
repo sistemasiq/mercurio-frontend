@@ -72,3 +72,13 @@ export interface ReservacionesUpdate {
   notas?: string | null
   activo?: boolean
 }
+
+export interface EventoDelDia {
+  id: string
+  nombre_cliente: string
+  apellidos_cliente: string | null
+  telefono_cliente: string
+  hora_inicio: string
+  hora_fin: string
+  numero_personas: number
+}
