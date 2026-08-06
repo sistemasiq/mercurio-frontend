@@ -33,8 +33,8 @@ export interface AbrirTurnoPayload {
   fondoInicial: number
   terminal?: string
   observacionesApertura?: string
-  idTurno?: string
-  idCaja?: string
+  turnoId?: string
+  cajaId?: string
   /** Solo relevante para AdministradorSistema, que no tiene sucursal propia en el JWT. */
   sucursalId?: string
 }

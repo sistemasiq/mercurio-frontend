@@ -21,13 +21,15 @@
           <label class="field-label">Monto a retirar *</label>
           <q-input
             v-model.number="monto"
-            type="number"
-            min="0"
+            type="text"
+            inputmode="decimal"
             outlined
             dense
             prefix="$"
             placeholder="0.00"
             input-class="text-right text-h6"
+            :rules="[reglaDecimal]"
+            @keydown="filtrarTeclaDecimal"
           />
         </div>
 
@@ -106,6 +108,7 @@
 import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import { filtrarTeclaDecimal, reglaDecimal } from '@/utils/validacionNumerica'
 import type { ConceptoRetiro, TipoDestinatario } from '@/types/turnoCaja'
 
 const emit = defineEmits<{

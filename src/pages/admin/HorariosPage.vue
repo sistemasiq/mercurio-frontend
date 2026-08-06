@@ -97,17 +97,16 @@
           <template #body-cell-actions="props">
             <q-td :props="props" class="text-right">
               <q-btn
-                v-if="puedeEditar"
                 flat
                 round
                 dense
-                :icon="props.row.activo ? 'toggle_on' : 'toggle_off'"
-                :color="props.row.activo ? 'positive' : 'grey-5'"
-                size="large"
+                color="grey-7"
+                size="sm"
                 class="q-mr-xs"
-                @click="toggleActivo(props.row)"
+                @click="abrirDetalle(props.row)"
               >
-                <q-tooltip>{{ props.row.activo ? 'Desactivar' : 'Activar' }}</q-tooltip>
+                <span class="material-symbols-outlined">visibility</span>
+                <q-tooltip>Ver detalle</q-tooltip>
               </q-btn>
               <q-btn
                 v-if="puedeEditar"
@@ -123,7 +122,7 @@
                 <q-tooltip>Editar</q-tooltip>
               </q-btn>
               <q-btn
-                v-if="puedeEliminar"
+                v-if="puedeEliminar && props.row.activo"
                 flat
                 round
                 dense
@@ -132,7 +131,19 @@
                 @click="confirmarEliminar(props.row)"
               >
                 <span class="material-symbols-outlined">delete</span>
-                <q-tooltip>Eliminar</q-tooltip>
+                <q-tooltip>Desactivar</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-else-if="puedeEliminar"
+                flat
+                round
+                dense
+                color="positive"
+                size="sm"
+                @click="reactivar(props.row)"
+              >
+                <span class="material-symbols-outlined">restore</span>
+                <q-tooltip>Reactivar</q-tooltip>
               </q-btn>
             </q-td>
           </template>
@@ -220,10 +231,10 @@
     <q-dialog v-model="dialogEliminar">
       <q-card style="min-width: 360px; border-radius: 12px">
         <q-card-section>
-          <div class="text-h6 text-weight-bold">Eliminar horario</div>
+          <div class="text-h6 text-weight-bold">Desactivar horario</div>
           <div class="q-mt-sm text-body2 text-grey-8">
-            ¿Deseas eliminar <strong>{{ filaEliminar?.nombre }}</strong
-            >? Esta acción no se puede deshacer.
+            ¿Deseas desactivar <strong>{{ filaEliminar?.nombre }}</strong
+            >? Dejará de estar disponible para los cajeros, pero podrás reactivarlo después.
           </div>
         </q-card-section>
         <q-card-actions align="right" class="q-pa-md q-pt-xs">
@@ -232,11 +243,53 @@
             unelevated
             no-caps
             color="negative"
-            label="Eliminar"
+            label="Desactivar"
             style="border-radius: 8px; font-weight: 600"
             :loading="eliminando"
             @click="ejecutarEliminar"
           />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- ── Dialog Ver Detalle ──────────────────────────────────────────────── -->
+    <q-dialog v-model="dialogDetalle">
+      <q-card style="min-width: 420px; border-radius: 12px">
+        <q-card-section class="row items-center q-pb-sm">
+          <div class="text-h6 text-weight-bold">Detalle del horario</div>
+          <q-space />
+          <q-btn v-close-popup flat round dense icon="close" color="grey-7" />
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-section v-if="filaDetalle" class="q-gutter-md q-pt-md">
+          <div>
+            <div class="field-label">NOMBRE</div>
+            <div class="text-body1">{{ filaDetalle.nombre }}</div>
+          </div>
+          <div class="row q-gutter-md">
+            <div class="col">
+              <div class="field-label">HORA INICIO</div>
+              <div class="text-body1">{{ filaDetalle.horaInicio }}</div>
+            </div>
+            <div class="col">
+              <div class="field-label">HORA FIN</div>
+              <div class="text-body1">{{ filaDetalle.horaFin }}</div>
+            </div>
+          </div>
+          <div>
+            <div class="field-label">ESTADO</div>
+            <q-badge
+              :color="filaDetalle.activo ? 'positive' : 'grey-5'"
+              :label="filaDetalle.activo ? 'Activo' : 'Inactivo'"
+              style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
+            />
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md q-pt-sm">
+          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -307,18 +360,14 @@ const cargar = async () => {
 
 onMounted(cargar)
 
-// ── Toggle activo ─────────────────────────────────────────────────────────────
+// ── Reactivar ─────────────────────────────────────────────────────────────────
 
-const toggleActivo = async (row: Horario) => {
+const reactivar = async (row: Horario) => {
   try {
-    const actualizado = await horarioService.updateHorario(row.id, { activo: !row.activo })
+    const actualizado = await horarioService.updateHorario(row.id, { activo: true })
     const idx = horarios.value.findIndex((h) => h.id === row.id)
     if (idx !== -1) horarios.value[idx] = actualizado
-    $q.notify({
-      type: 'positive',
-      message: `Horario ${!row.activo ? 'activado' : 'desactivado'}`,
-      position: 'top-right',
-    })
+    $q.notify({ type: 'positive', message: 'Horario activado', position: 'top-right' })
   } catch (err) {
     $q.notify({
       type: 'negative',
@@ -326,6 +375,16 @@ const toggleActivo = async (row: Horario) => {
       position: 'top-right',
     })
   }
+}
+
+// ── Ver detalle ───────────────────────────────────────────────────────────────
+
+const dialogDetalle = ref(false)
+const filaDetalle = ref<Horario | null>(null)
+
+const abrirDetalle = (row: Horario) => {
+  filaDetalle.value = row
+  dialogDetalle.value = true
 }
 
 // ── Dialog Crear / Editar ─────────────────────────────────────────────────────
@@ -417,8 +476,9 @@ const ejecutarEliminar = async () => {
   eliminando.value = true
   try {
     await horarioService.deleteHorario(filaEliminar.value.id)
-    horarios.value = horarios.value.filter((h) => h.id !== filaEliminar.value!.id)
-    $q.notify({ type: 'positive', message: 'Horario eliminado', position: 'top-right' })
+    const idx = horarios.value.findIndex((h) => h.id === filaEliminar.value!.id)
+    if (idx !== -1) horarios.value[idx] = { ...horarios.value[idx], activo: false }
+    $q.notify({ type: 'positive', message: 'Horario desactivado', position: 'top-right' })
     dialogEliminar.value = false
   } catch (err) {
     $q.notify({

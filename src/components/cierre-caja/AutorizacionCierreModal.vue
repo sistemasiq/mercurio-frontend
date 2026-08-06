@@ -108,17 +108,17 @@
                 </table>
               </div>
               <p class="rs-table-hint">
-                Transferencia, tarjeta y demás métodos no representan dinero físico en el cajón — el
-                faltante/sobrante que cuenta para el cuadre de caja es solo el de Efectivo.
+                Comparativo informativo por método de pago — el resumen general de abajo suma todos
+                los métodos, ya que cada uno representa dinero real del sistema.
               </p>
             </div>
 
-            <!-- Resumen de cuadre (solo Efectivo, que es lo físico) -->
+            <!-- Resumen de cuadre (todos los métodos de pago, todos son dinero) -->
             <div class="rs-card-box rs-card-box--cashier">
-              <h3 class="rs-box-title">Cuadre de Efectivo</h3>
+              <h3 class="rs-box-title">Cuadre General de Caja</h3>
               <div class="rs-detail-list">
                 <div class="rs-detail-row rs-detail-diff">
-                  <span class="rs-diff-label">Diferencia Neta (Efectivo)</span>
+                  <span class="rs-diff-label">Diferencia Neta</span>
                   <span :class="diffClass" class="rs-diff-val">
                     {{ signoDiferencia }}${{
                       Math.abs(turno.diferenciaNeta).toLocaleString('es-MX', {

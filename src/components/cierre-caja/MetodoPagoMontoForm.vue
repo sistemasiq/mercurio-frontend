@@ -23,8 +23,8 @@
           <span class="rs-monto-prefix">$</span>
           <q-input
             v-model.number="fila.monto"
-            type="number"
-            min="0"
+            type="text"
+            inputmode="decimal"
             dense
             outlined
             placeholder="0.00"
@@ -32,7 +32,9 @@
             input-class="text-right"
             :readonly="readonly"
             :disable="readonly"
+            :rules="[reglaDecimal]"
             :class="{ 'rs-input--readonly': readonly }"
+            @keydown="filtrarTeclaDecimal"
           />
         </div>
 
@@ -83,6 +85,7 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
+import { filtrarTeclaDecimal, reglaDecimal } from '@/utils/validacionNumerica'
 import type { FilaMetodoPago } from '@/types/turnoCaja'
 
 withDefaults(

@@ -18,7 +18,8 @@
         <label class="field-label">Fondo Inicial ($ MXN)</label>
         <q-input
           v-model.number="fondoInicial"
-          type="number"
+          type="text"
+          inputmode="decimal"
           outlined
           dense
           prefix="$"
@@ -27,7 +28,9 @@
           :rules="[
             (val) => (val !== null && val !== '') || 'El fondo inicial es requerido',
             (val) => Number(val) >= 0 || 'El monto debe ser mayor o igual a 0',
+            reglaDecimal,
           ]"
+          @keydown="filtrarTeclaDecimal"
         >
           <template #prepend>
             <q-icon name="payments" color="primary" />
@@ -181,6 +184,7 @@ import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useAuthStore } from '@/stores/auth'
 import { useSucursalesStore } from '@/stores/sucursales'
 import { turnoCajaService } from '@/services/turnoCajaService'
+import { filtrarTeclaDecimal, reglaDecimal } from '@/utils/validacionNumerica'
 import type { TurnoItem, CajaItem } from '@/types/turnoCaja'
 
 interface OptionItem {

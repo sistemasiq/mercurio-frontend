@@ -133,7 +133,7 @@ export const turnoCajaApi = {
       fondo_inicial: payload.fondoInicial,
       terminal: payload.terminal ?? 'CAJA 01',
       observaciones_apertura: payload.observacionesApertura,
-      id_turno: payload.idTurno,
+      turno_id: payload.turnoId,
       sucursal_id: payload.sucursalId,
     }
     const { data } = await apiClient.post(`${BASE}/abrir`, body)
@@ -256,7 +256,7 @@ export const turnoCajaApi = {
    */
   async registrarRetiro(payload: RetiroParcialPayload): Promise<RetiroParcialResponse> {
     const { data } = await apiClient.post(`${BASE}/retiro`, {
-      id_apertura_caja: payload.turnoId,
+      apertura_caja_id: payload.turnoId,
       concepto: payload.concepto,
       tipo_destinatario: payload.tipoDestinatario,
       monto: payload.monto,
@@ -264,7 +264,7 @@ export const turnoCajaApi = {
     })
     return {
       id: data.id,
-      turnoId: data.id_apertura_caja,
+      turnoId: data.apertura_caja_id,
       concepto: data.concepto,
       tipoDestinatario: data.tipo_destinatario,
       monto: data.monto,

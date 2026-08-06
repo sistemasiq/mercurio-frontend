@@ -7,12 +7,14 @@
       <span class="rs-input-prefix">$</span>
       <q-input
         v-model.number="modelValue"
-        type="number"
-        step="0.01"
+        type="text"
+        inputmode="decimal"
         borderless
         placeholder="0.00"
         class="rs-declarado-input"
         input-class="rs-declarado-native"
+        :rules="[reglaDecimal]"
+        @keydown="filtrarTeclaDecimal"
       />
     </div>
 
@@ -23,6 +25,8 @@
 </template>
 
 <script setup lang="ts">
+import { filtrarTeclaDecimal, reglaDecimal } from '@/utils/validacionNumerica'
+
 defineProps<{
   totalCalculado: number
 }>()

@@ -114,7 +114,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     fondoInicialMonto: number,
     terminalNombre = 'CAJA 01',
     observaciones = '',
-    idTurno?: string,
+    turnoId?: string,
     sucursalId?: string,
   ): Promise<void> {
     cargando.value = true
@@ -124,7 +124,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
         fondoInicial: fondoInicialMonto,
         terminal: terminalNombre,
         observacionesApertura: observaciones,
-        idTurno,
+        turnoId,
         sucursalId,
       })
       _aplicarTurno(turno)

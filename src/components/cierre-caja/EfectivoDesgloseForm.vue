@@ -14,8 +14,8 @@
             <label class="rs-denom-label">${{ formatEntero(d.value) }}</label>
             <q-input
               v-model.number="d.amount"
-              type="number"
-              min="0"
+              type="text"
+              inputmode="numeric"
               dense
               outlined
               placeholder="0"
@@ -23,7 +23,9 @@
               input-class="text-right"
               :readonly="readonly"
               :disable="readonly"
+              :rules="[reglaEntero]"
               :class="{ 'rs-input--readonly': readonly }"
+              @keydown="filtrarTeclaEntero"
             />
             <span class="rs-denom-subtotal">= {{ formatMXN(d.value * (d.amount || 0)) }}</span>
           </div>
@@ -41,8 +43,8 @@
             <label class="rs-denom-label">{{ d.label }}</label>
             <q-input
               v-model.number="d.amount"
-              type="number"
-              min="0"
+              type="text"
+              inputmode="numeric"
               dense
               outlined
               placeholder="0"
@@ -50,7 +52,9 @@
               input-class="text-right"
               :readonly="readonly"
               :disable="readonly"
+              :rules="[reglaEntero]"
               :class="{ 'rs-input--readonly': readonly }"
+              @keydown="filtrarTeclaEntero"
             />
             <span class="rs-denom-subtotal">= {{ formatMXN(d.value * (d.amount || 0)) }}</span>
           </div>
@@ -69,6 +73,7 @@
 <script setup lang="ts">
 import { watchEffect } from 'vue'
 import { formatMXN, formatEntero } from '@/utils/formatoMoneda'
+import { filtrarTeclaEntero, reglaEntero } from '@/utils/validacionNumerica'
 import type { DesgloseEfectivo } from '@/types/turnoCaja'
 
 withDefaults(
