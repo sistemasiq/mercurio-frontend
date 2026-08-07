@@ -40,6 +40,22 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/padres',
+    component: () => import('@/layouts/PadresLayout.vue'),
+    children: [
+      {
+        path: 'access',
+        name: 'padres-access',
+        component: () => import('@/pages/padres/AccessPadrePage.vue'),
+      },
+      {
+        path: 'dashboard',
+        name: 'padres-dashboard',
+        component: () => import('@/pages/padres/DashboardPadrePage.vue'),
+      },
+    ],
+  },
+  {
     path: '/home',
     component: () => import('@/layouts/AppShell.vue'),
     children: [
