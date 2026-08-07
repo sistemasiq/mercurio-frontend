@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useSucursalesStore } from '@/stores/sucursales'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
 
@@ -19,6 +20,7 @@ interface NavGroup {
 
 const auth = useAuthStore()
 const turno = useTurnoCajaStore()
+const sucursalesStore = useSucursalesStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -275,6 +277,18 @@ const userName = computed(() => auth.currentUser?.name ?? auth.currentUser?.emai
 const userRole = computed(() => auth.primaryRole ?? '')
 const branchName = computed(() => auth.currentBranchName ?? '')
 
+// ── Selector de sucursal para AdministradorSistema ──────────────────────────
+// No tiene sucursal propia; este selector le permite "pararse" en una para
+// ver sus catálogos/listados (reservaciones, inventario, etc.) sin tener que
+// cerrar sesión y volver a entrar como si fuera de esa sucursal.
+const sucursalOptions = computed(() =>
+  sucursalesStore.activas.map((s) => ({ label: s.nombre, value: s.id })),
+)
+
+function onSucursalVistaChange(sucursalId: string | null): void {
+  auth.setViewingBranch(sucursalId)
+}
+
 // Estado de apertura de caja visible en cualquier pantalla, no solo dentro del
 // módulo de caja — solo aplica al Cajero, que es a quien RN-CIE-001 bloquea de
 // vender/cobrar (comandas, check-in/checkout, eventos) sin turno OPERANDO.
@@ -295,6 +309,9 @@ const estadoTurnoInfo = computed(() => {
 onMounted(() => {
   if (mostrarEstadoTurno.value) {
     turno.cargarTurnoActivo()
+  }
+  if (auth.isSistema) {
+    sucursalesStore.cargar()
   }
 })
 
@@ -356,7 +373,28 @@ async function handleLogout(): Promise<void> {
         <q-space />
 
         <div class="header-actions">
-          <div v-if="branchName" class="header-branch">
+          <q-select
+            v-if="auth.isSistema"
+            :model-value="auth.viewingBranchId"
+            :options="sucursalOptions"
+            option-label="label"
+            option-value="value"
+            emit-value
+            map-options
+            clearable
+            dense
+            outlined
+            options-dense
+            behavior="menu"
+            placeholder="Ver todas las sucursales"
+            class="header-branch-select"
+            @update:model-value="onSucursalVistaChange"
+          >
+            <template #prepend>
+              <q-icon name="store" size="18px" />
+            </template>
+          </q-select>
+          <div v-else-if="branchName" class="header-branch">
             <q-icon name="store" size="18px" />
             <span>{{ branchName }}</span>
           </div>
@@ -518,6 +556,22 @@ async function handleLogout(): Promise<void> {
   font-size: 12.5px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.header-branch-select {
+  width: 220px;
+  font-size: 12.5px;
+}
+
+.header-branch-select :deep(.q-field__control) {
+  min-height: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+
+.header-branch-select :deep(.q-field__marginal) {
+  height: 32px;
 }
 
 .estado-turno--abierta {
