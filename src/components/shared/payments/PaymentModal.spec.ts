@@ -5,6 +5,16 @@ import AppliedPaymentsList from './AppliedPaymentsList.vue'
 import MethodSelector from './MethodSelector.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import PaymentModal from './PaymentModal.vue'
+import type { MetodosPago } from '@/types/metodos_pago'
+
+// Catálogo de prueba con las 4 categorías activas -- "Efectivo" queda primera
+// para que el default siga siendo igual que antes de exigir el prop.
+const METODOS_PAGO_TEST: MetodosPago[] = [
+  { id: 'e', sucursal_id: null, nombre: 'Efectivo', descripcion: null, tipo: 'E', activo: true },
+  { id: 't', sucursal_id: null, nombre: 'Tarjeta', descripcion: null, tipo: 'T', activo: true },
+  { id: 'c', sucursal_id: null, nombre: 'Cupones', descripcion: null, tipo: 'C', activo: true },
+  { id: 'l', sucursal_id: null, nombre: 'Lealtad', descripcion: null, tipo: 'L', activo: true },
+]
 
 /**
  * El modal queda montado permanentemente en sus cuatro consumidores (ninguno lo
@@ -13,7 +23,7 @@ import PaymentModal from './PaymentModal.vue'
  */
 const montar = (totalToPay = 5000) =>
   mount(PaymentModal, {
-    props: { modelValue: true, totalToPay },
+    props: { modelValue: true, totalToPay, metodosPago: METODOS_PAGO_TEST },
     global: {
       // QDialog renderiza su contenido en un portal fuera del wrapper, así que
       // sin este stub findComponent() no encuentra nada del interior del modal.

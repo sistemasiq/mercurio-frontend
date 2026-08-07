@@ -516,6 +516,7 @@ function cancelar() {
     <PaymentModal
       v-model="mostrarModalPagoExtra"
       :total-to-pay="cotizacion?.totalExtra ?? 0"
+      :metodos-pago="metodosPagoDisponibles"
       @pago-exitoso="onPagoExtraExitoso"
     />
   </q-page>

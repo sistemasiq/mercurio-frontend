@@ -23,7 +23,8 @@
           flex-direction: column;
           padding: 16px 20px;
           background: #ffffff;
-          overflow: hidden;
+          overflow-y: auto;
+          min-height: 0;
         "
       >
         <div class="row items-center justify-between q-mb-sm">
@@ -40,7 +41,7 @@
           </div>
         </div>
 
-        <MethodSelector v-model="metodoSeleccionado" />
+        <MethodSelector v-model="metodoSeleccionado" :metodos-disponibles="props.metodosPago" />
 
         <div
           style="
@@ -231,6 +232,7 @@
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import type { PaymentProps, AppliedPayment } from '@/types/payments'
+import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { useLealtadStore } from '@/stores/lealtad'
 
@@ -238,7 +240,7 @@ import MethodSelector from './MethodSelector.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import AppliedPaymentsList from './AppliedPaymentsList.vue'
 
-const props = defineProps<PaymentProps & { modelValue: boolean }>()
+const props = defineProps<PaymentProps & { modelValue: boolean; metodosPago: MetodosPago[] }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (
@@ -261,11 +263,20 @@ const puntosARedimir = ref(0)
 const saldoDisponible = ref<number | null>(null)
 const valorPunto = ref<number | null>(null)
 
+// Primera categoría con al menos un método activo de ese tipo en el
+// catálogo real de la sucursal -- no asumir que "Efectivo" siempre existe.
+const primeraCategoriaDisponible = computed(
+  () =>
+    CATEGORIAS_METODO_PAGO.find((cat) =>
+      props.metodosPago.some((m) => m.activo && m.tipo === cat.tipo),
+    )?.valor ?? '',
+)
+
 watch(
   () => props.modelValue,
   (visible) => {
     if (visible && !metodoSeleccionado.value) {
-      metodoSeleccionado.value = 'Efectivo'
+      metodoSeleccionado.value = primeraCategoriaDisponible.value
     }
     if (!visible) {
       // El componente queda montado en todos sus consumidores (ninguno usa v-if),
@@ -344,7 +355,7 @@ const cambioADevolver = computed(() => {
 })
 
 const iniciarAbono = (monto: number) => {
-  if (monto <= 0) return
+  if (monto <= 0 || !metodoSeleccionado.value) return
 
   if (!esEfectivo(metodoSeleccionado.value) && monto > saldoPendiente.value) {
     $q.notify({

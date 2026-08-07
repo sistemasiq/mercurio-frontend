@@ -11,6 +11,7 @@
     <div class="page-header">
       <h1 class="page-title">Administración de Sucursales</h1>
       <q-btn
+        v-if="auth.hasPermission('sucursales:crear')"
         unelevated
         color="primary"
         label="Nueva Sucursal"
@@ -128,9 +129,11 @@ import SucursalTabla from '@/components/sucursales/SucursalTabla.vue'
 import SucursalModalDesactivar from '@/components/sucursales/SucursalModalDesactivar.vue'
 import { useSucursales } from '@/composables/useSucursales'
 import { branchService } from '@/services/branchService'
+import { useAuthStore } from '@/stores/auth'
 import type { Sucursal } from '@/composables/useSucursales'
 
 const router = useRouter()
+const auth = useAuthStore()
 
 const {
   sucursales,

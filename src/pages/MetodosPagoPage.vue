@@ -50,13 +50,6 @@
           no-data-label="No hay métodos de pago registrados"
           class="fec-table"
         >
-          <!-- Alcance -->
-          <template #body-cell-sucursal_id="props">
-            <q-td :props="props">
-              {{ props.row.sucursal_id ? 'Solo esta sucursal' : 'Global' }}
-            </q-td>
-          </template>
-
           <!-- Estado -->
           <template #body-cell-activo="props">
             <q-td :props="props">
@@ -136,13 +129,6 @@
               :rules="[(v) => !!v || 'El nombre es requerido']"
             />
           </div>
-          <div v-if="authStore.currentBranchId">
-            <q-checkbox
-              v-model="formDialog.global"
-              label="Disponible en todas las sucursales (global)"
-              dense
-            />
-          </div>
           <div>
             <div class="field-label">DESCRIPCIÓN (opcional)</div>
             <q-input
@@ -152,6 +138,19 @@
               type="textarea"
               rows="3"
               placeholder="Descripción breve del método de pago"
+            />
+          </div>
+          <div>
+            <div class="field-label">TIPO</div>
+            <q-select
+              v-model="formDialog.tipo"
+              dense
+              outlined
+              emit-value
+              map-options
+              :options="TIPO_OPTIONS"
+              :rules="[(v) => !!v || 'El tipo es requerido']"
+              hint="Determina qué botón del modal de cobro usa este método."
             />
           </div>
         </q-card-section>
@@ -207,7 +206,15 @@ import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
-import type { MetodosPago } from '@/types/metodos_pago'
+import type { MetodosPago, TipoMetodoPago } from '@/types/metodos_pago'
+
+const TIPO_OPTIONS: { label: string; value: TipoMetodoPago }[] = [
+  { label: 'Efectivo', value: 'E' },
+  { label: 'Tarjeta (crédito/débito/wallets)', value: 'T' },
+  { label: 'Cupón', value: 'C' },
+  { label: 'Lealtad', value: 'L' },
+  { label: 'Otro (transferencia, etc.)', value: 'O' },
+]
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -218,7 +225,13 @@ onMounted(() => store.cargar())
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
   { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
-  { name: 'sucursal_id', label: 'ALCANCE', field: 'sucursal_id', align: 'left' },
+  {
+    name: 'tipo',
+    label: 'TIPO',
+    field: 'tipo',
+    align: 'left',
+    format: (v: TipoMetodoPago) => TIPO_OPTIONS.find((o) => o.value === v)?.label ?? v,
+  },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
@@ -230,11 +243,15 @@ const editando = ref<MetodosPago | null>(null)
 const guardando = ref(false)
 const nombreRef = ref()
 
-const formDialog = ref({ nombre: '', descripcion: '', global: false })
+const formDialog = ref<{ nombre: string; descripcion: string; tipo: TipoMetodoPago | null }>({
+  nombre: '',
+  descripcion: '',
+  tipo: null,
+})
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', descripcion: '', global: false }
+  formDialog.value = { nombre: '', descripcion: '', tipo: null }
   dialogOpen.value = true
 }
 
@@ -243,7 +260,7 @@ const abrirEditar = (row: MetodosPago) => {
   formDialog.value = {
     nombre: row.nombre,
     descripcion: row.descripcion ?? '',
-    global: row.sucursal_id === null,
+    tipo: row.tipo,
   }
   dialogOpen.value = true
 }
@@ -258,12 +275,8 @@ const guardar = async () => {
     nombreRef.value?.validate()
     return
   }
-  if (!formDialog.value.global && !authStore.currentBranchId) {
-    $q.notify({
-      type: 'negative',
-      message: 'No hay una sucursal activa en la sesión.',
-      position: 'top-right',
-    })
+  if (!formDialog.value.tipo) {
+    $q.notify({ type: 'warning', message: 'Selecciona un tipo.', position: 'top-right' })
     return
   }
   guardando.value = true
@@ -271,6 +284,7 @@ const guardar = async () => {
     const body = {
       nombre: formDialog.value.nombre.trim(),
       descripcion: formDialog.value.descripcion.trim() || undefined,
+      tipo: formDialog.value.tipo,
     }
     if (editando.value) {
       await store.actualizarMetodoPago(editando.value.id, body)
@@ -278,7 +292,7 @@ const guardar = async () => {
     } else {
       await store.crearMetodoPago({
         ...body,
-        sucursal_id: formDialog.value.global ? null : authStore.currentBranchId,
+        sucursal_id: authStore.currentBranchId,
       })
       $q.notify({ type: 'positive', message: 'Método de pago creado', position: 'top-right' })
     }

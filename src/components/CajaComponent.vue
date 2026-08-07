@@ -130,6 +130,7 @@
     <PaymentModal
       v-model="modalPagoAbierto"
       :total-to-pay="totalTicket"
+      :metodos-pago="metodosPagoDisponibles"
       @pago-exitoso="onPagoExitoso"
     />
 
@@ -158,7 +159,7 @@ import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import type { TipoProducto } from '@/types/producto'
-import type { MetodosPago } from '@/types/metodos_pago'
+import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment, PagoCompletoRequest } from '@/types/payments'
 import type { ComandaWsMessage, DetalleComandaRequest } from '@/types/comanda'
 
@@ -343,22 +344,16 @@ const onPagoExitoso = (
   void procesarPago(pagos, celularCliente, puntosARedimir, descuentoPuntos)
 }
 
-const mapearMetodoPago = (nombreMetodo: string): string => {
+const mapearMetodoPago = (categoriaSeleccionada: string): string => {
   if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
     throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
   }
-  const metodo = metodosPagoDisponibles.value.find(
-    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
-  )
+  const categoria = CATEGORIAS_METODO_PAGO.find((c) => c.valor === categoriaSeleccionada)
+  const metodo = metodosPagoDisponibles.value.find((m) => m.activo && m.tipo === categoria?.tipo)
   if (!metodo) {
-    const disponibles = metodosPagoDisponibles.value
-      .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
-      .join(', ')
-    const detalle = `Método buscado: "${nombreMetodo}". Métodos disponibles: [${disponibles}]`
+    const detalle = `No hay un método de pago activo de tipo "${categoriaSeleccionada}" configurado para esta sucursal.`
     console.error(`[mapearMetodoPago] ${detalle}`)
-    throw new Error(
-      `El método de pago "${nombreMetodo}" no está configurado o no está activo. ${detalle}`,
-    )
+    throw new Error(detalle)
   }
   return metodo.id
 }

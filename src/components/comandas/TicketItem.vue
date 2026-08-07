@@ -3,7 +3,8 @@
     <div class="ticket-item__top">
       <div class="ticket-item__info">
         <h4 class="ticket-item__nombre">{{ item.producto.nombre }}</h4>
-        <p class="ticket-item__precio">${{ lineTotal.toFixed(2) }}</p>
+        <p v-if="esHijoCombo" class="ticket-item__incluido">Incluido en el combo</p>
+        <p v-else class="ticket-item__precio">${{ lineTotal.toFixed(2) }}</p>
       </div>
       <div v-if="!esHijoCombo" class="ticket-item__qty">
         <q-btn
@@ -115,6 +116,14 @@ const lineTotal = computed(() =>
   font-size: 14px;
   font-weight: 700;
   color: var(--q-primary, #1976d2);
+  margin: 0;
+}
+
+.ticket-item__incluido {
+  font-size: 12px;
+  font-weight: 600;
+  font-style: italic;
+  color: #b45309;
   margin: 0;
 }
 

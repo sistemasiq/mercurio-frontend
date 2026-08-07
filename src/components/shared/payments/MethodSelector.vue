@@ -1,7 +1,7 @@
 <template>
-  <div class="grid-methods">
+  <div v-if="visibleMethods.length > 0" class="grid-methods">
     <button
-      v-for="method in STATIC_METHODS"
+      v-for="method in visibleMethods"
       :key="method.valor"
       class="method-btn"
       :class="{ active: modelValue === method.valor }"
@@ -20,23 +20,34 @@
       </span>
     </button>
   </div>
+  <q-banner v-else dense rounded class="bg-orange-1 text-orange-9 q-mb-md" style="font-size: 12px">
+    <template #avatar><q-icon name="warning" color="warning" /></template>
+    Esta sucursal no tiene métodos de pago activos. Configúralos en Catálogo &gt; Métodos de Pago.
+  </q-banner>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue'
+import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
+import type { MetodosPago } from '@/types/metodos_pago'
+
+const props = defineProps<{
   modelValue: string
+  metodosDisponibles: MetodosPago[]
 }>()
 
 defineEmits<{
   (e: 'update:modelValue', value: string): void
 }>()
 
-const STATIC_METHODS = [
-  { nombre: 'Efectivo', valor: 'Efectivo', icon: 'payments', color: 'green' },
-  { nombre: 'Crédito/Débito', valor: 'Tarjeta', icon: 'credit_card', color: 'blue' },
-  { nombre: 'Cupones', valor: 'Cupones', icon: 'redeem', color: 'orange' },
-  { nombre: 'Lealtad', valor: 'Lealtad', icon: 'loyalty', color: 'purple' },
-]
+// Solo se muestra una categoría si la sucursal tiene al menos un método
+// activo de ese tipo -- evita ofrecer un botón (ej. "Cupones") que siempre
+// va a fallar al cobrar porque nunca se configuró un método real de ese tipo.
+const visibleMethods = computed(() =>
+  CATEGORIAS_METODO_PAGO.filter((cat) =>
+    props.metodosDisponibles.some((m) => m.activo && m.tipo === cat.tipo),
+  ),
+)
 </script>
 
 <style scoped>
