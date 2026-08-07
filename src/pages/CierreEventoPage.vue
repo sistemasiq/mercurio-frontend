@@ -88,6 +88,24 @@
                 <div class="text-subtitle1 text-weight-bold">{{ fmt(packagePriceNum) }}</div>
               </div>
 
+              <div v-if="precioHorasNum > 0" class="billing-row">
+                <q-avatar color="grey-2" text-color="grey-8" icon="schedule" size="36px" />
+                <div class="col">
+                  <div class="text-body1 text-weight-medium">
+                    Horas del evento ({{ duracionEvento }})
+                  </div>
+                </div>
+                <div class="text-body1 text-weight-bold">{{ fmt(precioHorasNum) }}</div>
+              </div>
+
+              <div v-if="precioPersonasExtraNum > 0" class="billing-row">
+                <q-avatar color="grey-2" text-color="grey-8" icon="group_add" size="36px" />
+                <div class="col">
+                  <div class="text-body1 text-weight-medium">Personas extra</div>
+                </div>
+                <div class="text-body1 text-weight-bold">{{ fmt(precioPersonasExtraNum) }}</div>
+              </div>
+
               <template v-if="extrasDetallados.length">
                 <div class="section-subheader">SERVICIOS ADICIONALES</div>
                 <div v-for="extra in extrasDetallados" :key="extra.id" class="billing-row">
@@ -102,6 +120,22 @@
                 </div>
               </template>
               <div v-else class="q-pa-md text-caption text-grey-6">Sin servicios adicionales</div>
+
+              <template v-if="productosDetallados.length">
+                <div class="section-subheader">PRODUCTOS ADICIONALES</div>
+                <div v-for="producto in productosDetallados" :key="producto.id" class="billing-row">
+                  <q-avatar color="grey-2" text-color="grey-8" icon="restaurant" size="36px" />
+                  <div class="col">
+                    <div class="text-body1 text-weight-medium">
+                      {{ producto.nombre }} (x{{ producto.cantidad }})
+                    </div>
+                    <div v-if="producto.notas" class="text-caption text-grey-6">
+                      {{ producto.notas }}
+                    </div>
+                  </div>
+                  <div class="text-body1 text-weight-bold">{{ fmt(producto.subtotal) }}</div>
+                </div>
+              </template>
             </q-card>
 
             <q-card flat bordered class="q-mt-md" style="border-radius: 12px">
@@ -139,11 +173,35 @@
                 </div>
 
                 <div
+                  v-if="precioHorasNum > 0"
+                  class="row justify-between text-body2 text-grey-8 q-mb-xs"
+                >
+                  <span>Horas del evento</span>
+                  <span>{{ fmt(precioHorasNum) }}</span>
+                </div>
+
+                <div
+                  v-if="precioPersonasExtraNum > 0"
+                  class="row justify-between text-body2 text-grey-8 q-mb-xs"
+                >
+                  <span>Personas extra</span>
+                  <span>{{ fmt(precioPersonasExtraNum) }}</span>
+                </div>
+
+                <div
                   v-if="extrasDetallados.length"
                   class="row justify-between text-body2 text-grey-8 q-mb-xs"
                 >
                   <span>Servicios Extras</span>
                   <span>{{ fmt(extrasTotalNum) }}</span>
+                </div>
+
+                <div
+                  v-if="productosDetallados.length"
+                  class="row justify-between text-body2 text-grey-8 q-mb-xs"
+                >
+                  <span>Productos Adicionales</span>
+                  <span>{{ fmt(productosTotalNum) }}</span>
                 </div>
 
                 <div class="row justify-between text-subtitle1 text-weight-bold q-mt-sm">
@@ -179,7 +237,7 @@
                   style="border-radius: 8px; height: 44px; font-weight: 700"
                   :loading="procesandoPago"
                   :disable="saldoPendiente <= 0"
-                  @click="modalPagoAbierto = true"
+                  @click="abrirModalPago"
                 />
 
                 <q-banner
@@ -230,35 +288,54 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { reservacionesApi } from '@/api/reservacionesApi'
 import { pagosReservacionApi } from '@/api/pagosReservacionApi'
 import { reservacionExtrasApi } from '@/api/reservacionExtrasApi'
+import { reservacionProductosApi } from '@/api/reservacionProductosApi'
 import { usePaquetesStore } from '@/stores/paquetes'
 import { useExtrasStore } from '@/stores/extras'
+import { useProductosStore } from '@/stores/productos'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import type { Reservaciones } from '@/types/reservaciones'
 import type { Pagos_reservacion } from '@/types/pagos_reservacion'
 import type { Reservacion_extras } from '@/types/reservacion_extras'
+import type { Reservacion_productos } from '@/types/reservacion_productos'
 import type { AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
+import { horasFacturables } from '@/utils/horario'
 
 const route = useRoute()
+const router = useRouter()
 const $q = useQuasar()
 
 const paquetesStore = usePaquetesStore()
 const extrasStore = useExtrasStore()
+const productosStore = useProductosStore()
 const metodosPagoStore = useMetodosPagoStore()
 const tiposEventoStore = useTiposEventoStore()
+const turno = useTurnoCajaStore()
+
+function abrirModalPago() {
+  // Se valida al hacer clic en "Procesar Pago", antes de abrir el modal —
+  // sin turno abierto no se puede registrar el movimiento de caja.
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
+  modalPagoAbierto.value = true
+}
 
 const cargando = ref(true)
 const error = ref<string | null>(null)
 const reservacion = ref<Reservaciones | null>(null)
 const pagos = ref<Pagos_reservacion[]>([])
 const reservacionExtras = ref<Reservacion_extras[]>([])
+const reservacionProductos = ref<Reservacion_productos[]>([])
 const closingNotes = ref('')
 
 const cargarTodo = async () => {
@@ -266,14 +343,16 @@ const cargarTodo = async () => {
   error.value = null
   try {
     const id = route.params.id as string
-    const [res, pagosRes, extrasRes] = await Promise.all([
+    const [res, pagosRes, extrasRes, productosRes] = await Promise.all([
       reservacionesApi.obtener(id),
       pagosReservacionApi.listarPorReservacion(id),
       reservacionExtrasApi.listarPorReservacion(id),
+      reservacionProductosApi.listarPorReservacion(id),
     ])
     reservacion.value = res
     pagos.value = pagosRes
     reservacionExtras.value = extrasRes
+    reservacionProductos.value = productosRes
     closingNotes.value = res.notas ?? ''
   } catch {
     error.value = 'No se pudo cargar la información del evento'
@@ -286,6 +365,7 @@ onMounted(() => {
   cargarTodo()
   paquetesStore.cargar()
   extrasStore.cargar()
+  productosStore.cargar()
   metodosPagoStore.cargar()
   tiposEventoStore.cargar()
 })
@@ -308,11 +388,7 @@ const fmtFechaEvento = computed(() => {
 
 const duracionEvento = computed(() => {
   if (!reservacion.value) return '—'
-  const [h1, m1] = reservacion.value.hora_inicio.split(':').map(Number)
-  const [h2, m2] = reservacion.value.hora_fin.split(':').map(Number)
-  const minutos = h2! * 60 + m2! - (h1! * 60 + m1!)
-  // Toda fracción de hora se factura como hora completa.
-  const horas = Math.max(1, Math.ceil(minutos / 60))
+  const horas = horasFacturables(reservacion.value.hora_inicio, reservacion.value.hora_fin)
   return `${horas} ${horas === 1 ? 'Hora' : 'Horas'}`
 })
 
@@ -340,6 +416,10 @@ const paquete = computed(() =>
 )
 
 const packagePriceNum = computed(() => parseFloat(reservacion.value?.precio_base ?? '0'))
+const precioHorasNum = computed(() => parseFloat(reservacion.value?.precio_horas ?? '0'))
+const precioPersonasExtraNum = computed(() =>
+  parseFloat(reservacion.value?.precio_personas_extra ?? '0'),
+)
 
 const extrasDetallados = computed(() =>
   reservacionExtras.value.map((re) => ({
@@ -352,6 +432,20 @@ const extrasDetallados = computed(() =>
 
 const extrasTotalNum = computed(() =>
   extrasDetallados.value.reduce((sum, e) => sum + e.subtotal, 0),
+)
+
+const productosDetallados = computed(() =>
+  reservacionProductos.value.map((rp) => ({
+    id: rp.id,
+    nombre: productosStore.productos.find((p) => p.id === rp.producto_id)?.nombre ?? 'Producto',
+    cantidad: rp.cantidad,
+    notas: rp.notas,
+    subtotal: parseFloat(rp.subtotal),
+  })),
+)
+
+const productosTotalNum = computed(() =>
+  productosDetallados.value.reduce((sum, p) => sum + p.subtotal, 0),
 )
 
 const totalNum = computed(() => parseFloat(reservacion.value?.precio_total ?? '0'))

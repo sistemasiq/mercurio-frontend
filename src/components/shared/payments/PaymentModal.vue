@@ -279,6 +279,13 @@ watch(
       metodoSeleccionado.value = primeraCategoriaDisponible.value
     }
     if (!visible) {
+      // El componente queda montado en todos sus consumidores (ninguno usa v-if),
+      // así que al cerrar sin finalizar hay que descartar los pagos capturados.
+      // Si no, reaparecen en el siguiente cobro y se aplican como pagos reales
+      // por dinero que nunca se recibió. finalizarPago() ya emitió una copia
+      // antes de cerrar, así que limpiar aquí no le quita nada.
+      pagosAplicados.value = []
+      celularCliente.value = ''
       saldoDisponible.value = null
       valorPunto.value = null
       puntosARedimir.value = 0
@@ -377,6 +384,12 @@ const confirmarPagoTarjeta = () => {
   limpiarModalTarjeta()
 }
 
+// Date.now() colisiona si se agregan dos pagos dentro del mismo milisegundo, y
+// como eliminarPago() filtra por id, un id repetido borra los dos renglones a la
+// vez. Un contador garantiza que cada pago sea direccionable por separado.
+let contadorPagos = 0
+const nuevoIdPago = () => `pago-${Date.now()}-${++contadorPagos}`
+
 const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: string) => {
   if (esEfectivo(metodoSeleccionado.value)) {
     const existente = pagosAplicados.value.find((p) => esEfectivo(p.method))
@@ -387,7 +400,7 @@ const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: 
     }
   }
   pagosAplicados.value.push({
-    id: Date.now().toString(),
+    id: nuevoIdPago(),
     method: metodoSeleccionado.value,
     amount: monto,
     timestamp: new Date(),

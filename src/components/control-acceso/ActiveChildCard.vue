@@ -3,10 +3,17 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { ActiveChild } from '@/stores/accessControl'
 import { useAccessControlStore } from '@/stores/accessControl'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { fetchFotoIneUrl, fetchFotoLlegadaUrl } from '@/api/onboardingClient'
+
+const MAX_TUTOR_NAME_LENGTH = 28
+const MAX_CHILD_NAME_LENGTH = 18
+const TRUNCATED_LENGTH_TUTOR = 25
+const TRUNCATED_LENGTH_CHILD = 15
 
 const props = defineProps<{ child: ActiveChild }>()
 const store = useAccessControlStore()
+const turno = useTurnoCajaStore()
 const router = useRouter()
 
 const showDetails = ref(false)
@@ -57,6 +64,10 @@ const statusConfig = computed(() => {
 })
 
 function handleCheckout() {
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
   store.setCheckoutChild(props.child)
   router.push({ name: 'estancias-checkout' })
 }
@@ -69,6 +80,11 @@ function formatTelefono(telefono: string) {
   }
 
   return telefono
+}
+
+function truncateName(nombre: string, maxLength: number, truncatedLength: number): string {
+  if (nombre.length <= maxLength) return nombre
+  return nombre.slice(0, truncatedLength) + '...'
 }
 
 const fotoIneUrl = ref<string | null>(null)
@@ -136,11 +152,11 @@ function closeFotosDialog() {
               {{ statusConfig?.label }}
             </span>
             <div class="text-h6 text-weight-bolder text-dark q-mt-xs" style="line-height: 1.2">
-              {{ child.nino }}
+              {{ truncateName(child.nino, MAX_CHILD_NAME_LENGTH, TRUNCATED_LENGTH_CHILD) }}
             </div>
             <div class="row items-center text-caption text-grey-7 q-mt-xs">
               <q-icon name="person_outline" size="14px" class="q-mr-xs" />
-              {{ child.tutor }}
+              {{ truncateName(child.tutor, MAX_TUTOR_NAME_LENGTH, TRUNCATED_LENGTH_TUTOR) }}
             </div>
             <div class="row items-center text-caption text-grey-7 q-mt-xs">
               <span>{{ child.parentesco }}</span>
@@ -223,7 +239,9 @@ function closeFotosDialog() {
         <div class="column q-pa-lg q-pl-xl bg-white card-body">
           <div class="info-label q-mb-xs">SEGUNDO TUTOR</div>
           <div v-if="child.nombreSegundoTutor" class="text-body2 text-dark q-mb-md">
-            {{ child.nombreSegundoTutor }}
+            {{
+              truncateName(child.nombreSegundoTutor, MAX_TUTOR_NAME_LENGTH, TRUNCATED_LENGTH_TUTOR)
+            }}
           </div>
           <div v-else class="text-body2 text-dark q-mb-md">Sin segundo tutor</div>
 
@@ -269,7 +287,9 @@ function closeFotosDialog() {
         />
 
         <div class="fotos-dialog-content">
-          <div class="text-h6 text-white text-center q-mb-lg">{{ child.nino }}</div>
+          <div class="text-h6 text-white text-center q-mb-lg">
+            {{ truncateName(child.nino, MAX_CHILD_NAME_LENGTH, TRUNCATED_LENGTH_CHILD) }}
+          </div>
 
           <div class="row q-col-gutter-lg justify-center">
             <div class="col-12 col-sm-15 text-center">
