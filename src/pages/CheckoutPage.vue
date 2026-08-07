@@ -1,14 +1,27 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
-import { useAuthStore } from '@/stores/auth'
-import { checkout, pagarExtra, fetchMetodoPagoPorDefecto } from '@/api/onboardingClient'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import { checkout, cotizarCheckout, type CotizacionCheckoutResponse } from '@/api/onboardingClient'
 import { Notify } from 'quasar'
+import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
+import { metodosPagoApi } from '@/api/metodosPagoApi'
+import type { MetodosPago } from '@/types/metodos_pago'
+import type { AppliedPayment } from '@/types/payments'
 
 const store = useAccessControlStore()
-const authStore = useAuthStore()
+const turno = useTurnoCajaStore()
 const router = useRouter()
+
+onMounted(() => {
+  // Se valida al entrar, no hasta el final del checkout: si no hay turno
+  // abierto no tiene sentido dejar revisar todo el checkout para enterarse
+  // hasta el final. Redirige de inmediato, sin bloquear con un panel.
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+  }
+})
 
 const child = computed(() => store.checkoutChild)
 
@@ -17,6 +30,58 @@ const checkoutScanInput = ref('')
 const checkoutScanError = ref('')
 const checkoutScanRef = ref<HTMLInputElement | null>(null)
 const tutorVerified = ref(false)
+
+const metodosPagoDisponibles = ref<MetodosPago[]>([])
+
+/*
+  Cotización vigente del cargo extra. Se pide una sola vez, al picar
+  "Confirmar salida" (así se mantiene en exactamente 2 llamadas normales:
+  el GET de cotización y el POST de checkout). El POST vuelve a recalcular
+  con la hora real y rechaza (409) si lo cobrado ya no coincide con lo
+  debido — y esa misma respuesta 409 ya trae el monto correcto, así que un
+  reintento no necesita una tercera llamada.
+*/
+const cotizacion = ref<CotizacionCheckoutResponse | null>(null)
+const mostrarModalPagoExtra = ref(false)
+
+onMounted(() => {
+  void cargarMetodosPago()
+})
+
+const cargarMetodosPago = async () => {
+  try {
+    metodosPagoDisponibles.value = await metodosPagoApi.listar()
+  } catch (err) {
+    console.error('[CheckoutPage] cargarMetodosPago:', err)
+    Notify.create({
+      type: 'warning',
+      message: 'No se pudieron cargar los métodos de pago.',
+      caption: 'El cobro de cargos extra no estará disponible hasta recargar la página.',
+      position: 'top-right',
+      timeout: 6000,
+    })
+  }
+}
+
+const mapearMetodoPago = (nombreMetodo: string): string => {
+  if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
+    throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
+  }
+
+  const metodo = metodosPagoDisponibles.value.find(
+    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
+  )
+
+  if (!metodo) {
+    const disponibles = metodosPagoDisponibles.value
+      .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
+      .join(', ')
+    throw new Error(
+      `El método de pago "${nombreMetodo}" no está configurado o no está activo. Métodos disponibles: [${disponibles}]`,
+    )
+  }
+  return metodo.id
+}
 
 function activateCheckoutScan() {
   checkoutScanActive.value = true
@@ -83,41 +148,17 @@ async function confirmarSalida() {
 
   isLoading.value = true
   try {
-    const result = await checkout(child.value.detalleId, child.value.pulseraTutorId)
+    // Única llamada GET del flujo: cotiza justo antes de cobrar, para que el
+    // monto que ve el cajero esté lo más fresco posible.
+    const cotizacionActual = await cotizarCheckout(child.value.detalleId)
+    cotizacion.value = cotizacionActual
 
-    if (result.totalExtra > 0) {
-      /* Aqui dentro de este if tiene que ir ya el pago multimodal ya que deberia de dejarlo salir
-      hasta que pague, ahora se simula esa accion pagando para evitar inconsistencias en la db
-      */
-      if (!authStore.currentBranchId) {
-        throw new Error('No hay una sucursal activa en la sesión.')
-      }
-
-      const metodoPagoId =
-        (await fetchMetodoPagoPorDefecto()) ?? 'b827363b-6453-40e4-9536-f7a004711f91'
-      if (!metodoPagoId) {
-        //Esto para hacer pruebas
-        throw new Error('No hay métodos de pago configurados.')
-      }
-
-      await pagarExtra(child.value.registroId, authStore.currentBranchId, [
-        { metodoPagoId: metodoPagoId, monto: result.totalExtra },
-      ])
-      Notify.create({
-        type: 'warning',
-        message: `Se cobró un cargo extra de $${result.totalExtra}.`,
-        icon: 'payments',
-      })
-    } else {
-      Notify.create({
-        type: 'positive',
-        message: 'Checkout realizado correctamente.',
-        icon: 'check_circle',
-      })
+    if (cotizacionActual.totalExtra > 0) {
+      mostrarModalPagoExtra.value = true
+      return
     }
 
-    store.clearCheckoutChild()
-    router.back()
+    await ejecutarCheckout([])
   } catch (err) {
     console.error(err)
     Notify.create({
@@ -125,6 +166,87 @@ async function confirmarSalida() {
       message: 'Error al realizar el checkout.',
       icon: 'error',
     })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function ejecutarCheckout(pagos: { metodoPagoId: string; monto: number }[]) {
+  if (!child.value) return
+
+  const result = await checkout(child.value.detalleId, child.value.pulseraTutorId, pagos)
+
+  Notify.create({
+    type: 'positive',
+    message:
+      result.totalExtra > 0
+        ? `Se cobró $${result.totalExtra} y se completó el checkout.`
+        : 'Checkout realizado correctamente.',
+    icon: 'check_circle',
+  })
+
+  mostrarModalPagoExtra.value = false
+  cotizacion.value = null
+  store.clearCheckoutChild()
+  router.back()
+}
+
+async function onPagoExtraExitoso(pagos: AppliedPayment[]) {
+  isLoading.value = true
+  try {
+    const pagosMapeados = pagos.map((p) => ({
+      metodoPagoId: mapearMetodoPago(p.method),
+      monto: p.amount,
+    }))
+
+    await ejecutarCheckout(pagosMapeados)
+  } catch (err: unknown) {
+    console.error('[CheckoutPage] onPagoExtraExitoso:', err)
+
+    const detail = (
+      err as {
+        response?: {
+          status?: number
+          data?: { detail?: { message?: string; horasExtra?: number; totalExtra?: number } }
+        }
+      }
+    )?.response
+
+    if (detail?.status === 409 && detail.data?.detail) {
+      /*  
+        El 409 ya trae el monto correcto en su cuerpo (horasExtra/totalExtra),
+        así que el reintento no necesita una llamada GET adicional: se
+        actualiza la cotización local con esos mismos datos y se reabre el
+        modal con el monto ya corregido.
+      */
+      const { totalExtra, horasExtra, message } = detail.data.detail
+      if (child.value && totalExtra !== undefined && horasExtra !== undefined) {
+        cotizacion.value = {
+          detalleId: child.value.detalleId,
+          totalExtra,
+          horasExtra,
+          cotizadoEn: new Date().toISOString(),
+        }
+      }
+      Notify.create({
+        type: 'warning',
+        message: message ?? 'El monto a cobrar cambió porque avanzó el tiempo.',
+        caption: 'Se actualizó el monto, vuelve a intentar el cobro.',
+        icon: 'schedule',
+        timeout: 6000,
+      })
+      // El modal queda abierto (o se puede reabrir) con :total-to-pay ya
+      // apuntando al nuevo cotizacion.totalExtra.
+    } else {
+      mostrarModalPagoExtra.value = false
+      Notify.create({
+        type: 'negative',
+        message: 'No se pudo registrar el pago del cargo extra.',
+        caption: err instanceof Error ? err.message : 'Error desconocido.',
+        position: 'top-right',
+        timeout: 4000,
+      })
+    }
   } finally {
     isLoading.value = false
   }
@@ -270,7 +392,15 @@ function cancelar() {
       <div class="col-12 col-md-4">
         <q-card flat bordered class="checkout-card q-mb-md">
           <q-card-section>
-            <div class="row items-start">
+            <div v-if="cotizacion && cotizacion.totalExtra > 0" class="row items-start">
+              <q-icon name="payments" color="negative" size="20px" class="q-mr-sm q-mt-xs" />
+              <div class="col text-caption text-grey-8" style="line-height: 1.6">
+                Se deben cobrar <strong>${{ cotizacion.totalExtra }}</strong> por
+                {{ cotizacion.horasExtra }} hora(s) extra. Este monto puede cambiar si pasa más
+                tiempo antes de confirmar la salida.
+              </div>
+            </div>
+            <div v-else class="row items-start">
               <q-icon name="info" color="orange-9" size="20px" class="q-mr-sm q-mt-xs" />
               <div class="col text-caption text-grey-8" style="line-height: 1.6">
                 Los detalles mostrados son informativos. El monto final se calculará al confirmar la
@@ -363,7 +493,7 @@ function cancelar() {
           size="md"
           no-caps
           :loading="isLoading"
-          :disable="!tutorVerified"
+          :disable="!tutorVerified || mostrarModalPagoExtra"
           @click="confirmarSalida"
         />
         <q-btn
@@ -373,11 +503,22 @@ function cancelar() {
           class="full-width"
           size="md"
           no-caps
-          :disable="isLoading"
+          :disable="isLoading || mostrarModalPagoExtra"
           @click="cancelar"
         />
+
+        <div v-if="mostrarModalPagoExtra" class="text-caption text-grey-6 text-center q-mt-sm">
+          El niño ya realizó checkout. Falta cobrar el cargo extra para cerrar la operación.
+        </div>
       </div>
     </div>
+
+    <PaymentModal
+      v-model="mostrarModalPagoExtra"
+      :total-to-pay="cotizacion?.totalExtra ?? 0"
+      :metodos-pago="metodosPagoDisponibles"
+      @pago-exitoso="onPagoExtraExitoso"
+    />
   </q-page>
 </template>
 

@@ -63,7 +63,7 @@ const comandas = ref<Comanda[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const requestController = ref<AbortController | null>(null)
-const fallbackIntervalId = ref<ReturnType<typeof setInterval> | null>(null)
+const fallbackIntervalId = ref<number | null>(null)
 
 const comandasEnCocina = computed(() =>
   comandas.value.filter((c) => ['P', 'E', 'L'].includes(c.estado_actual)),

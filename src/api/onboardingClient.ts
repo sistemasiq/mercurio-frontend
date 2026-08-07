@@ -65,6 +65,7 @@ export interface OnboardingPayload {
   parentesco: string
   detalles: OnboardingDetalle[]
   pagos: OnboardingPago[]
+  reservacionId?: string | null
 }
 
 export interface OnboardingResponse {
@@ -97,6 +98,13 @@ export interface CheckoutResponse {
   horasExtra: number
   totalExtra: number
   ninosRestantes: number
+}
+
+export interface CotizacionCheckoutResponse {
+  detalleId: string
+  horasExtra: number
+  totalExtra: number
+  cotizadoEn: string
 }
 
 //Llamadas a la api
@@ -149,13 +157,27 @@ export async function fetchActivos(sucursalId: string): Promise<ActivoDto[]> {
   return data
 }
 
+// GET /estancias/{detalleId}/checkout/cotizacion
+// Solo lectura: no registra hora_salida ni cargo. Se llama al entrar a la
+// pantalla de checkout y de nuevo justo antes de confirmar la salida, porque
+// el monto puede cambiar entre una llamada y otra (el backend recalcula con
+// la hora real al confirmar, y rechaza si lo pagado ya no alcanza).
+export async function cotizarCheckout(detalleId: string): Promise<CotizacionCheckoutResponse> {
+  const { data } = await onboardingClient.get(`/estancias/${detalleId}/checkout/cotizacion`)
+  return data
+}
+
 // POST /estancias/{detalleId}/checkout
+// Si hay cargo extra (> 0), 'pagos' debe cubrir exactamente el monto vigente
+// en el momento de esta llamada (recalculado en el backend) o responde 409.
 export async function checkout(
   detalleId: string,
   pulseraTutorId: string,
+  pagos: OnboardingPago[] = [],
 ): Promise<CheckoutResponse> {
   const { data } = await onboardingClient.post(`/estancias/${detalleId}/checkout`, {
     pulseraTutorId: pulseraTutorId,
+    pagos,
   })
 
   return data

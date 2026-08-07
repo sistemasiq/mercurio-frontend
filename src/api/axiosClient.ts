@@ -87,6 +87,22 @@ function createAxiosClient(): AxiosInstance {
       const { code, message } = extractCodeAndMessage(error.response?.data)
 
       if (status === 401) {
+        const url = error.config?.url ?? ''
+        // Si es la verificación de credenciales del admin durante el cierre de caja, retornar el error directamente
+        if (
+          url.includes('/turnos-caja/revision-admin') ||
+          url.includes('/turnos-caja/validar-pin-admin') ||
+          url.includes('/turnos-caja/validar-pin-cajero')
+        ) {
+          return Promise.reject(
+            buildApiError(
+              status,
+              code || 'INVALID_CREDENTIALS',
+              message || 'PIN o credenciales incorrectas.',
+            ),
+          )
+        }
+
         const session = sessionStorage.load()
 
         if (!session?.refreshToken) {

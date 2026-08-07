@@ -9,6 +9,16 @@
             Pulseras RFID disponibles para el control de acceso de la sucursal.
           </div>
         </div>
+        <q-space />
+        <q-btn
+          unelevated
+          no-caps
+          color="primary"
+          icon="add"
+          label="Agregar pulseras"
+          style="border-radius: 8px; font-weight: 600"
+          @click="irARegistro"
+        />
       </div>
 
       <!-- Sin sucursal activa -->
@@ -244,6 +254,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { resolveErrorMessage } from '@/utils/errorHandler'
@@ -253,8 +264,11 @@ import { usePulserasStore } from '@/stores/pulseras'
 import type { PulseraAdmin } from '@/types/pulsera'
 
 const $q = useQuasar()
+const router = useRouter()
 const authStore = useAuthStore()
 const store = usePulserasStore()
+
+const irARegistro = () => router.push({ name: 'estancias-pulseras-registro' })
 
 const cargar = () => {
   if (authStore.currentBranchId) store.cargar(authStore.currentBranchId)
