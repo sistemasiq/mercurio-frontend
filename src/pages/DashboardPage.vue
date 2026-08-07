@@ -29,7 +29,7 @@
           icon="add"
           label="Nueva Reservación"
           style="border-radius: 8px; font-weight: 600"
-          @click="router.push({ name: 'eventos-reservaciones-crear' })"
+          @click="irANuevaReservacion"
         />
       </div>
     </div>
@@ -228,12 +228,22 @@ import type { QTableColumn } from 'quasar'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { usePaquetesStore } from '@/stores/paquetes'
 import { useAuthStore } from '@/stores/auth'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import type { Paquetes } from '@/types/paquetes'
 
 const router = useRouter()
 const store = useReservacionesStore()
 const paquetesStore = usePaquetesStore()
 const authStore = useAuthStore()
+const turno = useTurnoCajaStore()
+
+function irANuevaReservacion() {
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
+  router.push({ name: 'eventos-reservaciones-crear' })
+}
 
 onMounted(() => {
   store.cargar(authStore.currentBranchId ?? undefined)
