@@ -8,19 +8,9 @@
             Métodos de Pago
           </div>
           <div class="text-body2" style="color: var(--text-secondary)">
-            Gestiona los métodos de pago disponibles para reservaciones.
+            Activa o desactiva los métodos de pago disponibles en tu sucursal.
           </div>
         </div>
-        <q-space />
-        <q-btn
-          color="primary"
-          icon="add"
-          label="Nuevo Método"
-          unelevated
-          no-caps
-          style="border-radius: 8px; font-weight: 600"
-          @click="abrirCrear"
-        />
       </div>
 
       <!-- Error -->
@@ -53,10 +43,11 @@
           <!-- Estado -->
           <template #body-cell-activo="props">
             <q-td :props="props">
-              <q-badge
-                :color="props.row.activo ? 'positive' : 'grey-5'"
-                :label="props.row.activo ? 'Activo' : 'Inactivo'"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
+              <q-toggle
+                :model-value="props.row.activo"
+                color="positive"
+                :disable="toggleando === props.row.id"
+                @update:model-value="toggleActivo(props.row)"
               />
             </q-td>
           </template>
@@ -65,39 +56,16 @@
           <template #body-cell-actions="props">
             <q-td :props="props" class="text-right">
               <q-btn
+                v-if="esSistema"
                 flat
                 round
                 dense
                 icon="edit"
                 color="primary"
                 size="sm"
-                class="q-mr-xs"
                 @click="abrirEditar(props.row)"
               >
-                <q-tooltip>Editar</q-tooltip>
-              </q-btn>
-              <q-btn
-                flat
-                round
-                dense
-                :icon="props.row.activo ? 'toggle_on' : 'toggle_off'"
-                :color="props.row.activo ? 'positive' : 'grey-5'"
-                size="sm"
-                class="q-mr-xs"
-                @click="toggleActivo(props.row)"
-              >
-                <q-tooltip>{{ props.row.activo ? 'Desactivar' : 'Activar' }}</q-tooltip>
-              </q-btn>
-              <q-btn
-                flat
-                round
-                dense
-                icon="delete_outline"
-                color="negative"
-                size="sm"
-                @click="confirmarEliminar(props.row)"
-              >
-                <q-tooltip>Eliminar</q-tooltip>
+                <q-tooltip>Editar nombre/descripción</q-tooltip>
               </q-btn>
             </q-td>
           </template>
@@ -105,13 +73,11 @@
       </q-card>
     </div>
 
-    <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
+    <!-- ── Dialog Editar (solo AdministradorSistema) ─────────────────────── -->
     <q-dialog v-model="dialogOpen" persistent>
       <q-card style="min-width: 420px; border-radius: 12px">
         <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">
-            {{ editando ? 'Editar Método de Pago' : 'Nuevo Método de Pago' }}
-          </div>
+          <div class="text-h6 text-weight-bold">Editar Método de Pago</div>
         </q-card-section>
 
         <q-separator />
@@ -125,7 +91,6 @@
               dense
               outlined
               autofocus
-              placeholder="Ej. Transferencia bancaria"
               :rules="[(v) => !!v || 'El nombre es requerido']"
             />
           </div>
@@ -140,19 +105,6 @@
               placeholder="Descripción breve del método de pago"
             />
           </div>
-          <div>
-            <div class="field-label">TIPO</div>
-            <q-select
-              v-model="formDialog.tipo"
-              dense
-              outlined
-              emit-value
-              map-options
-              :options="TIPO_OPTIONS"
-              :rules="[(v) => !!v || 'El tipo es requerido']"
-              hint="Determina qué botón del modal de cobro usa este método."
-            />
-          </div>
         </q-card-section>
 
         <q-card-actions align="right" class="q-pa-md q-pt-sm">
@@ -161,36 +113,10 @@
             unelevated
             no-caps
             color="primary"
-            :label="editando ? 'Guardar cambios' : 'Crear método'"
+            label="Guardar cambios"
             style="border-radius: 8px; font-weight: 600"
             :loading="guardando"
             @click="guardar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ── Dialog Confirmar Eliminar ──────────────────────────────────────── -->
-    <q-dialog v-model="dialogEliminar">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">Eliminar método de pago</div>
-          <div class="q-mt-sm text-body2 text-grey-8">
-            ¿Estás seguro de que deseas eliminar
-            <strong>{{ filaEliminar?.nombre }}</strong
-            >? Esta acción no se puede deshacer.
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="negative"
-            label="Eliminar"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="eliminando"
-            @click="ejecutarEliminar"
           />
         </q-card-actions>
       </q-card>
@@ -199,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { resolveErrorMessage } from '@/utils/errorHandler'
@@ -208,17 +134,19 @@ import { useAuthStore } from '@/stores/auth'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import type { MetodosPago, TipoMetodoPago } from '@/types/metodos_pago'
 
-const TIPO_OPTIONS: { label: string; value: TipoMetodoPago }[] = [
-  { label: 'Efectivo', value: 'E' },
-  { label: 'Tarjeta (crédito/débito/wallets)', value: 'T' },
-  { label: 'Cupón', value: 'C' },
-  { label: 'Lealtad', value: 'L' },
-  { label: 'Otro (transferencia, etc.)', value: 'O' },
-]
+const TIPO_LABELS: Record<TipoMetodoPago, string> = {
+  E: 'Efectivo',
+  T: 'Tarjeta (crédito/débito/wallets)',
+  C: 'Cupón',
+  L: 'Lealtad',
+  O: 'Otro',
+}
 
 const $q = useQuasar()
 const authStore = useAuthStore()
 const store = useMetodosPagoStore()
+
+const esSistema = computed(() => authStore.hasRole('AdministradorSistema'))
 
 onMounted(() => store.cargar())
 
@@ -230,37 +158,29 @@ const columns: QTableColumn[] = [
     label: 'TIPO',
     field: 'tipo',
     align: 'left',
-    format: (v: TipoMetodoPago) => TIPO_OPTIONS.find((o) => o.value === v)?.label ?? v,
+    format: (v: TipoMetodoPago) => TIPO_LABELS[v] ?? v,
   },
-  { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
+  { name: 'activo', label: 'ACTIVO EN ESTA SUCURSAL', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
 
-// ── Estado del dialog ─────────────────────────────────────────────────────────
+// ── Estado del dialog de edición ────────────────────────────────────────────
 
 const dialogOpen = ref(false)
 const editando = ref<MetodosPago | null>(null)
 const guardando = ref(false)
 const nombreRef = ref()
 
-const formDialog = ref<{ nombre: string; descripcion: string; tipo: TipoMetodoPago | null }>({
+const formDialog = ref<{ nombre: string; descripcion: string }>({
   nombre: '',
   descripcion: '',
-  tipo: null,
 })
-
-const abrirCrear = () => {
-  editando.value = null
-  formDialog.value = { nombre: '', descripcion: '', tipo: null }
-  dialogOpen.value = true
-}
 
 const abrirEditar = (row: MetodosPago) => {
   editando.value = row
   formDialog.value = {
     nombre: row.nombre,
     descripcion: row.descripcion ?? '',
-    tipo: row.tipo,
   }
   dialogOpen.value = true
 }
@@ -271,31 +191,18 @@ const cerrarDialog = () => {
 }
 
 const guardar = async () => {
+  if (!editando.value) return
   if (!formDialog.value.nombre.trim()) {
     nombreRef.value?.validate()
     return
   }
-  if (!formDialog.value.tipo) {
-    $q.notify({ type: 'warning', message: 'Selecciona un tipo.', position: 'top-right' })
-    return
-  }
   guardando.value = true
   try {
-    const body = {
+    await store.actualizarMetodoPago(editando.value.id, {
       nombre: formDialog.value.nombre.trim(),
       descripcion: formDialog.value.descripcion.trim() || undefined,
-      tipo: formDialog.value.tipo,
-    }
-    if (editando.value) {
-      await store.actualizarMetodoPago(editando.value.id, body)
-      $q.notify({ type: 'positive', message: 'Método de pago actualizado', position: 'top-right' })
-    } else {
-      await store.crearMetodoPago({
-        ...body,
-        sucursal_id: authStore.currentBranchId,
-      })
-      $q.notify({ type: 'positive', message: 'Método de pago creado', position: 'top-right' })
-    }
+    })
+    $q.notify({ type: 'positive', message: 'Método de pago actualizado', position: 'top-right' })
     cerrarDialog()
   } catch (err) {
     $q.notify({
@@ -308,11 +215,14 @@ const guardar = async () => {
   }
 }
 
-// ── Toggle activo ─────────────────────────────────────────────────────────────
+// ── Toggle activo por sucursal ──────────────────────────────────────────────
+
+const toggleando = ref<string | null>(null)
 
 const toggleActivo = async (row: MetodosPago) => {
+  toggleando.value = row.id
   try {
-    await store.actualizarMetodoPago(row.id, { activo: !row.activo })
+    await store.toggleActivo(row.id, !row.activo)
     $q.notify({
       type: 'positive',
       message: `Método ${!row.activo ? 'activado' : 'desactivado'}`,
@@ -324,35 +234,8 @@ const toggleActivo = async (row: MetodosPago) => {
       message: resolveErrorMessage(err as ApiError),
       position: 'top-right',
     })
-  }
-}
-
-// ── Eliminar ──────────────────────────────────────────────────────────────────
-
-const dialogEliminar = ref(false)
-const filaEliminar = ref<MetodosPago | null>(null)
-const eliminando = ref(false)
-
-const confirmarEliminar = (row: MetodosPago) => {
-  filaEliminar.value = row
-  dialogEliminar.value = true
-}
-
-const ejecutarEliminar = async () => {
-  if (!filaEliminar.value) return
-  eliminando.value = true
-  try {
-    await store.eliminarMetodoPago(filaEliminar.value.id)
-    $q.notify({ type: 'positive', message: 'Método de pago eliminado', position: 'top-right' })
-    dialogEliminar.value = false
-  } catch (err) {
-    $q.notify({
-      type: 'negative',
-      message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
-    })
   } finally {
-    eliminando.value = false
+    toggleando.value = null
   }
 }
 </script>
