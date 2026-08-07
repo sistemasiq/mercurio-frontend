@@ -5,7 +5,7 @@ import axios, {
   AxiosError,
 } from 'axios'
 import type { ApiError } from '@/types/auth'
-import { sessionStorage } from '@/utils/session'
+import { sessionStorage, viewingBranch } from '@/utils/session'
 import { isNetworkError } from '@/utils/errorHandler'
 
 // Cliente sin interceptores — solo para endpoints de auth (refresh/login)
@@ -70,6 +70,13 @@ function createAxiosClient(): AxiosInstance {
     const session = sessionStorage.load()
     if (session?.token) {
       config.headers.Authorization = `Bearer ${session.token}`
+    }
+    // Solo AdministradorSistema puede "pararse" en una sucursal para ver sus
+    // catálogos/listados -- para cualquier otro rol el backend ignora este
+    // header, pero evitamos mandarlo de más.
+    const sucursalVista = viewingBranch.load()
+    if (sucursalVista && session?.user.roles.includes('AdministradorSistema')) {
+      config.headers['X-Sucursal-Vista'] = sucursalVista
     }
     return config
   })
