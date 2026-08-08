@@ -1,7 +1,12 @@
 <template>
-  <q-page padding class="q-pa-lg">
-    <div class="row items-center q-mb-md">
-      <div class="text-h5 text-weight-bold">Extras</div>
+  <q-page class="page-content q-pa-md q-pa-lg-xl">
+    <div class="row items-center q-mb-lg">
+      <div>
+        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Extras</div>
+        <div class="text-body2" style="color: var(--text-secondary)">
+          Catálogo de extras disponibles para reservaciones.
+        </div>
+      </div>
       <q-space />
       <q-btn
         color="primary"
@@ -9,6 +14,7 @@
         label="Nuevo Extra"
         unelevated
         no-caps
+        style="border-radius: 8px; font-weight: 600"
         @click="abrirCrear"
       />
     </div>
@@ -27,7 +33,7 @@
       </template>
     </q-banner>
 
-    <q-card flat bordered>
+    <q-card flat bordered style="border-radius: 12px; overflow: hidden">
       <q-table
         :rows="store.extras"
         :columns="columns"
@@ -36,6 +42,7 @@
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
         no-data-label="No hay extras registrados"
+        class="fec-table"
       >
         <template #body-cell-precio="props">
           <q-td :props="props"> ${{ Number(props.row.precio).toFixed(2) }} </q-td>
@@ -55,37 +62,37 @@
           <q-td :props="props" class="text-right">
             <q-btn
               flat
-              round
               dense
-              icon="edit"
-              color="primary"
+              color="grey-8"
               size="sm"
-              class="q-mr-xs"
+              class="action-btn q-mr-xs"
               @click="abrirEditar(props.row)"
             >
+              <span class="material-symbols-outlined">edit</span>
               <q-tooltip>Editar</q-tooltip>
             </q-btn>
             <q-btn
               flat
-              round
               dense
-              :icon="props.row.activo ? 'toggle_on' : 'toggle_off'"
-              :color="props.row.activo ? 'positive' : 'grey-5'"
+              color="grey-8"
               size="sm"
-              class="q-mr-xs"
+              class="action-btn q-mr-xs"
               @click="toggleActivo(props.row)"
             >
+              <span class="material-symbols-outlined">{{
+                props.row.activo ? 'toggle_on' : 'toggle_off'
+              }}</span>
               <q-tooltip>{{ props.row.activo ? 'Desactivar' : 'Activar' }}</q-tooltip>
             </q-btn>
             <q-btn
               flat
-              round
               dense
-              icon="delete_outline"
-              color="negative"
+              color="grey-8"
               size="sm"
+              class="action-btn"
               @click="confirmarEliminar(props.row)"
             >
+              <span class="material-symbols-outlined">delete_outline</span>
               <q-tooltip>Eliminar</q-tooltip>
             </q-btn>
           </q-td>
@@ -370,11 +377,25 @@ const ejecutarEliminar = async () => {
 
 <style scoped>
 .field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 6px;
+}
+
+.action-btn {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+  font-size: 20px;
+  line-height: 1;
+  text-transform: none;
 }
 </style>
