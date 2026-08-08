@@ -332,15 +332,4 @@ const ejecutarEliminar = async () => {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
 }
-
-.material-symbols-outlined {
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 20;
-  font-size: 20px;
-  line-height: 1;
-  text-transform: none;
-}
 </style>
