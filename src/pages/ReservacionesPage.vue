@@ -1,7 +1,14 @@
 <template>
-  <q-page padding class="q-pa-lg">
-    <div class="row items-center q-mb-md">
-      <div class="text-h5 text-weight-bold">Reservaciones</div>
+  <q-page class="page-content q-pa-md q-pa-lg-xl">
+    <div class="row items-center q-mb-lg">
+      <div>
+        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
+          Reservaciones
+        </div>
+        <div class="text-body2" style="color: var(--text-secondary)">
+          Reservaciones de eventos de la sucursal.
+        </div>
+      </div>
       <q-space />
       <q-btn
         color="primary"
@@ -9,10 +16,11 @@
         label="Nueva Reservación"
         unelevated
         no-caps
+        style="border-radius: 8px; font-weight: 600"
         @click="irANuevaReservacion"
       />
     </div>
-    <q-card flat bordered>
+    <q-card flat bordered style="border-radius: 12px; overflow: hidden">
       <div class="row items-center q-pa-md">
         <q-select
           v-model="filtroEstado"
@@ -34,6 +42,7 @@
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
         no-data-label="No hay reservaciones registradas"
+        class="fec-table"
       >
         <template #body-cell-estado="props">
           <q-td :props="props">
@@ -70,6 +79,7 @@ import { useRouter } from 'vue-router'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import { estadoColorReservacion, estadoLabelReservacion } from '@/utils/estadoReservacion'
 
 const router = useRouter()
 const store = useReservacionesStore()
@@ -102,23 +112,8 @@ const reservacionesFiltradas = computed(() =>
     : store.reservaciones.filter((r) => r.estado === filtroEstado.value),
 )
 
-const estadoLabel = (estado: string) =>
-  ({
-    pendiente: 'Pendiente',
-    confirmada: 'Confirmada',
-    en_curso: 'En curso',
-    completada: 'Completada',
-    cancelada: 'Cancelada',
-  })[estado] ?? estado
-
-const estadoColor = (estado: string) =>
-  ({
-    pendiente: 'orange',
-    confirmada: 'primary',
-    en_curso: 'purple',
-    completada: 'positive',
-    cancelada: 'grey-5',
-  })[estado] ?? 'grey'
+const estadoLabel = estadoLabelReservacion
+const estadoColor = estadoColorReservacion
 
 const columns: QTableColumn[] = [
   {

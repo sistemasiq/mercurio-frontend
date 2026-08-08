@@ -8,7 +8,7 @@
       <!-- Header: ícono + info de la sucursal -->
       <q-card-section class="modal-header">
         <div class="warning-icon-wrap">
-          <q-icon name="warning" size="26px" color="red-6" />
+          <q-icon name="warning" size="26px" color="negative" />
         </div>
         <div class="modal-info">
           <div class="modal-titulo">Desactivar Sucursal</div>
@@ -28,10 +28,11 @@
 
       <!-- Botones -->
       <q-card-actions class="modal-actions">
-        <q-btn outline color="grey-8" label="Cancelar" class="btn-cancelar" @click="show = false" />
+        <q-btn flat no-caps color="grey-7" label="Cancelar" class="btn-cancelar" @click="show = false" />
         <q-btn
           unelevated
-          color="red-8"
+          no-caps
+          color="negative"
           label="Confirmar Desactivación"
           class="btn-confirmar"
           @click="onConfirmar"
@@ -73,7 +74,7 @@ function onConfirmar() {
 .modal-card {
   width: 420px;
   max-width: 95vw;
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 8px;
 }
 
@@ -91,7 +92,7 @@ function onConfirmar() {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background-color: #ffebee;
+  background-color: rgba(220, 38, 38, 0.1);
   flex-shrink: 0;
 }
 
@@ -104,32 +105,32 @@ function onConfirmar() {
 .modal-titulo {
   font-size: 18px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--text-primary);
   line-height: 1.2;
 }
 
 .modal-clave {
   font-size: 13px;
-  color: #424242;
+  color: var(--text-secondary);
   font-weight: 500;
   margin-top: 4px;
 }
 
 .modal-ubicacion {
   font-size: 12px;
-  color: #9e9e9e;
+  color: var(--text-muted);
 }
 
 .warning-box {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 14px 16px;
   font-size: 13px;
-  color: #424242;
+  color: var(--text-secondary);
   line-height: 1.6;
 
   .warning-label {
-    color: #c62828;
+    color: var(--q-negative);
     font-weight: 700;
   }
 }
@@ -142,12 +143,12 @@ function onConfirmar() {
 
   .btn-cancelar {
     padding: 0 20px;
-    font-weight: 500;
   }
 
   .btn-confirmar {
     padding: 0 20px;
-    font-weight: 500;
+    border-radius: 8px;
+    font-weight: 600;
   }
 }
 </style>

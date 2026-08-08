@@ -331,7 +331,7 @@
                         :style="
                           selectedExtraIds.includes(svc.id)
                             ? 'border-radius: 8px; font-weight: 700;'
-                            : 'border: 1px solid #025FE0; border-radius: 8px; font-weight: 600;'
+                            : 'border: 1px solid var(--q-primary); border-radius: 8px; font-weight: 600;'
                         "
                         @click="toggleService(svc.id)"
                       />
@@ -472,8 +472,8 @@
                 v-if="pagoRegistrado"
                 class="q-pa-md q-mb-lg rounded-borders"
                 style="
-                  background: #e8f5e9;
-                  border: 1px solid #a5d6a7;
+                  background: rgba(63, 168, 52, 0.12);
+                  border: 1px solid rgba(63, 168, 52, 0.35);
                   display: flex;
                   align-items: center;
                   gap: 12px;
@@ -481,10 +481,10 @@
               >
                 <q-icon name="check_circle" color="positive" size="28px" />
                 <div>
-                  <div style="font-weight: 700; color: #2e7d32">
+                  <div style="font-weight: 700" class="text-positive">
                     Anticipo registrado correctamente
                   </div>
-                  <div style="font-size: 0.85rem; color: #388e3c">
+                  <div style="font-size: 0.85rem" class="text-positive">
                     {{ fmt(montoPagado) }} — {{ metodosPagoResumen }}
                   </div>
                 </div>
@@ -648,7 +648,9 @@
                 </div>
                 <div class="resumen-row">
                   <span>Anticipo pagado</span>
-                  <span style="color: #2e7d32; font-weight: 600">{{ fmt(montoPagado) }}</span>
+                  <span class="text-positive" style="font-weight: 600">{{
+                    fmt(montoPagado)
+                  }}</span>
                 </div>
                 <div class="resumen-row">
                   <span>Método</span><span>{{ metodosPagoResumen }}</span>
@@ -665,7 +667,9 @@
                 style="border: 1px solid var(--border-color)"
               >
                 <q-checkbox v-model="form.termsAccepted" dense style="align-items: flex-start">
-                  <span style="font-size: 0.85rem; line-height: 1.4; color: #546e7a">
+                  <span
+                    style="font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary)"
+                  >
                     He revisado los datos del cliente y la disponibilidad de fecha con el reglamento
                     de cancelación vigente.
                   </span>
@@ -742,13 +746,13 @@
 
               <!-- Anticipo y saldo tras registrar pago -->
               <template v-if="pagoRegistrado">
-                <div class="payment-card__row" style="color: #2e7d32; margin-top: 4px">
+                <div class="payment-card__row text-positive" style="margin-top: 4px">
                   <span>Anticipo pagado</span>
                   <span style="font-weight: 700">- {{ fmt(montoPagado) }}</span>
                 </div>
                 <div
                   class="payment-card__row"
-                  style="border-top: 2px solid #e2e8f0; margin-top: 4px; padding-top: 8px"
+                  style="border-top: 2px solid var(--border-color); margin-top: 4px; padding-top: 8px"
                 >
                   <span style="font-weight: 700; color: var(--text-primary)">Saldo pendiente</span>
                   <span style="font-weight: 800; font-size: 1rem; color: var(--q-primary)">{{
@@ -780,11 +784,11 @@
             <div
               style="
                 margin-top: 16px;
-                background: #f0f4ff;
+                background: rgba(2, 95, 224, 0.08);
                 border-radius: 10px;
                 padding: 12px;
                 font-size: 0.78rem;
-                color: #546e7a;
+                color: var(--text-secondary);
                 display: flex;
                 align-items: flex-start;
                 gap: 8px;
@@ -1370,8 +1374,8 @@ const confirmarReservacion = async () => {
   align-items: center;
   padding: 5px 0;
   font-size: 0.875rem;
-  border-bottom: 1px solid #f1f5f9;
-  color: #475569;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
 }
 
 .resumen-row:last-child {

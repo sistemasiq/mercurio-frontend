@@ -63,6 +63,12 @@ const navGroups = computed<NavGroup[]>(() => [
         permission: 'turnos_caja:historial',
       },
       {
+        label: 'Historial de Ventas',
+        icon: 'receipt',
+        routeName: 'pos-historial',
+        permission: 'restaurante:registrar_pago',
+      },
+      {
         label: 'Cocina',
         icon: 'restaurant',
         routeName: 'pos-cocina',
@@ -83,17 +89,6 @@ const navGroups = computed<NavGroup[]>(() => [
     ],
   },
   {
-    label: 'POS',
-    items: [
-      {
-        label: 'Historial',
-        icon: 'receipt_long',
-        routeName: 'pos-historial',
-        permission: 'restaurante:registrar_pago',
-      },
-    ],
-  },
-  {
     label: 'EVENTOS',
     items: [
       {
@@ -107,12 +102,6 @@ const navGroups = computed<NavGroup[]>(() => [
         icon: 'event_note',
         routeName: 'eventos-reservaciones',
         permission: 'reservaciones:listar',
-      },
-      {
-        label: 'Nueva Reservación',
-        icon: 'add_circle_outline',
-        routeName: 'eventos-reservaciones-crear',
-        permission: 'reservaciones:crear',
       },
       {
         label: 'Calendario',
@@ -142,7 +131,7 @@ const navGroups = computed<NavGroup[]>(() => [
       },
       {
         label: 'Paquetes',
-        icon: 'inventory_2',
+        icon: 'card_giftcard',
         routeName: 'paquetes-listar',
         permission: 'paquetes:crear',
       },
@@ -158,17 +147,17 @@ const navGroups = computed<NavGroup[]>(() => [
         routeName: 'metodos-pago-listar',
         permission: 'metodos_pago:crear',
       },
+    ],
+  },
+  {
+    label: 'INVENTARIO',
+    items: [
       {
         label: 'Productos',
         icon: 'liquor',
         routeName: 'productos-listar',
         permission: 'inventario:gestionar_productos',
       },
-    ],
-  },
-  {
-    label: 'INVENTARIO',
-    items: [
       {
         label: 'Insumos',
         icon: 'inventory_2',
@@ -189,7 +178,7 @@ const navGroups = computed<NavGroup[]>(() => [
       },
       {
         label: 'Reporte de Stock',
-        icon: 'query_stats',
+        icon: 'bar_chart',
         routeName: 'reportes-inventario',
         permission: 'reportes:inventario',
       },
@@ -212,7 +201,7 @@ const navGroups = computed<NavGroup[]>(() => [
       },
       {
         label: 'Reporte',
-        icon: 'query_stats',
+        icon: 'insights',
         routeName: 'lealtad-reporte',
         permission: 'lealtad:ver_reporte',
       },
@@ -253,7 +242,7 @@ const navGroups = computed<NavGroup[]>(() => [
       },
       {
         label: 'Reportes',
-        icon: 'query_stats',
+        icon: 'analytics',
         routeName: 'reportes-dashboard',
         permission: 'reportes:dashboard',
       },

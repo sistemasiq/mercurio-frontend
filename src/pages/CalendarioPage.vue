@@ -128,8 +128,8 @@
 
             <!-- Leyenda -->
             <div class="cal-legend">
-              <div v-for="item in leyenda" :key="item.estado" class="cal-legend__item">
-                <span class="cal-legend__dot" :class="`cal-chip--${item.estado}`"></span>
+              <div v-for="item in leyenda" :key="item.value" class="cal-legend__item">
+                <span class="cal-legend__dot" :class="`cal-chip--${item.value}`"></span>
                 {{ item.label }}
               </div>
             </div>
@@ -216,6 +216,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useAuthStore } from '@/stores/auth'
+import { ESTADOS_RESERVACION, estadoColorReservacion, estadoLabelReservacion } from '@/utils/estadoReservacion'
 
 const store = useReservacionesStore()
 const authStore = useAuthStore()
@@ -423,31 +424,9 @@ const statIngresos = computed(() => {
 
 // ── Helpers de estado ─────────────────────────────────────────────────────────
 
-const leyenda = [
-  { estado: 'pendiente', label: 'Pendiente' },
-  { estado: 'confirmada', label: 'Confirmada' },
-  { estado: 'en_curso', label: 'En curso' },
-  { estado: 'completada', label: 'Completada' },
-  { estado: 'cancelada', label: 'Cancelada' },
-]
-
-const estadoColor = (estado: string) =>
-  ({
-    pendiente: 'orange',
-    confirmada: 'primary',
-    en_curso: 'purple',
-    completada: 'positive',
-    cancelada: 'grey-5',
-  })[estado] ?? 'grey'
-
-const estadoLabel = (estado: string) =>
-  ({
-    pendiente: 'Pendiente',
-    confirmada: 'Confirmada',
-    en_curso: 'En curso',
-    completada: 'Completada',
-    cancelada: 'Cancelada',
-  })[estado] ?? estado
+const leyenda = ESTADOS_RESERVACION
+const estadoColor = estadoColorReservacion
+const estadoLabel = estadoLabelReservacion
 </script>
 
 <style scoped lang="scss">
@@ -474,20 +453,20 @@ const estadoLabel = (estado: string) =>
     flex-shrink: 0;
 
     &--blue {
-      background: #e8eaf6;
-      color: #3949ab;
+      background: rgba($primary, 0.1);
+      color: $primary;
     }
     &--green {
-      background: #e8f5e9;
-      color: #2e7d32;
+      background: rgba($positive, 0.12);
+      color: $positive;
     }
     &--orange {
-      background: #fff3e0;
-      color: #e65100;
+      background: rgba($warning, 0.18);
+      color: $warning;
     }
     &--purple {
-      background: #f3e5f5;
-      color: #6a1b9a;
+      background: rgba($secondary, 0.1);
+      color: $secondary;
     }
   }
 
@@ -605,20 +584,20 @@ const estadoLabel = (estado: string) =>
   }
 
   &--pendiente {
-    background: #fff3e0;
-    color: #e65100;
+    background: rgba($warning, 0.18);
+    color: $warning;
   }
   &--confirmada {
-    background: #e8eaf6;
-    color: #283593;
+    background: rgba($primary, 0.1);
+    color: $primary;
   }
   &--en_curso {
-    background: #f3e5f5;
-    color: #6a1b9a;
+    background: rgba($secondary, 0.1);
+    color: $secondary;
   }
   &--completada {
-    background: #e8f5e9;
-    color: #1b5e20;
+    background: rgba($positive, 0.12);
+    color: $positive;
   }
   &--cancelada {
     background: #f5f5f5;
@@ -679,16 +658,16 @@ const estadoLabel = (estado: string) =>
 }
 
 .ev-dot--pendiente {
-  background: #e65100;
+  background: $warning;
 }
 .ev-dot--confirmada {
-  background: #283593;
+  background: $primary;
 }
 .ev-dot--en_curso {
-  background: #6a1b9a;
+  background: $secondary;
 }
 .ev-dot--completada {
-  background: #1b5e20;
+  background: $positive;
 }
 .ev-dot--cancelada {
   background: #9e9e9e;
