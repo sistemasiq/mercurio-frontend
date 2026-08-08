@@ -192,7 +192,7 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 <style lang="scss" scoped>
 .kds-card {
   height: 100%;
-  background-color: #fff;
+  background-color: var(--bg-card);
   border-radius: 12px;
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -206,14 +206,14 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
     box-shadow 0.3s;
 }
 .card-proceso {
-  border-left: 12px solid #fd8b00;
+  border-left: 12px solid #ffc107;
 }
 .card-pendiente {
-  border-left: 12px solid #c1c6d7;
+  border-left: 12px solid var(--border-color);
   opacity: 0.9;
 }
 .card-listo {
-  border-left: 12px solid #006a35;
+  border-left: 12px solid #3fa834;
 }
 
 .kds-card-header {
@@ -221,16 +221,16 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  border-bottom: 1px solid #e1e3e4;
+  border-bottom: 1px solid var(--border-color);
 }
 .header-bg-proceso {
-  background-color: rgba(255, 220, 195, 0.3);
+  background-color: rgba(255, 193, 7, 0.16);
 }
 .header-bg-pendiente {
-  background-color: #f3f4f5;
+  background-color: var(--bg-main);
 }
 .header-bg-listo {
-  background-color: rgba(107, 254, 156, 0.15);
+  background-color: rgba(63, 168, 52, 0.16);
 }
 
 .kds-status-label {
@@ -241,17 +241,16 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   display: block;
 }
 .text-proceso {
-  color: #904d00;
+  color: #b45309;
 }
 .text-pendiente {
-  color: #414754;
+  color: var(--text-secondary);
 }
 .text-listo {
-  color: #006a35;
+  color: #3fa834;
 }
 
 .kds-ticket-number {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 32px;
   font-weight: 700;
   margin: 4px 0 0 0;
@@ -266,21 +265,20 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 24px;
   font-weight: 600;
 }
 .text-alerta {
-  color: #ba1a1a;
+  color: #dc2626;
 }
 .text-normal {
-  color: #191c1d;
+  color: var(--text-primary);
 }
 
 .kds-order-type {
   font-size: 14px;
   font-weight: 500;
-  color: #414754;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -301,9 +299,9 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   align-items: flex-start;
 }
 .kds-combo-group {
-  border: 1px solid #fde68a;
+  border: 1px solid rgba(255, 193, 7, 0.4);
   border-radius: 10px;
-  background-color: #fffbeb;
+  background-color: rgba(255, 193, 7, 0.08);
   padding: 8px;
   margin-bottom: 4px;
 }
@@ -313,8 +311,8 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   gap: 6px;
   padding: 4px 10px;
   border-radius: 9999px;
-  background-color: #fde68a;
-  color: #92400e;
+  background-color: rgba(255, 193, 7, 0.35);
+  color: #b45309;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -333,11 +331,10 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   width: 48px;
   height: 48px;
   border-radius: 8px;
-  background-color: #e1e3e4;
+  background-color: var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 24px;
   font-weight: 600;
   flex-shrink: 0;
@@ -352,8 +349,8 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 }
 .kds-item-warning {
   font-size: 16px;
-  color: #ba1a1a;
-  background-color: rgba(255, 218, 214, 0.5);
+  color: #dc2626;
+  background-color: rgba(220, 38, 38, 0.1);
   padding: 8px;
   border-radius: 4px;
   display: inline-flex;
@@ -364,14 +361,13 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 
 .kds-card-footer {
   padding: 16px;
-  background-color: #fff;
-  border-top: 1px solid #e1e3e4;
+  background-color: var(--bg-card);
+  border-top: 1px solid var(--border-color);
 }
 .kds-btn {
   width: 100%;
   min-height: 64px;
   border-radius: 12px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 20px;
   font-weight: 600;
   display: flex;
@@ -388,26 +384,26 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   transform: scale(0.95);
 }
 .btn-accion {
-  background-color: #0059bb;
+  background-color: #025fe0;
   color: #fff;
 }
 .btn-accion:hover {
-  background-color: #0070ea;
+  background-color: #0350c4;
 }
 .btn-pendiente {
-  background-color: #edeeef;
-  color: #191c1d;
-  border: 2px solid #c1c6d7;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
 }
 .btn-pendiente:hover {
-  background-color: #e1e3e4;
+  background-color: var(--border-color);
 }
 .btn-entregar {
-  background-color: #006a35;
+  background-color: #3fa834;
   color: #fff;
 }
 .btn-entregar:hover {
-  background-color: #008645;
+  background-color: #359c2c;
 }
 
 .card-entregando {
@@ -416,11 +412,11 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 
 @keyframes flash-verde {
   0% {
-    box-shadow: 0 0 0 0 rgba(0, 106, 53, 0.5);
-    background-color: #006a35;
+    box-shadow: 0 0 0 0 rgba(63, 168, 52, 0.5);
+    background-color: #3fa834;
   }
   50% {
-    box-shadow: 0 0 24px 4px rgba(0, 106, 53, 0.3);
+    box-shadow: 0 0 24px 4px rgba(63, 168, 52, 0.3);
   }
   100% {
     box-shadow:

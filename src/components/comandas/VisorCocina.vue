@@ -167,13 +167,12 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .kds-layout {
-  background-color: #f8f9fa;
+  background-color: var(--bg-main);
   min-height: calc(100vh - 64px);
   padding: 32px;
   display: flex;
   flex-direction: column;
-  font-family: 'Inter', sans-serif;
-  color: #191c1d;
+  color: var(--text-primary);
 }
 
 .kds-header {
@@ -184,14 +183,13 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 .kds-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 32px;
   font-weight: 700;
   margin: 0;
 }
 .kds-subtitle {
   font-size: 16px;
-  color: #414754;
+  color: var(--text-secondary);
   margin: 4px 0 0 0;
 }
 
@@ -216,25 +214,25 @@ onBeforeUnmount(() => {
 }
 
 .pill-pendientes {
-  background-color: #edeeef;
-  color: #191c1d;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
 }
 .dot-pendientes {
-  background-color: #717786;
+  background-color: var(--text-muted);
 }
 .pill-proceso {
-  background-color: #ffdcc3;
-  color: #6e3900;
+  background-color: rgba(255, 193, 7, 0.16);
+  color: #b45309;
 }
 .dot-proceso {
-  background-color: #fd8b00;
+  background-color: #ffc107;
 }
 .pill-listos {
-  background-color: #6bfe9c;
-  color: #00210c;
+  background-color: rgba(63, 168, 52, 0.16);
+  color: #2f7d27;
 }
 .dot-listos {
-  background-color: #006a35;
+  background-color: #3fa834;
 }
 
 .kds-grid {
@@ -280,13 +278,12 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 .empty-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 24px;
   font-weight: 700;
   margin-top: 16px;
 }
 .empty-subtitle {
-  color: #717786;
+  color: var(--text-muted);
   margin-top: 4px;
 }
 </style>

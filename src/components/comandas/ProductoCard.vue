@@ -29,7 +29,7 @@
       <div class="producto-card__add">
         <q-btn
           unelevated
-          :color="producto.es_combo ? 'green-8' : 'orange-8'"
+          :color="producto.es_combo ? 'positive' : 'primary'"
           icon="add"
           size="xs"
           style="border-radius: 8px; width: 30px; height: 30px; min-width: 30px"
@@ -53,9 +53,9 @@ const imagenSrc = computed(() => getProductoImagenUrl(props.producto.imagen))
 
 <style scoped>
 .producto-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-color);
   overflow: hidden;
   cursor: pointer;
   display: flex;
@@ -81,14 +81,14 @@ const imagenSrc = computed(() => getProductoImagenUrl(props.producto.imagen))
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: var(--bg-main);
 }
 
 .producto-card__badge {
   position: absolute;
   top: 6px;
   right: 6px;
-  background: var(--q-primary, #1976d2);
+  background: var(--q-primary, #025fe0);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -101,7 +101,7 @@ const imagenSrc = computed(() => getProductoImagenUrl(props.producto.imagen))
   position: absolute;
   top: 6px;
   left: 6px;
-  background: #2e7d32;
+  background: #3fa834;
   color: #fff;
   font-size: 9px;
   font-weight: 800;
@@ -112,7 +112,7 @@ const imagenSrc = computed(() => getProductoImagenUrl(props.producto.imagen))
 }
 
 .producto-card--combo {
-  border-color: #a5d6a7;
+  border-color: rgba(63, 168, 52, 0.45);
   border-width: 1.5px;
 }
 
@@ -123,16 +123,15 @@ const imagenSrc = computed(() => getProductoImagenUrl(props.producto.imagen))
   flex-direction: column;
 }
 .producto-card__nombre {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 13px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
   margin: 0 0 4px 0;
   line-height: 1.2;
 }
 .producto-card__desc {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-muted);
   margin: 0;
   line-height: 1.4;
   flex: 1;
