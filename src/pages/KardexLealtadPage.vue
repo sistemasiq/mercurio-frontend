@@ -87,7 +87,7 @@
 
           <template #body-cell-tipo="props">
             <q-td :props="props">
-              <EstadoPill
+              <EstadoBadge
                 :tono="TIPO_TONO[props.row.tipo as TipoMovimientoPuntos]"
                 :label="TIPO_LABEL[props.row.tipo as TipoMovimientoPuntos]"
               />
@@ -114,7 +114,7 @@ import { ref } from 'vue'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useLealtadStore } from '@/stores/lealtad'
-import EstadoPill from '@/components/inventario/EstadoPill.vue'
+import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 import type { TipoMovimientoPuntos } from '@/types/lealtad'
 
 const authStore = useAuthStore()
@@ -152,11 +152,4 @@ const columns: QTableColumn[] = [
 ]
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-</style>
+<style scoped></style>

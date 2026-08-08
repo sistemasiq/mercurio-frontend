@@ -240,13 +240,4 @@ const toggleActivo = async (row: MetodosPago) => {
 }
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-</style>
+<style scoped></style>

@@ -648,9 +648,7 @@
                 </div>
                 <div class="resumen-row">
                   <span>Anticipo pagado</span>
-                  <span class="text-positive" style="font-weight: 600">{{
-                    fmt(montoPagado)
-                  }}</span>
+                  <span class="text-positive" style="font-weight: 600">{{ fmt(montoPagado) }}</span>
                 </div>
                 <div class="resumen-row">
                   <span>Método</span><span>{{ metodosPagoResumen }}</span>
@@ -667,9 +665,7 @@
                 style="border: 1px solid var(--border-color)"
               >
                 <q-checkbox v-model="form.termsAccepted" dense style="align-items: flex-start">
-                  <span
-                    style="font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary)"
-                  >
+                  <span style="font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary)">
                     He revisado los datos del cliente y la disponibilidad de fecha con el reglamento
                     de cancelación vigente.
                   </span>
@@ -752,7 +748,11 @@
                 </div>
                 <div
                   class="payment-card__row"
-                  style="border-top: 2px solid var(--border-color); margin-top: 4px; padding-top: 8px"
+                  style="
+                    border-top: 2px solid var(--border-color);
+                    margin-top: 4px;
+                    padding-top: 8px;
+                  "
                 >
                   <span style="font-weight: 700; color: var(--text-primary)">Saldo pendiente</span>
                   <span style="font-weight: 800; font-size: 1rem; color: var(--q-primary)">{{
@@ -1345,15 +1345,6 @@ const confirmarReservacion = async () => {
 </script>
 
 <style scoped>
-.field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
 .sticky-payment {
   position: sticky;
   top: 24px;

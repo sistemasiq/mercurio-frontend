@@ -536,14 +536,6 @@ const imprimirResumen = () => window.print()
 </script>
 
 <style scoped>
-.field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
 .section-header {
   padding: 12px 16px;
   font-size: 0.7rem;

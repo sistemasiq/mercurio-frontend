@@ -528,15 +528,6 @@ const ejecutarReactivar = async () => {
 </script>
 
 <style scoped lang="scss">
-.field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
 .rol-dialog-card {
   width: 460px;
   height: 620px;

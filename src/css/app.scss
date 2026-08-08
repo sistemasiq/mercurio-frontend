@@ -67,6 +67,20 @@ body {
     'opsz' 24;
 }
 
+// ─── Field label (etiquetas de campos de formulario/detalle) ────────────────
+.field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+// ─── Action button (botones de acción en filas de tabla: editar/eliminar) ───
+.action-btn {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
 // ─── Quasar Drawer Fix (Hide Scrollbars) ────────────────────────────────────
 .q-drawer {
   scrollbar-width: none !important;
@@ -223,7 +237,18 @@ body {
       background: rgba(255, 193, 7, 0.12);
       color: $warning;
     }
+    &--pink {
+      background: rgba($secondary, 0.1);
+      color: $secondary;
+    }
   }
+}
+
+// ─── Grid de KPIs (reporte de inventario, reporte de lealtad, etc.) ─────────
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
 }
 
 // ─── Panel Card ─────────────────────────────────────────────────────────────

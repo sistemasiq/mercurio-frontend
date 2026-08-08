@@ -1,6 +1,6 @@
 <template>
   <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 900px; margin: 0 auto">
+    <div>
       <!-- Encabezado -->
       <div class="row items-center q-mb-md">
         <q-btn
@@ -96,7 +96,7 @@
 
           <template #body-cell-tipo="props">
             <q-td :props="props">
-              <EstadoPill
+              <EstadoBadge
                 :tono="TIPO_TONO[props.row.tipo as TipoMovimiento]"
                 :label="TIPO_LABEL[props.row.tipo as TipoMovimiento]"
               />
@@ -138,7 +138,7 @@ import { useInsumosStore } from '@/stores/insumos'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { useMovimientosInventarioStore } from '@/stores/movimientosInventario'
 import { useAuthStore } from '@/stores/auth'
-import EstadoPill from '@/components/inventario/EstadoPill.vue'
+import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 
 type TipoMovimiento = 'E' | 'S' | 'A' | 'M'
 
@@ -215,11 +215,4 @@ const columns: QTableColumn[] = [
 ]
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-</style>
+<style scoped></style>

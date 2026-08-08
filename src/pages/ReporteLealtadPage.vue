@@ -1,6 +1,6 @@
 <template>
   <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 1100px; margin: 0 auto">
+    <div>
       <!-- Encabezado -->
       <div class="row items-center q-mb-lg">
         <div>
@@ -39,45 +39,45 @@
 
       <!-- KPIs -->
       <div class="kpi-row">
-        <q-card flat bordered class="kpi-tile">
-          <div class="kpi-icon" style="background: #0083001a; color: #008300">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--green">
             <q-icon name="redeem" size="20px" />
           </div>
-          <div class="kpi-value">{{ store.reporte?.total_otorgado ?? 0 }}</div>
-          <div class="kpi-label">Puntos otorgados</div>
-        </q-card>
+          <div class="stat-card__value">{{ store.reporte?.total_otorgado ?? 0 }}</div>
+          <div class="stat-card__label">Puntos otorgados</div>
+        </div>
 
-        <q-card flat bordered class="kpi-tile">
-          <div class="kpi-icon" style="background: #2a78d61a; color: #2a78d6">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--blue">
             <q-icon name="shopping_bag" size="20px" />
           </div>
-          <div class="kpi-value">{{ store.reporte?.total_redimido ?? 0 }}</div>
-          <div class="kpi-label">Puntos redimidos</div>
-        </q-card>
+          <div class="stat-card__value">{{ store.reporte?.total_redimido ?? 0 }}</div>
+          <div class="stat-card__label">Puntos redimidos</div>
+        </div>
 
-        <q-card flat bordered class="kpi-tile">
-          <div class="kpi-icon" style="background: #fab2191a; color: #c98d10">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--orange">
             <q-icon name="event_busy" size="20px" />
           </div>
-          <div class="kpi-value">{{ store.reporte?.total_caducado ?? 0 }}</div>
-          <div class="kpi-label">Puntos caducados</div>
-        </q-card>
+          <div class="stat-card__value">{{ store.reporte?.total_caducado ?? 0 }}</div>
+          <div class="stat-card__label">Puntos caducados</div>
+        </div>
 
-        <q-card flat bordered class="kpi-tile">
-          <div class="kpi-icon" style="background: #4a3aa71a; color: #4a3aa7">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--pink">
             <q-icon name="account_balance_wallet" size="20px" />
           </div>
-          <div class="kpi-value">{{ store.reporte?.saldo_vigente ?? 0 }}</div>
-          <div class="kpi-label">Saldo vigente total</div>
-        </q-card>
+          <div class="stat-card__value">{{ store.reporte?.saldo_vigente ?? 0 }}</div>
+          <div class="stat-card__label">Saldo vigente total</div>
+        </div>
 
-        <q-card flat bordered class="kpi-tile">
-          <div class="kpi-icon" style="background: #1baf7a1a; color: #1baf7a">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--blue">
             <q-icon name="groups" size="20px" />
           </div>
-          <div class="kpi-value">{{ store.reporte?.clientes_con_saldo ?? 0 }}</div>
-          <div class="kpi-label">Clientes con saldo</div>
-        </q-card>
+          <div class="stat-card__value">{{ store.reporte?.clientes_con_saldo ?? 0 }}</div>
+          <div class="stat-card__label">Clientes con saldo</div>
+        </div>
       </div>
     </div>
   </q-page>
@@ -95,37 +95,3 @@ onMounted(() => {
   if (authStore.currentBranchId) store.cargarReporte(authStore.currentBranchId)
 })
 </script>
-
-<style scoped>
-.kpi-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-.kpi-tile {
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.kpi-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 10px;
-}
-
-.kpi-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.kpi-label {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-</style>
