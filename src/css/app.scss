@@ -178,12 +178,12 @@ body {
     white-space: nowrap;
 
     &--positive {
-      background: rgba(16, 185, 129, 0.12);
+      background: rgba($positive, 0.12);
       color: $positive;
     }
 
     &--negative {
-      background: rgba(239, 68, 68, 0.12);
+      background: rgba($negative, 0.12);
       color: $negative;
     }
   }
@@ -843,11 +843,11 @@ body {
     position: relative;
 
     &:hover:not(&--disabled) {
-      background: #f59e0b;
+      background: $warning;
       color: white;
       transform: translateY(-4px);
       z-index: 100;
-      box-shadow: 0 8px 16px rgba(255, 193, 7, 0.3);
+      box-shadow: 0 8px 16px rgba($warning, 0.3);
     }
 
     &--selected {

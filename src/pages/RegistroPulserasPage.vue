@@ -123,7 +123,7 @@
                   dense
                   icon="delete_outline"
                   color="red"
-                  size="m"
+                  size="md"
                   @click="pedirConfirmacionEliminar(item.codigo, i)"
                 />
                 <span class="rp-scan-item__code">{{ item.codigo }}</span>

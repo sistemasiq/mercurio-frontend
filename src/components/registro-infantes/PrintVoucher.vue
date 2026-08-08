@@ -60,7 +60,7 @@ function getBraceletLabel(braceletId: string) {
     <div id="printable-voucher" class="voucher">
       <!-- Header -->
       <div class="voucher-header text-center q-mb-md">
-        <div class="text-h6 text-weight-bold">Wow Kids</div>
+        <div class="text-h6 text-weight-bold">Woow Kids</div>
         <div class="text-caption text-grey-7">{{ branchName }}</div>
       </div>
 
@@ -125,7 +125,7 @@ function getBraceletLabel(braceletId: string) {
         </div>
         <div class="row justify-between">
           <span class="text-body2">Salida Programada:</span>
-          <q-chip dense color="black-2" text-color="black-9" :label="scheduledExit()" size="md" />
+          <q-chip dense color="grey-3" text-color="grey-9" :label="scheduledExit()" size="md" />
         </div>
       </div>
 

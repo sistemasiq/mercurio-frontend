@@ -248,8 +248,8 @@ function formatFecha(iso: string): string {
   height: 100%;
 }
 .dialog-toolbar {
-  background: var(--md-surface-bright);
-  color: var(--md-on-surface);
+  background: var(--bg-card);
+  color: var(--text-primary);
 }
 .dialog-body {
   flex: 1;
@@ -257,7 +257,7 @@ function formatFecha(iso: string): string {
 }
 .info-card {
   border-radius: 12px;
-  border-color: var(--md-outline-variant);
+  border-color: var(--border-color);
 }
 .info-header {
   display: flex;
@@ -266,9 +266,9 @@ function formatFecha(iso: string): string {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--md-primary);
-  background: var(--md-surface-container-low);
-  border-bottom: 1px solid var(--md-outline-variant);
+  color: var(--q-primary);
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border-color);
   padding: 10px 16px;
 }
 .info-row {
@@ -278,7 +278,7 @@ function formatFecha(iso: string): string {
   font-size: 0.875rem;
 }
 .info-label {
-  color: var(--md-on-surface-variant);
+  color: var(--text-secondary);
 }
 .info-value {
   font-weight: 500;
@@ -288,16 +288,16 @@ function formatFecha(iso: string): string {
   justify-content: space-between;
   font-size: 0.85rem;
   padding: 3px 0;
-  color: var(--md-on-surface-variant);
+  color: var(--text-secondary);
 }
 .denom-row--total {
   font-weight: 700;
-  color: var(--md-on-surface);
+  color: var(--text-primary);
   margin-top: 4px;
 }
 .total-row td {
-  border-top: 2px solid var(--md-outline-variant);
-  background: var(--md-surface-container-low);
+  border-top: 2px solid var(--border-color);
+  background: var(--bg-main);
   padding: 8px 12px;
 }
 </style>

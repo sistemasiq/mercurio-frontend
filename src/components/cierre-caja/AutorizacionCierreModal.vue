@@ -760,6 +760,5 @@ async function ejecutarCierreExtraordinario() {
   font-size: 14px;
   padding: 10px 24px;
   border-radius: 8px;
-  background: #000666;
 }
 </style>
