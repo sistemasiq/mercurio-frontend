@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSucursalesStore } from '@/stores/sucursales'
@@ -25,6 +25,17 @@ const router = useRouter()
 const route = useRoute()
 
 const leftOpen = ref(true)
+
+const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed'
+const sidebarCollapsed = ref(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1')
+
+watch(sidebarCollapsed, (collapsed) => {
+  localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0')
+})
+
+function toggleSidebar(): void {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
 
 // El Administrador de sucursal no opera la caja directamente (apertura/cierre/venta) —
 // solo el AdministradorSistema y el Cajero. Su única vista de este módulo es el historial.
@@ -321,15 +332,20 @@ async function handleLogout(): Promise<void> {
       v-model="leftOpen"
       side="left"
       :width="230"
+      :mini="sidebarCollapsed"
+      :mini-width="64"
       :breakpoint="0"
       show-if-above
       class="sb-drawer"
+      :class="{ 'sb-drawer--collapsed': sidebarCollapsed }"
     >
       <div class="sb-root">
         <!-- Nav -->
         <div class="sb-nav-scroll">
           <template v-for="group in visibleGroups" :key="group.label ?? 'root'">
-            <div v-if="group.label" class="sb-section-label">{{ group.label }}</div>
+            <div v-if="group.label && !sidebarCollapsed" class="sb-section-label">
+              {{ group.label }}
+            </div>
             <q-list class="sb-nav" padding>
               <q-item
                 v-for="item in group.items"
@@ -343,10 +359,31 @@ async function handleLogout(): Promise<void> {
                 <q-item-section avatar>
                   <q-icon :name="item.icon" size="18px" />
                 </q-item-section>
-                <q-item-section>{{ item.label }}</q-item-section>
+                <q-item-section v-if="!sidebarCollapsed">{{ item.label }}</q-item-section>
+                <q-tooltip v-if="sidebarCollapsed" anchor="center right" self="center left">
+                  {{ item.label }}
+                </q-tooltip>
               </q-item>
             </q-list>
           </template>
+        </div>
+
+        <!-- Colapsar/expandir -->
+        <div class="sb-collapse-toggle">
+          <q-btn
+            flat
+            dense
+            round
+            :icon="sidebarCollapsed ? 'chevron_right' : 'chevron_left'"
+            size="sm"
+            class="sb-collapse-btn"
+            :aria-label="sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'"
+            @click="toggleSidebar"
+          >
+            <q-tooltip anchor="center right" self="center left">
+              {{ sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú' }}
+            </q-tooltip>
+          </q-btn>
         </div>
       </div>
     </q-drawer>
@@ -422,7 +459,12 @@ async function handleLogout(): Promise<void> {
 
     <!-- ── Contenido ──────────────────────────────────────── -->
     <q-page-container class="page-bg">
-      <router-view />
+      <!-- key por sucursal: la mayoría de las páginas piden sus datos una sola
+           vez en onMounted. Cuando AdministradorSistema cambia de sucursal en
+           el selector del header, esto fuerza a Vue a destruir y volver a
+           montar la página activa (vuelve a correr onMounted) en vez de
+           necesitar un refresh manual del navegador. -->
+      <router-view :key="auth.currentBranchId ?? 'todas'" />
     </q-page-container>
   </q-layout>
 </template>
@@ -439,6 +481,31 @@ async function handleLogout(): Promise<void> {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.sb-drawer :deep(.q-drawer) {
+  transition: width 0.15s ease;
+}
+
+.sb-collapse-toggle {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.sb-drawer--collapsed .sb-collapse-toggle {
+  justify-content: center;
+}
+
+.sb-collapse-btn {
+  color: #94a3b8 !important;
+}
+
+.sb-collapse-btn:hover {
+  color: #1e293b !important;
+  background: #f8fafc !important;
 }
 
 .sb-nav-scroll {
@@ -496,6 +563,21 @@ async function handleLogout(): Promise<void> {
 
 .sb-item--active :deep(.q-icon) {
   color: #025fe0 !important;
+}
+
+.sb-drawer--collapsed .sb-item {
+  justify-content: center;
+  padding: 0 !important;
+}
+
+.sb-drawer--collapsed .sb-item--active {
+  border-left: none;
+  border-radius: 8px !important;
+}
+
+.sb-drawer--collapsed .sb-item :deep(.q-item__section--avatar) {
+  min-width: 0;
+  padding: 0;
 }
 
 /* ── Header ─────────────────────────────────────────────── */
