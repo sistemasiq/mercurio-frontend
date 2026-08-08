@@ -46,6 +46,12 @@
         no-data-label="No hay tipos de evento registrados"
         class="fec-table"
       >
+        <template #body-cell-descripcion="props">
+          <q-td :props="props" class="cell-truncate" :title="props.row.descripcion ?? ''">
+            {{ props.row.descripcion }}
+          </q-td>
+        </template>
+
         <template #body-cell-activo="props">
           <q-td :props="props">
             <q-badge

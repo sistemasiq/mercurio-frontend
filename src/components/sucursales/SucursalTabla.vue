@@ -18,6 +18,13 @@
       </q-td>
     </template>
 
+    <!-- Dirección -->
+    <template #body-cell-direccion="slotProps">
+      <q-td :props="slotProps" class="cell-truncate" :title="slotProps.row.ciudad">
+        {{ slotProps.row.ciudad }}
+      </q-td>
+    </template>
+
     <!-- Fecha de Creación -->
     <template #body-cell-fechaCreacion="slotProps">
       <q-td :props="slotProps">

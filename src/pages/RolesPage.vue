@@ -50,7 +50,7 @@
           class="fec-table"
         >
           <template #body-cell-descripcion="props">
-            <q-td :props="props">
+            <q-td :props="props" class="cell-truncate" :title="props.row.descripcion ?? ''">
               {{ props.row.descripcion || '—' }}
             </q-td>
           </template>
