@@ -446,7 +446,7 @@ async function handleLogout(): Promise<void> {
             flat
             round
             dense
-            class="action-btn action-btn--logout"
+            class="header-action-btn header-action-btn--logout"
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
             @click="handleLogout"
@@ -472,8 +472,8 @@ async function handleLogout(): Promise<void> {
 <style scoped>
 /* ── Sidebar ─────────────────────────────────────────────── */
 .sb-drawer :deep(.q-drawer) {
-  background: #ffffff !important;
-  border-right: 1px solid #e2e8f0 !important;
+  background: var(--bg-card) !important;
+  border-right: 1px solid var(--border-color) !important;
   box-shadow: none !important;
 }
 
@@ -492,7 +492,7 @@ async function handleLogout(): Promise<void> {
   display: flex;
   justify-content: flex-end;
   padding: 8px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border-color);
 }
 
 .sb-drawer--collapsed .sb-collapse-toggle {
@@ -500,12 +500,12 @@ async function handleLogout(): Promise<void> {
 }
 
 .sb-collapse-btn {
-  color: #94a3b8 !important;
+  color: var(--text-muted) !important;
 }
 
 .sb-collapse-btn:hover {
-  color: #1e293b !important;
-  background: #f8fafc !important;
+  color: var(--text-primary) !important;
+  background: var(--bg-main) !important;
 }
 
 .sb-nav-scroll {
@@ -517,7 +517,7 @@ async function handleLogout(): Promise<void> {
 .sb-section-label {
   font-size: 10px;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--text-muted);
   letter-spacing: 0.08em;
   padding: 16px 20px 6px;
 }
@@ -531,7 +531,7 @@ async function handleLogout(): Promise<void> {
   margin-bottom: 2px;
   min-height: 40px !important;
   padding: 0 10px !important;
-  color: #475569 !important;
+  color: var(--text-secondary) !important;
   font-size: 13.5px !important;
   font-weight: 500 !important;
   transition:
@@ -540,21 +540,21 @@ async function handleLogout(): Promise<void> {
 }
 
 .sb-item :deep(.q-icon) {
-  color: #94a3b8 !important;
+  color: var(--text-muted) !important;
   transition: color 0.12s;
 }
 
 .sb-item:hover {
-  background: #f8fafc !important;
-  color: #1e293b !important;
+  background: var(--bg-main) !important;
+  color: var(--text-primary) !important;
 }
 
 .sb-item:hover :deep(.q-icon) {
-  color: #64748b !important;
+  color: var(--text-secondary) !important;
 }
 
 .sb-item--active {
-  background: #eff6ff !important;
+  background: rgba(2, 95, 224, 0.08) !important;
   color: #025fe0 !important;
   font-weight: 600 !important;
   border-left: 3px solid #025fe0;
@@ -582,10 +582,10 @@ async function handleLogout(): Promise<void> {
 
 /* ── Header ─────────────────────────────────────────────── */
 .app-header {
-  background: #ffffff !important;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-card) !important;
+  border-bottom: 1px solid var(--border-color);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
-  color: #1e293b !important;
+  color: var(--text-primary) !important;
 }
 
 .app-toolbar {
@@ -598,7 +598,7 @@ async function handleLogout(): Promise<void> {
   align-items: center;
   font-size: 14px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   flex: 0 0 auto;
   gap: 8px;
 }
@@ -622,8 +622,8 @@ async function handleLogout(): Promise<void> {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 8px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--bg-main);
+  color: var(--text-secondary);
   font-size: 12.5px;
   font-weight: 600;
   white-space: nowrap;
@@ -638,7 +638,7 @@ async function handleLogout(): Promise<void> {
   min-height: 32px;
   height: 32px;
   border-radius: 8px;
-  background: #f1f5f9;
+  background: var(--bg-main);
 }
 
 .header-branch-select :deep(.q-field__marginal) {
@@ -646,41 +646,41 @@ async function handleLogout(): Promise<void> {
 }
 
 .estado-turno--abierta {
-  background: #dcfce7;
-  color: #15803d;
+  background: rgba(63, 168, 52, 0.12);
+  color: #3fa834;
 }
 
 .estado-turno--cerrada {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
 }
 
 .estado-turno--corte {
-  background: #fef3c7;
+  background: rgba(255, 193, 7, 0.16);
   color: #b45309;
 }
 
-.action-btn {
-  color: #64748b !important;
+.header-action-btn {
+  color: var(--text-secondary) !important;
   transition:
     color 0.12s,
     background 0.12s;
 }
 
-.action-btn:hover {
-  color: #1e293b !important;
-  background: #f1f5f9 !important;
+.header-action-btn:hover {
+  color: var(--text-primary) !important;
+  background: var(--bg-main) !important;
 }
 
-.action-btn--logout:hover {
+.header-action-btn--logout:hover {
   color: #dc2626 !important;
-  background: #fff1f2 !important;
+  background: rgba(220, 38, 38, 0.08) !important;
 }
 
 .header-divider {
   width: 1px;
   height: 24px;
-  background: #e2e8f0;
+  background: var(--border-color);
   margin: 0 8px;
   flex-shrink: 0;
 }
@@ -710,19 +710,19 @@ async function handleLogout(): Promise<void> {
 .header-user-name {
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   line-height: 1.2;
   white-space: nowrap;
 }
 
 .header-user-role {
   font-size: 10.5px;
-  color: #94a3b8;
+  color: var(--text-muted);
   line-height: 1.2;
 }
 
 /* ── Page container ──────────────────────────────────────── */
 .page-bg {
-  background: #f1f5f9;
+  background: var(--bg-main);
 }
 </style>
