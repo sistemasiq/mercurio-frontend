@@ -858,12 +858,15 @@ onMounted(() => {
     router.push('/pos/cierre')
     return
   }
-  paquetesStore.cargar(authStore.currentBranchId ?? undefined)
-  extrasStore.cargar(authStore.currentBranchId ?? undefined)
-  productosStore.cargar(authStore.currentBranchId ?? undefined)
-  tiposEventoStore.cargar()
+  // Métodos de pago es un catálogo global por diseño: se carga siempre.
   metodosPagoStore.cargar()
-  if (!resStore.reservaciones.length) resStore.cargar(authStore.currentBranchId ?? undefined)
+
+  if (!authStore.currentBranchId) return
+  paquetesStore.cargar(authStore.currentBranchId)
+  extrasStore.cargar(authStore.currentBranchId)
+  productosStore.cargar(authStore.currentBranchId)
+  tiposEventoStore.cargar()
+  if (!resStore.reservaciones.length) resStore.cargar(authStore.currentBranchId)
 })
 
 interface BookingCalendarDay {

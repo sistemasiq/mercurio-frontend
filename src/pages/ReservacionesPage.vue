@@ -2,9 +2,7 @@
   <q-page class="page-content q-pa-md q-pa-lg-xl">
     <div class="row items-center q-mb-lg">
       <div>
-        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
-          Reservaciones
-        </div>
+        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Reservaciones</div>
         <div class="text-body2" style="color: var(--text-secondary)">
           Reservaciones de eventos de la sucursal.
         </div>
@@ -20,6 +18,19 @@
         @click="irANuevaReservacion"
       />
     </div>
+
+    <!-- Sin sucursal activa -->
+    <q-banner
+      v-if="!authStore.currentBranchId"
+      dense
+      rounded
+      class="bg-orange-1 text-orange-9 q-mb-md"
+      style="border-radius: 10px"
+    >
+      <template #avatar><q-icon name="info" color="orange-9" /></template>
+      No hay una sucursal activa en la sesión.
+    </q-banner>
+
     <q-card flat bordered style="border-radius: 12px; overflow: hidden">
       <div class="row items-center q-pa-md">
         <q-select
@@ -85,7 +96,9 @@ const router = useRouter()
 const store = useReservacionesStore()
 const authStore = useAuthStore()
 const turno = useTurnoCajaStore()
-onMounted(() => store.cargar(authStore.currentBranchId ?? undefined))
+onMounted(() => {
+  if (authStore.currentBranchId) store.cargar(authStore.currentBranchId)
+})
 
 function irANuevaReservacion() {
   if (!turno.estaOperando) {

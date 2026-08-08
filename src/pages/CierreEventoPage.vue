@@ -300,6 +300,7 @@ import { useProductosStore } from '@/stores/productos'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import { useAuthStore } from '@/stores/auth'
 import type { Reservaciones } from '@/types/reservaciones'
 import type { Pagos_reservacion } from '@/types/pagos_reservacion'
 import type { Reservacion_extras } from '@/types/reservacion_extras'
@@ -319,6 +320,7 @@ const productosStore = useProductosStore()
 const metodosPagoStore = useMetodosPagoStore()
 const tiposEventoStore = useTiposEventoStore()
 const turno = useTurnoCajaStore()
+const authStore = useAuthStore()
 
 function abrirModalPago() {
   // Se valida al hacer clic en "Procesar Pago", antes de abrir el modal —
@@ -363,10 +365,13 @@ const cargarTodo = async () => {
 
 onMounted(() => {
   cargarTodo()
-  paquetesStore.cargar()
-  extrasStore.cargar()
-  productosStore.cargar()
+  // Métodos de pago es un catálogo global por diseño: se carga siempre.
   metodosPagoStore.cargar()
+
+  if (!authStore.currentBranchId) return
+  paquetesStore.cargar(authStore.currentBranchId)
+  extrasStore.cargar(authStore.currentBranchId)
+  productosStore.cargar(authStore.currentBranchId)
   tiposEventoStore.cargar()
 })
 

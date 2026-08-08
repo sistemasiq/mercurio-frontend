@@ -36,6 +36,18 @@
         <q-btn flat dense round icon="chevron_right" color="grey-7" @click="nextMonth" />
       </div>
 
+      <!-- Sin sucursal activa -->
+      <q-banner
+        v-if="!authStore.currentBranchId"
+        dense
+        rounded
+        class="bg-orange-1 text-orange-9 q-mb-md"
+        style="border-radius: 10px"
+      >
+        <template #avatar><q-icon name="info" color="orange-9" /></template>
+        No hay una sucursal activa en la sesión.
+      </q-banner>
+
       <!-- Stats del mes visible -->
       <div class="row q-col-gutter-md q-mb-lg">
         <div class="col-6 col-sm-3">
@@ -225,7 +237,8 @@ import {
 const store = useReservacionesStore()
 const authStore = useAuthStore()
 onMounted(() => {
-  if (!store.reservaciones.length) store.cargar(authStore.currentBranchId ?? undefined)
+  if (!authStore.currentBranchId) return
+  if (!store.reservaciones.length) store.cargar(authStore.currentBranchId)
 })
 
 // ── Navegación ────────────────────────────────────────────────────────────────

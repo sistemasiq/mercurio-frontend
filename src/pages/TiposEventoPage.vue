@@ -17,9 +17,22 @@
         unelevated
         no-caps
         style="border-radius: 8px; font-weight: 600"
+        :disable="!authStore.currentBranchId"
         @click="abrirCrear"
       />
     </div>
+
+    <!-- Sin sucursal activa -->
+    <q-banner
+      v-if="!authStore.currentBranchId"
+      dense
+      rounded
+      class="bg-orange-1 text-orange-9 q-mb-md"
+      style="border-radius: 10px"
+    >
+      <template #avatar><q-icon name="info" color="orange-9" /></template>
+      No hay una sucursal activa en la sesión.
+    </q-banner>
 
     <q-banner
       v-if="store.error"
@@ -198,7 +211,9 @@ const $q = useQuasar()
 const authStore = useAuthStore()
 const store = useTiposEventoStore()
 
-onMounted(() => store.cargar())
+onMounted(() => {
+  if (authStore.currentBranchId) store.cargar()
+})
 
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
