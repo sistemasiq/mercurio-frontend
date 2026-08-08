@@ -11,7 +11,7 @@
         max-height: 85vh;
         display: flex;
         flex-direction: row;
-        border-radius: 16px;
+        border-radius: 12px;
         overflow: hidden;
       "
     >
@@ -22,7 +22,7 @@
           display: flex;
           flex-direction: column;
           padding: 16px 20px;
-          background: #ffffff;
+          background: var(--bg-card);
           overflow-y: auto;
           min-height: 0;
         "
@@ -45,8 +45,8 @@
 
         <div
           style="
-            background: #ffffff;
-            border: 1px solid #e1e3e4;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 16px;
             display: flex;
@@ -67,17 +67,23 @@
       <div
         style="
           flex: 2;
-          background: #f8f9fa;
-          border-left: 1px solid #e1e3e4;
+          background: var(--bg-main);
+          border-left: 1px solid var(--border-color);
           display: flex;
           flex-direction: column;
           overflow: hidden;
         "
       >
-        <div style="padding: 16px 20px; border-bottom: 1px solid #e1e3e4; background: #ffffff">
+        <div
+          style="
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-card);
+          "
+        >
+          <div class="field-label">Celular del cliente (opcional)</div>
           <q-input
             v-model="celularCliente"
-            label="Celular del cliente (opcional)"
             placeholder="10 dígitos"
             outlined
             dense
@@ -87,18 +93,19 @@
             hint="Para acumular puntos de lealtad"
           />
 
-          <q-input
-            v-if="saldoDisponible !== null && saldoDisponible > 0"
-            v-model.number="puntosARedimir"
-            label="Puntos a redimir"
-            outlined
-            dense
-            type="number"
-            min="0"
-            :max="maxPuntosRedimibles"
-            class="q-mb-sm"
-            :hint="`Disponibles: ${saldoDisponible} pts · $${valorPunto?.toFixed(2)} c/u`"
-          />
+          <template v-if="saldoDisponible !== null && saldoDisponible > 0">
+            <div class="field-label">Puntos a redimir</div>
+            <q-input
+              v-model.number="puntosARedimir"
+              outlined
+              dense
+              type="number"
+              min="0"
+              :max="maxPuntosRedimibles"
+              class="q-mb-sm"
+              :hint="`Disponibles: ${saldoDisponible} pts · $${valorPunto?.toFixed(2)} c/u`"
+            />
+          </template>
 
           <div class="row justify-between text-grey-8 text-caption q-mb-xs">
             <span>Subtotal</span>
@@ -121,24 +128,30 @@
           <AppliedPaymentsList :pagos="pagosAplicados" @remove-payment="eliminarPago" />
         </div>
 
-        <div style="padding: 16px; background: #ffffff; border-top: 1px solid #e1e3e4">
+        <div
+          style="
+            padding: 16px;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+          "
+        >
           <!-- ESTADO 1: Hay saldo pendiente -->
           <div
             v-if="saldoPendiente > 0"
             style="
-              background: #e6f4ea;
-              border: 1px solid #4ae183;
+              background: rgba(63, 168, 52, 0.1);
+              border: 1px solid #3fa834;
               border-radius: 10px;
               padding: 12px;
               margin-bottom: 12px;
             "
             class="row justify-between items-center"
           >
-            <div class="row items-center q-gutter-x-sm text-green-9">
+            <div class="row items-center q-gutter-x-sm text-positive">
               <q-icon name="pending" size="sm" />
               <span class="text-subtitle1 text-weight-bold">Saldo Pendiente</span>
             </div>
-            <span class="text-h5 text-weight-bold text-green-9"
+            <span class="text-h5 text-weight-bold text-positive"
               >${{ saldoPendiente.toFixed(2) }}</span
             >
           </div>
@@ -147,8 +160,8 @@
           <div
             v-else
             style="
-              background: #e6f0fa;
-              border: 1px solid #0059bb;
+              background: rgba(2, 95, 224, 0.08);
+              border: 1px solid #025fe0;
               border-radius: 10px;
               padding: 12px;
               margin-bottom: 12px;
@@ -167,8 +180,8 @@
           </div>
 
           <q-btn
-            class="full-width text-subtitle1 text-weight-bold shadow-2"
-            style="border-radius: 10px; height: 50px"
+            class="full-width text-subtitle1 shadow-2"
+            style="border-radius: 8px; font-weight: 600; height: 50px"
             :color="saldoPendiente <= 0 ? 'primary' : 'grey-5'"
             :icon="saldoPendiente <= 0 ? 'receipt_long' : 'lock'"
             :label="saldoPendiente <= 0 ? 'Finalizar Transacción' : 'Falta Pago'"
@@ -196,30 +209,34 @@
           <span class="text-h5 text-weight-bold">${{ tarjetaMontoTemporal.toFixed(2) }}</span>
         </div>
 
+        <div class="field-label">Tipo de tarjeta</div>
         <q-select
           v-model="tarjetaTipo"
           :options="['DEBITO', 'CREDITO']"
-          label="Tipo de Tarjeta"
           outlined
           dense
           class="q-mb-md"
         />
-        <q-input
-          v-model="tarjetaAutorizacion"
-          label="Folio de Autorización"
-          outlined
-          dense
-          autofocus
-        />
+        <div class="field-label">Folio de autorización</div>
+        <q-input v-model="tarjetaAutorizacion" outlined dense autofocus />
       </q-card-section>
 
       <q-card-actions align="right" class="text-primary bg-grey-1 border-top">
-        <q-btn v-close-popup flat label="Cancelar" color="grey-7" @click="limpiarModalTarjeta" />
         <q-btn
           v-close-popup
+          flat
+          no-caps
+          label="Cancelar"
+          color="grey-7"
+          @click="limpiarModalTarjeta"
+        />
+        <q-btn
+          v-close-popup
+          unelevated
+          no-caps
           color="primary"
           label="Agregar Pago"
-          unelevated
+          style="border-radius: 8px; font-weight: 600"
           :disable="!tarjetaTipo || !tarjetaAutorizacion"
           @click="confirmarPagoTarjeta"
         />
