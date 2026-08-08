@@ -550,8 +550,8 @@ const imprimirResumen = () => window.print()
   font-weight: 800;
   letter-spacing: 0.6px;
   color: var(--text-secondary);
-  background: #f7f8f9;
-  border-bottom: 1px solid #eceeef;
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .section-subheader {
@@ -567,7 +567,7 @@ const imprimirResumen = () => window.print()
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid #f2f3f4;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .billing-row:last-child {
@@ -582,7 +582,7 @@ const imprimirResumen = () => window.print()
 }
 
 .advances-box {
-  background: #f7f8f9;
+  background: var(--bg-main);
   border-radius: 10px;
   padding: 10px 12px;
 }

@@ -453,20 +453,20 @@ const estadoLabel = estadoLabelReservacion
     flex-shrink: 0;
 
     &--blue {
-      background: #e8eaf6;
-      color: #3949ab;
+      background: rgba($primary, 0.1);
+      color: $primary;
     }
     &--green {
-      background: #e8f5e9;
-      color: #2e7d32;
+      background: rgba($positive, 0.12);
+      color: $positive;
     }
     &--orange {
-      background: #fff3e0;
-      color: #e65100;
+      background: rgba($warning, 0.18);
+      color: $warning;
     }
     &--purple {
-      background: #f3e5f5;
-      color: #6a1b9a;
+      background: rgba($secondary, 0.1);
+      color: $secondary;
     }
   }
 
@@ -584,20 +584,20 @@ const estadoLabel = estadoLabelReservacion
   }
 
   &--pendiente {
-    background: #fff3e0;
-    color: #e65100;
+    background: rgba($warning, 0.18);
+    color: $warning;
   }
   &--confirmada {
-    background: #e8eaf6;
-    color: #283593;
+    background: rgba($primary, 0.1);
+    color: $primary;
   }
   &--en_curso {
-    background: #f3e5f5;
-    color: #6a1b9a;
+    background: rgba($secondary, 0.1);
+    color: $secondary;
   }
   &--completada {
-    background: #e8f5e9;
-    color: #1b5e20;
+    background: rgba($positive, 0.12);
+    color: $positive;
   }
   &--cancelada {
     background: #f5f5f5;
@@ -658,16 +658,16 @@ const estadoLabel = estadoLabelReservacion
 }
 
 .ev-dot--pendiente {
-  background: #e65100;
+  background: $warning;
 }
 .ev-dot--confirmada {
-  background: #283593;
+  background: $primary;
 }
 .ev-dot--en_curso {
-  background: #6a1b9a;
+  background: $secondary;
 }
 .ev-dot--completada {
-  background: #1b5e20;
+  background: $positive;
 }
 .ev-dot--cancelada {
   background: #9e9e9e;

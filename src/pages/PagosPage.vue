@@ -50,7 +50,7 @@
         >
           <template #body-cell-monto="props">
             <q-td :props="props">
-              <span style="font-weight: 700; color: #2e7d32">{{
+              <span class="text-positive" style="font-weight: 700">{{
                 fmt(parseFloat(props.row.monto))
               }}</span>
             </q-td>
@@ -65,11 +65,8 @@
           <template #body-cell-restante="props">
             <q-td :props="props">
               <span
-                :style="
-                  props.row.restante > 0
-                    ? 'color:#e53935;font-weight:700;'
-                    : 'color:#2e7d32;font-weight:700;'
-                "
+                :class="props.row.restante > 0 ? 'text-negative' : 'text-positive'"
+                style="font-weight: 700"
               >
                 {{ fmt(props.row.restante) }}
               </span>
