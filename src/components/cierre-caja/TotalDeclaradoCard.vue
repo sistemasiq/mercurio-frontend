@@ -37,20 +37,19 @@ const modelValue = defineModel<number | null>({ default: null })
 <style scoped>
 /* ── Card contenedor ────────────────────────────────────────────────── */
 .rs-declarado-card {
-  background: #e5eeff;
-  border: 1px solid #c6c5d4;
+  background: rgba(2, 95, 224, 0.06);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 28px 32px;
 }
 
 /* ── Label uppercase ────────────────────────────────────────────────── */
 .rs-declarado-label {
-  font-family: 'Inter', sans-serif;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #454652;
+  color: var(--text-secondary);
   margin-bottom: 12px;
 }
 
@@ -58,8 +57,8 @@ const modelValue = defineModel<number | null>({ default: null })
 .rs-input-wrap {
   display: flex;
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #c6c5d4;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 0 16px;
   max-width: 520px;
@@ -68,15 +67,14 @@ const modelValue = defineModel<number | null>({ default: null })
     box-shadow 0.15s ease;
 }
 .rs-input-wrap:focus-within {
-  border-color: #b7131a;
-  box-shadow: 0 0 0 2px rgba(183, 19, 26, 0.1);
+  border-color: #025fe0;
+  box-shadow: 0 0 0 2px rgba(2, 95, 224, 0.1);
 }
 
 .rs-input-prefix {
-  font-family: 'Inter', sans-serif;
   font-size: 36px;
   font-weight: 900;
-  color: #c6c5d4;
+  color: var(--text-muted);
   line-height: 1;
   margin-right: 4px;
   flex-shrink: 0;
@@ -93,10 +91,9 @@ const modelValue = defineModel<number | null>({ default: null })
   height: 64px;
 }
 .rs-declarado-input :deep(input.rs-declarado-native) {
-  font-family: 'Inter', sans-serif;
   font-size: 48px;
   font-weight: 900;
-  color: #000666;
+  color: #025fe0;
   line-height: 1;
   padding: 8px 0;
   width: 100%;
@@ -105,7 +102,7 @@ const modelValue = defineModel<number | null>({ default: null })
   outline: none;
 }
 .rs-declarado-input :deep(input.rs-declarado-native)::placeholder {
-  color: #c6c5d4;
+  color: var(--text-muted);
 }
 
 /* ── Botón "Usar calculado" ─────────────────────────────────────────── */
@@ -115,10 +112,9 @@ const modelValue = defineModel<number | null>({ default: null })
   background: none;
   border: none;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
   font-size: 12px;
   font-weight: 700;
-  color: #000666;
+  color: #025fe0;
   padding: 4px 0;
   text-decoration: underline;
   text-underline-offset: 2px;

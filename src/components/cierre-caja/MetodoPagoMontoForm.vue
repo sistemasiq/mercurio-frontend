@@ -150,10 +150,10 @@ function eliminarFila(idx: number) {
 /* ── Contenedor ─────────────────────────────────────────────────────── */
 .rs-form-block {
   position: relative;
-  border: 1px solid #c6c5d4;
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 24px;
-  background: #ffffff;
+  background: var(--bg-card);
   box-shadow: 0 2px 10px -4px rgba(0, 0, 0, 0.05);
 }
 
@@ -162,10 +162,9 @@ function eliminarFila(idx: number) {
   position: absolute;
   top: -11px;
   left: 16px;
-  background: #ffffff;
+  background: var(--bg-card);
   padding: 0 8px;
-  color: #000666;
-  font-family: 'Inter', sans-serif;
+  color: #025fe0;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -187,8 +186,8 @@ function eliminarFila(idx: number) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #f8f9ff;
-  border: 1px solid #e5eeff;
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 10px 14px;
 }
@@ -202,30 +201,27 @@ function eliminarFila(idx: number) {
   min-width: 0;
 }
 .rs-metodo-nombre {
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
   font-weight: 500;
-  color: #0b1c30;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .rs-tag-sistema {
-  font-family: 'Inter', sans-serif;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #2e7d32;
-  background: #e8f5e9;
+  color: #3fa834;
+  background: rgba(63, 168, 52, 0.12);
   border-radius: 999px;
   padding: 2px 8px;
   flex-shrink: 0;
 }
 .rs-sin-metodos {
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
-  color: #767683;
+  color: var(--text-muted);
   padding: 8px 4px;
 }
 
@@ -237,40 +233,38 @@ function eliminarFila(idx: number) {
   flex-shrink: 0;
 }
 .rs-monto-prefix {
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
-  color: #767683;
+  color: var(--text-muted);
   margin-right: 2px;
 }
 .rs-monto-input {
   width: 120px;
 }
 .rs-monto-input :deep(.q-field__control) {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 8px;
 }
 .rs-monto-input :deep(.q-field--focused .q-field__control:before) {
-  border-color: #b7131a !important;
+  border-color: #025fe0 !important;
 }
 .rs-monto-input :deep(.q-field--focused .q-field__control) {
-  box-shadow: 0 0 0 2px rgba(183, 19, 26, 0.12);
+  box-shadow: 0 0 0 2px rgba(2, 95, 224, 0.12);
 }
 .rs-monto-input :deep(input) {
   text-align: right;
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
 }
 .rs-input--readonly :deep(.q-field__control) {
-  background: #eff4ff;
+  background: rgba(2, 95, 224, 0.06);
 }
 
 /* ── Botón eliminar ─────────────────────────────────────────────────── */
 .rs-btn-delete {
-  color: #767683 !important;
+  color: var(--text-muted) !important;
   flex-shrink: 0;
 }
 .rs-btn-delete:hover {
-  color: #b7131a !important;
+  color: #dc2626 !important;
 }
 .rs-btn-delete-spacer {
   width: 32px;
