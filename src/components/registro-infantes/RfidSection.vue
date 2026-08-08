@@ -120,11 +120,11 @@ function braceletLabelForChild(childId: string) {
   <q-card flat bordered class="rfid-card q-mb-md">
     <q-card-section>
       <div class="row items-center q-mb-lg">
-        <q-icon name="nfc" size="22px" color="blue-8" class="q-mr-sm" />
+        <q-icon name="nfc" size="22px" color="primary" class="q-mr-sm" />
         <span class="text-subtitle1 text-weight-bold">Vinculación de pulseras</span>
         <q-chip
           dense
-          :color="store.allChildrenHaveBracelet && store.tutorHasBracelet ? 'positive' : 'orange'"
+          :color="store.allChildrenHaveBracelet && store.tutorHasBracelet ? 'positive' : 'warning'"
           text-color="white"
           :label="
             store.allChildrenHaveBracelet && store.tutorHasBracelet
@@ -193,13 +193,13 @@ function braceletLabelForChild(childId: string) {
               size="sm"
               icon="nfc"
               label="Escanear pulsera"
-              color="blue-8"
+              color="primary"
               @click="activateTutorScan"
             />
             <div v-else class="row items-center q-gutter-xs">
               <q-chip
                 dense
-                color="blue-8"
+                color="primary"
                 text-color="white"
                 icon="sensors"
                 label="Esperando escaneo..."
@@ -337,7 +337,7 @@ function braceletLabelForChild(childId: string) {
         style="font-size: 12px"
       >
         <template #avatar>
-          <q-icon name="info" color="blue-8" size="16px" />
+          <q-icon name="info" color="primary" size="16px" />
         </template>
         Primero asigna la pulsera al tutor antes de asignar las de los niños.
       </q-banner>
@@ -352,17 +352,17 @@ function braceletLabelForChild(childId: string) {
 
 .rfid-row {
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   transition: all 0.2s;
 }
 
 .rfid-pending {
-  background: #fafafa;
+  background: var(--bg-main);
 }
 
 .rfid-assigned {
-  background: #f0fdf4;
-  border-color: #86efac;
+  background: rgba(63, 168, 52, 0.08);
+  border-color: rgba(63, 168, 52, 0.4);
 }
 
 .hidden-scan-input {

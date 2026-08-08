@@ -152,13 +152,10 @@
 
           <template #body-cell-activo="props">
             <q-td :props="props">
-              <span
-                class="estado-pill"
-                :class="props.row.activo ? 'estado-pill--activa' : 'estado-pill--inactiva'"
-              >
-                <span class="estado-pill__dot" />
-                {{ props.row.activo ? 'Activa' : 'Inactiva' }}
-              </span>
+              <EstadoBadge
+                :tono="props.row.activo ? 'verde' : 'rojo'"
+                :label="props.row.activo ? 'Activa' : 'Inactiva'"
+              />
             </q-td>
           </template>
 
@@ -262,6 +259,7 @@ import type { ApiError } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { usePulserasStore } from '@/stores/pulseras'
 import type { PulseraAdmin } from '@/types/pulsera'
+import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -407,33 +405,6 @@ const ejecutarEliminar = async () => {
   letter-spacing: 0.4px;
 }
 
-.estado-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 20px;
-}
-
-.estado-pill__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.estado-pill--activa {
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
-}
-
-.estado-pill--inactiva {
-  background: rgba(148, 163, 184, 0.18);
-  color: #475569;
-}
-
 .pulseras-footer {
   padding: 12px 16px;
   border-top: 1px solid var(--border-color);
@@ -444,7 +415,7 @@ const ejecutarEliminar = async () => {
 
 .pulseras-footer__info {
   font-size: 12px;
-  color: #1565c0;
+  color: #025fe0;
   font-weight: 500;
 }
 </style>

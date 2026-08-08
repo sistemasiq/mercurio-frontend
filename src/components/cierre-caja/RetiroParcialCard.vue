@@ -176,8 +176,7 @@ async function registrar() {
   background: none;
   border: none;
   cursor: pointer;
-  color: #454652;
-  font-family: 'Inter', sans-serif;
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -186,13 +185,13 @@ async function registrar() {
   margin-bottom: 16px;
 }
 .rp-volver:hover {
-  color: #1a237e;
+  color: #025fe0;
 }
 
 .rp-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -202,14 +201,14 @@ async function registrar() {
   align-items: flex-start;
   gap: 16px;
   padding: 28px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--bg-main);
 }
 
 .rp-icon-badge {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: #eff6ff;
+  background: rgba(2, 95, 224, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -217,17 +216,15 @@ async function registrar() {
 }
 
 .rp-title {
-  font-family: 'Inter', sans-serif;
   font-size: 20px;
   font-weight: 700;
-  color: #0b1c30;
+  color: var(--text-primary);
   margin: 0 0 4px 0;
 }
 
 .rp-subtitle {
-  font-family: 'Inter', sans-serif;
   font-size: 13.5px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -235,24 +232,15 @@ async function registrar() {
   padding: 28px;
 }
 
-.field-label {
-  display: block;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: #475569;
-  margin-bottom: 6px;
-}
-
 .rp-footer {
   padding: 20px 28px;
-  border-top: 1px solid #f1f5f9;
-  background: #f8f9ff;
+  border-top: 1px solid var(--bg-main);
+  background: var(--bg-main);
 }
 
 .rp-btn-registrar {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 8px;
   font-weight: 700;
 }
 
@@ -262,11 +250,10 @@ async function registrar() {
   gap: 4px;
   margin-top: 16px;
   padding: 14px 18px;
-  background: #eff6ff;
-  border: 1px solid #dce9ff;
+  background: rgba(2, 95, 224, 0.06);
+  border: 1px solid rgba(2, 95, 224, 0.2);
   border-radius: 12px;
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
-  color: #454652;
+  color: var(--text-secondary);
 }
 </style>

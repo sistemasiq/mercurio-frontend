@@ -122,10 +122,10 @@ watchEffect(() => {
 /* ── Contenedor principal ─────────────────────────────────────────────── */
 .rs-form-block {
   position: relative;
-  border: 1px solid #c6c5d4;
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 24px;
-  background: #ffffff;
+  background: var(--bg-card);
   box-shadow: 0 2px 10px -4px rgba(0, 0, 0, 0.05);
 }
 
@@ -134,10 +134,9 @@ watchEffect(() => {
   position: absolute;
   top: -11px;
   left: 16px;
-  background: #ffffff;
+  background: var(--bg-card);
   padding: 0 8px;
-  color: #000666;
-  font-family: 'Inter', sans-serif;
+  color: #025fe0;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -162,22 +161,12 @@ watchEffect(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: #0b1c30;
-  border-bottom: 1px solid #e5eeff;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
   padding-bottom: 8px;
   margin-bottom: 14px;
-}
-.rs-icon {
-  font-size: 20px;
-  color: #767683;
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
 }
 
 /* ── Filas de denominación ─────────────────────────────────────────── */
@@ -194,9 +183,8 @@ watchEffect(() => {
 }
 .rs-denom-label {
   width: 52px;
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
-  color: #454652;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -207,33 +195,30 @@ watchEffect(() => {
 }
 /* Borde base */
 .rs-denom-input :deep(.q-field__control) {
-  background: #f8f9ff;
+  background: var(--bg-main);
   border-radius: 8px;
 }
-/* Foco en rojo secundario (design token secondary = #b7131a) */
 .rs-denom-input :deep(.q-field--focused .q-field__control) {
-  box-shadow: 0 0 0 2px rgba(183, 19, 26, 0.12);
+  box-shadow: 0 0 0 2px rgba(2, 95, 224, 0.12);
 }
 .rs-denom-input :deep(.q-field--focused .q-field__control:before) {
-  border-color: #b7131a !important;
+  border-color: #025fe0 !important;
 }
 .rs-denom-input :deep(input) {
   text-align: right;
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
 }
 /* Estado readonly */
 .rs-input--readonly :deep(.q-field__control) {
-  background: #eff4ff;
+  background: rgba(2, 95, 224, 0.06);
 }
 
 /* ── Subtotal de fila ──────────────────────────────────────────────── */
 .rs-denom-subtotal {
   width: 88px;
   text-align: right;
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
-  color: #767683;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -248,22 +233,20 @@ watchEffect(() => {
   margin-left: -24px;
   margin-right: -24px;
   margin-bottom: -24px;
-  border-top: 1px solid #e5eeff;
-  background: #eff4ff;
+  border-top: 1px solid var(--border-color);
+  background: rgba(2, 95, 224, 0.06);
   border-radius: 0 0 12px 12px;
 }
 .rs-total-label {
-  font-family: 'Inter', sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #454652;
+  color: var(--text-secondary);
 }
 .rs-total-value {
-  font-family: 'Inter', sans-serif;
   font-size: 24px;
   font-weight: 700;
-  color: #1a237e;
+  color: #025fe0;
 }
 </style>

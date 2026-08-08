@@ -18,6 +18,13 @@
       </q-td>
     </template>
 
+    <!-- Dirección -->
+    <template #body-cell-direccion="slotProps">
+      <q-td :props="slotProps" class="cell-truncate" :title="slotProps.row.ciudad">
+        {{ slotProps.row.ciudad }}
+      </q-td>
+    </template>
+
     <!-- Fecha de Creación -->
     <template #body-cell-fechaCreacion="slotProps">
       <q-td :props="slotProps">
@@ -145,10 +152,5 @@ function formatFecha(fecha: string): string {
 
 .clave-link:hover {
   text-decoration: underline;
-}
-
-.action-btn {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
 }
 </style>

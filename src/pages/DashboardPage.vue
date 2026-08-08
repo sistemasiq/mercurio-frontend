@@ -34,6 +34,18 @@
       </div>
     </div>
 
+    <!-- Sin sucursal activa -->
+    <q-banner
+      v-if="!authStore.currentBranchId"
+      dense
+      rounded
+      class="bg-orange-1 text-orange-9 q-mb-md"
+      style="border-radius: 10px"
+    >
+      <template #avatar><q-icon name="info" color="orange-9" /></template>
+      No hay una sucursal activa en la sesión.
+    </q-banner>
+
     <div class="row q-col-gutter-lg">
       <!-- Columna izquierda: stats + agenda -->
       <div class="col-12 col-md-8">
@@ -246,8 +258,9 @@ function irANuevaReservacion() {
 }
 
 onMounted(() => {
-  store.cargar(authStore.currentBranchId ?? undefined)
-  paquetesStore.cargar(authStore.currentBranchId ?? undefined)
+  if (!authStore.currentBranchId) return
+  store.cargar(authStore.currentBranchId)
+  paquetesStore.cargar(authStore.currentBranchId)
 })
 
 // Fecha actual normalizada a medianoche (hora local)

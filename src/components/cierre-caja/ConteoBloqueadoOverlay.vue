@@ -67,8 +67,8 @@ defineEmits<{
 }
 
 .bloqueo-card {
-  background: var(--md-surface);
-  border-radius: 24px;
+  background: var(--bg-card);
+  border-radius: 12px;
   padding: 48px 40px;
   max-width: 420px;
   width: 90%;
@@ -81,18 +81,18 @@ defineEmits<{
 .bloqueo-titulo {
   font-size: 1.4rem;
   font-weight: 700;
-  color: var(--md-on-surface);
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
 .bloqueo-mensaje {
   font-size: 0.95rem;
-  color: var(--md-on-surface-variant);
+  color: var(--text-secondary);
   line-height: 1.6;
 }
 
 .cancelar-btn {
-  color: var(--md-on-surface-variant);
+  color: var(--text-secondary);
   font-size: 0.8rem;
 }
 

@@ -14,10 +14,23 @@
         label="Nuevo Extra"
         unelevated
         no-caps
+        :disable="!authStore.currentBranchId"
         style="border-radius: 8px; font-weight: 600"
         @click="abrirCrear"
       />
     </div>
+
+    <!-- Sin sucursal activa -->
+    <q-banner
+      v-if="!authStore.currentBranchId"
+      dense
+      rounded
+      class="bg-orange-1 text-orange-9 q-mb-md"
+      style="border-radius: 10px"
+    >
+      <template #avatar><q-icon name="info" color="orange-9" /></template>
+      No hay una sucursal activa en la sesión.
+    </q-banner>
 
     <q-banner
       v-if="store.error"
@@ -46,6 +59,12 @@
       >
         <template #body-cell-precio="props">
           <q-td :props="props"> ${{ Number(props.row.precio).toFixed(2) }} </q-td>
+        </template>
+
+        <template #body-cell-descripcion="props">
+          <q-td :props="props" class="cell-truncate" :title="props.row.descripcion ?? ''">
+            {{ props.row.descripcion }}
+          </q-td>
         </template>
 
         <template #body-cell-activo="props">
@@ -224,7 +243,10 @@ const UNIDAD_OPTIONS = [
   { label: 'Por hora', value: 'hora' },
 ]
 
-const cargar = () => store.cargar(authStore.currentBranchId ?? undefined)
+const cargar = () => {
+  if (!authStore.currentBranchId) return
+  store.cargar(authStore.currentBranchId)
+}
 
 onMounted(cargar)
 
@@ -375,16 +397,4 @@ const ejecutarEliminar = async () => {
 }
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
-.action-btn {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-</style>
+<style scoped></style>

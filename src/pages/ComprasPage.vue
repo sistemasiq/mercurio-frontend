@@ -1,6 +1,6 @@
 <template>
   <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 1000px; margin: 0 auto">
+    <div>
       <!-- Encabezado -->
       <div class="row items-center q-mb-lg">
         <div>
@@ -67,7 +67,7 @@
 
           <template #body-cell-estado="props">
             <q-td :props="props">
-              <EstadoPill
+              <EstadoBadge
                 :tono="ESTADO_TONO[props.row.estado as EstadoCompra]"
                 :label="ESTADO_LABEL[props.row.estado as EstadoCompra]"
               />
@@ -318,7 +318,7 @@ import { useProveedoresStore } from '@/stores/proveedores'
 import { useInsumosStore } from '@/stores/insumos'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { usePresentacionesInsumoStore } from '@/stores/presentacionesInsumo'
-import EstadoPill from '@/components/inventario/EstadoPill.vue'
+import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 import type { Compra, EstadoCompra } from '@/types/compra'
 
 const $q = useQuasar()
@@ -569,27 +569,4 @@ const ejecutarAccion = async () => {
 }
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
-.action-btn {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-
-.material-symbols-outlined {
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 20;
-  font-size: 20px;
-  line-height: 1;
-  text-transform: none;
-}
-</style>
+<style scoped></style>

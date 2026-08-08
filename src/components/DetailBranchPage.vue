@@ -5,6 +5,7 @@ import { branchService } from '@/services/branchService'
 import type { Branch } from '@/types/branch'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -105,41 +106,45 @@ function handleEdit(): void {
     <q-spinner-dots color="primary" size="40px" />
   </q-page>
 
-  <q-page v-else-if="!branch" padding class="text-center">
+  <q-page v-else-if="!branch" class="page-content q-pa-md q-pa-lg-xl text-center">
     <div class="text-h5 text-grey-7 q-mt-xl">Sucursal no encontrada</div>
     <q-btn
+      unelevated
+      no-caps
       color="primary"
       label="Volver al listado"
       class="q-mt-md"
+      style="border-radius: 8px; font-weight: 600"
       @click="router.push({ name: 'sucursales-listar' })"
     />
   </q-page>
 
-  <q-page v-else padding class="bg-grey-1 branch-info-page">
-    <div class="row items-start justify-between q-mb-lg header-wrap">
+  <q-page v-else class="page-content q-pa-md q-pa-lg-xl">
+    <div class="row items-start q-mb-lg header-wrap">
       <div class="header-copy">
-        <q-breadcrumbs class="text-grey-7 q-mb-sm" active-color="dark">
-          <q-breadcrumbs-el label="Inicio" />
-          <q-breadcrumbs-el label="Administración" />
-          <q-breadcrumbs-el label="Sucursales" :to="{ name: 'sucursales-listar' }" />
-          <q-breadcrumbs-el :label="branch.nombre" />
-          <q-breadcrumbs-el label="Información" class="text-weight-bold" />
-        </q-breadcrumbs>
         <div class="row items-center q-gutter-sm q-mb-xs">
-          <h1 class="text-h4 text-weight-bold q-my-none text-dark">{{ branch.nombre }}</h1>
-          <q-badge
-            :color="branch.isActive ? 'positive' : 'negative'"
-            text-color="white"
-            class="status-badge"
-          >
-            {{ branch.isActive ? 'Activa' : 'Inactiva' }}
-          </q-badge>
+          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
+            {{ branch.nombre }}
+          </div>
+          <EstadoBadge
+            :tono="branch.isActive ? 'verde' : 'rojo'"
+            :label="branch.isActive ? 'Activa' : 'Inactiva'"
+          />
         </div>
-        <p class="text-subtitle2 text-grey-7 q-mt-sm q-mb-none">
+        <div class="text-body2" style="color: var(--text-secondary)">
           Vista general de la sucursal <strong>{{ branch.clave }}</strong>
-        </p>
+        </div>
       </div>
-      <q-btn outline color="dark" icon="edit" label="Editar" class="btn-edit" @click="handleEdit" />
+      <q-space />
+      <q-btn
+        outline
+        no-caps
+        color="primary"
+        icon="edit"
+        label="Editar"
+        style="border-radius: 8px; font-weight: 600"
+        @click="handleEdit"
+      />
     </div>
 
     <div class="row q-col-gutter-lg items-stretch">
@@ -215,49 +220,25 @@ function handleEdit(): void {
 </template>
 
 <style scoped>
-.branch-info-page {
-  color: #111827;
-}
 .header-wrap {
   gap: 16px;
 }
 .header-copy {
   min-width: 0;
 }
-.status-badge {
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  padding-inline: 10px;
-}
-.btn-edit {
-  border-radius: 8px;
-  text-transform: none;
-  font-weight: 500;
-  padding: 8px 18px;
-  flex-shrink: 0;
-}
 .info-card,
 .meta-card {
   border-radius: 12px;
-  border-color: #e5e7eb;
-  background: #ffffff;
 }
 .section-header {
   padding: 20px 24px 16px;
-}
-.section-header--compact {
-  padding-bottom: 14px;
 }
 .section-title {
   display: flex;
   align-items: center;
   font-size: 18px;
   font-weight: 700;
-  color: #111827;
-}
-.section-title--compact {
-  font-size: 16px;
+  color: var(--text-primary);
 }
 .contact-section {
   display: flex;
@@ -279,55 +260,21 @@ function handleEdit(): void {
 .contact-item__label {
   font-size: 12px;
   line-height: 1.2;
-  color: #6b7280;
+  color: var(--text-muted);
   margin-bottom: 3px;
 }
 .contact-item__value {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
   word-break: break-word;
 }
 .contact-item__value--accent {
   color: #025fe0;
 }
-.location-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.address-line {
-  font-size: 14px;
-  color: #374151;
-}
-.meta-section {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.meta-row {
-  display: grid;
-  gap: 4px;
-}
-.meta-row__label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b7280;
-}
-.meta-row__value {
-  font-size: 14px;
-  color: #374151;
-}
-.h-100 {
-  height: 100%;
-}
 @media (max-width: 1023px) {
   .header-wrap {
     align-items: flex-start;
-  }
-  .btn-edit {
-    width: 100%;
-    justify-content: center;
   }
 }
 @media (max-width: 599px) {
@@ -352,12 +299,12 @@ function handleEdit(): void {
 }
 
 .meta-discrete-label {
-  color: #4b5563; /* Tono grisáceo discreto */
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
 .meta-discrete-value {
-  color: #1f2937; /* Tono un poco más oscuro pero sin ser negrita */
+  color: var(--text-primary);
   text-align: right;
 }
 </style>

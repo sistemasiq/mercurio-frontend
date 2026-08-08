@@ -67,6 +67,20 @@ body {
     'opsz' 24;
 }
 
+// ─── Field label (etiquetas de campos de formulario/detalle) ────────────────
+.field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+// ─── Action button (botones de acción en filas de tabla: editar/eliminar) ───
+.action-btn {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
 // ─── Quasar Drawer Fix (Hide Scrollbars) ────────────────────────────────────
 .q-drawer {
   scrollbar-width: none !important;
@@ -178,12 +192,12 @@ body {
     white-space: nowrap;
 
     &--positive {
-      background: rgba(16, 185, 129, 0.12);
+      background: rgba($positive, 0.12);
       color: $positive;
     }
 
     &--negative {
-      background: rgba(239, 68, 68, 0.12);
+      background: rgba($negative, 0.12);
       color: $negative;
     }
   }
@@ -223,7 +237,26 @@ body {
       background: rgba(255, 193, 7, 0.12);
       color: $warning;
     }
+    &--pink {
+      background: rgba($secondary, 0.1);
+      color: $secondary;
+    }
+    &--red {
+      background: rgba($negative, 0.1);
+      color: $negative;
+    }
+    &--grey {
+      background: var(--bg-main);
+      color: var(--text-muted);
+    }
   }
+}
+
+// ─── Grid de KPIs (reporte de inventario, reporte de lealtad, etc.) ─────────
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
 }
 
 // ─── Panel Card ─────────────────────────────────────────────────────────────
@@ -262,12 +295,12 @@ body {
     color: var(--text-secondary);
     background: #f8f9fd;
     border-bottom: 2px solid var(--border-color);
-    padding: 10px 16px;
+    padding: 10px 12px;
   }
 
   .q-table tbody td {
     font-size: 0.875rem;
-    padding: 12px 16px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--border-color);
     color: #37474f;
   }
@@ -292,6 +325,16 @@ body {
     font-weight: 700;
     color: $positive;
     font-size: 0.875rem;
+  }
+
+  // Columnas de texto libre (direcciones, descripciones) que con datos reales
+  // pueden ser arbitrariamente largas y estirar la tabla fuera del viewport.
+  // Trunca con "..." -- el texto completo sigue disponible en un tooltip.
+  .cell-truncate {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -833,11 +876,11 @@ body {
     position: relative;
 
     &:hover:not(&--disabled) {
-      background: #f59e0b;
+      background: $warning;
       color: white;
       transform: translateY(-4px);
       z-index: 100;
-      box-shadow: 0 8px 16px rgba(255, 193, 7, 0.3);
+      box-shadow: 0 8px 16px rgba($warning, 0.3);
     }
 
     &--selected {
@@ -901,7 +944,7 @@ body {
 
 // ─── Page layout ─────────────────────────────────────────────────────────────
 .page-content {
-  padding: 20px;
+  padding: 14px;
   min-height: calc(100vh - var(--header-height));
   background: var(--bg-main);
 }

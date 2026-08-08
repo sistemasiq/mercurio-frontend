@@ -215,11 +215,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.action-btn {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-
 /* User cell */
 .user-cell {
   display: flex;

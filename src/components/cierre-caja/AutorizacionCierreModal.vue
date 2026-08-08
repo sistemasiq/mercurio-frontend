@@ -471,8 +471,8 @@ async function ejecutarCierreExtraordinario() {
 }
 
 .rs-audit-modal {
-  background: #ffffff;
-  border-radius: 16px;
+  background: var(--bg-card);
+  border-radius: 12px;
   max-width: 900px;
   width: 90vw;
   margin: 32px auto;
@@ -481,37 +481,35 @@ async function ejecutarCierreExtraordinario() {
   flex-direction: column;
   max-height: calc(100vh - 64px);
   overflow: hidden;
-  border: 1px solid #c6c5d4;
+  border: 1px solid var(--border-color);
 }
 
 .rs-modal-header {
   padding: 24px 32px;
-  background: #f8f9ff;
-  border-bottom: 1px solid #dce9ff;
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .rs-modal-title {
-  font-family: 'Inter', sans-serif;
   font-size: 20px;
   font-weight: 700;
-  color: #0b1c30;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .rs-modal-code {
-  color: #454652;
+  color: var(--text-secondary);
   font-size: 15px;
   font-weight: 500;
   margin-left: 8px;
 }
 
 .rs-modal-sub {
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 4px 0 0 0;
 }
 
@@ -519,7 +517,7 @@ async function ejecutarCierreExtraordinario() {
   padding: 32px;
   overflow-y: auto;
   flex: 1;
-  background: #f8f9ff;
+  background: var(--bg-main);
 }
 
 .rs-grid-columns {
@@ -535,31 +533,30 @@ async function ejecutarCierreExtraordinario() {
 }
 
 .rs-card-box {
-  background: #ffffff;
-  border: 1px solid #dce9ff;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 20px;
 }
 
 .rs-card-box--cashier {
-  border-left: 4px solid #b7131a;
+  border-left: 4px solid #dc2626;
 }
 
 .rs-box-title {
-  font-family: 'Inter', sans-serif;
   font-size: 12px;
   font-weight: 700;
-  color: #454652;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0 0 16px 0;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--bg-main);
 }
 
 .rs-box-sub {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin-bottom: 16px;
 }
 
@@ -569,22 +566,21 @@ async function ejecutarCierreExtraordinario() {
   text-align: center;
   font-size: 24px;
   letter-spacing: 0.8em;
-  border: 1px solid #c6c5d4;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--bg-card);
   outline: none;
 }
 .rs-pin-input:focus {
-  border-color: #000666;
+  border-color: #025fe0;
 }
 
 .rs-btn-confirm-pin {
   width: 100%;
-  background: #000666;
-  color: #ffffff;
+  background: #025fe0;
+  color: var(--bg-card);
   padding: 8px 16px;
   border-radius: 8px;
-  font-family: 'Inter', sans-serif;
   font-size: 12px;
   font-weight: 700;
   border: none;
@@ -601,17 +597,17 @@ async function ejecutarCierreExtraordinario() {
   opacity: 0.9;
 }
 .rs-btn-confirm-pin:disabled {
-  background: #cbd5e1;
+  background: var(--text-muted);
   cursor: not-allowed;
   opacity: 0.7;
 }
 .rs-btn-confirm-pin--active {
-  background: #2e7d32 !important;
-  color: #ffffff !important;
+  background: #3fa834 !important;
+  color: var(--bg-card) !important;
 }
 
 .border-top-line {
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--bg-main);
 }
 
 .rs-detail-list {
@@ -625,11 +621,11 @@ async function ejecutarCierreExtraordinario() {
   justify-content: space-between;
   align-items: center;
   font-size: 14px;
-  color: #0b1c30;
+  color: var(--text-primary);
 }
 
 .rs-detail-label {
-  color: #475569;
+  color: var(--text-secondary);
 }
 
 .rs-detail-val {
@@ -639,23 +635,23 @@ async function ejecutarCierreExtraordinario() {
 .rs-detail-total {
   padding-top: 12px;
   margin-top: 4px;
-  border-top: 1px dashed #cbd5e1;
+  border-top: 1px dashed var(--border-color);
 }
 
 .rs-total-label {
   font-weight: 700;
-  color: #0b1c30;
+  color: var(--text-primary);
 }
 
 .rs-total-val {
   font-size: 18px;
   font-weight: 700;
-  color: #0b1c30;
+  color: var(--text-primary);
 }
 
 .rs-detail-diff {
   padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border-color);
 }
 
 .rs-table-wrap {
@@ -664,7 +660,6 @@ async function ejecutarCierreExtraordinario() {
 .rs-balance-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
 }
 .rs-balance-table th {
@@ -674,13 +669,13 @@ async function ejecutarCierreExtraordinario() {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
-  border-bottom: 1px solid #e2e8f0;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
 }
 .rs-balance-table td {
   padding: 10px;
-  border-bottom: 1px solid #f1f5f9;
-  color: #0b1c30;
+  border-bottom: 1px solid var(--bg-main);
+  color: var(--text-primary);
 }
 .rs-balance-table tr:last-child td {
   border-bottom: none;
@@ -688,7 +683,7 @@ async function ejecutarCierreExtraordinario() {
 .rs-table-hint {
   margin: 10px 0 0;
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary);
   line-height: 1.5;
 }
 
@@ -706,31 +701,30 @@ async function ejecutarCierreExtraordinario() {
 }
 
 .rs-diff-badge--negative {
-  background: #fef2f2;
+  background: rgba(220, 38, 38, 0.1);
   color: #dc2626;
-  border: 1px solid #fecaca;
+  border: 1px solid rgba(220, 38, 38, 0.3);
 }
 
 .rs-diff-badge--positive {
-  background: #eff6ff;
+  background: rgba(2, 95, 224, 0.08);
   color: #025fe0;
-  border: 1px solid #bfdbfe;
+  border: 1px solid rgba(2, 95, 224, 0.3);
 }
 
 .rs-diff-badge--exact {
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
+  background: rgba(63, 168, 52, 0.1);
+  color: #3fa834;
+  border: 1px solid rgba(63, 168, 52, 0.3);
 }
 
 .rs-textarea {
   width: 100%;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 10px;
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
-  color: #0b1c30;
+  color: var(--text-primary);
   outline: none;
 }
 .rs-textarea:focus {
@@ -739,8 +733,8 @@ async function ejecutarCierreExtraordinario() {
 
 .rs-modal-footer {
   padding: 20px 32px;
-  background: #ffffff;
-  border-top: 1px solid #dce9ff;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -760,6 +754,5 @@ async function ejecutarCierreExtraordinario() {
   font-size: 14px;
   padding: 10px 24px;
   border-radius: 8px;
-  background: #000666;
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSucursalesStore } from '@/stores/sucursales'
@@ -25,6 +25,17 @@ const router = useRouter()
 const route = useRoute()
 
 const leftOpen = ref(true)
+
+const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed'
+const sidebarCollapsed = ref(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1')
+
+watch(sidebarCollapsed, (collapsed) => {
+  localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0')
+})
+
+function toggleSidebar(): void {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
 
 // El Administrador de sucursal no opera la caja directamente (apertura/cierre/venta) —
 // solo el AdministradorSistema y el Cajero. Su única vista de este módulo es el historial.
@@ -321,15 +332,20 @@ async function handleLogout(): Promise<void> {
       v-model="leftOpen"
       side="left"
       :width="230"
+      :mini="sidebarCollapsed"
+      :mini-width="64"
       :breakpoint="0"
       show-if-above
       class="sb-drawer"
+      :class="{ 'sb-drawer--collapsed': sidebarCollapsed }"
     >
       <div class="sb-root">
         <!-- Nav -->
         <div class="sb-nav-scroll">
           <template v-for="group in visibleGroups" :key="group.label ?? 'root'">
-            <div v-if="group.label" class="sb-section-label">{{ group.label }}</div>
+            <div v-if="group.label && !sidebarCollapsed" class="sb-section-label">
+              {{ group.label }}
+            </div>
             <q-list class="sb-nav" padding>
               <q-item
                 v-for="item in group.items"
@@ -343,10 +359,31 @@ async function handleLogout(): Promise<void> {
                 <q-item-section avatar>
                   <q-icon :name="item.icon" size="18px" />
                 </q-item-section>
-                <q-item-section>{{ item.label }}</q-item-section>
+                <q-item-section v-if="!sidebarCollapsed">{{ item.label }}</q-item-section>
+                <q-tooltip v-if="sidebarCollapsed" anchor="center right" self="center left">
+                  {{ item.label }}
+                </q-tooltip>
               </q-item>
             </q-list>
           </template>
+        </div>
+
+        <!-- Colapsar/expandir -->
+        <div class="sb-collapse-toggle">
+          <q-btn
+            flat
+            dense
+            round
+            :icon="sidebarCollapsed ? 'chevron_right' : 'chevron_left'"
+            size="sm"
+            class="sb-collapse-btn"
+            :aria-label="sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'"
+            @click="toggleSidebar"
+          >
+            <q-tooltip anchor="center right" self="center left">
+              {{ sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú' }}
+            </q-tooltip>
+          </q-btn>
         </div>
       </div>
     </q-drawer>
@@ -409,7 +446,7 @@ async function handleLogout(): Promise<void> {
             flat
             round
             dense
-            class="action-btn action-btn--logout"
+            class="header-action-btn header-action-btn--logout"
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
             @click="handleLogout"
@@ -422,7 +459,12 @@ async function handleLogout(): Promise<void> {
 
     <!-- ── Contenido ──────────────────────────────────────── -->
     <q-page-container class="page-bg">
-      <router-view />
+      <!-- key por sucursal: la mayoría de las páginas piden sus datos una sola
+           vez en onMounted. Cuando AdministradorSistema cambia de sucursal en
+           el selector del header, esto fuerza a Vue a destruir y volver a
+           montar la página activa (vuelve a correr onMounted) en vez de
+           necesitar un refresh manual del navegador. -->
+      <router-view :key="auth.currentBranchId ?? 'todas'" />
     </q-page-container>
   </q-layout>
 </template>
@@ -430,8 +472,8 @@ async function handleLogout(): Promise<void> {
 <style scoped>
 /* ── Sidebar ─────────────────────────────────────────────── */
 .sb-drawer :deep(.q-drawer) {
-  background: #ffffff !important;
-  border-right: 1px solid #e2e8f0 !important;
+  background: var(--bg-card) !important;
+  border-right: 1px solid var(--border-color) !important;
   box-shadow: none !important;
 }
 
@@ -439,6 +481,31 @@ async function handleLogout(): Promise<void> {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.sb-drawer :deep(.q-drawer) {
+  transition: width 0.15s ease;
+}
+
+.sb-collapse-toggle {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.sb-drawer--collapsed .sb-collapse-toggle {
+  justify-content: center;
+}
+
+.sb-collapse-btn {
+  color: var(--text-muted) !important;
+}
+
+.sb-collapse-btn:hover {
+  color: var(--text-primary) !important;
+  background: var(--bg-main) !important;
 }
 
 .sb-nav-scroll {
@@ -450,7 +517,7 @@ async function handleLogout(): Promise<void> {
 .sb-section-label {
   font-size: 10px;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--text-muted);
   letter-spacing: 0.08em;
   padding: 16px 20px 6px;
 }
@@ -464,7 +531,7 @@ async function handleLogout(): Promise<void> {
   margin-bottom: 2px;
   min-height: 40px !important;
   padding: 0 10px !important;
-  color: #475569 !important;
+  color: var(--text-secondary) !important;
   font-size: 13.5px !important;
   font-weight: 500 !important;
   transition:
@@ -473,21 +540,21 @@ async function handleLogout(): Promise<void> {
 }
 
 .sb-item :deep(.q-icon) {
-  color: #94a3b8 !important;
+  color: var(--text-muted) !important;
   transition: color 0.12s;
 }
 
 .sb-item:hover {
-  background: #f8fafc !important;
-  color: #1e293b !important;
+  background: var(--bg-main) !important;
+  color: var(--text-primary) !important;
 }
 
 .sb-item:hover :deep(.q-icon) {
-  color: #64748b !important;
+  color: var(--text-secondary) !important;
 }
 
 .sb-item--active {
-  background: #eff6ff !important;
+  background: rgba(2, 95, 224, 0.08) !important;
   color: #025fe0 !important;
   font-weight: 600 !important;
   border-left: 3px solid #025fe0;
@@ -498,12 +565,27 @@ async function handleLogout(): Promise<void> {
   color: #025fe0 !important;
 }
 
+.sb-drawer--collapsed .sb-item {
+  justify-content: center;
+  padding: 0 !important;
+}
+
+.sb-drawer--collapsed .sb-item--active {
+  border-left: none;
+  border-radius: 8px !important;
+}
+
+.sb-drawer--collapsed .sb-item :deep(.q-item__section--avatar) {
+  min-width: 0;
+  padding: 0;
+}
+
 /* ── Header ─────────────────────────────────────────────── */
 .app-header {
-  background: #ffffff !important;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-card) !important;
+  border-bottom: 1px solid var(--border-color);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
-  color: #1e293b !important;
+  color: var(--text-primary) !important;
 }
 
 .app-toolbar {
@@ -516,7 +598,7 @@ async function handleLogout(): Promise<void> {
   align-items: center;
   font-size: 14px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   flex: 0 0 auto;
   gap: 8px;
 }
@@ -540,8 +622,8 @@ async function handleLogout(): Promise<void> {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 8px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--bg-main);
+  color: var(--text-secondary);
   font-size: 12.5px;
   font-weight: 600;
   white-space: nowrap;
@@ -556,7 +638,7 @@ async function handleLogout(): Promise<void> {
   min-height: 32px;
   height: 32px;
   border-radius: 8px;
-  background: #f1f5f9;
+  background: var(--bg-main);
 }
 
 .header-branch-select :deep(.q-field__marginal) {
@@ -564,41 +646,41 @@ async function handleLogout(): Promise<void> {
 }
 
 .estado-turno--abierta {
-  background: #dcfce7;
-  color: #15803d;
+  background: rgba(63, 168, 52, 0.12);
+  color: #3fa834;
 }
 
 .estado-turno--cerrada {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
 }
 
 .estado-turno--corte {
-  background: #fef3c7;
+  background: rgba(255, 193, 7, 0.16);
   color: #b45309;
 }
 
-.action-btn {
-  color: #64748b !important;
+.header-action-btn {
+  color: var(--text-secondary) !important;
   transition:
     color 0.12s,
     background 0.12s;
 }
 
-.action-btn:hover {
-  color: #1e293b !important;
-  background: #f1f5f9 !important;
+.header-action-btn:hover {
+  color: var(--text-primary) !important;
+  background: var(--bg-main) !important;
 }
 
-.action-btn--logout:hover {
+.header-action-btn--logout:hover {
   color: #dc2626 !important;
-  background: #fff1f2 !important;
+  background: rgba(220, 38, 38, 0.08) !important;
 }
 
 .header-divider {
   width: 1px;
   height: 24px;
-  background: #e2e8f0;
+  background: var(--border-color);
   margin: 0 8px;
   flex-shrink: 0;
 }
@@ -628,19 +710,19 @@ async function handleLogout(): Promise<void> {
 .header-user-name {
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   line-height: 1.2;
   white-space: nowrap;
 }
 
 .header-user-role {
   font-size: 10.5px;
-  color: #94a3b8;
+  color: var(--text-muted);
   line-height: 1.2;
 }
 
 /* ── Page container ──────────────────────────────────────── */
 .page-bg {
-  background: #f1f5f9;
+  background: var(--bg-main);
 }
 </style>

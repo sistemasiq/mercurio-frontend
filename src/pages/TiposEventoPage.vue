@@ -17,9 +17,22 @@
         unelevated
         no-caps
         style="border-radius: 8px; font-weight: 600"
+        :disable="!authStore.currentBranchId"
         @click="abrirCrear"
       />
     </div>
+
+    <!-- Sin sucursal activa -->
+    <q-banner
+      v-if="!authStore.currentBranchId"
+      dense
+      rounded
+      class="bg-orange-1 text-orange-9 q-mb-md"
+      style="border-radius: 10px"
+    >
+      <template #avatar><q-icon name="info" color="orange-9" /></template>
+      No hay una sucursal activa en la sesión.
+    </q-banner>
 
     <q-banner
       v-if="store.error"
@@ -46,6 +59,12 @@
         no-data-label="No hay tipos de evento registrados"
         class="fec-table"
       >
+        <template #body-cell-descripcion="props">
+          <q-td :props="props" class="cell-truncate" :title="props.row.descripcion ?? ''">
+            {{ props.row.descripcion }}
+          </q-td>
+        </template>
+
         <template #body-cell-activo="props">
           <q-td :props="props">
             <q-badge
@@ -192,7 +211,9 @@ const $q = useQuasar()
 const authStore = useAuthStore()
 const store = useTiposEventoStore()
 
-onMounted(() => store.cargar())
+onMounted(() => {
+  if (authStore.currentBranchId) store.cargar()
+})
 
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
@@ -320,16 +341,4 @@ const ejecutarEliminar = async () => {
 }
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
-.action-btn {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-</style>
+<style scoped></style>

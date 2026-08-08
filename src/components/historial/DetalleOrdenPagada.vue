@@ -234,7 +234,6 @@ const ejecutarImpresion = () => {
   gap: 12px;
 }
 .order-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 20px;
   font-weight: 700;
   color: #0f172a;
@@ -466,10 +465,9 @@ const ejecutarImpresion = () => {
   text-transform: uppercase;
 }
 .final-val {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 22px;
   font-weight: 800;
-  color: #0059bb;
+  color: #025fe0;
 }
 
 .modal-actions-footer {

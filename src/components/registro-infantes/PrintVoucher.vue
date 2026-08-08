@@ -60,7 +60,7 @@ function getBraceletLabel(braceletId: string) {
     <div id="printable-voucher" class="voucher">
       <!-- Header -->
       <div class="voucher-header text-center q-mb-md">
-        <div class="text-h6 text-weight-bold">Wow Kids</div>
+        <div class="text-h6 text-weight-bold">Woow Kids</div>
         <div class="text-caption text-grey-7">{{ branchName }}</div>
       </div>
 
@@ -125,7 +125,7 @@ function getBraceletLabel(braceletId: string) {
         </div>
         <div class="row justify-between">
           <span class="text-body2">Salida Programada:</span>
-          <q-chip dense color="black-2" text-color="black-9" :label="scheduledExit()" size="md" />
+          <q-chip dense color="grey-3" text-color="grey-9" :label="scheduledExit()" size="md" />
         </div>
       </div>
 
@@ -148,10 +148,12 @@ function getBraceletLabel(braceletId: string) {
 
       <q-btn
         unelevated
+        no-caps
         color="primary"
         label="Imprimir"
         icon="print"
         class="full-width print-hide"
+        style="border-radius: 8px; font-weight: 600"
         @click="printVoucher"
       />
     </div>
@@ -168,7 +170,7 @@ function getBraceletLabel(braceletId: string) {
 }
 
 .voucher {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
   max-width: 420px;
@@ -180,27 +182,27 @@ function getBraceletLabel(braceletId: string) {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #9e9e9e;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
 .voucher-value {
   font-size: 13px;
-  color: #212121;
+  color: var(--text-primary);
 }
 
 .voucher-section-title {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: #9e9e9e;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
 .stay-box {
-  background: #f5f9ff;
+  background: rgba(2, 95, 224, 0.06);
   border-radius: 8px;
-  border: 1px solid #e3f0ff;
+  border: 1px solid rgba(2, 95, 224, 0.15);
 }
 
 .qr-code {
@@ -213,7 +215,7 @@ function getBraceletLabel(braceletId: string) {
   font-family: 'Courier New', monospace;
   font-size: 11px;
   letter-spacing: 0.5px;
-  background: #f5f5f5;
+  background: var(--bg-main);
   padding: 2px 6px;
   border-radius: 4px;
 }

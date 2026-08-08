@@ -194,7 +194,7 @@ function onCancelSucursal(): void {
 .auth-left {
   flex: 0 0 56%;
   overflow: hidden;
-  background: #011463;
+  background: #0b1450;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,7 +212,7 @@ function onCancelSucursal(): void {
 /* ── Panel derecho ───────────────────────────────────────── */
 .auth-right {
   flex: 1;
-  background: #ffffff;
+  background: var(--bg-card);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -234,14 +234,14 @@ function onCancelSucursal(): void {
 .auth-title {
   font-size: 26px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0 0 4px;
   line-height: 1.2;
 }
 
 .auth-subtitle {
   font-size: 13.5px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0 0 20px;
 }
 
@@ -259,10 +259,6 @@ function onCancelSucursal(): void {
 }
 
 .field-label {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #374151;
-  margin: 0;
   cursor: default;
 }
 
@@ -272,15 +268,15 @@ function onCancelSucursal(): void {
 }
 
 .field-input :deep(.q-field--outlined .q-field__control::before) {
-  border-color: #e2e8f0;
+  border-color: var(--border-color);
 }
 
 .field-input :deep(.q-field--outlined:hover .q-field__control::before) {
-  border-color: #94a3b8;
+  border-color: var(--text-muted);
 }
 
 .field-input :deep(.q-field--focused .q-field__control::before) {
-  border-color: #3b82f6 !important;
+  border-color: #025fe0 !important;
 }
 
 /* ── Opciones (recordar / olvidaste) ─────────────────────── */
@@ -294,19 +290,19 @@ function onCancelSucursal(): void {
 
 .auth-remember :deep(.q-checkbox__label) {
   font-size: 13px;
-  color: #475569;
+  color: var(--text-secondary);
 }
 
 .auth-forgot {
   font-size: 13px;
-  color: #3b82f6;
+  color: #025fe0;
   text-decoration: none;
   font-weight: 500;
   transition: color 0.15s;
 }
 
 .auth-forgot:hover {
-  color: #1d4ed8;
+  color: #0350c4;
   text-decoration: underline;
 }
 
@@ -326,12 +322,12 @@ function onCancelSucursal(): void {
   align-items: center;
   justify-content: center;
   padding: 12px 32px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--bg-main);
 }
 
 .auth-footer__copy {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 /* ── Responsive ──────────────────────────────────────────── */

@@ -16,10 +16,23 @@
           label="Nuevo producto"
           unelevated
           no-caps
+          :disable="!authStore.currentBranchId"
           style="border-radius: 8px; font-weight: 600"
           @click="abrirCrear"
         />
       </div>
+
+      <!-- Sin sucursal activa -->
+      <q-banner
+        v-if="!authStore.currentBranchId"
+        dense
+        rounded
+        class="bg-orange-1 text-orange-9 q-mb-md"
+        style="border-radius: 10px"
+      >
+        <template #avatar><q-icon name="info" color="orange-9" /></template>
+        No hay una sucursal activa en la sesión.
+      </q-banner>
 
       <!-- Error -->
       <q-banner
@@ -54,13 +67,25 @@
 
           <template #body-cell-tipo="props">
             <q-td :props="props">
-              <ProductoBadgeTipo :tipo="props.row.tipo as TipoProducto" />
+              <EstadoBadge
+                :tono="TIPO_TONO[props.row.tipo as TipoProducto]"
+                :label="TIPO_LABELS[props.row.tipo as TipoProducto]"
+              />
+            </q-td>
+          </template>
+
+          <template #body-cell-descripcion="props">
+            <q-td :props="props" class="cell-truncate" :title="props.row.descripcion ?? ''">
+              {{ props.row.descripcion }}
             </q-td>
           </template>
 
           <template #body-cell-activo="props">
             <q-td :props="props">
-              <ProductoBadgeEstado :activo="props.row.activo" />
+              <EstadoBadge
+                :tono="props.row.activo ? 'verde' : 'rojo'"
+                :label="props.row.activo ? 'Activo' : 'Inactivo'"
+              />
             </q-td>
           </template>
 
@@ -494,17 +519,29 @@ import { useAuthStore } from '@/stores/auth'
 import { useProductosStore } from '@/stores/productos'
 import { useInsumosStore } from '@/stores/insumos'
 import { useRecetaProductoStore } from '@/stores/recetaProducto'
-import type { ComboItemCreate, ProductoAdmin, TipoProducto } from '@/types/producto'
+import {
+  TIPO_LABELS,
+  type ComboItemCreate,
+  type ProductoAdmin,
+  type TipoProducto,
+} from '@/types/producto'
 import { apiClient } from '@/api/axiosClient.ts'
 import { getProductoImagenUrl } from '@/api/productosApi'
-import ProductoBadgeTipo from '@/components/productos/ProductoBadgeTipo.vue'
-import ProductoBadgeEstado from '@/components/productos/ProductoBadgeEstado.vue'
+import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
 const store = useProductosStore()
 const insumosStore = useInsumosStore()
 const recetaStore = useRecetaProductoStore()
+
+const TIPO_TONO: Record<TipoProducto, 'verde' | 'rojo' | 'azul' | 'naranja' | 'gris'> = {
+  A: 'verde',
+  B: 'azul',
+  C: 'naranja',
+  E: 'gris',
+  S: 'rojo',
+}
 
 const TIPO_OPTIONS = [
   { label: 'Alimento', value: 'A' },
@@ -515,6 +552,7 @@ const TIPO_OPTIONS = [
 ]
 
 const cargar = () => {
+  if (!authStore.currentBranchId) return
   store.cargar(authStore.currentBranchId)
 }
 
@@ -881,18 +919,6 @@ const ejecutarReactivar = async () => {
 </script>
 
 <style scoped>
-.field-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
-.action-btn {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-
 .imagen-preview-avatar {
   border-radius: 8px;
   border: 1px solid #e2e8f0;
@@ -904,17 +930,6 @@ const ejecutarReactivar = async () => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.material-symbols-outlined {
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 20;
-  font-size: 20px;
-  line-height: 1;
-  text-transform: none;
 }
 
 .producto-dialog-card {

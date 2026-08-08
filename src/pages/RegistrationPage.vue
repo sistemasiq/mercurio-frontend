@@ -151,7 +151,7 @@ function formatHora12(horaStr: string): string {
                   style="font-size: 13px"
                 >
                   <template #avatar>
-                    <q-icon name="celebration" color="blue-8" size="18px" />
+                    <q-icon name="celebration" color="primary" size="18px" />
                   </template>
                   <strong>{{ nombreEvento(store.eventoSeleccionado) }}</strong> ·
                   {{ formatHora12(store.eventoSeleccionado.hora_inicio) }} -
@@ -187,12 +187,12 @@ function formatHora12(horaStr: string): string {
 
 <style scoped>
 .registration-page {
-  background: #f7f8fc;
+  background: var(--bg-main);
   min-height: 100vh;
 }
 
 .page-icon-wrap {
-  background: #e8f0fe;
+  background: rgba(2, 95, 224, 0.1);
   border-radius: 50%;
   width: 48px;
   height: 48px;

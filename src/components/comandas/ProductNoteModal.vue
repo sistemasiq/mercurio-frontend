@@ -1,6 +1,6 @@
 <template>
   <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
-    <q-card style="min-width: 320px; border-radius: 16px">
+    <q-card style="min-width: 320px; border-radius: 12px">
       <q-card-section>
         <div class="text-h6 text-weight-bold">Notas especiales</div>
         <div class="text-grey-6 text-caption">{{ item?.producto.nombre }}</div>
@@ -16,12 +16,13 @@
         />
       </q-card-section>
       <q-card-actions align="right">
-        <q-btn v-close-popup flat label="Cancelar" color="grey-7" />
+        <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
         <q-btn
           unelevated
+          no-caps
           label="Guardar"
           color="primary"
-          style="border-radius: 8px"
+          style="border-radius: 8px; font-weight: 600"
           @click="guardar"
         />
       </q-card-actions>

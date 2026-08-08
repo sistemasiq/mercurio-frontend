@@ -333,9 +333,9 @@ async function realizarApertura() {
 
 <style scoped>
 .apertura-caja-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   padding: 28px;
   max-width: 620px;
@@ -348,14 +348,14 @@ async function realizarApertura() {
   gap: 16px;
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--bg-main);
 }
 
 .apertura-icon-badge {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: #eff6ff;
+  background: rgba(2, 95, 224, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -364,33 +364,19 @@ async function realizarApertura() {
 }
 
 .apertura-title {
-  font-family: 'Inter', sans-serif;
   font-size: 20px;
   font-weight: 700;
-  color: #0b1c30;
+  color: var(--text-primary);
   margin: 0 0 4px 0;
 }
 
 .apertura-subtitle {
-  font-family: 'Inter', sans-serif;
   font-size: 13.5px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0;
 }
 
-.field-label {
-  display: block;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 6px;
-}
-
 .field-hint {
-  font-family: 'Inter', sans-serif;
   font-size: 12px;
   margin: 6px 0 0;
 }
@@ -407,7 +393,7 @@ async function realizarApertura() {
 
 .quick-label {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .quick-buttons {
@@ -420,12 +406,12 @@ async function realizarApertura() {
   border-radius: 6px;
   font-size: 12px;
   color: #025fe0;
-  background: #f0f7ff;
+  background: rgba(2, 95, 224, 0.06);
 }
 
 .quick-btn--active {
   background: #025fe0;
-  color: #ffffff;
+  color: var(--bg-card);
 }
 
 .apertura-actions {
@@ -434,7 +420,7 @@ async function realizarApertura() {
 
 .btn-abrir-caja {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 8px;
   font-weight: 600;
 }
 </style>

@@ -37,9 +37,9 @@ defineProps<{
 <style scoped>
 /* ── Card ───────────────────────────────────────────────────────────── */
 .rs-resumen-card {
-  background: #ffffff;
-  border: 1px solid #c6c5d4;
-  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -49,23 +49,13 @@ defineProps<{
   align-items: center;
   gap: 10px;
   padding: 16px 20px;
-  border-bottom: 1px solid #e5eeff;
-  background: #f8f9ff;
-}
-.rs-header-icon {
-  font-size: 22px;
-  color: #1a237e;
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-main);
 }
 .rs-card-title {
-  font-family: 'Inter', sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: #0b1c30;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -85,23 +75,21 @@ defineProps<{
   padding: 4px 0;
 }
 .rs-row-label {
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
-  color: #454652;
+  color: var(--text-secondary);
 }
 .rs-row-value {
-  font-family: 'Inter', sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: #0b1c30;
+  color: var(--text-primary);
 }
 .rs-row-value--negative {
-  color: #b7131a;
+  color: #dc2626;
 }
 
 /* ── Divisor ────────────────────────────────────────────────────────── */
 .rs-divider {
   height: 1px;
-  background: #e5eeff;
+  background: var(--border-color);
 }
 </style>

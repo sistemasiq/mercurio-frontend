@@ -140,7 +140,7 @@ const onPagoExitoso = (pagos: AppliedPayment[]) => {
       <template v-if="store.step === 'rfid'">
         <q-banner dense rounded class="bg-blue-1 text-blue-9 q-mb-md" style="font-size: 12px">
           <template #avatar>
-            <q-icon name="nfc" color="blue-8" />
+            <q-icon name="nfc" color="primary" />
           </template>
           Pago registrado. Asigna las pulseras a cada niño para finalizar.
         </q-banner>

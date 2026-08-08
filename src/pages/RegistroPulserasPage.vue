@@ -123,7 +123,7 @@
                   dense
                   icon="delete_outline"
                   color="red"
-                  size="m"
+                  size="md"
                   @click="pedirConfirmacionEliminar(item.codigo, i)"
                 />
                 <span class="rp-scan-item__code">{{ item.codigo }}</span>
@@ -203,7 +203,7 @@
             <q-btn
               unelevated
               no-caps
-              color="orange"
+              color="warning"
               label="Finalizar Registro"
               :disable="
                 !store.formularioHabilitado || store.totalPendientes === 0 || store.enviando
@@ -593,18 +593,12 @@ onUnmounted(() => {
 
 /* ── Field labels ───────────────────────────────────────────────────────────── */
 .field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
   display: flex;
   align-items: center;
 }
 
 .field-label--primary {
-  color: #2563eb;
+  color: var(--q-primary);
 }
 
 .rp-field-group {

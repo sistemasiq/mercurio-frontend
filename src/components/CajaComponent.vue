@@ -524,7 +524,6 @@ onBeforeUnmount(() => abortController.abort())
   flex-shrink: 0;
 }
 .caja-header__titulo {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 20px;
   font-weight: 700;
   color: var(--q-primary);

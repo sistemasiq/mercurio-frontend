@@ -79,13 +79,13 @@ onUnmounted(() => {
   height: 100% !important;
   min-height: 100vh;
   padding: 24px;
-  background: #f8fafc;
+  background: var(--bg-main);
 }
 
 .error-card {
   width: 100%;
   max-width: 400px;
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.06),
     0 1px 2px rgba(0, 0, 0, 0.04);

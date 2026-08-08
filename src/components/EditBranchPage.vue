@@ -7,6 +7,7 @@ import type { Branch } from '@/types/branch'
 import type { ApiError } from '@/types/auth'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import { Notify } from 'quasar'
+import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -147,47 +148,45 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
     <q-spinner-dots color="primary" size="40px" />
   </q-page>
 
-  <q-page v-else-if="!branch" padding class="text-center">
+  <q-page v-else-if="!branch" class="page-content q-pa-md q-pa-lg-xl text-center">
     <div class="text-h5 text-grey-7 q-mt-xl">Sucursal no encontrada</div>
     <q-btn
+      unelevated
+      no-caps
       color="primary"
       label="Volver al listado"
       class="q-mt-md"
+      style="border-radius: 8px; font-weight: 600"
       @click="router.push({ name: 'sucursales-listar' })"
     />
   </q-page>
 
-  <q-page v-else padding class="bg-grey-1 branch-edit-page">
-    <div class="row items-start justify-between q-mb-lg header-wrap">
+  <q-page v-else class="page-content q-pa-md q-pa-lg-xl">
+    <div class="row items-start q-mb-lg header-wrap">
       <div class="header-copy">
-        <q-breadcrumbs class="text-grey-7 q-mb-sm" active-color="dark">
-          <q-breadcrumbs-el label="Inicio" />
-          <q-breadcrumbs-el label="Administración" />
-          <q-breadcrumbs-el label="Sucursales" :to="{ name: 'sucursales-listar' }" />
-          <q-breadcrumbs-el :label="branch.nombre" />
-          <q-breadcrumbs-el label="Editar" class="text-weight-bold" />
-        </q-breadcrumbs>
         <div class="row items-center q-gutter-sm q-mb-xs">
-          <h1 class="text-h4 text-weight-bold q-my-none text-dark">{{ branch.nombre }}</h1>
-          <q-badge
-            :color="branch.isActive ? 'positive' : 'negative'"
-            text-color="white"
-            class="status-badge"
-          >
-            <b>{{ branch.isActive ? 'Activa' : 'Inactiva' }}</b>
-          </q-badge>
+          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
+            {{ branch.nombre }}
+          </div>
+          <EstadoBadge
+            :tono="branch.isActive ? 'verde' : 'rojo'"
+            :label="branch.isActive ? 'Activa' : 'Inactiva'"
+          />
         </div>
-        <p class="text-subtitle2 text-grey-7 q-mt-sm q-mb-none">
+        <div class="text-body2" style="color: var(--text-secondary)">
           Clave: <strong>{{ branch.clave ?? '-' }}</strong>
-        </p>
+        </div>
       </div>
+      <q-space />
       <div class="row q-gutter-sm actions-wrap">
-        <q-btn outline color="dark" label="Cancelar" class="btn-cancel" @click="cancelEdit" />
+        <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cancelEdit" />
         <q-btn
+          unelevated
+          no-caps
           color="primary"
           icon="save"
           label="Guardar Cambios"
-          class="btn-save"
+          style="border-radius: 8px; font-weight: 600"
           :loading="loading"
           :disable="!isFormValid || !hasChanges"
           @click="saveChanges"
@@ -216,7 +215,6 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
                   v-model="branchClave"
                   outlined
                   dense
-                  class="field-input"
                   :error="claveError"
                   error-message="La clave de la sucursal es requerida"
                   @blur="claveTouched = true"
@@ -230,7 +228,6 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
                   v-model="branch.nombre"
                   outlined
                   dense
-                  class="field-input"
                   placeholder="Plaza Colibrí"
                   :error="nombreError"
                   error-message="El nombre de la sucursal es requerido"
@@ -239,7 +236,7 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
               </div>
               <div class="col-12">
                 <div class="field-label">Dirección Completa</div>
-                <q-input v-model="branch.direccion" outlined dense class="field-input">
+                <q-input v-model="branch.direccion" outlined dense>
                   <template #prepend><q-icon name="place" color="grey-6" /></template>
                 </q-input>
               </div>
@@ -251,7 +248,6 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
                   v-model="branch.telefono"
                   outlined
                   dense
-                  class="field-input"
                   :error="telefonoError"
                   error-message="El teléfono de contacto es requerido"
                   @blur="telefonoTouched = true"
@@ -261,13 +257,7 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
               </div>
               <div class="col-12 col-md-6">
                 <div class="field-label">Correo Electrónico</div>
-                <q-input
-                  v-model="branchEmail"
-                  outlined
-                  dense
-                  class="field-input"
-                  placeholder="sucursal@example.com"
-                >
+                <q-input v-model="branchEmail" outlined dense placeholder="sucursal@example.com">
                   <template #prepend><q-icon name="mail" color="grey-6" /></template>
                 </q-input>
               </div>
@@ -304,7 +294,6 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
                   :options="adminOptions"
                   :loading="adminLoading"
                   clearable
-                  class="field-input"
                   map-options
                   @filter="filterAdminOptions"
                 >
@@ -321,10 +310,12 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
               <div class="col-12 col-md-4">
                 <q-btn
                   outline
+                  no-caps
                   color="primary"
                   icon="person_add"
-                  label="+ Crear Administrador"
-                  class="full-width btn-new-manager"
+                  label="Crear administrador"
+                  class="full-width"
+                  style="border-radius: 8px; font-weight: 600"
                   @click="router.push({ name: 'usuarios-crear' })"
                 />
               </div>
@@ -352,9 +343,6 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
 </template>
 
 <style scoped>
-.branch-edit-page {
-  color: #111827;
-}
 .header-wrap {
   gap: 16px;
 }
@@ -364,56 +352,22 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
 .actions-wrap {
   flex-shrink: 0;
 }
-.btn-cancel,
-.btn-save {
-  border-radius: 8px;
-  text-transform: none;
-  font-weight: 500;
-  padding: 8px 20px;
-}
 .form-card {
   border-radius: 12px;
-  border-color: #e5e7eb;
-  background: #ffffff;
 }
 .card-header-section {
   padding: 20px 24px 16px;
 }
-.field-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #555;
-  margin-bottom: 6px;
-}
-.field-input--readonly :deep(.q-field__control) {
-  background: #f5f5f5;
-}
-.btn-new-manager {
-  border-radius: 8px;
-  text-transform: none;
-  font-weight: 500;
-  height: 40px;
-}
 .tip-card {
   border-radius: 12px;
-  background-color: #e8f0fe;
-  border: 1px solid #c5d8fb;
-}
-.status-badge {
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  padding-inline: 10px;
+  background-color: rgba(2, 95, 224, 0.06);
+  border: 1px solid rgba(2, 95, 224, 0.2);
 }
 @media (max-width: 1023px) {
   .header-wrap {
     align-items: flex-start;
   }
   .actions-wrap {
-    width: 100%;
-  }
-  .btn-cancel,
-  .btn-save {
     width: 100%;
   }
 }

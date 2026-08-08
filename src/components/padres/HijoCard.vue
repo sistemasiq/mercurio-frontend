@@ -221,8 +221,8 @@ function formatMinutos(min: number): string {
 
 <style scoped>
 .hijo-card {
-  border-radius: 16px;
-  border-color: #e8edf2;
+  border-radius: 12px;
+  border-color: var(--border-color);
   overflow: hidden;
 }
 
@@ -236,7 +236,7 @@ function formatMinutos(min: number): string {
   justify-content: space-between;
   font-size: 11px;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--text-muted);
   margin-top: 6px;
 }
 
@@ -260,19 +260,19 @@ function formatMinutos(min: number): string {
 }
 
 .status-dot.green {
-  background: #22c55e;
+  background: #3fa834;
 }
 
 .status-dot.red {
-  background: #ef4444;
+  background: #dc2626;
 }
 
 .status-dot.orange {
-  background: #f97316;
+  background: #ffc107;
 }
 
 .status-dot.grey {
-  background: #9ca3af;
+  background: var(--text-muted);
 }
 
 /* ── RFID badge ─────────────────────── */
@@ -281,8 +281,8 @@ function formatMinutos(min: number): string {
   align-items: center;
   font-size: 12px;
   font-weight: 500;
-  color: #64748b;
-  background: #f1f5f9;
+  color: var(--text-secondary);
+  background: var(--bg-main);
   padding: 4px 10px;
   border-radius: 8px;
 }
@@ -291,7 +291,7 @@ function formatMinutos(min: number): string {
 .child-name {
   font-size: 20px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0;
   line-height: 1.3;
 }
@@ -299,7 +299,7 @@ function formatMinutos(min: number): string {
 .child-age {
   font-size: 14px;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -317,27 +317,27 @@ function formatMinutos(min: number): string {
 }
 
 .time-banner[data-tone='success'] {
-  background: #ecfdf5;
-  border-color: #bbf7d0;
-  color: #16a34a;
+  background: rgba(63, 168, 52, 0.1);
+  border-color: rgba(63, 168, 52, 0.3);
+  color: #3fa834;
 }
 
 .time-banner[data-tone='danger'] {
-  background: #fef2f2;
-  border-color: #fecaca;
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
   color: #dc2626;
 }
 
 .time-banner[data-tone='warning'] {
-  background: #fff7ed;
-  border-color: #fed7aa;
-  color: #ea580c;
+  background: rgba(255, 193, 7, 0.16);
+  border-color: rgba(255, 193, 7, 0.4);
+  color: #b45309;
 }
 
 .time-banner[data-tone='neutral'] {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #64748b;
+  background: var(--bg-main);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
 }
 
 /* ── Info grid ──────────────────────── */
@@ -348,7 +348,7 @@ function formatMinutos(min: number): string {
 }
 
 .info-item {
-  background: #f8fafc;
+  background: var(--bg-main);
   border-radius: 12px;
   padding: 12px 14px;
 }
@@ -359,7 +359,7 @@ function formatMinutos(min: number): string {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #94a3b8;
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 

@@ -59,8 +59,8 @@ const visibleMethods = computed(() =>
 }
 .method-btn {
   height: 76px;
-  background: #ffffff;
-  border: 1px solid #e1e3e4;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -71,14 +71,14 @@ const visibleMethods = computed(() =>
   transition: all 0.2s;
 }
 .method-btn:hover {
-  background: #f8f9fa;
+  background: var(--bg-main);
 }
 .method-btn.active {
-  border: 2px solid #0059bb;
-  background: #e6f0fa;
+  border: 2px solid #025fe0;
+  background: rgba(2, 95, 224, 0.08);
 }
 .method-label {
   font-size: 14px;
-  color: #414754;
+  color: var(--text-secondary);
 }
 </style>

@@ -153,11 +153,4 @@ const guardar = async () => {
 onMounted(cargar)
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-</style>
+<style scoped></style>
