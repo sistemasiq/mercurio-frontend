@@ -128,8 +128,8 @@
 
             <!-- Leyenda -->
             <div class="cal-legend">
-              <div v-for="item in leyenda" :key="item.estado" class="cal-legend__item">
-                <span class="cal-legend__dot" :class="`cal-chip--${item.estado}`"></span>
+              <div v-for="item in leyenda" :key="item.value" class="cal-legend__item">
+                <span class="cal-legend__dot" :class="`cal-chip--${item.value}`"></span>
                 {{ item.label }}
               </div>
             </div>
@@ -216,6 +216,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useAuthStore } from '@/stores/auth'
+import { ESTADOS_RESERVACION, estadoColorReservacion, estadoLabelReservacion } from '@/utils/estadoReservacion'
 
 const store = useReservacionesStore()
 const authStore = useAuthStore()
@@ -423,31 +424,9 @@ const statIngresos = computed(() => {
 
 // ── Helpers de estado ─────────────────────────────────────────────────────────
 
-const leyenda = [
-  { estado: 'pendiente', label: 'Pendiente' },
-  { estado: 'confirmada', label: 'Confirmada' },
-  { estado: 'en_curso', label: 'En curso' },
-  { estado: 'completada', label: 'Completada' },
-  { estado: 'cancelada', label: 'Cancelada' },
-]
-
-const estadoColor = (estado: string) =>
-  ({
-    pendiente: 'orange',
-    confirmada: 'primary',
-    en_curso: 'purple',
-    completada: 'positive',
-    cancelada: 'grey-5',
-  })[estado] ?? 'grey'
-
-const estadoLabel = (estado: string) =>
-  ({
-    pendiente: 'Pendiente',
-    confirmada: 'Confirmada',
-    en_curso: 'En curso',
-    completada: 'Completada',
-    cancelada: 'Cancelada',
-  })[estado] ?? estado
+const leyenda = ESTADOS_RESERVACION
+const estadoColor = estadoColorReservacion
+const estadoLabel = estadoLabelReservacion
 </script>
 
 <style scoped lang="scss">

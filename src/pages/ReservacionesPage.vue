@@ -70,6 +70,7 @@ import { useRouter } from 'vue-router'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import { estadoColorReservacion, estadoLabelReservacion } from '@/utils/estadoReservacion'
 
 const router = useRouter()
 const store = useReservacionesStore()
@@ -102,23 +103,8 @@ const reservacionesFiltradas = computed(() =>
     : store.reservaciones.filter((r) => r.estado === filtroEstado.value),
 )
 
-const estadoLabel = (estado: string) =>
-  ({
-    pendiente: 'Pendiente',
-    confirmada: 'Confirmada',
-    en_curso: 'En curso',
-    completada: 'Completada',
-    cancelada: 'Cancelada',
-  })[estado] ?? estado
-
-const estadoColor = (estado: string) =>
-  ({
-    pendiente: 'orange',
-    confirmada: 'primary',
-    en_curso: 'purple',
-    completada: 'positive',
-    cancelada: 'grey-5',
-  })[estado] ?? 'grey'
+const estadoLabel = estadoLabelReservacion
+const estadoColor = estadoColorReservacion
 
 const columns: QTableColumn[] = [
   {
