@@ -386,7 +386,6 @@ async function ejecutarEliminacion(motivoCancelacion?: string) {
   gap: 12px;
 }
 .order-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 20px;
   font-weight: 700;
   color: #0f172a;
