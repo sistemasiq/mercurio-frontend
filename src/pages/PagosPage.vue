@@ -76,7 +76,7 @@
           <template #body-cell-estado_pago="props">
             <q-td :props="props">
               <q-badge
-                :color="props.row.estado_pago === 'pagado' ? 'positive' : 'orange'"
+                :color="props.row.estado_pago === 'pagado' ? 'positive' : 'warning'"
                 :label="props.row.estado_pago === 'pagado' ? 'Pagado' : 'Pendiente'"
                 style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
               />

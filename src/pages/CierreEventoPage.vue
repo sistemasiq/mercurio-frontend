@@ -228,7 +228,7 @@
                 <q-btn
                   v-if="!yaCerrado"
                   class="full-width q-mt-md"
-                  color="orange"
+                  color="warning"
                   text-color="white"
                   unelevated
                   no-caps

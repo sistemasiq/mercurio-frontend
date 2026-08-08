@@ -78,10 +78,9 @@
         >
           <template #body-cell-activo="props">
             <q-td :props="props">
-              <q-badge
-                :color="props.row.activo ? 'positive' : 'grey-5'"
+              <EstadoBadge
+                :tono="props.row.activo ? 'verde' : 'gris'"
                 :label="props.row.activo ? 'Activo' : 'Inactivo'"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
               />
             </q-td>
           </template>
@@ -90,11 +89,10 @@
             <q-td :props="props" class="text-right">
               <q-btn
                 flat
-                round
                 dense
-                color="grey-7"
+                color="grey-8"
                 size="sm"
-                class="q-mr-xs"
+                class="action-btn q-mr-xs"
                 @click="abrirDetalle(props.row)"
               >
                 <span class="material-symbols-outlined">visibility</span>
@@ -103,11 +101,10 @@
               <q-btn
                 v-if="puedeEditar"
                 flat
-                round
                 dense
-                color="grey-7"
+                color="grey-8"
                 size="sm"
-                class="q-mr-xs"
+                class="action-btn q-mr-xs"
                 @click="abrirEditar(props.row)"
               >
                 <span class="material-symbols-outlined">edit</span>
@@ -116,10 +113,10 @@
               <q-btn
                 v-if="puedeEliminar && props.row.activo"
                 flat
-                round
                 dense
-                color="red"
+                color="negative"
                 size="sm"
+                class="action-btn"
                 @click="confirmarEliminar(props.row)"
               >
                 <span class="material-symbols-outlined">delete</span>
@@ -128,10 +125,10 @@
               <q-btn
                 v-else-if="puedeEliminar"
                 flat
-                round
                 dense
                 color="positive"
                 size="sm"
+                class="action-btn"
                 @click="reactivar(props.row)"
               >
                 <span class="material-symbols-outlined">restore</span>
@@ -251,10 +248,9 @@
           </div>
           <div>
             <div class="field-label">ESTADO</div>
-            <q-badge
-              :color="filaDetalle.activo ? 'positive' : 'grey-5'"
+            <EstadoBadge
+              :tono="filaDetalle.activo ? 'verde' : 'gris'"
               :label="filaDetalle.activo ? 'Activo' : 'Inactivo'"
-              style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
             />
           </div>
         </q-card-section>
@@ -276,6 +272,7 @@ import { cajaAdminService } from '@/services/cajaAdminService'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import type { CajaAdmin } from '@/types/caja-admin'
+import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 
 const $q = useQuasar()
 const auth = useAuthStore()

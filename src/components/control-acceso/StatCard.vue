@@ -12,7 +12,7 @@ defineProps<{
 </script>
 
 <template>
-  <q-card flat bordered class="stat-card">
+  <q-card flat bordered class="access-stat-card">
     <q-card-section>
       <div class="row items-center justify-between q-mb-sm">
         <span class="stat-label">{{ label }}</span>
@@ -36,7 +36,7 @@ defineProps<{
 </template>
 
 <style scoped>
-.stat-card {
+.access-stat-card {
   border-radius: 12px;
 }
 
@@ -44,7 +44,7 @@ defineProps<{
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #9e9e9e;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -60,7 +60,7 @@ defineProps<{
 .stat-value {
   font-size: 28px;
   font-weight: 700;
-  color: #212121;
+  color: var(--text-primary);
   line-height: 1.1;
 }
 

@@ -376,7 +376,7 @@ function cancelar() {
                 <span class="text-caption text-grey-7">Verde: Dentro de tiempo</span>
               </div>
               <div class="row items-center q-gutter-xs">
-                <q-icon name="circle" color="orange" size="12px" />
+                <q-icon name="circle" color="warning" size="12px" />
                 <span class="text-caption text-grey-7">Naranja: Cerca del límite</span>
               </div>
               <div class="row items-center q-gutter-xs">
@@ -447,7 +447,7 @@ function cancelar() {
               <q-btn
                 v-if="!checkoutScanActive"
                 unelevated
-                color="blue-8"
+                color="primary"
                 icon="nfc"
                 label="Escanear pulsera del tutor"
                 no-caps
@@ -458,7 +458,7 @@ function cancelar() {
               <div v-else class="row items-center justify-between">
                 <q-chip
                   dense
-                  color="blue-8"
+                  color="primary"
                   text-color="white"
                   icon="sensors"
                   label="Esperando escaneo..."
@@ -492,6 +492,7 @@ function cancelar() {
           class="full-width q-mb-sm"
           size="md"
           no-caps
+          style="border-radius: 8px; font-weight: 600"
           :loading="isLoading"
           :disable="!tutorVerified || mostrarModalPagoExtra"
           @click="confirmarSalida"
@@ -524,7 +525,7 @@ function cancelar() {
 
 <style scoped>
 .checkout-page {
-  background: #f7f8fc;
+  background: var(--bg-main);
   min-height: 100vh;
 }
 
@@ -533,7 +534,7 @@ function cancelar() {
 }
 
 .page-icon-wrap {
-  background: #e8f0fe;
+  background: rgba(2, 95, 224, 0.1);
   border-radius: 50%;
   width: 48px;
   height: 48px;
@@ -546,14 +547,14 @@ function cancelar() {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #9e9e9e;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
 .tiempo-card {
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
-  background: #fafafa;
+  background: var(--bg-main);
 }
 
 .hidden-scan-input {

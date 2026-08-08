@@ -137,12 +137,14 @@ function limitAgeInput(value: number | string | null) {
 
       <q-btn
         unelevated
+        no-caps
         color="primary"
         label="Guardar niño"
         icon="save"
         :disable="!canSave"
         dense
         class="full-width q-mt-xs"
+        style="border-radius: 8px; font-weight: 600"
         @click="save"
       />
     </template>

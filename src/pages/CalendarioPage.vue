@@ -216,7 +216,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useAuthStore } from '@/stores/auth'
-import { ESTADOS_RESERVACION, estadoColorReservacion, estadoLabelReservacion } from '@/utils/estadoReservacion'
+import {
+  ESTADOS_RESERVACION,
+  estadoColorReservacion,
+  estadoLabelReservacion,
+} from '@/utils/estadoReservacion'
 
 const store = useReservacionesStore()
 const authStore = useAuthStore()
@@ -523,14 +527,14 @@ const estadoLabel = estadoLabelReservacion
   }
 
   &:hover:not(.cal-cell--other-month) {
-    background: #f0f4ff;
+    background: rgba(2, 95, 224, 0.06);
   }
 
   &--other-month {
-    background: #fafafa;
+    background: var(--bg-main);
     cursor: default;
     .cal-cell__number {
-      color: #c0cfe0;
+      color: var(--text-muted);
     }
   }
 
@@ -546,7 +550,7 @@ const estadoLabel = estadoLabelReservacion
   }
 
   &--selected {
-    background: #eef2ff !important;
+    background: rgba(2, 95, 224, 0.1) !important;
     outline: 2px solid var(--q-primary);
     outline-offset: -2px;
   }
@@ -707,7 +711,7 @@ const estadoLabel = estadoLabelReservacion
   width: 38px;
   min-width: 38px;
   height: 38px;
-  background: #eef2ff;
+  background: rgba(2, 95, 224, 0.1);
   border-radius: 8px;
   color: var(--q-primary);
 }

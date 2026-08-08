@@ -392,7 +392,7 @@ onBeforeUnmount(() => {
 }
 
 .photo-capture-box {
-  border: 2px dashed #1976d2;
+  border: 2px dashed #025fe0;
   border-radius: 8px;
   padding: 20px;
   display: flex;
@@ -400,19 +400,19 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   min-height: 90px;
-  background: #f3f8ff;
+  background: rgba(2, 95, 224, 0.06);
   transition: background 0.2s;
 }
 
 .photo-capture-box:hover {
-  background: #e3f0ff;
+  background: rgba(2, 95, 224, 0.12);
 }
 
 .photo-preview-box {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 8px;
-  background: #fafafa;
+  background: var(--bg-main);
 }
 
 .photo-thumb {

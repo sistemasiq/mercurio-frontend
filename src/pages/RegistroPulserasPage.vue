@@ -203,7 +203,7 @@
             <q-btn
               unelevated
               no-caps
-              color="orange"
+              color="warning"
               label="Finalizar Registro"
               :disable="
                 !store.formularioHabilitado || store.totalPendientes === 0 || store.enviando

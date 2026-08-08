@@ -108,7 +108,7 @@ function goToNewRegistration() {
           :value="store.totalActivos"
           icon="groups"
           icon-color="primary"
-          icon-bg="#e8f0fe"
+          icon-bg="rgba(2, 95, 224, 0.1)"
           caption="+ 15 min restantes"
           caption-color="positive"
           caption-icon="trending_up"
@@ -120,7 +120,7 @@ function goToNewRegistration() {
           :value="store.porExpirar"
           icon="schedule"
           icon-color="orange-9"
-          icon-bg="#fff3e0"
+          icon-bg="rgba(255, 193, 7, 0.16)"
           caption="< 15 min restantes"
           caption-color="orange-9"
         />
@@ -131,7 +131,7 @@ function goToNewRegistration() {
           :value="store.excedidos"
           icon="warning"
           icon-color="negative"
-          icon-bg="#fde8e8"
+          icon-bg="rgba(220, 38, 38, 0.1)"
           caption="Requieren acción"
           caption-color="negative"
         />
@@ -142,7 +142,7 @@ function goToNewRegistration() {
           :value="store.puedeVerPulseras ? `${store.pulserasLibres}` : '—'"
           icon="lock_open"
           icon-color="primary"
-          icon-bg="#e8f0fe"
+          icon-bg="rgba(2, 95, 224, 0.1)"
           :caption="store.puedeVerPulseras ? 'Listas para usar' : 'Sin permiso para ver pulseras'"
           caption-color="grey-7"
         />
@@ -239,7 +239,7 @@ function goToNewRegistration() {
 
 <style scoped>
 .access-page {
-  background: #f7f8fc;
+  background: var(--bg-main);
   min-height: 100vh;
 }
 
@@ -260,7 +260,7 @@ function goToNewRegistration() {
 }
 
 .horizontal-scroll::-webkit-scrollbar-thumb {
-  background: #d0d0d0;
+  background: var(--border-color);
   border-radius: 4px;
 }
 

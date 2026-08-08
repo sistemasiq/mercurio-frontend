@@ -91,7 +91,7 @@ onMounted(async () => {
 /* ── Page ─────────────────────────────────────────── */
 .dashboard-padre {
   min-height: 100vh;
-  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-main) 100%);
   padding: 0;
   padding-bottom: 48px;
 }
@@ -129,8 +129,8 @@ onMounted(async () => {
 
 /* ── Hero card ────────────────────────────────────── */
 .hero-card {
-  background: #fff;
-  border: 1px solid #f1f3f5;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 20px;
   box-shadow:
     0 10px 25px -5px rgba(0, 0, 0, 0.05),
@@ -151,8 +151,8 @@ onMounted(async () => {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #fff;
-  border: 2px solid #f1f3f5;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
@@ -178,7 +178,7 @@ onMounted(async () => {
 .hero-greeting {
   font-size: 14px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0;
   line-height: 1.3;
 }
@@ -186,7 +186,7 @@ onMounted(async () => {
 .hero-name {
   font-size: clamp(20px, 5vw, 26px);
   font-weight: 800;
-  color: #1e40af;
+  color: #025fe0;
   margin: 0 0 4px;
   line-height: 1.2;
   letter-spacing: -0.01em;
@@ -204,22 +204,22 @@ onMounted(async () => {
 
 .hero-meta-brand {
   font-weight: 700;
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .hero-meta-sep {
-  color: #cbd5e1;
+  color: var(--border-color);
 }
 
 .hero-meta-sub {
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .hero-location {
   font-size: 13px;
   font-weight: 500;
-  color: #475569;
+  color: var(--text-secondary);
   margin: 0;
   display: flex;
   align-items: center;
@@ -227,7 +227,7 @@ onMounted(async () => {
 }
 
 .hero-loc-icon {
-  color: #3b82f6;
+  color: #025fe0;
   font-size: 15px;
 }
 
@@ -247,13 +247,13 @@ onMounted(async () => {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0 0 14px;
   padding-left: 4px;
 }
 
 .section-title--muted {
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .children-list {
