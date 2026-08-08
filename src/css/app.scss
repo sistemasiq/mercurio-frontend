@@ -241,6 +241,14 @@ body {
       background: rgba($secondary, 0.1);
       color: $secondary;
     }
+    &--red {
+      background: rgba($negative, 0.1);
+      color: $negative;
+    }
+    &--grey {
+      background: var(--bg-main);
+      color: var(--text-muted);
+    }
   }
 }
 
