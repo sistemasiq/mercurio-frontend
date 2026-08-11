@@ -866,7 +866,7 @@ onMounted(() => {
   extrasStore.cargar(authStore.currentBranchId)
   productosStore.cargar(authStore.currentBranchId)
   tiposEventoStore.cargar()
-  if (!resStore.reservaciones.length) resStore.cargar(authStore.currentBranchId)
+  resStore.cargar(authStore.currentBranchId)
 })
 
 interface BookingCalendarDay {
