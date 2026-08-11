@@ -238,7 +238,7 @@ const store = useReservacionesStore()
 const authStore = useAuthStore()
 onMounted(() => {
   if (!authStore.currentBranchId) return
-  if (!store.reservaciones.length) store.cargar(authStore.currentBranchId)
+  store.cargar(authStore.currentBranchId)
 })
 
 // ── Navegación ────────────────────────────────────────────────────────────────
