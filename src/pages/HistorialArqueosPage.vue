@@ -164,8 +164,10 @@ import { formatDiferencia, formatMXN } from '@/utils/formatoMoneda'
 import { getAvatarColor, getInitials } from '@/utils/avatar'
 import type { ArqueoResumen, FiltrosHistorial } from '@/types/turnoCaja'
 import DetalleArqueoDialog from '@/components/cierre-caja/DetalleArqueoDialog.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const $q = useQuasar()
+const authStore = useAuthStore()
 
 // ── Estado ────────────────────────────────────────────────────────────────
 const items = ref<ArqueoResumen[]>([])
@@ -205,6 +207,7 @@ async function cargar() {
   error.value = null
   try {
     const params: FiltrosHistorial = { page: paginaActual.value, pageSize: PAGE_SIZE }
+    if (authStore.currentBranchId) params.sucursalId = authStore.currentBranchId
     if (filtros.fechaDesde) params.fechaDesde = filtros.fechaDesde
     if (filtros.fechaHasta) params.fechaHasta = filtros.fechaHasta
     if (filtros.cajeroId) params.cajeroId = filtros.cajeroId
