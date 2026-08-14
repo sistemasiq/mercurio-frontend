@@ -258,7 +258,10 @@ const ticketsAgrupados = computed<ElementoRender[]>(() => {
 
   const comboGroups = new Map<string, DetalleComanda[]>()
   for (const d of detalles) {
-    if (d.nombre_combo_padre) {
+    // Un ítem solo se agrupa como parte de un combo cuando la orden lo trajo
+    // así (es_hijo_de + nombre_combo_padre). Los productos vendidos sueltos
+    // jamás deben heredar la etiqueta de un paquete.
+    if (d.nombre_combo_padre && d.es_hijo_de) {
       const arr = comboGroups.get(d.nombre_combo_padre)
       if (arr) arr.push(d)
       else comboGroups.set(d.nombre_combo_padre, [d])
@@ -269,7 +272,7 @@ const ticketsAgrupados = computed<ElementoRender[]>(() => {
   const emittedCombos = new Set<string>()
 
   for (const detalle of detalles) {
-    if (detalle.nombre_combo_padre) {
+    if (detalle.nombre_combo_padre && detalle.es_hijo_de) {
       const key = detalle.nombre_combo_padre
       if (!emittedCombos.has(key)) {
         emittedCombos.add(key)
