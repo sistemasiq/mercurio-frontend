@@ -30,7 +30,7 @@
                 dense
                 no-caps
                 size="sm"
-                color="blue-7"
+                color="primary"
                 icon="content_cut"
                 class="combo-group__split-btn"
                 @click="$emit('split-combo', el.parent)"
@@ -38,24 +38,27 @@
                 <q-tooltip>Dividir para personalizar</q-tooltip>
               </q-btn>
             </div>
-            <div class="combo-group__qty">
-              <q-btn
-                flat
-                dense
-                icon="remove"
-                size="xs"
-                color="grey-7"
-                @click="$emit('cambiar-cantidad', el.parent, -1)"
-              />
-              <span class="combo-group__qty-val">{{ el.parent.cantidad }}</span>
-              <q-btn
-                flat
-                dense
-                icon="add"
-                size="xs"
-                color="grey-7"
-                @click="$emit('cambiar-cantidad', el.parent, 1)"
-              />
+            <div class="combo-group__header-right">
+              <span class="combo-group__precio">${{ precioLinea(el.parent).toFixed(2) }}</span>
+              <div class="combo-group__qty">
+                <q-btn
+                  flat
+                  dense
+                  icon="remove"
+                  size="xs"
+                  color="grey-7"
+                  @click="$emit('cambiar-cantidad', el.parent, -1)"
+                />
+                <span class="combo-group__qty-val">{{ el.parent.cantidad }}</span>
+                <q-btn
+                  flat
+                  dense
+                  icon="add"
+                  size="xs"
+                  color="grey-7"
+                  @click="$emit('cambiar-cantidad', el.parent, 1)"
+                />
+              </div>
             </div>
           </div>
           <div class="combo-group__items">
@@ -84,7 +87,7 @@
         <span class="ticket-panel__total-valor">${{ total.toFixed(2) }}</span>
       </div>
       <q-btn
-        color="green-8"
+        color="positive"
         class="full-width text-weight-bold"
         size="lg"
         unelevated
@@ -166,13 +169,14 @@ const itemsAgrupados = computed<ElementoRender[]>(() => {
   return resultado
 })
 
+function precioLinea(item: ItemTicket): number {
+  return Number(item.subtotal ?? item.producto.precio_unitario * item.cantidad)
+}
+
 const total = computed(() =>
   props.items
     .filter((item) => !item.es_hijo_combo)
-    .reduce(
-      (suma, item) => suma + Number(item.subtotal ?? item.producto.precio_unitario * item.cantidad),
-      0,
-    ),
+    .reduce((suma, item) => suma + precioLinea(item), 0),
 )
 </script>
 
@@ -180,8 +184,8 @@ const total = computed(() =>
 .ticket-panel {
   width: 340px;
   min-width: 340px;
-  background: #fff;
-  border-left: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -190,7 +194,7 @@ const total = computed(() =>
 
 .ticket-panel__header {
   padding: 20px 20px 14px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
   display: flex;
   justify-content: space-between;
@@ -198,16 +202,15 @@ const total = computed(() =>
 }
 
 .ticket-panel__titulo {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .ticket-panel__sub {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--text-muted);
   margin: 3px 0 0 0;
 }
 
@@ -224,8 +227,8 @@ const total = computed(() =>
 
 .ticket-panel__footer {
   padding: 16px 20px;
-  border-top: 1px solid #e2e8f0;
-  background: #fff;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-card);
   flex-shrink: 0;
 }
 
@@ -239,14 +242,13 @@ const total = computed(() =>
 .ticket-panel__total-label {
   font-size: 16px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .ticket-panel__total-valor {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 24px;
   font-weight: 800;
-  color: var(--q-primary, #1976d2);
+  color: var(--q-primary, #025fe0);
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -258,10 +260,10 @@ const total = computed(() =>
 }
 
 .combo-group {
-  border: 1px solid #dbeafe;
-  border-left: 4px solid #2563eb;
+  border: 1px solid rgba(2, 95, 224, 0.25);
+  border-left: 4px solid #025fe0;
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--bg-main);
   overflow: clip;
 }
 
@@ -271,8 +273,8 @@ const total = computed(() =>
   justify-content: space-between;
   gap: 6px;
   padding: 8px 12px;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: rgba(2, 95, 224, 0.08);
+  color: #025fe0;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -292,19 +294,32 @@ const total = computed(() =>
   white-space: nowrap;
 }
 
+.combo-group__header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.combo-group__precio {
+  font-size: 12px;
+  font-weight: 800;
+  color: #025fe0;
+}
+
 .combo-group__split-btn {
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 6px;
-  border: 1px solid #bfdbfe;
-  background: #dbeafe;
+  border: 1px solid rgba(2, 95, 224, 0.3);
+  background: rgba(2, 95, 224, 0.12);
 }
 
 .combo-group__qty {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 6px;
   padding: 1px 4px;
   flex-shrink: 0;
@@ -313,7 +328,7 @@ const total = computed(() =>
 .combo-group__qty-val {
   font-size: 12px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
   min-width: 16px;
   text-align: center;
 }
@@ -326,8 +341,8 @@ const total = computed(() =>
 }
 
 .combo-group__items .ticket-item {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-left: none;
 }
 </style>

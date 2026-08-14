@@ -11,7 +11,7 @@
         max-height: 85vh;
         display: flex;
         flex-direction: row;
-        border-radius: 16px;
+        border-radius: 12px;
         overflow: hidden;
       "
     >
@@ -22,8 +22,9 @@
           display: flex;
           flex-direction: column;
           padding: 16px 20px;
-          background: #ffffff;
-          overflow: hidden;
+          background: var(--bg-card);
+          overflow-y: auto;
+          min-height: 0;
         "
       >
         <div class="row items-center justify-between q-mb-sm">
@@ -40,12 +41,12 @@
           </div>
         </div>
 
-        <MethodSelector v-model="metodoSeleccionado" />
+        <MethodSelector v-model="metodoSeleccionado" :metodos-disponibles="props.metodosPago" />
 
         <div
           style="
-            background: #ffffff;
-            border: 1px solid #e1e3e4;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 16px;
             display: flex;
@@ -66,17 +67,23 @@
       <div
         style="
           flex: 2;
-          background: #f8f9fa;
-          border-left: 1px solid #e1e3e4;
+          background: var(--bg-main);
+          border-left: 1px solid var(--border-color);
           display: flex;
           flex-direction: column;
           overflow: hidden;
         "
       >
-        <div style="padding: 16px 20px; border-bottom: 1px solid #e1e3e4; background: #ffffff">
+        <div
+          style="
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-card);
+          "
+        >
+          <div class="field-label">Celular del cliente (opcional)</div>
           <q-input
             v-model="celularCliente"
-            label="Celular del cliente (opcional)"
             placeholder="10 dígitos"
             outlined
             dense
@@ -86,18 +93,19 @@
             hint="Para acumular puntos de lealtad"
           />
 
-          <q-input
-            v-if="saldoDisponible !== null && saldoDisponible > 0"
-            v-model.number="puntosARedimir"
-            label="Puntos a redimir"
-            outlined
-            dense
-            type="number"
-            min="0"
-            :max="maxPuntosRedimibles"
-            class="q-mb-sm"
-            :hint="`Disponibles: ${saldoDisponible} pts · $${valorPunto?.toFixed(2)} c/u`"
-          />
+          <template v-if="saldoDisponible !== null && saldoDisponible > 0">
+            <div class="field-label">Puntos a redimir</div>
+            <q-input
+              v-model.number="puntosARedimir"
+              outlined
+              dense
+              type="number"
+              min="0"
+              :max="maxPuntosRedimibles"
+              class="q-mb-sm"
+              :hint="`Disponibles: ${saldoDisponible} pts · $${valorPunto?.toFixed(2)} c/u`"
+            />
+          </template>
 
           <div class="row justify-between text-grey-8 text-caption q-mb-xs">
             <span>Subtotal</span>
@@ -120,24 +128,30 @@
           <AppliedPaymentsList :pagos="pagosAplicados" @remove-payment="eliminarPago" />
         </div>
 
-        <div style="padding: 16px; background: #ffffff; border-top: 1px solid #e1e3e4">
+        <div
+          style="
+            padding: 16px;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+          "
+        >
           <!-- ESTADO 1: Hay saldo pendiente -->
           <div
             v-if="saldoPendiente > 0"
             style="
-              background: #e6f4ea;
-              border: 1px solid #4ae183;
+              background: rgba(63, 168, 52, 0.1);
+              border: 1px solid #3fa834;
               border-radius: 10px;
               padding: 12px;
               margin-bottom: 12px;
             "
             class="row justify-between items-center"
           >
-            <div class="row items-center q-gutter-x-sm text-green-9">
+            <div class="row items-center q-gutter-x-sm text-positive">
               <q-icon name="pending" size="sm" />
               <span class="text-subtitle1 text-weight-bold">Saldo Pendiente</span>
             </div>
-            <span class="text-h5 text-weight-bold text-green-9"
+            <span class="text-h5 text-weight-bold text-positive"
               >${{ saldoPendiente.toFixed(2) }}</span
             >
           </div>
@@ -146,8 +160,8 @@
           <div
             v-else
             style="
-              background: #e6f0fa;
-              border: 1px solid #0059bb;
+              background: rgba(2, 95, 224, 0.08);
+              border: 1px solid #025fe0;
               border-radius: 10px;
               padding: 12px;
               margin-bottom: 12px;
@@ -166,8 +180,8 @@
           </div>
 
           <q-btn
-            class="full-width text-subtitle1 text-weight-bold shadow-2"
-            style="border-radius: 10px; height: 50px"
+            class="full-width text-subtitle1 shadow-2"
+            style="border-radius: 8px; font-weight: 600; height: 50px"
             :color="saldoPendiente <= 0 ? 'primary' : 'grey-5'"
             :icon="saldoPendiente <= 0 ? 'receipt_long' : 'lock'"
             :label="saldoPendiente <= 0 ? 'Finalizar Transacción' : 'Falta Pago'"
@@ -195,30 +209,34 @@
           <span class="text-h5 text-weight-bold">${{ tarjetaMontoTemporal.toFixed(2) }}</span>
         </div>
 
+        <div class="field-label">Tipo de tarjeta</div>
         <q-select
           v-model="tarjetaTipo"
           :options="['DEBITO', 'CREDITO']"
-          label="Tipo de Tarjeta"
           outlined
           dense
           class="q-mb-md"
         />
-        <q-input
-          v-model="tarjetaAutorizacion"
-          label="Folio de Autorización"
-          outlined
-          dense
-          autofocus
-        />
+        <div class="field-label">Folio de autorización</div>
+        <q-input v-model="tarjetaAutorizacion" outlined dense autofocus />
       </q-card-section>
 
       <q-card-actions align="right" class="text-primary bg-grey-1 border-top">
-        <q-btn v-close-popup flat label="Cancelar" color="grey-7" @click="limpiarModalTarjeta" />
         <q-btn
           v-close-popup
+          flat
+          no-caps
+          label="Cancelar"
+          color="grey-7"
+          @click="limpiarModalTarjeta"
+        />
+        <q-btn
+          v-close-popup
+          unelevated
+          no-caps
           color="primary"
           label="Agregar Pago"
-          unelevated
+          style="border-radius: 8px; font-weight: 600"
           :disable="!tarjetaTipo || !tarjetaAutorizacion"
           @click="confirmarPagoTarjeta"
         />
@@ -231,6 +249,7 @@
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import type { PaymentProps, AppliedPayment } from '@/types/payments'
+import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { useLealtadStore } from '@/stores/lealtad'
 
@@ -238,7 +257,7 @@ import MethodSelector from './MethodSelector.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import AppliedPaymentsList from './AppliedPaymentsList.vue'
 
-const props = defineProps<PaymentProps & { modelValue: boolean }>()
+const props = defineProps<PaymentProps & { modelValue: boolean; metodosPago: MetodosPago[] }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (
@@ -261,13 +280,29 @@ const puntosARedimir = ref(0)
 const saldoDisponible = ref<number | null>(null)
 const valorPunto = ref<number | null>(null)
 
+// Primera categoría con al menos un método activo de ese tipo en el
+// catálogo real de la sucursal -- no asumir que "Efectivo" siempre existe.
+const primeraCategoriaDisponible = computed(
+  () =>
+    CATEGORIAS_METODO_PAGO.find((cat) =>
+      props.metodosPago.some((m) => m.activo && m.tipo === cat.tipo),
+    )?.valor ?? '',
+)
+
 watch(
   () => props.modelValue,
   (visible) => {
     if (visible && !metodoSeleccionado.value) {
-      metodoSeleccionado.value = 'Efectivo'
+      metodoSeleccionado.value = primeraCategoriaDisponible.value
     }
     if (!visible) {
+      // El componente queda montado en todos sus consumidores (ninguno usa v-if),
+      // así que al cerrar sin finalizar hay que descartar los pagos capturados.
+      // Si no, reaparecen en el siguiente cobro y se aplican como pagos reales
+      // por dinero que nunca se recibió. finalizarPago() ya emitió una copia
+      // antes de cerrar, así que limpiar aquí no le quita nada.
+      pagosAplicados.value = []
+      celularCliente.value = ''
       saldoDisponible.value = null
       valorPunto.value = null
       puntosARedimir.value = 0
@@ -337,7 +372,7 @@ const cambioADevolver = computed(() => {
 })
 
 const iniciarAbono = (monto: number) => {
-  if (monto <= 0) return
+  if (monto <= 0 || !metodoSeleccionado.value) return
 
   if (!esEfectivo(metodoSeleccionado.value) && monto > saldoPendiente.value) {
     $q.notify({
@@ -366,6 +401,12 @@ const confirmarPagoTarjeta = () => {
   limpiarModalTarjeta()
 }
 
+// Date.now() colisiona si se agregan dos pagos dentro del mismo milisegundo, y
+// como eliminarPago() filtra por id, un id repetido borra los dos renglones a la
+// vez. Un contador garantiza que cada pago sea direccionable por separado.
+let contadorPagos = 0
+const nuevoIdPago = () => `pago-${Date.now()}-${++contadorPagos}`
+
 const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: string) => {
   if (esEfectivo(metodoSeleccionado.value)) {
     const existente = pagosAplicados.value.find((p) => esEfectivo(p.method))
@@ -376,7 +417,7 @@ const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: 
     }
   }
   pagosAplicados.value.push({
-    id: Date.now().toString(),
+    id: nuevoIdPago(),
     method: metodoSeleccionado.value,
     amount: monto,
     timestamp: new Date(),

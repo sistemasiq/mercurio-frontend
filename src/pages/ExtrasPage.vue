@@ -1,7 +1,12 @@
 <template>
-  <q-page padding class="q-pa-lg">
-    <div class="row items-center q-mb-md">
-      <div class="text-h5 text-weight-bold">Extras</div>
+  <q-page class="page-content q-pa-md q-pa-lg-xl">
+    <div class="row items-center q-mb-lg">
+      <div>
+        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Extras</div>
+        <div class="text-body2" style="color: var(--text-secondary)">
+          Catálogo de extras disponibles para reservaciones.
+        </div>
+      </div>
       <q-space />
       <q-btn
         color="primary"
@@ -9,9 +14,23 @@
         label="Nuevo Extra"
         unelevated
         no-caps
+        :disable="!authStore.currentBranchId"
+        style="border-radius: 8px; font-weight: 600"
         @click="abrirCrear"
       />
     </div>
+
+    <!-- Sin sucursal activa -->
+    <q-banner
+      v-if="!authStore.currentBranchId"
+      dense
+      rounded
+      class="bg-orange-1 text-orange-9 q-mb-md"
+      style="border-radius: 10px"
+    >
+      <template #avatar><q-icon name="info" color="orange-9" /></template>
+      No hay una sucursal activa en la sesión.
+    </q-banner>
 
     <q-banner
       v-if="store.error"
@@ -27,7 +46,7 @@
       </template>
     </q-banner>
 
-    <q-card flat bordered>
+    <q-card flat bordered style="border-radius: 12px; overflow: hidden">
       <q-table
         :rows="store.extras"
         :columns="columns"
@@ -36,14 +55,15 @@
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
         no-data-label="No hay extras registrados"
+        class="fec-table"
       >
         <template #body-cell-precio="props">
           <q-td :props="props"> ${{ Number(props.row.precio).toFixed(2) }} </q-td>
         </template>
 
-        <template #body-cell-sucursal_id="props">
-          <q-td :props="props">
-            {{ props.row.sucursal_id ? 'Solo esta sucursal' : 'Global' }}
+        <template #body-cell-descripcion="props">
+          <q-td :props="props" class="cell-truncate" :title="props.row.descripcion ?? ''">
+            {{ props.row.descripcion }}
           </q-td>
         </template>
 
@@ -61,37 +81,37 @@
           <q-td :props="props" class="text-right">
             <q-btn
               flat
-              round
               dense
-              icon="edit"
-              color="primary"
+              color="grey-8"
               size="sm"
-              class="q-mr-xs"
+              class="action-btn q-mr-xs"
               @click="abrirEditar(props.row)"
             >
+              <span class="material-symbols-outlined">edit</span>
               <q-tooltip>Editar</q-tooltip>
             </q-btn>
             <q-btn
               flat
-              round
               dense
-              :icon="props.row.activo ? 'toggle_on' : 'toggle_off'"
-              :color="props.row.activo ? 'positive' : 'grey-5'"
+              color="grey-8"
               size="sm"
-              class="q-mr-xs"
+              class="action-btn q-mr-xs"
               @click="toggleActivo(props.row)"
             >
+              <span class="material-symbols-outlined">{{
+                props.row.activo ? 'toggle_on' : 'toggle_off'
+              }}</span>
               <q-tooltip>{{ props.row.activo ? 'Desactivar' : 'Activar' }}</q-tooltip>
             </q-btn>
             <q-btn
               flat
-              round
               dense
-              icon="delete_outline"
-              color="negative"
+              color="grey-8"
               size="sm"
+              class="action-btn"
               @click="confirmarEliminar(props.row)"
             >
+              <span class="material-symbols-outlined">delete_outline</span>
               <q-tooltip>Eliminar</q-tooltip>
             </q-btn>
           </q-td>
@@ -145,13 +165,6 @@
               emit-value
               map-options
               :options="UNIDAD_OPTIONS"
-            />
-          </div>
-          <div v-if="authStore.currentBranchId">
-            <q-checkbox
-              v-model="formDialog.global"
-              label="Disponible en todas las sucursales (global)"
-              dense
             />
           </div>
           <div>
@@ -230,7 +243,10 @@ const UNIDAD_OPTIONS = [
   { label: 'Por hora', value: 'hora' },
 ]
 
-const cargar = () => store.cargar(authStore.currentBranchId ?? undefined)
+const cargar = () => {
+  if (!authStore.currentBranchId) return
+  store.cargar(authStore.currentBranchId)
+}
 
 onMounted(cargar)
 
@@ -238,7 +254,6 @@ const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
   { name: 'precio', label: 'PRECIO', field: 'precio', align: 'left', sortable: true },
   { name: 'unidad', label: 'UNIDAD', field: 'unidad', align: 'left' },
-  { name: 'sucursal_id', label: 'ALCANCE', field: 'sucursal_id', align: 'left' },
   { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
@@ -256,12 +271,11 @@ const formDialog = ref({
   precio: 0,
   unidad: 'evento' as 'evento' | 'persona' | 'hora',
   descripcion: '',
-  global: false,
 })
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', precio: 0, unidad: 'evento', descripcion: '', global: false }
+  formDialog.value = { nombre: '', precio: 0, unidad: 'evento', descripcion: '' }
   dialogOpen.value = true
 }
 
@@ -272,7 +286,6 @@ const abrirEditar = (row: Extras) => {
     precio: Number(row.precio),
     unidad: row.unidad,
     descripcion: row.descripcion ?? '',
-    global: row.sucursal_id === null,
   }
   dialogOpen.value = true
 }
@@ -306,7 +319,7 @@ const guardar = async () => {
       })
       $q.notify({ type: 'positive', message: 'Extra actualizado', position: 'top-right' })
     } else {
-      if (!formDialog.value.global && !authStore.currentBranchId) {
+      if (!authStore.currentBranchId && !authStore.hasRole('AdministradorSistema')) {
         $q.notify({
           type: 'negative',
           message: 'No hay una sucursal activa en la sesión.',
@@ -319,7 +332,7 @@ const guardar = async () => {
         precio: String(formDialog.value.precio),
         unidad: formDialog.value.unidad,
         descripcion: formDialog.value.descripcion.trim() || null,
-        sucursal_id: formDialog.value.global ? null : (authStore.currentBranchId ?? null),
+        sucursal_id: authStore.currentBranchId ?? null,
       })
       $q.notify({ type: 'positive', message: 'Extra creado', position: 'top-right' })
     }
@@ -384,13 +397,4 @@ const ejecutarEliminar = async () => {
 }
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-</style>
+<style scoped></style>

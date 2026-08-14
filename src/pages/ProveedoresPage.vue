@@ -1,6 +1,6 @@
 <template>
   <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 900px; margin: 0 auto">
+    <div>
       <!-- Encabezado -->
       <div class="row items-center q-mb-lg">
         <div>
@@ -63,7 +63,10 @@
         >
           <template #body-cell-activo="props">
             <q-td :props="props">
-              <ProductoBadgeEstado :activo="props.row.activo" />
+              <EstadoBadge
+                :tono="props.row.activo ? 'verde' : 'rojo'"
+                :label="props.row.activo ? 'Activo' : 'Inactivo'"
+              />
             </q-td>
           </template>
 
@@ -207,7 +210,7 @@ import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
-import ProductoBadgeEstado from '@/components/productos/ProductoBadgeEstado.vue'
+import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProveedoresStore } from '@/stores/proveedores'
 import type { Proveedor } from '@/types/proveedor'
@@ -339,27 +342,4 @@ const ejecutarEliminar = async () => {
 }
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
-.action-btn {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-
-.material-symbols-outlined {
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 20;
-  font-size: 20px;
-  line-height: 1;
-  text-transform: none;
-}
-</style>
+<style scoped></style>

@@ -1,10 +1,38 @@
 <template>
-  <q-page padding class="q-pa-lg">
-    <div class="row items-center q-mb-md">
-      <div class="text-h5 text-weight-bold">Tipos de Evento</div>
+  <q-page class="page-content q-pa-md q-pa-lg-xl">
+    <div class="row items-center q-mb-lg">
+      <div>
+        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
+          Tipos de Evento
+        </div>
+        <div class="text-body2" style="color: var(--text-secondary)">
+          Catálogo de tipos de evento disponibles para reservaciones.
+        </div>
+      </div>
       <q-space />
-      <q-btn color="primary" icon="add" label="Nuevo Tipo" unelevated no-caps @click="abrirCrear" />
+      <q-btn
+        color="primary"
+        icon="add"
+        label="Nuevo Tipo"
+        unelevated
+        no-caps
+        style="border-radius: 8px; font-weight: 600"
+        :disable="!authStore.currentBranchId"
+        @click="abrirCrear"
+      />
     </div>
+
+    <!-- Sin sucursal activa -->
+    <q-banner
+      v-if="!authStore.currentBranchId"
+      dense
+      rounded
+      class="bg-orange-1 text-orange-9 q-mb-md"
+      style="border-radius: 10px"
+    >
+      <template #avatar><q-icon name="info" color="orange-9" /></template>
+      No hay una sucursal activa en la sesión.
+    </q-banner>
 
     <q-banner
       v-if="store.error"
@@ -20,7 +48,7 @@
       </template>
     </q-banner>
 
-    <q-card flat bordered>
+    <q-card flat bordered style="border-radius: 12px; overflow: hidden">
       <q-table
         :rows="store.tipos"
         :columns="columns"
@@ -29,10 +57,11 @@
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
         no-data-label="No hay tipos de evento registrados"
+        class="fec-table"
       >
-        <template #body-cell-sucursal_id="props">
-          <q-td :props="props">
-            {{ props.row.sucursal_id ? 'Solo esta sucursal' : 'Global' }}
+        <template #body-cell-descripcion="props">
+          <q-td :props="props" class="cell-truncate" :title="props.row.descripcion ?? ''">
+            {{ props.row.descripcion }}
           </q-td>
         </template>
 
@@ -50,37 +79,37 @@
           <q-td :props="props" class="text-right">
             <q-btn
               flat
-              round
               dense
-              icon="edit"
-              color="primary"
+              color="grey-8"
               size="sm"
-              class="q-mr-xs"
+              class="action-btn q-mr-xs"
               @click="abrirEditar(props.row)"
             >
+              <span class="material-symbols-outlined">edit</span>
               <q-tooltip>Editar</q-tooltip>
             </q-btn>
             <q-btn
               flat
-              round
               dense
-              :icon="props.row.activo ? 'toggle_on' : 'toggle_off'"
-              :color="props.row.activo ? 'positive' : 'grey-5'"
+              color="grey-8"
               size="sm"
-              class="q-mr-xs"
+              class="action-btn q-mr-xs"
               @click="toggleActivo(props.row)"
             >
+              <span class="material-symbols-outlined">{{
+                props.row.activo ? 'toggle_on' : 'toggle_off'
+              }}</span>
               <q-tooltip>{{ props.row.activo ? 'Desactivar' : 'Activar' }}</q-tooltip>
             </q-btn>
             <q-btn
               flat
-              round
               dense
-              icon="delete_outline"
-              color="negative"
+              color="grey-8"
               size="sm"
+              class="action-btn"
               @click="confirmarEliminar(props.row)"
             >
+              <span class="material-symbols-outlined">delete_outline</span>
               <q-tooltip>Eliminar</q-tooltip>
             </q-btn>
           </q-td>
@@ -110,13 +139,6 @@
               autofocus
               placeholder="Ej. Cumpleaños"
               :rules="[(v) => !!v || 'El nombre es requerido']"
-            />
-          </div>
-          <div v-if="authStore.currentBranchId">
-            <q-checkbox
-              v-model="formDialog.global"
-              label="Disponible en todas las sucursales (global)"
-              dense
             />
           </div>
           <div>
@@ -189,12 +211,13 @@ const $q = useQuasar()
 const authStore = useAuthStore()
 const store = useTiposEventoStore()
 
-onMounted(() => store.cargar())
+onMounted(() => {
+  if (authStore.currentBranchId) store.cargar()
+})
 
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
   { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
-  { name: 'sucursal_id', label: 'ALCANCE', field: 'sucursal_id', align: 'left' },
   { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
   { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
 ]
@@ -206,11 +229,11 @@ const editando = ref<Tipos_evento | null>(null)
 const guardando = ref(false)
 const nombreRef = ref()
 
-const formDialog = ref({ nombre: '', descripcion: '', global: false })
+const formDialog = ref({ nombre: '', descripcion: '' })
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', descripcion: '', global: false }
+  formDialog.value = { nombre: '', descripcion: '' }
   dialogOpen.value = true
 }
 
@@ -219,7 +242,6 @@ const abrirEditar = (row: Tipos_evento) => {
   formDialog.value = {
     nombre: row.nombre,
     descripcion: row.descripcion ?? '',
-    global: row.sucursal_id === null,
   }
   dialogOpen.value = true
 }
@@ -234,7 +256,7 @@ const guardar = async () => {
     nombreRef.value?.validate()
     return
   }
-  if (!formDialog.value.global && !authStore.currentBranchId) {
+  if (!authStore.currentBranchId && !authStore.hasRole('AdministradorSistema')) {
     $q.notify({
       type: 'negative',
       message: 'No hay una sucursal activa en la sesión.',
@@ -254,7 +276,7 @@ const guardar = async () => {
     } else {
       await store.crearTipoEvento({
         ...body,
-        sucursal_id: formDialog.value.global ? null : authStore.currentBranchId,
+        sucursal_id: authStore.currentBranchId,
       })
       $q.notify({ type: 'positive', message: 'Tipo de evento creado', position: 'top-right' })
     }
@@ -319,13 +341,4 @@ const ejecutarEliminar = async () => {
 }
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-</style>
+<style scoped></style>

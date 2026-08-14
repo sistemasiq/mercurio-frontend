@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useSucursalesStore } from '@/stores/sucursales'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
 
 interface NavItem {
@@ -17,12 +19,31 @@ interface NavGroup {
 }
 
 const auth = useAuthStore()
+const turno = useTurnoCajaStore()
+const sucursalesStore = useSucursalesStore()
 const router = useRouter()
 const route = useRoute()
 
 const leftOpen = ref(true)
 
-const navGroups: NavGroup[] = [
+const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed'
+const sidebarCollapsed = ref(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1')
+
+watch(sidebarCollapsed, (collapsed) => {
+  localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0')
+})
+
+function toggleSidebar(): void {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
+
+// El Administrador de sucursal no opera la caja directamente (apertura/cierre/venta) —
+// solo el AdministradorSistema y el Cajero. Su única vista de este módulo es el historial.
+const esAdminDeSucursal = computed(
+  () => auth.hasRole('Administrador') && !auth.hasRole('AdministradorSistema'),
+)
+
+const navGroups = computed<NavGroup[]>(() => [
   {
     label: null,
     items: [{ label: 'Inicio', icon: 'home', routeName: 'home' }],
@@ -30,7 +51,34 @@ const navGroups: NavGroup[] = [
   {
     label: 'OPERACIÓN',
     items: [
-      { label: 'Caja', icon: 'point_of_sale', routeName: 'pos-caja', permission: 'pos:acceder' },
+      ...(esAdminDeSucursal.value
+        ? []
+        : [
+            {
+              label: 'Caja (POS)',
+              icon: 'point_of_sale',
+              routeName: 'pos-caja',
+              permission: 'pos:acceder',
+            },
+            {
+              label: 'Apertura y Cierre',
+              icon: 'key',
+              routeName: 'pos-cierre',
+              permission: 'pos:acceder',
+            },
+          ]),
+      {
+        label: 'Historial de Arqueos',
+        icon: 'receipt_long',
+        routeName: 'pos-historial-arqueos',
+        permission: 'turnos_caja:historial',
+      },
+      {
+        label: 'Historial de Ventas',
+        icon: 'receipt',
+        routeName: 'pos-historial',
+        permission: 'restaurante:registrar_pago',
+      },
       {
         label: 'Cocina',
         icon: 'restaurant',
@@ -49,23 +97,6 @@ const navGroups: NavGroup[] = [
         routeName: 'estancias-pulseras',
         permission: 'pulseras:listar',
       },
-      {
-        label: 'Registro de Pulseras',
-        icon: 'qr_code_scanner',
-        routeName: 'estancias-pulseras-registro',
-        permission: 'pulseras:crear',
-      },
-    ],
-  },
-  {
-    label: 'POS',
-    items: [
-      {
-        label: 'Historial',
-        icon: 'receipt_long',
-        routeName: 'pos-historial',
-        permission: 'restaurante:registrar_pago',
-      },
     ],
   },
   {
@@ -82,12 +113,6 @@ const navGroups: NavGroup[] = [
         icon: 'event_note',
         routeName: 'eventos-reservaciones',
         permission: 'reservaciones:listar',
-      },
-      {
-        label: 'Nueva Reservación',
-        icon: 'add_circle_outline',
-        routeName: 'eventos-reservaciones-crear',
-        permission: 'reservaciones:crear',
       },
       {
         label: 'Calendario',
@@ -117,7 +142,7 @@ const navGroups: NavGroup[] = [
       },
       {
         label: 'Paquetes',
-        icon: 'inventory_2',
+        icon: 'card_giftcard',
         routeName: 'paquetes-listar',
         permission: 'paquetes:crear',
       },
@@ -133,17 +158,17 @@ const navGroups: NavGroup[] = [
         routeName: 'metodos-pago-listar',
         permission: 'metodos_pago:crear',
       },
+    ],
+  },
+  {
+    label: 'INVENTARIO',
+    items: [
       {
         label: 'Productos',
         icon: 'liquor',
         routeName: 'productos-listar',
         permission: 'inventario:gestionar_productos',
       },
-    ],
-  },
-  {
-    label: 'INVENTARIO',
-    items: [
       {
         label: 'Insumos',
         icon: 'inventory_2',
@@ -164,7 +189,7 @@ const navGroups: NavGroup[] = [
       },
       {
         label: 'Reporte de Stock',
-        icon: 'query_stats',
+        icon: 'bar_chart',
         routeName: 'reportes-inventario',
         permission: 'reportes:inventario',
       },
@@ -187,7 +212,7 @@ const navGroups: NavGroup[] = [
       },
       {
         label: 'Reporte',
-        icon: 'query_stats',
+        icon: 'insights',
         routeName: 'lealtad-reporte',
         permission: 'lealtad:ver_reporte',
       },
@@ -215,21 +240,33 @@ const navGroups: NavGroup[] = [
         permission: 'permisos:ver',
       },
       {
+        label: 'Horarios',
+        icon: 'schedule',
+        routeName: 'admin-horarios',
+        permission: 'horarios:listar',
+      },
+      {
+        label: 'Cajas',
+        icon: 'point_of_sale',
+        routeName: 'admin-cajas',
+        permission: 'cajas:crear',
+      },
+      {
         label: 'Reportes',
-        icon: 'query_stats',
+        icon: 'analytics',
         routeName: 'reportes-dashboard',
         permission: 'reportes:dashboard',
       },
     ],
   },
-]
+])
 
 function isVisible(item: NavItem): boolean {
   return !item.permission || auth.hasPermission(item.permission)
 }
 
 const visibleGroups = computed(() =>
-  navGroups
+  navGroups.value
     .map((group) => ({ ...group, items: group.items.filter(isVisible) }))
     .filter((group) => group.items.length > 0),
 )
@@ -239,6 +276,44 @@ const userColor = computed(() => getAvatarColor(auth.currentUser?.name ?? ''))
 const userName = computed(() => auth.currentUser?.name ?? auth.currentUser?.email ?? '')
 const userRole = computed(() => auth.primaryRole ?? '')
 const branchName = computed(() => auth.currentBranchName ?? '')
+
+// ── Selector de sucursal para AdministradorSistema ──────────────────────────
+// No tiene sucursal propia; este selector le permite "pararse" en una para
+// ver sus catálogos/listados (reservaciones, inventario, etc.) sin tener que
+// cerrar sesión y volver a entrar como si fuera de esa sucursal.
+const sucursalOptions = computed(() =>
+  sucursalesStore.activas.map((s) => ({ label: s.nombre, value: s.id })),
+)
+
+function onSucursalVistaChange(sucursalId: string | null): void {
+  auth.setViewingBranch(sucursalId)
+}
+
+// Estado de apertura de caja visible en cualquier pantalla, no solo dentro del
+// módulo de caja — solo aplica al Cajero, que es a quien RN-CIE-001 bloquea de
+// vender/cobrar (comandas, check-in/checkout, eventos) sin turno OPERANDO.
+const mostrarEstadoTurno = computed(() => auth.hasRole('Cajero'))
+
+const estadoTurnoInfo = computed(() => {
+  if (turno.estaOperando) {
+    return { label: 'Caja Abierta', clase: 'estado-turno--abierta', icon: 'lock_open' }
+  }
+  if (turno.sinTurno) {
+    return { label: 'Sin Apertura de Caja', clase: 'estado-turno--cerrada', icon: 'lock' }
+  }
+  // EN_CONTEO / ESPERANDO_REVISION / BALANCE_REVELADO / CERRADO: hay un turno,
+  // pero tampoco se puede vender mientras no vuelva a OPERANDO.
+  return { label: 'En Corte de Caja', clase: 'estado-turno--corte', icon: 'hourglass_empty' }
+})
+
+onMounted(() => {
+  if (mostrarEstadoTurno.value) {
+    turno.cargarTurnoActivo()
+  }
+  if (auth.isSistema) {
+    sucursalesStore.cargar()
+  }
+})
 
 function isActive(routeName: string): boolean {
   return route.name === routeName
@@ -257,15 +332,20 @@ async function handleLogout(): Promise<void> {
       v-model="leftOpen"
       side="left"
       :width="230"
+      :mini="sidebarCollapsed"
+      :mini-width="64"
       :breakpoint="0"
       show-if-above
       class="sb-drawer"
+      :class="{ 'sb-drawer--collapsed': sidebarCollapsed }"
     >
       <div class="sb-root">
         <!-- Nav -->
         <div class="sb-nav-scroll">
           <template v-for="group in visibleGroups" :key="group.label ?? 'root'">
-            <div v-if="group.label" class="sb-section-label">{{ group.label }}</div>
+            <div v-if="group.label && !sidebarCollapsed" class="sb-section-label">
+              {{ group.label }}
+            </div>
             <q-list class="sb-nav" padding>
               <q-item
                 v-for="item in group.items"
@@ -279,10 +359,31 @@ async function handleLogout(): Promise<void> {
                 <q-item-section avatar>
                   <q-icon :name="item.icon" size="18px" />
                 </q-item-section>
-                <q-item-section>{{ item.label }}</q-item-section>
+                <q-item-section v-if="!sidebarCollapsed">{{ item.label }}</q-item-section>
+                <q-tooltip v-if="sidebarCollapsed" anchor="center right" self="center left">
+                  {{ item.label }}
+                </q-tooltip>
               </q-item>
             </q-list>
           </template>
+        </div>
+
+        <!-- Colapsar/expandir -->
+        <div class="sb-collapse-toggle">
+          <q-btn
+            flat
+            dense
+            round
+            :icon="sidebarCollapsed ? 'chevron_right' : 'chevron_left'"
+            size="sm"
+            class="sb-collapse-btn"
+            :aria-label="sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'"
+            @click="toggleSidebar"
+          >
+            <q-tooltip anchor="center right" self="center left">
+              {{ sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú' }}
+            </q-tooltip>
+          </q-btn>
         </div>
       </div>
     </q-drawer>
@@ -298,9 +399,35 @@ async function handleLogout(): Promise<void> {
         <q-space />
 
         <div class="header-actions">
-          <div v-if="branchName" class="header-branch">
+          <q-select
+            v-if="auth.isSistema"
+            :model-value="auth.viewingBranchId"
+            :options="sucursalOptions"
+            option-label="label"
+            option-value="value"
+            emit-value
+            map-options
+            clearable
+            dense
+            outlined
+            options-dense
+            behavior="menu"
+            placeholder="Ver todas las sucursales"
+            class="header-branch-select"
+            @update:model-value="onSucursalVistaChange"
+          >
+            <template #prepend>
+              <q-icon name="store" size="18px" />
+            </template>
+          </q-select>
+          <div v-else-if="branchName" class="header-branch">
             <q-icon name="store" size="18px" />
             <span>{{ branchName }}</span>
+          </div>
+
+          <div v-if="mostrarEstadoTurno" class="header-branch" :class="estadoTurnoInfo.clase">
+            <q-icon :name="estadoTurnoInfo.icon" size="18px" />
+            <span>{{ estadoTurnoInfo.label }}</span>
           </div>
 
           <div class="header-divider" />
@@ -319,7 +446,7 @@ async function handleLogout(): Promise<void> {
             flat
             round
             dense
-            class="action-btn action-btn--logout"
+            class="header-action-btn header-action-btn--logout"
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
             @click="handleLogout"
@@ -332,7 +459,12 @@ async function handleLogout(): Promise<void> {
 
     <!-- ── Contenido ──────────────────────────────────────── -->
     <q-page-container class="page-bg">
-      <router-view />
+      <!-- key por sucursal: la mayoría de las páginas piden sus datos una sola
+           vez en onMounted. Cuando AdministradorSistema cambia de sucursal en
+           el selector del header, esto fuerza a Vue a destruir y volver a
+           montar la página activa (vuelve a correr onMounted) en vez de
+           necesitar un refresh manual del navegador. -->
+      <router-view :key="auth.currentBranchId ?? 'todas'" />
     </q-page-container>
   </q-layout>
 </template>
@@ -340,8 +472,8 @@ async function handleLogout(): Promise<void> {
 <style scoped>
 /* ── Sidebar ─────────────────────────────────────────────── */
 .sb-drawer :deep(.q-drawer) {
-  background: #ffffff !important;
-  border-right: 1px solid #e2e8f0 !important;
+  background: var(--bg-card) !important;
+  border-right: 1px solid var(--border-color) !important;
   box-shadow: none !important;
 }
 
@@ -349,6 +481,31 @@ async function handleLogout(): Promise<void> {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.sb-drawer :deep(.q-drawer) {
+  transition: width 0.15s ease;
+}
+
+.sb-collapse-toggle {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.sb-drawer--collapsed .sb-collapse-toggle {
+  justify-content: center;
+}
+
+.sb-collapse-btn {
+  color: var(--text-muted) !important;
+}
+
+.sb-collapse-btn:hover {
+  color: var(--text-primary) !important;
+  background: var(--bg-main) !important;
 }
 
 .sb-nav-scroll {
@@ -360,7 +517,7 @@ async function handleLogout(): Promise<void> {
 .sb-section-label {
   font-size: 10px;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--text-muted);
   letter-spacing: 0.08em;
   padding: 16px 20px 6px;
 }
@@ -374,7 +531,7 @@ async function handleLogout(): Promise<void> {
   margin-bottom: 2px;
   min-height: 40px !important;
   padding: 0 10px !important;
-  color: #475569 !important;
+  color: var(--text-secondary) !important;
   font-size: 13.5px !important;
   font-weight: 500 !important;
   transition:
@@ -383,21 +540,21 @@ async function handleLogout(): Promise<void> {
 }
 
 .sb-item :deep(.q-icon) {
-  color: #94a3b8 !important;
+  color: var(--text-muted) !important;
   transition: color 0.12s;
 }
 
 .sb-item:hover {
-  background: #f8fafc !important;
-  color: #1e293b !important;
+  background: var(--bg-main) !important;
+  color: var(--text-primary) !important;
 }
 
 .sb-item:hover :deep(.q-icon) {
-  color: #64748b !important;
+  color: var(--text-secondary) !important;
 }
 
 .sb-item--active {
-  background: #eff6ff !important;
+  background: rgba(2, 95, 224, 0.08) !important;
   color: #025fe0 !important;
   font-weight: 600 !important;
   border-left: 3px solid #025fe0;
@@ -408,12 +565,27 @@ async function handleLogout(): Promise<void> {
   color: #025fe0 !important;
 }
 
+.sb-drawer--collapsed .sb-item {
+  justify-content: center;
+  padding: 0 !important;
+}
+
+.sb-drawer--collapsed .sb-item--active {
+  border-left: none;
+  border-radius: 8px !important;
+}
+
+.sb-drawer--collapsed .sb-item :deep(.q-item__section--avatar) {
+  min-width: 0;
+  padding: 0;
+}
+
 /* ── Header ─────────────────────────────────────────────── */
 .app-header {
-  background: #ffffff !important;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-card) !important;
+  border-bottom: 1px solid var(--border-color);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
-  color: #1e293b !important;
+  color: var(--text-primary) !important;
 }
 
 .app-toolbar {
@@ -426,7 +598,7 @@ async function handleLogout(): Promise<void> {
   align-items: center;
   font-size: 14px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   flex: 0 0 auto;
   gap: 8px;
 }
@@ -450,34 +622,65 @@ async function handleLogout(): Promise<void> {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 8px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--bg-main);
+  color: var(--text-secondary);
   font-size: 12.5px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-.action-btn {
-  color: #64748b !important;
+.header-branch-select {
+  width: 220px;
+  font-size: 12.5px;
+}
+
+.header-branch-select :deep(.q-field__control) {
+  min-height: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-main);
+}
+
+.header-branch-select :deep(.q-field__marginal) {
+  height: 32px;
+}
+
+.estado-turno--abierta {
+  background: rgba(63, 168, 52, 0.12);
+  color: #3fa834;
+}
+
+.estado-turno--cerrada {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+}
+
+.estado-turno--corte {
+  background: rgba(255, 193, 7, 0.16);
+  color: #b45309;
+}
+
+.header-action-btn {
+  color: var(--text-secondary) !important;
   transition:
     color 0.12s,
     background 0.12s;
 }
 
-.action-btn:hover {
-  color: #1e293b !important;
-  background: #f1f5f9 !important;
+.header-action-btn:hover {
+  color: var(--text-primary) !important;
+  background: var(--bg-main) !important;
 }
 
-.action-btn--logout:hover {
+.header-action-btn--logout:hover {
   color: #dc2626 !important;
-  background: #fff1f2 !important;
+  background: rgba(220, 38, 38, 0.08) !important;
 }
 
 .header-divider {
   width: 1px;
   height: 24px;
-  background: #e2e8f0;
+  background: var(--border-color);
   margin: 0 8px;
   flex-shrink: 0;
 }
@@ -507,19 +710,19 @@ async function handleLogout(): Promise<void> {
 .header-user-name {
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   line-height: 1.2;
   white-space: nowrap;
 }
 
 .header-user-role {
   font-size: 10.5px;
-  color: #94a3b8;
+  color: var(--text-muted);
   line-height: 1.2;
 }
 
 /* ── Page container ──────────────────────────────────────── */
 .page-bg {
-  background: #f1f5f9;
+  background: var(--bg-main);
 }
 </style>

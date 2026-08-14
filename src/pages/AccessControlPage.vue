@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useEstanciasSocket } from '@/composables/useEstanciasSocket'
 import type { EstanciaWsMessage } from '@/types/estancia'
 import StatCard from '@/components/control-acceso/StatCard.vue'
@@ -11,14 +12,16 @@ import ActiveChildCard from '@/components/control-acceso/ActiveChildCard.vue'
 const POLLING_FALLBACK_MS = 15000
 
 const store = useAccessControlStore()
+const turno = useTurnoCajaStore()
 const router = useRouter()
 
 const scrollContainer = ref<HTMLElement | null>(null)
-const fallbackIntervalId = ref<ReturnType<typeof setInterval> | null>(null)
+const fallbackIntervalId = ref<number | null>(null)
 
 onMounted(() => {
   store.loadActivos()
   store.startTicking()
+  void turno.cargarTurnoActivo()
 })
 
 onUnmounted(() => {
@@ -70,6 +73,10 @@ function scrollByCards(direction: 1 | -1) {
 }
 
 function goToNewRegistration() {
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
   router.push({ name: 'estancias-registro-infantes' })
 }
 </script>
@@ -89,7 +96,6 @@ function goToNewRegistration() {
         icon="person_add"
         label="Nuevo Registro"
         no-caps
-        :disable="store.pulserasLibres < 2"
         @click="goToNewRegistration"
       />
     </div>
@@ -102,7 +108,7 @@ function goToNewRegistration() {
           :value="store.totalActivos"
           icon="groups"
           icon-color="primary"
-          icon-bg="#e8f0fe"
+          icon-bg="rgba(2, 95, 224, 0.1)"
           caption="+ 15 min restantes"
           caption-color="positive"
           caption-icon="trending_up"
@@ -114,7 +120,7 @@ function goToNewRegistration() {
           :value="store.porExpirar"
           icon="schedule"
           icon-color="orange-9"
-          icon-bg="#fff3e0"
+          icon-bg="rgba(255, 193, 7, 0.16)"
           caption="< 15 min restantes"
           caption-color="orange-9"
         />
@@ -125,7 +131,7 @@ function goToNewRegistration() {
           :value="store.excedidos"
           icon="warning"
           icon-color="negative"
-          icon-bg="#fde8e8"
+          icon-bg="rgba(220, 38, 38, 0.1)"
           caption="Requieren acción"
           caption-color="negative"
         />
@@ -133,11 +139,11 @@ function goToNewRegistration() {
       <div class="col-12 col-sm-6 col-md-3">
         <StatCard
           label="Disponibilidad"
-          :value="store.puedeVerPulseras ? `${store.disponibilidadPercent}%` : '—'"
+          :value="store.puedeVerPulseras ? `${store.pulserasLibres}` : '—'"
           icon="lock_open"
           icon-color="primary"
-          icon-bg="#e8f0fe"
-          :caption="store.puedeVerPulseras ? 'Capacidad segura' : 'Sin permiso para ver pulseras'"
+          icon-bg="rgba(2, 95, 224, 0.1)"
+          :caption="store.puedeVerPulseras ? 'Listas para usar' : 'Sin permiso para ver pulseras'"
           caption-color="grey-7"
         />
       </div>
@@ -233,7 +239,7 @@ function goToNewRegistration() {
 
 <style scoped>
 .access-page {
-  background: #f7f8fc;
+  background: var(--bg-main);
   min-height: 100vh;
 }
 
@@ -254,7 +260,7 @@ function goToNewRegistration() {
 }
 
 .horizontal-scroll::-webkit-scrollbar-thumb {
-  background: #d0d0d0;
+  background: var(--border-color);
   border-radius: 4px;
 }
 

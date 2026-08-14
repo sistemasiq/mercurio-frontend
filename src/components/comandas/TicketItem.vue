@@ -3,7 +3,8 @@
     <div class="ticket-item__top">
       <div class="ticket-item__info">
         <h4 class="ticket-item__nombre">{{ item.producto.nombre }}</h4>
-        <p class="ticket-item__precio">${{ lineTotal.toFixed(2) }}</p>
+        <p v-if="esHijoCombo" class="ticket-item__incluido">Incluido en el combo</p>
+        <p v-else class="ticket-item__precio">${{ lineTotal.toFixed(2) }}</p>
       </div>
       <div v-if="!esHijoCombo" class="ticket-item__qty">
         <q-btn
@@ -78,15 +79,15 @@ const lineTotal = computed(() =>
 
 <style scoped>
 .ticket-item {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 10px;
   padding: 12px;
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--bg-main);
 }
 
 .ticket-item--hijo {
-  border-left: 4px solid #f59e0b;
-  background: #fffbeb;
+  border-left: 4px solid #ffc107;
+  background: rgba(255, 193, 7, 0.08);
 }
 
 .ticket-item__top {
@@ -104,7 +105,7 @@ const lineTotal = computed(() =>
 .ticket-item__nombre {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   margin: 0 0 2px 0;
   white-space: nowrap;
   overflow: hidden;
@@ -114,7 +115,15 @@ const lineTotal = computed(() =>
 .ticket-item__precio {
   font-size: 14px;
   font-weight: 700;
-  color: var(--q-primary, #1976d2);
+  color: var(--q-primary, #025fe0);
+  margin: 0;
+}
+
+.ticket-item__incluido {
+  font-size: 12px;
+  font-weight: 600;
+  font-style: italic;
+  color: #b45309;
   margin: 0;
 }
 
@@ -122,7 +131,7 @@ const lineTotal = computed(() =>
   display: flex;
   align-items: center;
   gap: 4px;
-  background-color: #f1f5f9;
+  background-color: var(--bg-main);
   border-radius: 8px;
   padding: 2px 4px;
   flex-shrink: 0;
@@ -131,7 +140,7 @@ const lineTotal = computed(() =>
 .ticket-item__qty-val {
   font-size: 13px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
   min-width: 18px;
   text-align: center;
 }
@@ -139,12 +148,12 @@ const lineTotal = computed(() =>
 .ticket-item__notas {
   margin-top: 8px;
   padding: 6px 8px;
-  background-color: #fff7ed;
-  border: 1px solid #fed7aa;
+  background-color: rgba(255, 193, 7, 0.08);
+  border: 1px solid rgba(255, 193, 7, 0.35);
   border-radius: 6px;
   font-size: 12px;
   font-style: italic;
-  color: #c2410c;
+  color: #b45309;
 }
 .ticket-item__notas--readonly {
   cursor: default;

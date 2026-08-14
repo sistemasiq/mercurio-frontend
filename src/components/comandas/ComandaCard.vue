@@ -258,11 +258,14 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   justify-content: space-between;
   align-items: flex-start;
   border-bottom: 1px solid var(--border-color);
+<<<<<<< HEAD
   cursor: pointer;
   transition: background-color 0.2s;
 }
 .kds-card-header:hover {
   background-color: var(--border-color);
+=======
+>>>>>>> develop
 }
 .header-bg-proceso {
   background-color: rgba(255, 193, 7, 0.16);

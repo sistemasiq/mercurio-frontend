@@ -5,7 +5,7 @@ import axios, {
   AxiosError,
 } from 'axios'
 import type { ApiError } from '@/types/auth'
-import { sessionStorage } from '@/utils/session'
+import { sessionStorage, viewingBranch } from '@/utils/session'
 import { isNetworkError } from '@/utils/errorHandler'
 
 // Cliente sin interceptores — solo para endpoints de auth (refresh/login)
@@ -71,6 +71,13 @@ function createAxiosClient(): AxiosInstance {
     if (session?.token) {
       config.headers.Authorization = `Bearer ${session.token}`
     }
+    // Solo AdministradorSistema puede "pararse" en una sucursal para ver sus
+    // catálogos/listados -- para cualquier otro rol el backend ignora este
+    // header, pero evitamos mandarlo de más.
+    const sucursalVista = viewingBranch.load()
+    if (sucursalVista && session?.user.roles.includes('AdministradorSistema')) {
+      config.headers['X-Sucursal-Vista'] = sucursalVista
+    }
     return config
   })
 
@@ -87,6 +94,22 @@ function createAxiosClient(): AxiosInstance {
       const { code, message } = extractCodeAndMessage(error.response?.data)
 
       if (status === 401) {
+        const url = error.config?.url ?? ''
+        // Si es la verificación de credenciales del admin durante el cierre de caja, retornar el error directamente
+        if (
+          url.includes('/turnos-caja/revision-admin') ||
+          url.includes('/turnos-caja/validar-pin-admin') ||
+          url.includes('/turnos-caja/validar-pin-cajero')
+        ) {
+          return Promise.reject(
+            buildApiError(
+              status,
+              code || 'INVALID_CREDENTIALS',
+              message || 'PIN o credenciales incorrectas.',
+            ),
+          )
+        }
+
         const session = sessionStorage.load()
 
         if (!session?.refreshToken) {

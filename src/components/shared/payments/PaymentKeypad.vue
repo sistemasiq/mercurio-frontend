@@ -18,7 +18,7 @@
       </button>
       <button class="num-btn" @click="appendNumber('.')">.</button>
       <button class="num-btn" @click="appendNumber('0')">0</button>
-      <button class="num-btn action-btn" @click="backspace">
+      <button class="num-btn keypad-backspace-btn" @click="backspace">
         <q-icon name="backspace" size="sm" />
       </button>
 
@@ -74,8 +74,8 @@ const submitAmount = () => {
   height: 100%;
 }
 .amount-display {
-  background: #f8f9fa;
-  border: 1px solid #e1e3e4;
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 8px 16px;
   display: flex;
@@ -83,12 +83,12 @@ const submitAmount = () => {
   justify-content: space-between;
   font-size: 28px;
   font-weight: 700;
-  color: #191c1d;
+  color: var(--text-primary);
   min-height: 54px;
 }
 .currency {
   font-size: 20px;
-  color: #717786;
+  color: var(--text-secondary);
 }
 .keypad-grid {
   display: grid;
@@ -97,28 +97,28 @@ const submitAmount = () => {
   flex-grow: 1; /* Esto hace que el teclado se estire para llenar el espacio disponible */
 }
 .num-btn {
-  background: #ffffff;
-  border: 1px solid #e1e3e4;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 18px;
   font-weight: 600;
-  color: #191c1d;
+  color: var(--text-primary);
   cursor: pointer;
   min-height: 42px; /* Altura mínima flexible */
   transition: background 0.2s;
 }
 .num-btn:hover {
-  background: #f3f4f5;
+  background: var(--bg-main);
 }
-.action-btn {
-  color: #414754;
+.keypad-backspace-btn {
+  color: var(--text-secondary);
 }
 .apply-btn {
   grid-column: span 3;
-  background: #0059bb;
+  background: #025fe0;
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   display: flex;
@@ -130,10 +130,10 @@ const submitAmount = () => {
   margin-top: 4px;
 }
 .apply-btn:hover:not(:disabled) {
-  background: #004493;
+  background: #0350c4;
 }
 .apply-btn:disabled {
-  background: #adc7ff;
+  background: rgba(2, 95, 224, 0.35);
   cursor: not-allowed;
 }
 </style>

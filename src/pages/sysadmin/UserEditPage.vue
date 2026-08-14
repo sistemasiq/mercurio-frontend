@@ -139,84 +139,100 @@ onMounted(async () => {
 </script>
 
 <template>
-  <q-page padding>
-    <div class="flex items-center q-mb-lg q-gutter-sm">
-      <q-btn flat round dense icon="arrow_back" @click="router.push({ name: 'usuarios-listar' })" />
-      <div class="text-h5 text-weight-bold">Editar usuario</div>
+  <q-page class="page-content q-pa-md q-pa-lg-xl">
+    <div class="row items-center q-mb-lg">
+      <div>
+        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
+          Editar usuario
+        </div>
+        <div class="text-body2" style="color: var(--text-secondary)">
+          Actualiza los datos y el rol de la cuenta.
+        </div>
+      </div>
     </div>
 
-    <q-card flat bordered style="max-width: 560px">
+    <q-card flat bordered style="max-width: 560px; border-radius: 12px">
       <q-inner-loading :showing="loadingData" />
 
-      <q-card-section v-if="!loadingData">
+      <q-card-section v-if="!loadingData" class="q-pa-lg">
         <q-form class="q-gutter-y-md" @submit.prevent="handleSubmit">
-          <q-input
-            v-model="form.name"
-            label="Nombre completo"
-            outlined
-            :rules="nameRules"
-            lazy-rules
-          />
+          <div>
+            <div class="field-label">Nombre completo</div>
+            <q-input v-model="form.name" outlined dense :rules="nameRules" lazy-rules />
+          </div>
 
-          <q-input
-            v-model="form.email"
-            label="Correo electrónico"
-            type="email"
-            outlined
-            :rules="emailRules"
-            lazy-rules
-          />
+          <div>
+            <div class="field-label">Correo electrónico</div>
+            <q-input
+              v-model="form.email"
+              type="email"
+              outlined
+              dense
+              :rules="emailRules"
+              lazy-rules
+            />
+          </div>
 
-          <q-select
-            v-model="form.role"
-            :options="roleOptions"
-            option-label="label"
-            option-value="value"
-            emit-value
-            map-options
-            label="Rol"
-            outlined
-            :rules="roleRules"
-            lazy-rules
-            @update:model-value="form.branchId = null"
-          />
+          <div>
+            <div class="field-label">Rol</div>
+            <q-select
+              v-model="form.role"
+              :options="roleOptions"
+              option-label="label"
+              option-value="value"
+              emit-value
+              map-options
+              outlined
+              dense
+              :rules="roleRules"
+              lazy-rules
+              @update:model-value="form.branchId = null"
+            />
+          </div>
 
-          <q-select
-            v-if="showBranchSelector"
-            v-model="form.branchId"
-            :options="branchOptions"
-            option-label="label"
-            option-value="value"
-            emit-value
-            map-options
-            label="Sucursal *"
-            outlined
-            :rules="branchRules"
-            lazy-rules
-            :hint="branchOptions.length === 0 ? 'No hay sucursales activas.' : undefined"
-          />
+          <div v-if="showBranchSelector">
+            <div class="field-label">Sucursal <span class="text-negative">*</span></div>
+            <q-select
+              v-model="form.branchId"
+              :options="branchOptions"
+              option-label="label"
+              option-value="value"
+              emit-value
+              map-options
+              outlined
+              dense
+              :rules="branchRules"
+              lazy-rules
+              :hint="branchOptions.length === 0 ? 'No hay sucursales activas.' : undefined"
+            />
+          </div>
 
-          <q-input
-            v-model="form.password"
-            label="Nueva contraseña"
-            :type="showPassword ? 'text' : 'password'"
-            outlined
-            :rules="passwordRules"
-            lazy-rules
-            hint="Dejar vacío para no cambiar la contraseña"
-          >
-            <template #append>
-              <q-icon
-                :name="showPassword ? 'visibility_off' : 'visibility'"
-                class="cursor-pointer"
-                @click="showPassword = !showPassword"
-              />
-            </template>
-          </q-input>
+          <div>
+            <div class="field-label">Nueva contraseña</div>
+            <q-input
+              v-model="form.password"
+              :type="showPassword ? 'text' : 'password'"
+              autocomplete="new-password"
+              outlined
+              dense
+              :rules="passwordRules"
+              lazy-rules
+              hint="Dejar vacío para no cambiar la contraseña"
+            >
+              <template #append>
+                <q-icon
+                  :name="showPassword ? 'visibility_off' : 'visibility'"
+                  class="cursor-pointer"
+                  @click="showPassword = !showPassword"
+                />
+              </template>
+            </q-input>
+          </div>
 
           <div class="row justify-between q-mt-md">
             <q-btn
               flat
+              no-caps
               color="negative"
               icon="delete"
               label="Eliminar"
@@ -226,11 +242,21 @@ onMounted(async () => {
             <div class="row q-gutter-sm">
               <q-btn
                 flat
+                no-caps
                 label="Cancelar"
+                color="grey-7"
                 :disable="loading"
                 @click="router.push({ name: 'usuarios-listar' })"
               />
-              <q-btn type="submit" color="primary" label="Guardar" :loading="loading" />
+              <q-btn
+                type="submit"
+                unelevated
+                no-caps
+                color="primary"
+                label="Guardar"
+                style="border-radius: 8px; font-weight: 600"
+                :loading="loading"
+              />
             </div>
           </div>
         </q-form>

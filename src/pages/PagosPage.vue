@@ -16,10 +16,23 @@
           label="Registrar Pago"
           unelevated
           no-caps
+          :disable="!authStore.currentBranchId"
           style="border-radius: 8px; font-weight: 600"
           @click="abrirDialog"
         />
       </div>
+
+      <!-- Sin sucursal activa -->
+      <q-banner
+        v-if="!authStore.currentBranchId"
+        dense
+        rounded
+        class="bg-orange-1 text-orange-9 q-mb-md"
+        style="border-radius: 10px"
+      >
+        <template #avatar><q-icon name="info" color="orange-9" /></template>
+        No hay una sucursal activa en la sesión.
+      </q-banner>
 
       <!-- Banner error -->
       <q-banner
@@ -50,7 +63,7 @@
         >
           <template #body-cell-monto="props">
             <q-td :props="props">
-              <span style="font-weight: 700; color: #2e7d32">{{
+              <span class="text-positive" style="font-weight: 700">{{
                 fmt(parseFloat(props.row.monto))
               }}</span>
             </q-td>
@@ -65,11 +78,8 @@
           <template #body-cell-restante="props">
             <q-td :props="props">
               <span
-                :style="
-                  props.row.restante > 0
-                    ? 'color:#e53935;font-weight:700;'
-                    : 'color:#2e7d32;font-weight:700;'
-                "
+                :class="props.row.restante > 0 ? 'text-negative' : 'text-positive'"
+                style="font-weight: 700"
               >
                 {{ fmt(props.row.restante) }}
               </span>
@@ -79,7 +89,7 @@
           <template #body-cell-estado_pago="props">
             <q-td :props="props">
               <q-badge
-                :color="props.row.estado_pago === 'pagado' ? 'positive' : 'orange'"
+                :color="props.row.estado_pago === 'pagado' ? 'positive' : 'warning'"
                 :label="props.row.estado_pago === 'pagado' ? 'Pagado' : 'Pendiente'"
                 style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
               />
@@ -170,6 +180,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
@@ -177,8 +188,12 @@ import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
 import { useAuthStore } from '@/stores/auth'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import type { ApiError } from '@/types/auth'
 
 const $q = useQuasar()
+const router = useRouter()
+const turno = useTurnoCajaStore()
 const pagosStore = usePagosReservacionesStore()
 const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
@@ -186,9 +201,13 @@ const tiposEventoStore = useTiposEventoStore()
 const authStore = useAuthStore()
 
 onMounted(() => {
-  pagosStore.cargar()
-  if (!resStore.reservaciones.length) resStore.cargar(authStore.currentBranchId ?? undefined)
+  // Métodos de pago es un catálogo global por diseño (ver migración 037):
+  // se carga siempre, tenga o no el sysadmin una sucursal elegida.
   metodosPagoStore.cargar()
+
+  if (!authStore.currentBranchId) return
+  pagosStore.cargar()
+  if (!resStore.reservaciones.length) resStore.cargar(authStore.currentBranchId)
   tiposEventoStore.cargar()
 })
 
@@ -287,6 +306,13 @@ const metodoOptions = computed(() =>
 )
 
 const abrirDialog = () => {
+  // Se valida al hacer clic en "Registrar Pago", no hasta guardar: si no hay
+  // turno abierto no tiene sentido dejar llenar el formulario para enterarse
+  // hasta el final. Redirige de inmediato, sin bloquear ni avisar.
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
   form.value = { reservacion_id: null, metodo_pago_id: null, monto: null, notas: '' }
   reservacionOptions.value = todasReservaciones.value
   dialogOpen.value = true
@@ -304,21 +330,20 @@ const guardar = async () => {
     })
     $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
     dialogOpen.value = false
-  } catch {
-    $q.notify({ type: 'negative', message: 'Error al registrar el pago', position: 'top-right' })
+  } catch (err) {
+    const apiErr = err as ApiError
+    if (apiErr.code === 'TURNO_NO_ABIERTO') {
+      // El turno se cerró entre abrir el diálogo y guardar (caso raro) — mismo
+      // redirect silencioso, sin aviso.
+      dialogOpen.value = false
+      router.push('/pos/cierre')
+    } else {
+      $q.notify({ type: 'negative', message: 'Error al registrar el pago', position: 'top-right' })
+    }
   } finally {
     guardando.value = false
   }
 }
 </script>
 
-<style scoped>
-.field-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-</style>
+<style scoped></style>

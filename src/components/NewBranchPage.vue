@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { branchService } from '@/services/branchService'
 import { userService } from '@/services/userService'
-import { Notify } from 'quasar'
+import { Notify, type QForm } from 'quasar'
 
 const router = useRouter()
 const loading = ref(false)
+const formRef = ref<QForm | null>(null)
 
 const nombre = ref('')
 const direccion = ref('')
@@ -44,19 +45,12 @@ function filterAdminOptions(val: string, update: (fn: () => void) => void) {
   })
 }
 
-const isFormValid = computed(() => {
-  return nombre.value.trim() !== '' && telefono.value.trim() !== '' && clave.value.trim() !== ''
-})
-
-const nombreTouched = ref(false)
-const telefonoTouched = ref(false)
-const claveTouched = ref(false)
-
-const nombreError = computed(() => nombreTouched.value && nombre.value.trim() === '')
-const telefonoError = computed(() => telefonoTouched.value && telefono.value.trim() === '')
-const claveError = computed(() => claveTouched.value && clave.value.trim() === '')
-
 async function createBranch() {
+  const valid = await formRef.value?.validate()
+  if (!valid) {
+    Notify.create({ type: 'warning', message: 'Revisa los campos marcados en rojo.' })
+    return
+  }
   loading.value = true
   try {
     await branchService.createBranch({
@@ -83,35 +77,33 @@ function cancelCreation() {
 </script>
 
 <template>
-  <q-page padding class="bg-grey-1">
-    <div class="row items-center justify-between q-mb-lg">
+  <q-page class="page-content q-pa-md q-pa-lg-xl">
+    <div class="row items-center q-mb-lg">
       <div>
-        <q-breadcrumbs class="text-grey-7 q-mb-sm" active-color="dark">
-          <q-breadcrumbs-el label="Inicio" />
-          <q-breadcrumbs-el label="Administración" />
-          <q-breadcrumbs-el label="Sucursales" :to="{ name: 'sucursales-listar' }" />
-          <q-breadcrumbs-el label="Nueva Sucursal" class="text-weight-bold" />
-        </q-breadcrumbs>
-        <h1 class="text-h4 text-weight-bold q-my-none text-dark">Registro de Nueva Sucursal</h1>
-        <p class="text-subtitle1 text-grey-7 q-mt-xs q-mb-none">
+        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
+          Registro de Nueva Sucursal
+        </div>
+        <div class="text-body2" style="color: var(--text-secondary)">
           Configura los parámetros operativos de la nueva locación.
-        </p>
+        </div>
       </div>
+      <q-space />
       <div class="row q-gutter-sm">
-        <q-btn outline color="dark" label="Cancelar" class="btn-cancelar" @click="cancelCreation" />
+        <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cancelCreation" />
         <q-btn
+          unelevated
+          no-caps
           color="primary"
           icon="save"
           label="Guardar Sucursal"
-          class="btn-guardar"
+          style="border-radius: 8px; font-weight: 600"
           :loading="loading"
-          :disable="!isFormValid"
           @click="createBranch"
         />
       </div>
     </div>
 
-    <div class="row q-col-gutter-md">
+    <q-form ref="formRef" class="row q-col-gutter-md" greedy @submit.prevent="createBranch">
       <div class="col-12 col-md-8">
         <!-- Información General -->
         <q-card class="q-mb-lg form-card" flat bordered>
@@ -133,10 +125,8 @@ function cancelCreation() {
                   outlined
                   dense
                   placeholder="ej. SUC-LP-01"
-                  class="field-input"
-                  :error="claveError"
-                  error-message="La clave de la sucursal es requerida"
-                  @blur="claveTouched = true"
+                  lazy-rules
+                  :rules="[(v: string) => !!v?.trim() || 'La clave de la sucursal es requerida']"
                 />
               </div>
               <div class="col-12 col-md-6">
@@ -148,10 +138,8 @@ function cancelCreation() {
                   outlined
                   dense
                   placeholder="ej. Plaza Colibrí"
-                  class="field-input"
-                  :error="nombreError"
-                  error-message="El nombre de la sucursal es requerido"
-                  @blur="nombreTouched = true"
+                  lazy-rules
+                  :rules="[(v: string) => !!v?.trim() || 'El nombre de la sucursal es requerido']"
                 />
               </div>
               <div class="col-12">
@@ -162,7 +150,6 @@ function cancelCreation() {
                   type="textarea"
                   rows="3"
                   placeholder="Calle, Número, Colonia, Ciudad, Estado"
-                  class="field-input"
                 >
                   <template #prepend><q-icon name="place" color="grey-6" /></template>
                 </q-input>
@@ -175,24 +162,17 @@ function cancelCreation() {
                   v-model="telefono"
                   outlined
                   dense
+                  mask="+52 ### ### ####"
                   placeholder="+52 000 000 0000"
-                  class="field-input"
-                  :error="telefonoError"
-                  error-message="El teléfono de contacto es requerido"
-                  @blur="telefonoTouched = true"
+                  lazy-rules
+                  :rules="[(v: string) => !!v?.trim() || 'El teléfono de contacto es requerido']"
                 >
                   <template #prepend><q-icon name="phone" color="grey-6" /></template>
                 </q-input>
               </div>
               <div class="col-12 col-md-6">
                 <div class="field-label">Correo Electrónico</div>
-                <q-input
-                  v-model="email"
-                  outlined
-                  dense
-                  placeholder="sucursal@playground.os"
-                  class="field-input"
-                >
+                <q-input v-model="email" outlined dense placeholder="sucursal@playground.os">
                   <template #prepend><q-icon name="mail" color="grey-6" /></template>
                 </q-input>
               </div>
@@ -229,7 +209,6 @@ function cancelCreation() {
                   :options="adminOptions"
                   :loading="adminLoading"
                   clearable
-                  class="field-input"
                   @filter="filterAdminOptions"
                 >
                   <template #prepend><q-icon name="search" color="grey-6" /></template>
@@ -255,47 +234,20 @@ function cancelCreation() {
           </q-card-section>
         </q-card>
       </div>
-    </div>
+    </q-form>
   </q-page>
 </template>
 
 <style scoped>
 .form-card {
   border-radius: 12px;
-  border-color: #e0e0e0;
 }
 .card-header-section {
   padding: 20px 24px 16px;
 }
-.field-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #555;
-  margin-bottom: 6px;
-}
-.field-input :deep(.q-field__control) {
-  border-radius: 8px;
-  background: #ffffff;
-}
-.field-input :deep(.q-field__label) {
-  display: none;
-}
-.btn-cancelar,
-.btn-guardar {
-  border-radius: 8px;
-  text-transform: none;
-  font-weight: 500;
-  padding: 8px 20px;
-}
-.btn-nuevo-administrador {
-  border-radius: 8px;
-  text-transform: none;
-  font-weight: 500;
-  height: 40px;
-}
 .tip-card {
   border-radius: 12px;
-  background-color: #e8f0fe;
-  border: 1px solid #c5d8fb;
+  background-color: rgba(2, 95, 224, 0.06);
+  border: 1px solid rgba(2, 95, 224, 0.2);
 }
 </style>

@@ -29,10 +29,22 @@
           icon="add"
           label="Nueva Reservación"
           style="border-radius: 8px; font-weight: 600"
-          @click="router.push({ name: 'eventos-reservaciones-crear' })"
+          @click="irANuevaReservacion"
         />
       </div>
     </div>
+
+    <!-- Sin sucursal activa -->
+    <q-banner
+      v-if="!authStore.currentBranchId"
+      dense
+      rounded
+      class="bg-orange-1 text-orange-9 q-mb-md"
+      style="border-radius: 10px"
+    >
+      <template #avatar><q-icon name="info" color="orange-9" /></template>
+      No hay una sucursal activa en la sesión.
+    </q-banner>
 
     <div class="row q-col-gutter-lg">
       <!-- Columna izquierda: stats + agenda -->
@@ -228,16 +240,27 @@ import type { QTableColumn } from 'quasar'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { usePaquetesStore } from '@/stores/paquetes'
 import { useAuthStore } from '@/stores/auth'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import type { Paquetes } from '@/types/paquetes'
 
 const router = useRouter()
 const store = useReservacionesStore()
 const paquetesStore = usePaquetesStore()
 const authStore = useAuthStore()
+const turno = useTurnoCajaStore()
+
+function irANuevaReservacion() {
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
+  router.push({ name: 'eventos-reservaciones-crear' })
+}
 
 onMounted(() => {
-  store.cargar(authStore.currentBranchId ?? undefined)
-  paquetesStore.cargar(authStore.currentBranchId ?? undefined)
+  if (!authStore.currentBranchId) return
+  store.cargar(authStore.currentBranchId)
+  paquetesStore.cargar(authStore.currentBranchId)
 })
 
 // Fecha actual normalizada a medianoche (hora local)
@@ -360,7 +383,7 @@ const paqueteMasPopular = computed(() => topPaquetes.value[0]?.nombre ?? '—')
 
 function descripcionPaquete(p: Paquetes): string {
   if (p.descripcion) return p.descripcion
-  return `${p.personas_incluidas} personas · ${p.duracion_minutos} min`
+  return `${p.min_invitados} a ${p.max_invitados} invitados`
 }
 
 // ── Tabla de agenda semanal ───────────────────────────────────────────────────

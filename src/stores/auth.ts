@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AuthState, BranchOption, LoginRequest, User, UserRole } from '@/types/auth'
 import { authService } from '@/services/authService'
-import { sessionStorage } from '@/utils/session'
+import { sessionStorage, viewingBranch } from '@/utils/session'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import { inactivityTimer } from '@/utils/inactivityTimer'
 import { isTokenExpired } from '@/utils/tokenUtils'
@@ -15,6 +15,9 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
   const pendingBranchSelection = ref<BranchOption[] | null>(null)
   const pendingCredentials = ref<LoginRequest | null>(null)
+  /** Sucursal en la que AdministradorSistema se "paró" para ver catálogos y
+   * listados de esa sucursal, sin reautenticarse. null para cualquier otro rol. */
+  const viewingBranchId = ref<string | null>(viewingBranch.load())
 
   const isAuthenticated = computed(() => !!token.value && !isTokenExpired(token.value))
 
@@ -22,14 +25,29 @@ export const useAuthStore = defineStore('auth', () => {
 
   const primaryRole = computed<UserRole | null>(() => user.value?.roles[0] ?? null)
 
-  const currentBranchId = computed<string | null>(() => user.value?.branchId ?? null)
+  function hasRole(role: UserRole): boolean {
+    return user.value?.roles.includes(role) ?? false
+  }
+
+  const isSistema = computed(() => hasRole('AdministradorSistema'))
+
+  // Para AdministradorSistema, la sucursal "efectiva" es la que eligió en el
+  // selector del header (o ninguna, viendo todas sin filtrar) -- no tiene
+  // sucursal propia en el token. El resto de la app ya consume
+  // currentBranchId para pedir/crear datos con alcance de sucursal, así que
+  // este único cambio hace que "ver todos los catálogos por sucursal"
+  // funcione en todas esas pantallas sin tocarlas una por una.
+  const currentBranchId = computed<string | null>(() =>
+    isSistema.value ? viewingBranchId.value : (user.value?.branchId ?? null),
+  )
 
   const currentBranchName = computed<string | null>(() => user.value?.branchName ?? null)
 
   const permissions = computed<string[]>(() => user.value?.permissions ?? [])
 
-  function hasRole(role: UserRole): boolean {
-    return user.value?.roles.includes(role) ?? false
+  function setViewingBranch(sucursalId: string | null): void {
+    viewingBranchId.value = sucursalId
+    viewingBranch.save(sucursalId)
   }
 
   function hasPermission(code: string): boolean {
@@ -136,6 +154,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     token.value = null
     error.value = null
+    viewingBranchId.value = null
     sessionStorage.clear()
     inactivityTimer.stop()
   }
@@ -146,14 +165,17 @@ export const useAuthStore = defineStore('auth', () => {
     loading,
     error,
     pendingBranchSelection,
+    viewingBranchId,
     isAuthenticated,
     currentUser,
     primaryRole,
+    isSistema,
     currentBranchId,
     currentBranchName,
     permissions,
     hasRole,
     hasPermission,
+    setViewingBranch,
     login,
     selectBranchAndLogin,
     cancelBranchSelection,
@@ -162,5 +184,15 @@ export const useAuthStore = defineStore('auth', () => {
     tryRefresh,
     updateToken,
     clearError,
+    // Helper DEV: inyecta usuario y token sin pasar por el backend
+    ...(import.meta.env.DEV
+      ? {
+          /* v8 ignore next 5 */
+          _setDevSession(mockUser: typeof user.value, mockToken: string) {
+            user.value = mockUser
+            token.value = mockToken
+          },
+        }
+      : {}),
   }
 })

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
+import { DB_LIMITS } from '@/utils/constants'
 import { allowOnlyLettersKeydown, allowOnlyNumbersKeydown } from '@/utils/validators'
 
 const props = defineProps<{ index: number }>()
@@ -90,6 +91,7 @@ function limitAgeInput(value: number | string | null) {
             outlined
             dense
             lazy-rules
+            :maxlength="DB_LIMITS.CHILD.NAME_MAX_LENGTH"
             :rules="[
               (val) => !!val || 'El nombre completo es obligatorio',
               (val) =>
@@ -111,6 +113,7 @@ function limitAgeInput(value: number | string | null) {
             dense
             class="custom-age-input"
             lazy-rules
+            :maxlength="DB_LIMITS.CHILD.NOTES_MAX_LENGTH"
             :rules="[
               (val) => (val !== null && val !== '') || 'La edad es obligatoria',
               (val) => (val >= 1 && val <= 99) || 'La edad debe ser entre 1 y 99 años',
@@ -134,12 +137,14 @@ function limitAgeInput(value: number | string | null) {
 
       <q-btn
         unelevated
+        no-caps
         color="primary"
         label="Guardar niño"
         icon="save"
         :disable="!canSave"
         dense
         class="full-width q-mt-xs"
+        style="border-radius: 8px; font-weight: 600"
         @click="save"
       />
     </template>

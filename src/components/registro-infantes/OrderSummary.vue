@@ -4,7 +4,7 @@ import { useQuasar } from 'quasar'
 import { useRegistrationStore } from '@/stores/registration'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import { metodosPagoApi } from '@/api/metodosPagoApi'
-import type { MetodosPago } from '@/types/metodos_pago'
+import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment } from '@/types/payments'
 import type { OnboardingPago } from '@/api/onboardingClient'
 
@@ -41,21 +41,17 @@ const abrirModalPago = () => {
   mostrarModalPago.value = true
 }
 
-const mapearMetodoPago = (nombreMetodo: string): string => {
+const mapearMetodoPago = (categoriaSeleccionada: string): string => {
   if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
     throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
   }
 
-  const metodo = metodosPagoDisponibles.value.find(
-    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
-  )
+  const categoria = CATEGORIAS_METODO_PAGO.find((c) => c.valor === categoriaSeleccionada)
+  const metodo = metodosPagoDisponibles.value.find((m) => m.activo && m.tipo === categoria?.tipo)
 
   if (!metodo) {
-    const disponibles = metodosPagoDisponibles.value
-      .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
-      .join(', ')
     throw new Error(
-      `El método de pago "${nombreMetodo}" no está configurado o no está activo. Métodos disponibles: [${disponibles}]`,
+      `No hay un método de pago activo de tipo "${categoriaSeleccionada}" configurado para esta sucursal.`,
     )
   }
   return metodo.id
@@ -120,26 +116,31 @@ const onPagoExitoso = (pagos: AppliedPayment[]) => {
           unelevated
           color="primary"
           class="full-width q-mb-xs"
-          label="Completar pago"
-          icon="payment"
+          :label="store.isEventoMode ? 'Continuar a pulseras' : 'Completar pago'"
+          :icon="store.isEventoMode ? 'nfc' : 'payment'"
           :disable="!store.canProceedToRFID"
-          @click="abrirModalPago"
+          @click="store.isEventoMode ? store.proceedToRFID() : abrirModalPago()"
         />
 
         <PaymentModal
+          v-if="!store.isEventoMode"
           v-model="mostrarModalPago"
           :total-to-pay="store.total"
+          :metodos-pago="metodosPagoDisponibles"
           @pago-exitoso="onPagoExitoso"
         />
-        <div class="text-caption text-grey-6 text-center">
-          Asegúrate de ingresar todos los datos
-        </div>
+        <ul
+          v-if="store.motivosPendientes.length > 0"
+          class="text-caption text-grey-8 q-mt-xs q-mb-none q-pl-md"
+        >
+          <li v-for="motivo in store.motivosPendientes" :key="motivo">{{ motivo }}</li>
+        </ul>
       </template>
 
       <template v-if="store.step === 'rfid'">
         <q-banner dense rounded class="bg-blue-1 text-blue-9 q-mb-md" style="font-size: 12px">
           <template #avatar>
-            <q-icon name="nfc" color="blue-8" />
+            <q-icon name="nfc" color="primary" />
           </template>
           Pago registrado. Asigna las pulseras a cada niño para finalizar.
         </q-banner>
@@ -150,6 +151,7 @@ const onPagoExitoso = (pagos: AppliedPayment[]) => {
           class="full-width"
           label="Completar registro e Imprimir Comprobante"
           icon="print"
+          :loading="store.isSubmitting"
           :disable="!store.allChildrenHaveBracelet"
           @click="store.completeRegistration()"
         />
@@ -159,6 +161,16 @@ const onPagoExitoso = (pagos: AppliedPayment[]) => {
         >
           Asigna una pulsera a cada niño registrado
         </div>
+        <q-banner
+          v-if="store.submitError"
+          dense
+          rounded
+          class="bg-red-1 text-red-9 q-mt-sm"
+          style="font-size: 12px"
+        >
+          <template #avatar><q-icon name="error_outline" color="negative" /></template>
+          {{ store.submitError }}
+        </q-banner>
       </template>
 
       <template v-if="store.step === 'complete'">

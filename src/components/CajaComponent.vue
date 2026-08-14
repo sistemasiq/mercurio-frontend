@@ -2,11 +2,21 @@
   <div class="caja-root">
     <!-- Columna izquierda: catálogo -->
     <div class="caja-col">
-      <div class="caja-header">
-        <h1 class="caja-header__titulo">Estación Principal</h1>
-        <div class="caja-header__sub">Terminal #01</div>
+      <div class="caja-header row items-center justify-between">
+        <div>
+          <h1 class="caja-header__titulo">Estación Principal</h1>
+          <div class="caja-header__sub">Terminal #01 | Cajero: {{ turno.cajeroNombre || '—' }}</div>
+        </div>
       </div>
 
+      <!-- El estado del turno (aperturado / en conteo / sin apertura) ya se ve de
+           forma universal en el encabezado, junto a la sucursal — aquí no se
+           duplica. El catálogo y el armado del pedido SÍ se pueden ver y usar sin
+           turno abierto; lo único que se bloquea es el cobro (ver abrirModalPago),
+           que redirige a Apertura de Caja en vez de dejar pagar sin turno.
+           (Un <template> sin v-if/v-for/#slot no es un agrupador transparente:
+           Vue lo compila como una etiqueta <template> real de HTML, que el
+           navegador oculta — por eso no se usa aquí, solo un fragmento normal.) -->
       <div class="caja-cats hide-scrollbar">
         <button
           v-for="cat in listaCategorias"
@@ -60,7 +70,6 @@
             }}</span>
           </div>
         </div>
-
         <q-btn
           v-if="!ticketAbierto"
           unelevated
@@ -69,7 +78,7 @@
           label="Nuevo Pedido"
           class="text-weight-bold"
           style="border-radius: 12px"
-          @click="ticketAbierto = true"
+          @click="iniciarNuevoPedido"
         />
       </div>
     </div>
@@ -121,6 +130,7 @@
     <PaymentModal
       v-model="modalPagoAbierto"
       :total-to-pay="totalTicket"
+      :metodos-pago="metodosPagoDisponibles"
       @pago-exitoso="onPagoExitoso"
     />
 
@@ -131,6 +141,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
@@ -144,20 +155,29 @@ import { useComandasSocket } from '@/composables/useComandasSocket'
 import { useTicketComanda } from '@/composables/useTicketComanda'
 import { useCajaMetrics } from '@/composables/useCajaMetrics'
 import { useAuthStore } from '@/stores/auth'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import type { TipoProducto } from '@/types/producto'
-import type { MetodosPago } from '@/types/metodos_pago'
+import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment, PagoCompletoRequest } from '@/types/payments'
 import type { ComandaWsMessage, DetalleComandaRequest } from '@/types/comanda'
 
-const modalPagoAbierto = ref(false)
-const abrirModalPago = () => {
-  modalPagoAbierto.value = true
-}
-
+const router = useRouter()
 const $q = useQuasar()
 const authStore = useAuthStore()
+const turno = useTurnoCajaStore()
+
+const modalPagoAbierto = ref(false)
+const abrirModalPago = () => {
+  // El turno pudo haberse cerrado entre "Nuevo Pedido" y este punto — mismo
+  // redirect silencioso, sin bloquear ni avisar, como defensa adicional.
+  if (!turno.estaOperando) {
+    void router.push('/pos/cierre')
+    return
+  }
+  modalPagoAbierto.value = true
+}
 const props = defineProps<{ searchTerm?: string }>()
 const abortController = new AbortController()
 
@@ -171,6 +191,17 @@ const error = ref<string | null>(null)
 const enviando = ref(false)
 const ticketAbierto = ref(false)
 const metodosPagoDisponibles = ref<MetodosPago[]>([])
+
+const iniciarNuevoPedido = () => {
+  // Se valida al hacer clic en "Nuevo Pedido", no hasta el cobro: sin turno
+  // abierto no tiene sentido dejar armar todo el ticket para enterarse hasta
+  // el final. Redirige de inmediato, sin bloquear ni avisar.
+  if (!turno.estaOperando) {
+    void router.push('/pos/cierre')
+    return
+  }
+  ticketAbierto.value = true
+}
 
 const notasDialog = ref(false)
 const itemEditando = ref<ItemTicket | null>(null)
@@ -313,22 +344,16 @@ const onPagoExitoso = (
   void procesarPago(pagos, celularCliente, puntosARedimir, descuentoPuntos)
 }
 
-const mapearMetodoPago = (nombreMetodo: string): string => {
+const mapearMetodoPago = (categoriaSeleccionada: string): string => {
   if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
     throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
   }
-  const metodo = metodosPagoDisponibles.value.find(
-    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
-  )
+  const categoria = CATEGORIAS_METODO_PAGO.find((c) => c.valor === categoriaSeleccionada)
+  const metodo = metodosPagoDisponibles.value.find((m) => m.activo && m.tipo === categoria?.tipo)
   if (!metodo) {
-    const disponibles = metodosPagoDisponibles.value
-      .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
-      .join(', ')
-    const detalle = `Método buscado: "${nombreMetodo}". Métodos disponibles: [${disponibles}]`
+    const detalle = `No hay un método de pago activo de tipo "${categoriaSeleccionada}" configurado para esta sucursal.`
     console.error(`[mapearMetodoPago] ${detalle}`)
-    throw new Error(
-      `El método de pago "${nombreMetodo}" no está configurado o no está activo. ${detalle}`,
-    )
+    throw new Error(detalle)
   }
   return metodo.id
 }
@@ -463,6 +488,7 @@ const cargarMetodosPago = async () => {
 // pero productos se cargan por separado (no están en el composable)
 void cargarProductos()
 void cargarMetodosPago()
+void turno.cargarTurnoActivo()
 
 onBeforeUnmount(() => abortController.abort())
 </script>
@@ -498,7 +524,6 @@ onBeforeUnmount(() => abortController.abort())
   flex-shrink: 0;
 }
 .caja-header__titulo {
-  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 20px;
   font-weight: 700;
   color: var(--q-primary);

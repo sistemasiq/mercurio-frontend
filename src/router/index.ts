@@ -12,6 +12,17 @@ declare module 'vue-router' {
 }
 
 const routes: RouteRecordRaw[] = [
+  // ── Ruta de desarrollo (solo disponible en DEV, árbol eliminado en build) ──
+  ...(import.meta.env.DEV
+    ? ([
+        {
+          path: '/dev',
+          name: 'dev-menu',
+          component: () => import('@/pages/DevMenuPage.vue'),
+          meta: { title: '⚗ Dev Menu' },
+        },
+      ] as RouteRecordRaw[])
+    : []),
   {
     path: '/',
     redirect: '/login',
@@ -25,6 +36,22 @@ const routes: RouteRecordRaw[] = [
         name: 'login',
         component: () => import('@/pages/auth/LoginPage.vue'),
         meta: { publicOnly: true },
+      },
+    ],
+  },
+  {
+    path: '/padres',
+    component: () => import('@/layouts/PadresLayout.vue'),
+    children: [
+      {
+        path: 'access',
+        name: 'padres-access',
+        component: () => import('@/pages/padres/AccessPadrePage.vue'),
+      },
+      {
+        path: 'dashboard',
+        name: 'padres-dashboard',
+        component: () => import('@/pages/padres/DashboardPadrePage.vue'),
       },
     ],
   },
@@ -56,6 +83,22 @@ const routes: RouteRecordRaw[] = [
         name: 'pos-cocina',
         component: () => import('@/components/comandas/VisorCocina.vue'),
         meta: { permissions: ['restaurante:gestionar_cocina'], title: 'Visor Cocina' },
+      },
+      {
+        path: 'cierre',
+        name: 'pos-cierre',
+        component: () => import('@/pages/CierreCajaPage.vue'),
+        meta: { requiresAuth: true, title: 'Cierre de Caja' },
+      },
+      {
+        path: 'historial-arqueos',
+        name: 'pos-historial-arqueos',
+        component: () => import('@/pages/HistorialArqueosPage.vue'),
+        meta: {
+          requiresAuth: true,
+          permissions: ['turnos_caja:historial'],
+          title: 'Historial de Arqueos',
+        },
       },
       {
         path: 'historial',
@@ -343,6 +386,25 @@ const routes: RouteRecordRaw[] = [
         name: 'compras-listar',
         component: () => import('@/pages/ComprasPage.vue'),
         meta: { permissions: ['inventario:gestionar_compras'], title: 'Compras' },
+      },
+    ],
+  },
+  {
+    path: '/admin',
+    component: () => import('@/layouts/AppShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'horarios',
+        name: 'admin-horarios',
+        component: () => import('@/pages/admin/HorariosPage.vue'),
+        meta: { permissions: ['horarios:listar'], title: 'Horarios' },
+      },
+      {
+        path: 'cajas',
+        name: 'admin-cajas',
+        component: () => import('@/pages/admin/CajasAdminPage.vue'),
+        meta: { permissions: ['cajas:crear'], title: 'Cajas' },
       },
     ],
   },

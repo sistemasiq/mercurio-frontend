@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRegistrationStore } from '@/stores/registration'
 import { allowOnlyLettersKeydown } from '@/utils/validators'
+import { DB_LIMITS } from '@/utils/constants'
 import { ref, onBeforeUnmount } from 'vue'
 
 const store = useRegistrationStore()
@@ -136,6 +137,8 @@ onBeforeUnmount(() => {
         dense
         class="q-mb-md"
         lazy-rules
+        :readonly="store.isEventoMode"
+        :maxlength="DB_LIMITS.GUARDIAN.NAME_MAX_LENGTH"
         :rules="[
           (val) => !!val || 'El nombre completo es obligatorio',
           (val) =>
@@ -153,6 +156,7 @@ onBeforeUnmount(() => {
             label="Parentesco"
             outlined
             dense
+            :readonly="store.isEventoMode"
           />
         </div>
         <div class="col-12 col-sm-6">
@@ -164,6 +168,7 @@ onBeforeUnmount(() => {
             dense
             mask="##########"
             lazy-rules
+            :readonly="store.isEventoMode"
             :rules="[
               (val) => !!val || 'El teléfono es obligatorio',
               (val) => val.length === 10 || 'El teléfono debe tener exactamente 10 dígitos',
@@ -261,11 +266,13 @@ onBeforeUnmount(() => {
 
       <!-- Estimated Time -->
       <q-select
-        v-model="store.tutor.estimatedTime"
+        :model-value="store.isEventoMode ? store.horasEvento : store.tutor.estimatedTime"
         :options="TIME_OPTIONS"
         label="Tiempo Estimado"
         outlined
         dense
+        :readonly="store.isEventoMode"
+        @update:model-value="store.tutor.estimatedTime = $event"
       />
 
       <q-separator class="q-my-md" />
@@ -308,6 +315,7 @@ onBeforeUnmount(() => {
         outlined
         dense
         lazy-rules
+        :maxlength="DB_LIMITS.GUARDIAN.NAME_MAX_LENGTH"
         :rules="[
           (val) => !!val || 'El nombre es obligatorio',
           (val) => val.trim().split(/\s+/).length >= 2 || 'Introduce nombre y apellido',
@@ -384,7 +392,7 @@ onBeforeUnmount(() => {
 }
 
 .photo-capture-box {
-  border: 2px dashed #1976d2;
+  border: 2px dashed #025fe0;
   border-radius: 8px;
   padding: 20px;
   display: flex;
@@ -392,19 +400,19 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   min-height: 90px;
-  background: #f3f8ff;
+  background: rgba(2, 95, 224, 0.06);
   transition: background 0.2s;
 }
 
 .photo-capture-box:hover {
-  background: #e3f0ff;
+  background: rgba(2, 95, 224, 0.12);
 }
 
 .photo-preview-box {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 8px;
-  background: #fafafa;
+  background: var(--bg-main);
 }
 
 .photo-thumb {

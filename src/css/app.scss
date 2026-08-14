@@ -67,6 +67,20 @@ body {
     'opsz' 24;
 }
 
+// ─── Field label (etiquetas de campos de formulario/detalle) ────────────────
+.field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+// ─── Action button (botones de acción en filas de tabla: editar/eliminar) ───
+.action-btn {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
 // ─── Quasar Drawer Fix (Hide Scrollbars) ────────────────────────────────────
 .q-drawer {
   scrollbar-width: none !important;
@@ -178,12 +192,12 @@ body {
     white-space: nowrap;
 
     &--positive {
-      background: rgba(16, 185, 129, 0.12);
+      background: rgba($positive, 0.12);
       color: $positive;
     }
 
     &--negative {
-      background: rgba(239, 68, 68, 0.12);
+      background: rgba($negative, 0.12);
       color: $negative;
     }
   }
@@ -223,7 +237,26 @@ body {
       background: rgba(255, 193, 7, 0.12);
       color: $warning;
     }
+    &--pink {
+      background: rgba($secondary, 0.1);
+      color: $secondary;
+    }
+    &--red {
+      background: rgba($negative, 0.1);
+      color: $negative;
+    }
+    &--grey {
+      background: var(--bg-main);
+      color: var(--text-muted);
+    }
   }
+}
+
+// ─── Grid de KPIs (reporte de inventario, reporte de lealtad, etc.) ─────────
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
 }
 
 // ─── Panel Card ─────────────────────────────────────────────────────────────
@@ -262,12 +295,12 @@ body {
     color: var(--text-secondary);
     background: #f8f9fd;
     border-bottom: 2px solid var(--border-color);
-    padding: 10px 16px;
+    padding: 10px 12px;
   }
 
   .q-table tbody td {
     font-size: 0.875rem;
-    padding: 12px 16px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--border-color);
     color: #37474f;
   }
@@ -292,6 +325,16 @@ body {
     font-weight: 700;
     color: $positive;
     font-size: 0.875rem;
+  }
+
+  // Columnas de texto libre (direcciones, descripciones) que con datos reales
+  // pueden ser arbitrariamente largas y estirar la tabla fuera del viewport.
+  // Trunca con "..." -- el texto completo sigue disponible en un tooltip.
+  .cell-truncate {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -539,36 +582,20 @@ body {
   border-radius: var(--radius-md);
   padding: 20px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   position: relative;
   background: var(--bg-card);
-  animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  animation-fill-mode: both;
-
-  &:nth-child(1) {
-    animation-delay: 0.05s;
-  }
-  &:nth-child(2) {
-    animation-delay: 0.15s;
-  }
-  &:nth-child(3) {
-    animation-delay: 0.25s;
-  }
 
   &:hover {
-    border-color: #f31258;
-    border-width: 4px;
-    box-shadow: 0 50px 100px -10px rgba(243, 18, 88, 0.8);
-    transform: translateY(-40px) scale(1.3) rotate(12deg);
-    z-index: 50;
+    border-color: $primary;
+    box-shadow: var(--shadow-md);
   }
 
   &--selected {
     border-color: $primary;
     background: rgba(2, 95, 224, 0.03);
-    box-shadow: 0 15px 40px rgba(2, 95, 224, 0.3);
-    transform: translateY(-5px) scale(1.05);
-    z-index: 5;
   }
 
   &__badge {
@@ -629,79 +656,81 @@ body {
 }
 
 // ─── Service Card ───────────────────────────────────────────────────────────
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+}
+
 .service-card {
+  // Sin min-width, el .col de Quasar (flex-shrink: 1, sin límite) permite
+  // que todas las tarjetas se compriman indefinidamente para caber en una
+  // sola fila, cortando el texto/precio/botón en vez de saltar de línea.
+  min-width: 170px;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   overflow: hidden;
   cursor: pointer;
-  transition:
-    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: var(--bg-card);
-  animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  animation-fill-mode: both;
-
-  &:nth-child(1) {
-    animation-delay: 0.1s;
-  }
-  &:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-  &:nth-child(3) {
-    animation-delay: 0.3s;
-  }
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 
   &:hover {
-    box-shadow: 0 50px 100px -10px rgba(63, 168, 52, 0.8);
-    transform: translateY(-30px) scale(1.25) rotate(-15deg);
-    border-color: #10b981;
-    border-width: 4px;
-    z-index: 50;
+    border-color: $primary;
+    box-shadow: var(--shadow-md);
   }
 
   &--selected {
     border-color: $primary;
-    box-shadow: 0 15px 40px rgba(2, 95, 224, 0.3);
-    background: rgba(2, 95, 224, 0.02);
-    transform: translateY(-5px) scale(1.05);
-    z-index: 5;
+    background: rgba(2, 95, 224, 0.03);
   }
 
   &__img {
     width: 100%;
-    height: 120px;
+    height: 96px;
+    flex-shrink: 0;
     background: #e8ecf4;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
     font-size: 0.8rem;
-    transition: transform 0.6s cubic-bezier(0.68, -0.6, 0.32, 2.5);
-  }
-
-  &:hover &__img {
-    transform: scale(2) rotate(45deg);
   }
 
   &__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
     padding: 12px;
   }
 
   &__name {
     font-size: 0.875rem;
     font-weight: 700;
+    line-height: 1.3;
     color: var(--text-primary);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
   }
 
   &__desc {
     font-size: 0.75rem;
+    line-height: 1.4;
     color: var(--text-secondary);
     margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   &__price {
-    font-size: 1.3rem;
+    margin-top: auto;
+    font-size: 1.15rem;
     font-weight: 800;
     color: var(--text-primary);
   }
@@ -847,11 +876,11 @@ body {
     position: relative;
 
     &:hover:not(&--disabled) {
-      background: #f59e0b;
+      background: $warning;
       color: white;
       transform: translateY(-4px);
       z-index: 100;
-      box-shadow: 0 8px 16px rgba(255, 193, 7, 0.3);
+      box-shadow: 0 8px 16px rgba($warning, 0.3);
     }
 
     &--selected {
@@ -915,7 +944,7 @@ body {
 
 // ─── Page layout ─────────────────────────────────────────────────────────────
 .page-content {
-  padding: 20px;
+  padding: 14px;
   min-height: calc(100vh - var(--header-height));
   background: var(--bg-main);
 }

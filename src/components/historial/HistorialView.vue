@@ -399,32 +399,6 @@ function onOrdenActualizada() {
   </div>
 </template>
 
-<style>
-/* 🌐 ESTILOS GLOBALES TEMPORALES */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined' !important;
-  font-size: 24px !important;
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24 !important;
-  display: inline-block !important;
-  line-height: 1 !important;
-  width: 24px !important;
-  height: 24px !important;
-  text-transform: none !important;
-  letter-spacing: normal !important;
-  word-wrap: normal !important;
-  white-space: nowrap !important;
-  direction: ltr !important;
-  -webkit-font-smoothing: antialiased !important;
-}
-</style>
-
 <style scoped>
 .historial-layout-wrapper {
   display: block;
@@ -446,7 +420,6 @@ function onOrdenActualizada() {
 }
 
 .section-title {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
   font-size: 24px !important;
   font-weight: 700 !important;
   color: #191c1d !important;
@@ -540,7 +513,6 @@ function onOrdenActualizada() {
   margin-bottom: 4px;
 }
 .metric-value {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
   font-size: 22px !important;
   font-weight: 700 !important;
   color: #191c1d !important;

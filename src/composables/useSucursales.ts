@@ -44,7 +44,6 @@ export function useSucursales() {
   const loading = ref(false)
   const busqueda = ref('')
   const filtros = ref<Filtros>({ estado: null })
-  const pagination = ref({ page: 1, perPage: 5, total: 0 })
 
   const sucursales = computed(() => {
     let result = allSucursales.value
@@ -57,9 +56,7 @@ export function useSucursales() {
     if (filtros.value.estado) {
       result = result.filter((s) => s.statusClave === filtros.value.estado)
     }
-    pagination.value.total = result.length
-    const start = (pagination.value.page - 1) * pagination.value.perPage
-    return result.slice(start, start + pagination.value.perPage)
+    return result
   })
 
   const stats = computed<SucursalesStats>(() => ({
@@ -68,14 +65,11 @@ export function useSucursales() {
     inactivas: allSucursales.value.filter((s) => s.statusClave === 'inactiva').length,
   }))
 
-  const totalPages = computed(() => Math.ceil(pagination.value.total / pagination.value.perPage))
-
   async function cargarSucursales() {
     loading.value = true
     try {
       const data = await branchService.listBranches()
       allSucursales.value = data.map(mapBranchToSucursal)
-      pagination.value.total = allSucursales.value.length
     } catch (error: unknown) {
       const e = error as { statusCode?: number; code?: string; message?: string }
       console.error('Error cargando sucursales:', e)
@@ -97,33 +91,14 @@ export function useSucursales() {
     await router.push({ name: 'sucursales-detalle', params: { id } })
   }
 
-  function cambiarPagina(nuevaPagina: number) {
-    pagination.value.page = nuevaPagina
-  }
-
-  function aplicarFiltro(nuevosFiltros: Filtros) {
-    filtros.value = nuevosFiltros
-    pagination.value.page = 1
-  }
-
-  function aplicarBusqueda(texto: string) {
-    busqueda.value = texto
-    pagination.value.page = 1
-  }
-
   return {
     sucursales,
     stats,
     loading,
-    pagination,
     busqueda,
     filtros,
-    totalPages,
     cargarSucursales,
     editar,
     verDetalle,
-    cambiarPagina,
-    aplicarFiltro,
-    aplicarBusqueda,
   }
 }

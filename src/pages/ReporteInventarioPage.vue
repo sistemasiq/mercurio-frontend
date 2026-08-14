@@ -1,6 +1,6 @@
 <template>
   <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 1100px; margin: 0 auto">
+    <div>
       <!-- Encabezado -->
       <div class="row items-center q-mb-lg">
         <div>
@@ -27,45 +27,45 @@
 
       <!-- KPIs -->
       <div class="kpi-row q-mb-lg">
-        <q-card flat bordered class="kpi-tile">
-          <div class="kpi-icon" style="background: #2a78d61a; color: #2a78d6">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--blue">
             <q-icon name="inventory_2" size="20px" />
           </div>
-          <div class="kpi-value">{{ insumosActivos.length }}</div>
-          <div class="kpi-label">Insumos activos</div>
-        </q-card>
+          <div class="stat-card__value">{{ insumosActivos.length }}</div>
+          <div class="stat-card__label">Insumos activos</div>
+        </div>
 
-        <q-card flat bordered class="kpi-tile">
-          <div class="kpi-icon" style="background: #fab2191a; color: #c98d10">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--orange">
             <q-icon name="warning" size="20px" />
           </div>
-          <div class="kpi-value">{{ insumosBajoMinimo.length }}</div>
-          <div class="kpi-label">Insumos bajo mínimo</div>
-        </q-card>
+          <div class="stat-card__value">{{ insumosBajoMinimo.length }}</div>
+          <div class="stat-card__label">Insumos bajo mínimo</div>
+        </div>
 
-        <q-card flat bordered class="kpi-tile">
-          <div class="kpi-icon" style="background: #0083001a; color: #008300">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--green">
             <q-icon name="payments" size="20px" />
           </div>
-          <div class="kpi-value">${{ valorInventario.toFixed(2) }}</div>
-          <div class="kpi-label">Valor de inventario</div>
-        </q-card>
+          <div class="stat-card__value">${{ valorInventario.toFixed(2) }}</div>
+          <div class="stat-card__label">Valor de inventario</div>
+        </div>
 
-        <q-card flat bordered class="kpi-tile">
-          <div class="kpi-icon" style="background: #1baf7a1a; color: #1baf7a">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--pink">
             <q-icon name="local_shipping" size="20px" />
           </div>
-          <div class="kpi-value">{{ proveedoresActivos.length }}</div>
-          <div class="kpi-label">Proveedores activos</div>
-        </q-card>
+          <div class="stat-card__value">{{ proveedoresActivos.length }}</div>
+          <div class="stat-card__label">Proveedores activos</div>
+        </div>
 
-        <q-card flat bordered class="kpi-tile">
-          <div class="kpi-icon" style="background: #4a3aa71a; color: #4a3aa7">
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--blue">
             <q-icon name="shopping_cart" size="20px" />
           </div>
-          <div class="kpi-value">{{ comprasPendientes.length }}</div>
-          <div class="kpi-label">Compras pendientes</div>
-        </q-card>
+          <div class="stat-card__value">{{ comprasPendientes.length }}</div>
+          <div class="stat-card__label">Compras pendientes</div>
+        </div>
       </div>
 
       <!-- Alerta: insumos bajo mínimo -->
@@ -213,37 +213,3 @@ const columns: QTableColumn[] = [
   { name: 'deficit', label: 'DÉFICIT', field: 'id', align: 'left' },
 ]
 </script>
-
-<style scoped>
-.kpi-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-.kpi-tile {
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.kpi-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 10px;
-}
-
-.kpi-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.kpi-label {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-</style>

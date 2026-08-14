@@ -52,10 +52,10 @@ defineEmits<{
 }>()
 
 const METHOD_META: Record<string, { icon: string; color: string }> = {
-  efectivo: { icon: 'payments', color: 'green' },
-  tarjeta: { icon: 'credit_card', color: 'blue' },
-  cupones: { icon: 'redeem', color: 'orange' },
-  lealtad: { icon: 'loyalty', color: 'purple' },
+  efectivo: { icon: 'payments', color: 'positive' },
+  tarjeta: { icon: 'credit_card', color: 'primary' },
+  cupones: { icon: 'redeem', color: 'warning' },
+  lealtad: { icon: 'loyalty', color: 'secondary' },
 }
 
 const getMeta = (method: string) => {
@@ -94,14 +94,14 @@ const formatMethodName = (pago: AppliedPayment) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: #f8f9fa;
+  background: var(--bg-main);
   padding: 16px;
   border-radius: 12px;
 }
 .title {
   font-size: 18px;
   font-weight: 600;
-  color: #191c1d;
+  color: var(--text-primary);
   margin: 0;
   display: flex;
   align-items: center;
@@ -109,7 +109,7 @@ const formatMethodName = (pago: AppliedPayment) => {
 }
 .empty-state {
   text-align: center;
-  color: #717786;
+  color: var(--text-secondary);
   padding: 32px 0;
 }
 .payments-scroll {
@@ -118,8 +118,8 @@ const formatMethodName = (pago: AppliedPayment) => {
   gap: 12px;
 }
 .payment-card {
-  background: #ffffff;
-  border: 1px solid #e1e3e4;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -135,11 +135,11 @@ const formatMethodName = (pago: AppliedPayment) => {
 .payment-name {
   font-size: 16px;
   font-weight: 600;
-  color: #191c1d;
+  color: var(--text-primary);
 }
 .payment-meta {
   font-size: 14px;
-  color: #414754;
+  color: var(--text-secondary);
 }
 .payment-actions {
   display: flex;
@@ -149,6 +149,6 @@ const formatMethodName = (pago: AppliedPayment) => {
 .payment-amount {
   font-size: 20px;
   font-weight: 700;
-  color: #191c1d;
+  color: var(--text-primary);
 }
 </style>
