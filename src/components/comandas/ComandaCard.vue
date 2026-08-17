@@ -1,6 +1,15 @@
 <template>
   <article class="kds-card" :class="cardClass">
-    <div class="kds-card-header" :class="headerClass">
+    <div
+      class="kds-card-header"
+      :class="headerClass"
+      role="button"
+      tabindex="0"
+      aria-label="Ver detalle de la comanda"
+      @click="onVerDetalle"
+      @keydown.enter.prevent="onVerDetalle"
+      @keydown.space.prevent="onVerDetalle"
+    >
       <div>
         <span class="kds-status-label" :class="statusLabelClass">
           {{ estadoLabel(comanda.estado_actual) }}
@@ -12,11 +21,30 @@
           <q-icon name="schedule" size="28px" />
           <span>{{ tiempoDesde(comanda.fecha_hora) }}</span>
         </div>
-        <span class="kds-order-type">{{ tipoEntrega }}</span>
+        <div class="kds-header-actions">
+          <span class="kds-order-type">{{ tipoEntrega }}</span>
+          <button
+            type="button"
+            class="kds-expand-btn"
+            title="Ver a pantalla completa"
+            aria-label="Ver a pantalla completa"
+            @click.stop="onVerDetalle"
+          >
+            <q-icon name="fullscreen" size="24px" />
+          </button>
+        </div>
       </div>
     </div>
 
-    <div class="kds-card-body">
+    <div
+      class="kds-card-body"
+      role="button"
+      tabindex="0"
+      aria-label="Ver detalle de la comanda"
+      @click="onVerDetalle"
+      @keydown.enter.prevent="onVerDetalle"
+      @keydown.space.prevent="onVerDetalle"
+    >
       <template v-for="el in ticketsAgrupados" :key="el.key">
         <!-- Grupo combo -->
         <div v-if="el.tipo === 'combo'" class="kds-combo-group">
@@ -51,7 +79,7 @@
       </template>
     </div>
 
-    <div class="kds-card-footer">
+    <div class="kds-card-footer" @click.stop>
       <button
         v-if="esPendiente"
         class="kds-btn btn-pendiente"
@@ -85,9 +113,14 @@ import type { Comanda, DetalleComanda, EstadoActualComanda } from '@/types/coman
 const { comanda } = defineProps<{ comanda: Comanda }>()
 const emit = defineEmits<{
   (e: 'cambiar-estado', comandaId: string, nuevoEstado: EstadoActualComanda): void
+  (e: 'ver-detalle', comanda: Comanda): void
 }>()
 
 const isDelivering = ref(false)
+
+const onVerDetalle = () => {
+  emit('ver-detalle', comanda)
+}
 
 const onEntregar = () => {
   isDelivering.value = true
@@ -134,7 +167,10 @@ const ticketsAgrupados = computed<ElementoRender[]>(() => {
 
   const comboGroups = new Map<string, DetalleComanda[]>()
   for (const d of detalles) {
-    if (d.nombre_combo_padre) {
+    // Un ítem solo se agrupa como parte de un combo cuando la orden lo trajo
+    // así (es_hijo_de + nombre_combo_padre). Los productos vendidos sueltos
+    // jamás deben heredar la etiqueta de un paquete.
+    if (d.nombre_combo_padre && d.es_hijo_de) {
       const arr = comboGroups.get(d.nombre_combo_padre)
       if (arr) arr.push(d)
       else comboGroups.set(d.nombre_combo_padre, [d])
@@ -145,7 +181,7 @@ const ticketsAgrupados = computed<ElementoRender[]>(() => {
   const emittedCombos = new Set<string>()
 
   for (const detalle of detalles) {
-    if (detalle.nombre_combo_padre) {
+    if (detalle.nombre_combo_padre && detalle.es_hijo_de) {
       const key = detalle.nombre_combo_padre
       if (!emittedCombos.has(key)) {
         emittedCombos.add(key)
@@ -222,6 +258,11 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   justify-content: space-between;
   align-items: flex-start;
   border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.kds-card-header:hover {
+  background-color: var(--border-color);
 }
 .header-bg-proceso {
   background-color: rgba(255, 193, 7, 0.16);
@@ -283,13 +324,42 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   letter-spacing: 0.05em;
 }
 
+.kds-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.kds-expand-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+.kds-expand-btn:hover {
+  background-color: #025fe0;
+  color: #fff;
+}
+
 .kds-card-body {
   padding: 16px;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
+  cursor: pointer;
+}
+.kds-card-body:hover {
+  background-color: var(--bg-main);
 }
 .kds-item {
   display: flex;

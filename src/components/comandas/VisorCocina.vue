@@ -42,9 +42,18 @@
           :key="comanda.id"
           :comanda="comanda"
           @cambiar-estado="onCambiarEstado"
+          @ver-detalle="onVerDetalle"
         />
       </TransitionGroup>
     </div>
+
+    <!-- Componente siempre montado: la apertura/cierre (v-show) y el cambio de
+         comanda (cross-fade interno) se animan sin desmontar el DOM. -->
+    <ComandaFullScreen
+      :comanda="comandaSeleccionada"
+      @close="cerrarDetalle"
+      @cambiar-estado="onCambiarEstadoDesdeDetalle"
+    />
   </div>
 </template>
 
@@ -55,6 +64,7 @@ import { cambiarEstadoComanda, obtenerComandas } from '@/services/comandaService
 import { useComandasSocket } from '@/composables/useComandasSocket'
 import type { Comanda, ComandaWsMessage, EstadoActualComanda } from '@/types/comanda'
 import ComandaCard from './ComandaCard.vue'
+import ComandaFullScreen from './ComandaFullScreen.vue'
 
 const POLLING_FALLBACK_MS = 10000
 
@@ -64,6 +74,7 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const requestController = ref<AbortController | null>(null)
 const fallbackIntervalId = ref<number | null>(null)
+const comandaSeleccionadaId = ref<string | null>(null)
 
 const comandasEnCocina = computed(() =>
   comandas.value.filter((c) => ['P', 'E', 'L'].includes(c.estado_actual)),
@@ -71,6 +82,24 @@ const comandasEnCocina = computed(() =>
 const totalPendientes = computed(() => comandas.value.filter((c) => c.estado_actual === 'P').length)
 const totalEnProceso = computed(() => comandas.value.filter((c) => c.estado_actual === 'E').length)
 const totalListos = computed(() => comandas.value.filter((c) => c.estado_actual === 'L').length)
+
+const comandaSeleccionada = computed(
+  () => comandas.value.find((c) => c.id === comandaSeleccionadaId.value) ?? null,
+)
+
+const onVerDetalle = (comanda: Comanda) => {
+  comandaSeleccionadaId.value = comanda.id
+}
+
+const cerrarDetalle = () => {
+  comandaSeleccionadaId.value = null
+}
+
+// Cuando la comanda seleccionada sale del flujo de cocina (entregada/cancelada),
+// se cierra la vista de pantalla completa automáticamente.
+watch(comandaSeleccionada, (comanda) => {
+  if (comanda && ['T', 'C'].includes(comanda.estado_actual)) cerrarDetalle()
+})
 
 const limpiarRequestActiva = () => {
   requestController.value?.abort()
@@ -99,16 +128,25 @@ const fetchComandas = async () => {
   }
 }
 
+const aplicarEstadoLocal = (comandaId: string, nuevoEstado: EstadoActualComanda) => {
+  comandas.value = comandas.value.map((c) =>
+    c.id === comandaId ? { ...c, estado_actual: nuevoEstado } : c,
+  )
+}
+
 const onCambiarEstado = async (
   comandaId: string,
   nuevoEstado: EstadoActualComanda,
-): Promise<void> => {
+): Promise<boolean> => {
   // Retroceder a 'P' no tiene sentido de negocio; la guardia va en el cuerpo
   // para ser compatible con el emit de ComandaCard (contravarianza TS).
-  if (nuevoEstado === 'P') return
+  if (nuevoEstado === 'P') return false
 
   try {
     await cambiarEstadoComanda(comandaId, nuevoEstado)
+    // Actualización optimista: la comanda sale de la cola de cocina al instante.
+    aplicarEstadoLocal(comandaId, nuevoEstado)
+    return true
   } catch (err) {
     console.error('[VisorCocina] onCambiarEstado:', err)
     $q.notify({
@@ -118,6 +156,29 @@ const onCambiarEstado = async (
       position: 'top-right',
       timeout: 3000,
     })
+    return false
+  }
+}
+
+// Flujo continuo desde la vista a pantalla completa: al entregar, salta a la
+// siguiente comanda de la cola de cocina; si ya no hay más, regresa al tablero.
+const onCambiarEstadoDesdeDetalle = async (
+  comandaId: string,
+  nuevoEstado: EstadoActualComanda,
+): Promise<void> => {
+  const cola = comandasEnCocina.value
+  const idx = cola.findIndex((c) => c.id === comandaId)
+  const siguiente = idx !== -1 && idx + 1 < cola.length ? cola[idx + 1] : null
+
+  const ok = await onCambiarEstado(comandaId, nuevoEstado)
+  if (!ok) return
+
+  if (nuevoEstado === 'T') {
+    if (siguiente) {
+      comandaSeleccionadaId.value = siguiente.id
+    } else {
+      cerrarDetalle()
+    }
   }
 }
 
