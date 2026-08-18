@@ -26,6 +26,18 @@ import type {
   RetiroParcialPayload,
 } from '@/types/turnoCaja'
 
+// v-model.number sobre <q-input type="text"> no convierte "" a 0 ni a null: Vue
+// solo castea cuando parseFloat produce un número válido, así que al borrar un
+// campo (billete/moneda/monto/total) el ref se queda con el string "" — y "" ?? 0
+// no lo atrapa porque ?? solo reemplaza null/undefined, no cualquier valor "falsy".
+// Eso llegaba tal cual al payload y Pydantic lo rechazaba con 422 "unable to parse
+// string as an integer" (reproducido: dos campos vacíos → el mismo error dos veces).
+function aNumero(valor: number | string | null | undefined): number {
+  if (valor === null || valor === undefined || valor === '') return 0
+  const n = Number(valor)
+  return Number.isFinite(n) ? n : 0
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Store
 // ─────────────────────────────────────────────────────────────────────────────

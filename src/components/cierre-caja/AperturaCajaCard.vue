@@ -208,7 +208,11 @@ const montosSugeridos = [500, 1000, 1500, 2000, 3000, 5000]
 // Campos obligatorios en BD (apertura_caja: fondo_inicial, caja_id) más la regla de
 // negocio de que AdministradorSistema debe elegir explícitamente la sucursal.
 const puedeAbrirCaja = computed(() => {
-  if (fondoInicial.value === null || fondoInicial.value < 0) return false
+  // v-model.number sobre <q-input type="text"> deja "" (no null) cuando se borra el
+  // campo, y "" < 0 es false en JS (compara como 0) — sin el chequeo de tipo, este
+  // guard dejaba pasar un campo vacío. Ver mismo bug corregido en stores/turnoCaja.ts.
+  if (typeof fondoInicial.value !== 'number' || !Number.isFinite(fondoInicial.value)) return false
+  if (fondoInicial.value < 0) return false
   if (esAdminSistema.value && !sucursalSeleccionada.value) return false
   if (opcionesCajas.value.length > 0 && !cajaSeleccionada.value) return false
   return true
@@ -273,7 +277,11 @@ onMounted(async () => {
 })
 
 async function realizarApertura() {
-  if (fondoInicial.value === null || fondoInicial.value < 0) {
+  if (
+    typeof fondoInicial.value !== 'number' ||
+    !Number.isFinite(fondoInicial.value) ||
+    fondoInicial.value < 0
+  ) {
     $q.notify({
       type: 'warning',
       message: 'Ingresa un fondo inicial válido mayor o igual a $0.00',
