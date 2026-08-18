@@ -488,7 +488,7 @@ const cargarMetodosPago = async () => {
 // pero productos se cargan por separado (no están en el composable)
 void cargarProductos()
 void cargarMetodosPago()
-void turno.cargarTurnoActivo()
+void turno.cargarTurnoActivo(authStore.currentBranchId)
 
 onBeforeUnmount(() => abortController.abort())
 </script>

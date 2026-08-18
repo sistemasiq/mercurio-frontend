@@ -103,9 +103,9 @@ export const turnoCajaService = {
    * Carga el turno activo del cajero.
    * Lanza TurnoNoEncontradoError si el backend responde 404.
    */
-  async cargarTurnoActivo(): Promise<TurnoActivoResponse> {
+  async cargarTurnoActivo(sucursalId?: string | null): Promise<TurnoActivoResponse> {
     try {
-      return await turnoCajaApi.obtenerActivo()
+      return await turnoCajaApi.obtenerActivo(sucursalId)
     } catch (err) {
       const apiErr = err as ApiError
       if (apiErr.statusCode === 404) throw new TurnoNoEncontradoError()
