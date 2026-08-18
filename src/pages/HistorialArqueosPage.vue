@@ -157,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useQuasar, type QTableColumn } from 'quasar'
 import { turnoCajaService } from '@/services/turnoCajaService'
 import { formatDiferencia, formatMXN } from '@/utils/formatoMoneda'
@@ -264,6 +264,17 @@ function claseDiferenciaLocal(dif: number): string {
 }
 
 onMounted(cargar)
+
+// AdministradorSistema no tiene sucursal propia; sin esto, cambiar la sucursal
+// en el selector global no volvía a consultar el historial y dejaba visibles
+// los resultados de la selección anterior (incluida "todas las sucursales").
+watch(
+  () => authStore.currentBranchId,
+  () => {
+    paginaActual.value = 1
+    cargar()
+  },
+)
 </script>
 
 <style scoped>
