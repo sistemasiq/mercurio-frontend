@@ -21,7 +21,7 @@
 
       <!-- ══ Sin turno activo / Apertura de caja ═════════════════════════ -->
       <div v-if="turno.sinTurno" class="rs-apertura-section">
-        <AperturaCajaCard @apertura-exitosa="turno.cargarTurnoActivo()" />
+        <AperturaCajaCard @apertura-exitosa="turno.cargarTurnoActivo(authStore.currentBranchId)" />
       </div>
 
       <!-- ══ Cargando ════════════════════════════════════════════════════ -->
@@ -271,8 +271,19 @@ async function descargarPdf() {
 }
 
 onMounted(() => {
-  turno.cargarTurnoActivo()
+  turno.cargarTurnoActivo(authStore.currentBranchId)
 })
+
+// AdministradorSistema no tiene sucursal propia (opera con la del selector global
+// en el header). Sin este watcher, cambiar de sucursal sin recargar la página dejaba
+// visible la apertura activa de la sucursal anterior — la pantalla nunca volvía a
+// consultar /turnos-caja/activo con el nuevo contexto.
+watch(
+  () => authStore.currentBranchId,
+  (sucursalId) => {
+    turno.cargarTurnoActivo(sucursalId)
+  },
+)
 
 // Sub-vista del hub de la fase OPERANDO: 'hub' (elegir operación) o 'retiro' (formulario).
 const vistaOperando = ref<'hub' | 'retiro'>('hub')

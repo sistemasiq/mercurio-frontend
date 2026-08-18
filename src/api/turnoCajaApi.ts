@@ -146,10 +146,15 @@ export const turnoCajaApi = {
   /**
    * GET /turnos-caja/activo
    * Devuelve el turno activo del cajero autenticado (determinado por el JWT).
-   * 404 si no existe turno activo.
+   * sucursalId es solo relevante para AdministradorSistema, que no tiene
+   * sucursal propia: filtra la apertura activa por la sucursal seleccionada
+   * en el selector global en vez de devolver la de cualquier otra sucursal.
+   * 404 si no existe turno activo (o no en esa sucursal).
    */
-  async obtenerActivo(): Promise<TurnoActivoResponse> {
-    const { data } = await apiClient.get(`${BASE}/activo`)
+  async obtenerActivo(sucursalId?: string | null): Promise<TurnoActivoResponse> {
+    const { data } = await apiClient.get(`${BASE}/activo`, {
+      params: sucursalId ? { sucursal_id: sucursalId } : undefined,
+    })
     return mapTurnoActivo(data)
   },
 
