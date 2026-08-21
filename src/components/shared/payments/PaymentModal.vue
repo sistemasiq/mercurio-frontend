@@ -292,16 +292,11 @@ const primeraCategoriaDisponible = computed(
 watch(
   () => props.modelValue,
   (visible) => {
-    if (visible && !metodoSeleccionado.value) {
+    if (visible) {
       metodoSeleccionado.value = primeraCategoriaDisponible.value
-    }
-    if (!visible) {
-      // El componente queda montado en todos sus consumidores (ninguno usa v-if),
-      // así que al cerrar sin finalizar hay que descartar los pagos capturados.
-      // Si no, reaparecen en el siguiente cobro y se aplican como pagos reales
-      // por dinero que nunca se recibió. finalizarPago() ya emitió una copia
-      // antes de cerrar, así que limpiar aquí no le quita nada.
+    } else {
       pagosAplicados.value = []
+      metodoSeleccionado.value = ''
       celularCliente.value = ''
       saldoDisponible.value = null
       valorPunto.value = null
@@ -446,6 +441,7 @@ const finalizarPago = () => {
   )
   emit('update:modelValue', false)
   pagosAplicados.value = []
+  metodoSeleccionado.value = ''
   celularCliente.value = ''
   puntosARedimir.value = 0
   saldoDisponible.value = null
