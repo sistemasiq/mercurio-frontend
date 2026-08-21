@@ -642,40 +642,201 @@ const ejecutarImpresion = () => {
   background-color: #dc2626;
   color: #ffffff;
 }
+</style>
 
+<style>
 /* ── Print styles ──────────────────────────────────────── */
 @media print {
-  .pos-header {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .pos-header,
+  .pos-actions,
+  .close-styled-btn {
     display: none !important;
   }
-  .pos-actions {
-    display: none !important;
-  }
+
   .modal-backdrop-blur,
   .ticket-pos-root {
     position: static !important;
-    width: auto !important;
+    width: 100% !important;
     height: auto !important;
+    min-height: 0 !important;
     background: none !important;
     backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    display: block !important;
+    padding: 0 !important;
   }
+
   .order-detail-card {
-    background: white !important;
-    height: auto !important;
+    max-width: 340px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    background: #fff !important;
+    border: none !important;
     border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    height: auto !important;
   }
+
   .detail-scroll-area {
     overflow: visible !important;
+    max-height: none !important;
   }
+
   .detail-content {
+    padding: 24px 20px !important;
+    font-family: 'Courier New', Courier, monospace !important;
+  }
+
+  /* Encabezado ticket */
+  .pos-ticket-head {
+    background: none !important;
+    border: none !important;
+    border-radius: 0 !important;
     padding: 0 !important;
+    margin-bottom: 16px !important;
+    gap: 6px !important;
+  }
+
+  .pos-ticket-head__row {
+    display: flex !important;
+    justify-content: space-between !important;
+    padding: 3px 0 !important;
+    border-bottom: 1px dotted #e2e8f0 !important;
+  }
+
+  .pos-ticket-head__row:last-child {
+    border-bottom: none !important;
+  }
+
+  .pos-ticket-head__label {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: #717786 !important;
+    text-transform: uppercase !important;
+  }
+
+  .pos-ticket-head__value {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: #191c1d !important;
+  }
+
+  .badge {
+    font-size: 9px !important;
+    padding: 2px 8px !important;
+    border-radius: 4px !important;
+  }
+
+  /* Productos */
+  .products-section {
+    margin-bottom: 16px !important;
+  }
+
+  .section-subtitle {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: #717786 !important;
+    text-transform: uppercase !important;
+    margin: 0 0 8px 0 !important;
+    padding-bottom: 4px !important;
+    border-bottom: 1px dashed #cbd5e1 !important;
+  }
+
+  .product-item {
+    border: none !important;
+    border-radius: 0 !important;
+    border-bottom: 1px dotted #e2e8f0 !important;
+    padding: 8px 0 !important;
+    background: none !important;
+  }
+
+  .product-item:last-child {
+    border-bottom: none !important;
+  }
+
+  .product-item--combo-child {
+    background: none !important;
+    border-left: none !important;
+    padding-left: 24px !important;
+  }
+
+  .product-qty-box {
+    background: #f1f5f9 !important;
+    border-radius: 4px !important;
+  }
+
+  .product-qty-box--child {
+    background: none !important;
+    color: #717786 !important;
+  }
+
+  .product-name {
+    color: #191c1d !important;
+  }
+
+  .product-total-price {
+    color: #191c1d !important;
+  }
+
+  /* Métodos de pago */
+  .summary-section {
+    background: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+
+  .payment-card-box {
+    border: none !important;
+    border-radius: 0 !important;
+    border-bottom: 1px dotted #e2e8f0 !important;
+    padding: 6px 0 !important;
+    background: none !important;
+  }
+
+  .payment-card-box:last-child {
+    border-bottom: none !important;
+  }
+
+  .card-amount {
+    color: #191c1d !important;
+  }
+
+  /* Totales */
+  .totals-breakdown {
+    background: none !important;
+    border: none !important;
+    border-top: 2px dashed #191c1d !important;
+    border-bottom: 2px dashed #191c1d !important;
+    border-radius: 0 !important;
+    padding: 12px 0 !important;
+    margin-top: 8px !important;
+  }
+
+  .divider-dash {
+    border-top: 1px dotted #cbd5e1 !important;
+  }
+
+  .final-val {
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    color: #191c1d !important;
   }
 }
 </style>
 
 <style>
-/* Impresión: ocultar todo el historial y mostrar solo el ticket */
 @media print {
   .historial-layout-wrapper > * {
     display: none !important;
