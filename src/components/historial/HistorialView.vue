@@ -233,7 +233,7 @@ function onOrdenActualizada() {
       <section class="metrics-grid">
         <div class="metric-card border-slate">
           <div class="metric-info">
-            <span class="metric-label">Ventas Totales</span>
+            <span class="metric-label">Ingresos</span>
             <h3 class="metric-value text-blue-primary">
               ${{ Number(estadisticas.total_ventas || 0).toFixed(2) }}
             </h3>
@@ -245,7 +245,7 @@ function onOrdenActualizada() {
 
         <div class="metric-card border-slate">
           <div class="metric-info">
-            <span class="metric-label">Órdenes</span>
+            <span class="metric-label">Ventas Totales</span>
             <h3 class="metric-value">{{ estadisticas.total_ordenes }}</h3>
           </div>
           <div class="metric-icon-box bg-orange-fixed text-orange-deep">
