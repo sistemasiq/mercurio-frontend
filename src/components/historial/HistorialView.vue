@@ -18,6 +18,8 @@ const filtroTiempo = ref<'hoy' | 'semana' | 'mes'>('hoy')
 const filtroEstado = ref<'todos' | 'pagado' | 'cancelado'>('todos')
 const transacciones = ref<ITransaccion[]>([])
 const comandaSeleccionadaId = ref('')
+const detalleTipoOrigen = ref<'comanda' | 'estancia' | 'reservacion'>('comanda')
+const detalleReferenciaId = ref('')
 const estadisticas = ref<Estadisticas>({ total_ventas: 0, total_ordenes: 0, ticket_promedio: 0 })
 const mostrarFiltros = ref(false)
 const fechaInicio = ref('')
@@ -63,17 +65,56 @@ function obtenerIconoMetodo(nombre: string): string {
   return 'account_balance_wallet'
 }
 
-function obtenerClaseEstado(estado: string): string {
-  const e = estado.toUpperCase()
+const verDetalleOrden = (tipoOrigen: string, referenciaId: string, _estado: string) => {
+  detalleTipoOrigen.value = tipoOrigen as 'comanda' | 'estancia' | 'reservacion'
+  detalleReferenciaId.value = referenciaId
+  mostrarModalPagado.value = true
+}
+
+function infoTipo(tipo: string): { label: string; icon: string; clase: string } {
+  if (tipo === 'estancia')
+    return { label: 'Estancia', icon: 'child_care', clase: 'tipo-badge-estancia' }
+  if (tipo === 'reservacion')
+    return { label: 'Evento', icon: 'event', clase: 'tipo-badge-reservacion' }
+  return { label: 'Pedido', icon: 'receipt_long', clase: 'tipo-badge-comanda' }
+}
+
+function obtenerClaseEstado(tipoOrigen: string, estado: string): string {
+  const e = tipoOrigen === 'reservacion' ? estado.toLowerCase() : estado.toUpperCase()
+  if (tipoOrigen === 'reservacion') {
+    if (e === 'cancelada') return 'status-cancelado'
+    if (e === 'pendiente') return 'status-pendiente'
+    if (e === 'en_curso') return 'status-proceso'
+    return 'status-listo'
+  }
+  if (tipoOrigen === 'estancia') {
+    if (e === 'P') return 'status-pendiente'
+    if (e === 'A') return 'status-proceso'
+    return 'status-entregado'
+  }
+  if (e === 'C') return 'status-cancelado'
   if (e === 'P') return 'status-pendiente'
   if (e === 'E') return 'status-proceso'
-  if (e === 'L' || e === 'PAGADO') return 'status-listo'
+  if (e === 'L') return 'status-listo'
   if (e === 'T') return 'status-entregado'
-  if (e === 'C' || e === 'CANCELADO') return 'status-cancelado'
   return 'status-cancelado'
 }
 
-function textoEstado(estado: string): string {
+function textoEstado(tipoOrigen: string, estado: string): string {
+  if (tipoOrigen === 'reservacion') {
+    const map: Record<string, string> = {
+      pendiente: 'Pendiente',
+      confirmada: 'Confirmada',
+      en_curso: 'En curso',
+      completada: 'Completada',
+      cancelada: 'Cancelada',
+    }
+    return map[estado.toLowerCase()] ?? estado
+  }
+  if (tipoOrigen === 'estancia') {
+    const map: Record<string, string> = { P: 'Pendiente', A: 'Activo', C: 'Cerrado' }
+    return map[estado.toUpperCase()] ?? estado
+  }
   const map: Record<string, string> = {
     P: 'Pendiente',
     E: 'En preparación',
@@ -81,12 +122,7 @@ function textoEstado(estado: string): string {
     T: 'Entregado',
     C: 'Cancelado',
   }
-  return map[estado] ?? estado
-}
-
-const verDetalleOrden = (comandaId: string, _estado: string) => {
-  comandaSeleccionadaId.value = comandaId
-  mostrarModalPagado.value = true
+  return map[estado.toUpperCase()] ?? estado
 }
 
 function formatearMonto(monto: number): string {
@@ -297,14 +333,23 @@ function onOrdenActualizada() {
                   No hay transacciones para este período.
                 </td>
               </tr>
-              <tr v-for="tx in transacciones" :key="tx.comanda_id" class="table-row-hover">
+              <tr v-for="tx in transacciones" :key="tx.referencia_id" class="table-row-hover">
                 <td class="td-align-middle text-xs text-slate-muted">
                   {{ formatearFecha(tx.creado) }}
                 </td>
                 <td class="td-align-middle">
                   <div class="flex-column-cell">
-                    <span class="font-bold text-slate-dark">{{ tx.ticket_numero }}</span>
-                    <span class="subtext-cell">Pedido</span>
+                    <span class="font-bold text-slate-dark">{{ tx.titulo }}</span>
+                    <div class="tipo-label-row">
+                      <q-icon
+                        :name="infoTipo(tx.tipo_origen).icon"
+                        size="12px"
+                        class="tipo-label-icon"
+                      />
+                      <span :class="['subtext-cell', infoTipo(tx.tipo_origen).clase]">
+                        {{ infoTipo(tx.tipo_origen).label }}
+                      </span>
+                    </div>
                   </div>
                 </td>
                 <td class="td-align-middle">
@@ -323,8 +368,11 @@ function onOrdenActualizada() {
                   </div>
                 </td>
                 <td class="td-align-middle">
-                  <span :class="obtenerClaseEstado(tx.estado_actual)" class="status-badge-native">
-                    {{ textoEstado(tx.estado_actual) }}
+                  <span
+                    :class="obtenerClaseEstado(tx.tipo_origen, tx.estado_actual)"
+                    class="status-badge-native"
+                  >
+                    {{ textoEstado(tx.tipo_origen, tx.estado_actual) }}
                   </span>
                 </td>
                 <td class="td-align-middle text-right font-bold text-slate-dark">
@@ -336,12 +384,13 @@ function onOrdenActualizada() {
                       type="button"
                       class="btn-cell-action text-blue-primary"
                       title="Ver detalle"
-                      @click="verDetalleOrden(tx.comanda_id, tx.estado_actual)"
+                      @click="verDetalleOrden(tx.tipo_origen, tx.referencia_id, tx.estado_actual)"
                     >
                       <q-icon name="visibility" size="xs" />
                     </button>
 
                     <button
+                      v-if="tx.tipo_origen === 'comanda'"
                       type="button"
                       class="btn-cell-action text-orange-deep"
                       title="Imprimir"
@@ -352,21 +401,21 @@ function onOrdenActualizada() {
                     </button>
 
                     <button
-                      v-if="esEditable(tx.estado_actual)"
+                      v-if="tx.tipo_origen === 'comanda' && esEditable(tx.estado_actual)"
                       type="button"
                       class="btn-cell-action text-blue-primary"
                       title="Editar orden"
-                      @click="abrirEditar(tx.comanda_id)"
+                      @click="abrirEditar(tx.comanda_id!)"
                     >
                       <q-icon name="edit" size="xs" />
                     </button>
 
                     <button
-                      v-if="!esEstadoFinal(tx.estado_actual)"
+                      v-if="tx.tipo_origen === 'comanda' && !esEstadoFinal(tx.estado_actual)"
                       type="button"
                       class="btn-cell-action text-red-error"
                       title="Cancelar orden"
-                      @click="abrirCancelar(tx.comanda_id)"
+                      @click="abrirCancelar(tx.comanda_id!)"
                     >
                       <q-icon name="block" size="xs" />
                     </button>
@@ -387,7 +436,8 @@ function onOrdenActualizada() {
 
     <DetalleOrdenPagada
       v-if="mostrarModalPagado"
-      :comanda-id="comandaSeleccionadaId"
+      :tipo-origen="detalleTipoOrigen"
+      :referencia-id="detalleReferenciaId"
       @close="mostrarModalPagado = false"
     />
     <EditarOrdenModal
@@ -667,6 +717,27 @@ function onOrdenActualizada() {
 .subtext-cell {
   font-size: 11px;
   color: #414754;
+}
+.tipo-label-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+.tipo-label-icon {
+  color: #717786;
+}
+.tipo-badge-estancia {
+  color: #0059bb;
+  font-weight: 600;
+}
+.tipo-badge-reservacion {
+  color: #b45309;
+  font-weight: 600;
+}
+.tipo-badge-comanda {
+  color: #717786;
+  font-weight: 600;
 }
 .flex-row-cell {
   display: flex;
