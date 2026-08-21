@@ -26,6 +26,24 @@ function buildApiError(statusCode: number, code: string, message: string): ApiEr
   return { statusCode, code, message }
 }
 
+/**
+ * Convierte un error de axios (o de cualquier otra fuente) en un ApiError
+ * consistente. Necesario para rawApiClient, que no pasa por el interceptor
+ * de respuesta de `apiClient` y por eso deja pasar AxiosError sin traducir
+ * (ej. "Request failed with status code 401" en vez del mensaje del backend).
+ */
+export function normalizeAxiosError(error: unknown): ApiError {
+  if (isNetworkError(error)) {
+    return buildApiError(0, 'NETWORK_ERROR', 'Sin conexión a internet. Verifica tu red.')
+  }
+  if (error instanceof AxiosError) {
+    const status = error.response?.status ?? 0
+    const { code, message } = extractCodeAndMessage(error.response?.data as BackendErrorBody)
+    return buildApiError(status, code, message)
+  }
+  return buildApiError(0, 'UNKNOWN_ERROR', 'Ocurrió un error inesperado.')
+}
+
 // El backend estructura sus errores como { detail: string | { code, message } }
 // (ver app/exceptions/__init__.py) — los 422 de validación de FastAPI mandan
 // detail como un array de { msg }. Desempaca cualquiera de esas formas.

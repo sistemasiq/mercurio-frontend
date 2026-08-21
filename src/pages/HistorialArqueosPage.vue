@@ -157,15 +157,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useQuasar, type QTableColumn } from 'quasar'
 import { turnoCajaService } from '@/services/turnoCajaService'
 import { formatDiferencia, formatMXN } from '@/utils/formatoMoneda'
 import { getAvatarColor, getInitials } from '@/utils/avatar'
 import type { ArqueoResumen, FiltrosHistorial } from '@/types/turnoCaja'
 import DetalleArqueoDialog from '@/components/cierre-caja/DetalleArqueoDialog.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const $q = useQuasar()
+const authStore = useAuthStore()
 
 // ── Estado ────────────────────────────────────────────────────────────────
 const items = ref<ArqueoResumen[]>([])
@@ -205,6 +207,7 @@ async function cargar() {
   error.value = null
   try {
     const params: FiltrosHistorial = { page: paginaActual.value, pageSize: PAGE_SIZE }
+    if (authStore.currentBranchId) params.sucursalId = authStore.currentBranchId
     if (filtros.fechaDesde) params.fechaDesde = filtros.fechaDesde
     if (filtros.fechaHasta) params.fechaHasta = filtros.fechaHasta
     if (filtros.cajeroId) params.cajeroId = filtros.cajeroId
@@ -261,6 +264,17 @@ function claseDiferenciaLocal(dif: number): string {
 }
 
 onMounted(cargar)
+
+// AdministradorSistema no tiene sucursal propia; sin esto, cambiar la sucursal
+// en el selector global no volvía a consultar el historial y dejaba visibles
+// los resultados de la selección anterior (incluida "todas las sucursales").
+watch(
+  () => authStore.currentBranchId,
+  () => {
+    paginaActual.value = 1
+    cargar()
+  },
+)
 </script>
 
 <style scoped>

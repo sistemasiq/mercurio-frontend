@@ -149,20 +149,10 @@ async function intentarAutenticar() {
     return
   }
 
-  // 3. Ejecutar autenticación con el backend
-  const exito = await turno.autenticarAdmin()
-
-  // 4. Si falla la autenticación, notificar en la parte superior y reiniciar campos
-  if (!exito) {
-    $q.notify({
-      type: 'negative',
-      position: 'top',
-      icon: 'error',
-      message:
-        turno.credencialesAdmin.error ||
-        'Credenciales incorrectas. Verifique usuario y contraseña.',
-    })
-  }
+  // 3. Ejecutar autenticación con el backend. Si falla, el store deja el mensaje
+  // en turno.credencialesAdmin.error y el banner inline del modal lo muestra —
+  // no se duplica con un toast.
+  await turno.autenticarAdmin()
 }
 </script>
 

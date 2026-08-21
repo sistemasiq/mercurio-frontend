@@ -1,4 +1,4 @@
-import { apiClient, rawApiClient } from '@/api/axiosClient'
+import { apiClient, normalizeAxiosError, rawApiClient } from '@/api/axiosClient'
 import type { BranchOption, LoginRequest, UserRole } from '@/types/auth'
 
 export interface BackendUser {
@@ -30,8 +30,12 @@ export type BackendLoginRawResponse = BackendLoginResponse | BackendBranchSelect
 
 export const authApi = {
   async login(credentials: LoginRequest): Promise<BackendLoginRawResponse> {
-    const { data } = await rawApiClient.post<BackendLoginRawResponse>('/auth/login', credentials)
-    return data
+    try {
+      const { data } = await rawApiClient.post<BackendLoginRawResponse>('/auth/login', credentials)
+      return data
+    } catch (err) {
+      throw normalizeAxiosError(err)
+    }
   },
 
   async me(): Promise<BackendUser> {
@@ -40,10 +44,14 @@ export const authApi = {
   },
 
   async refresh(refreshToken: string): Promise<BackendLoginResponse> {
-    const { data } = await rawApiClient.post<BackendLoginResponse>('/auth/refresh', {
-      refreshToken,
-    })
-    return data
+    try {
+      const { data } = await rawApiClient.post<BackendLoginResponse>('/auth/refresh', {
+        refreshToken,
+      })
+      return data
+    } catch (err) {
+      throw normalizeAxiosError(err)
+    }
   },
 
   async logout(refreshToken: string): Promise<void> {

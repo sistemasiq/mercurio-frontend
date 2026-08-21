@@ -14,6 +14,7 @@ import type {
   DetalleArqueo,
   RetiroParcialPayload,
   RetiroParcialResponse,
+  FilaBalance,
 } from '@/types/turnoCaja'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,13 +37,13 @@ function mapTurnoActivo(raw: any): TurnoActivoResponse {
     cajeroNombre: raw.cajero_nombre,
     terminal: raw.terminal,
     estado: raw.estado,
-    fondoInicial: raw.fondo_inicial,
+    fondoInicial: Number(raw.fondo_inicial),
     fechaApertura: raw.fecha_apertura,
-    totalVentas: raw.total_ventas ?? 0,
-    totalRetiros: raw.total_retiros ?? 0,
+    totalVentas: Number(raw.total_ventas ?? 0),
+    totalRetiros: Number(raw.total_retiros ?? 0),
     movimientos: (raw.movimientos ?? []).map(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (m: any) => ({ metodo: m.metodo, totalVentas: m.total_ventas }),
+      (m: any) => ({ metodo: m.metodo, totalVentas: Number(m.total_ventas) }),
     ),
   }
 }
@@ -52,20 +53,22 @@ function mapRevisionAdmin(raw: any): RevisionAdminResponse {
   return {
     autorizado: raw.autorizado,
     adminNombre: raw.admin_nombre,
-    totalEsperado: raw.total_esperado,
-    totalDeclarado: raw.total_declarado,
-    diferenciaNeta: raw.diferencia_neta,
-    balancePorMetodo: (raw.balance_por_metodo ?? []).map(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (f: any) => ({
-        metodo: f.metodo,
-        label: f.label,
-        declarado: f.declarado,
-        esperado: f.esperado,
-        diferencia: f.diferencia,
-      }),
-    ),
+    totalEsperado: Number(raw.total_esperado),
+    totalDeclarado: Number(raw.total_declarado),
+    diferenciaNeta: Number(raw.diferencia_neta),
+    balancePorMetodo: mapBalancePorMetodo(raw.balance_por_metodo),
   }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapBalancePorMetodo(raw: any[] | undefined): FilaBalance[] {
+  return (raw ?? []).map((f) => ({
+    metodo: f.metodo,
+    label: f.label,
+    declarado: Number(f.declarado),
+    esperado: Number(f.esperado),
+    diferencia: Number(f.diferencia),
+  }))
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,10 +80,10 @@ function mapArqueoResumen(raw: any) {
     sucursalNombre: raw.sucursal_nombre,
     fechaApertura: raw.fecha_apertura,
     fechaCierre: raw.fecha_cierre,
-    fondoInicial: raw.fondo_inicial,
-    totalDeclarado: raw.total_declarado,
-    totalEsperado: raw.total_esperado,
-    diferenciaNeta: raw.diferencia_neta,
+    fondoInicial: Number(raw.fondo_inicial),
+    totalDeclarado: Number(raw.total_declarado),
+    totalEsperado: Number(raw.total_esperado),
+    diferenciaNeta: Number(raw.diferencia_neta),
     tieneObservaciones: raw.tiene_observaciones ?? false,
     pdfUrl: raw.pdf_url ?? null,
     adminNombre: raw.admin_nombre ?? null,
@@ -143,10 +146,15 @@ export const turnoCajaApi = {
   /**
    * GET /turnos-caja/activo
    * Devuelve el turno activo del cajero autenticado (determinado por el JWT).
-   * 404 si no existe turno activo.
+   * sucursalId es solo relevante para AdministradorSistema, que no tiene
+   * sucursal propia: filtra la apertura activa por la sucursal seleccionada
+   * en el selector global en vez de devolver la de cualquier otra sucursal.
+   * 404 si no existe turno activo (o no en esa sucursal).
    */
-  async obtenerActivo(): Promise<TurnoActivoResponse> {
-    const { data } = await apiClient.get(`${BASE}/activo`)
+  async obtenerActivo(sucursalId?: string | null): Promise<TurnoActivoResponse> {
+    const { data } = await apiClient.get(`${BASE}/activo`, {
+      params: sucursalId ? { sucursal_id: sucursalId } : undefined,
+    })
     return mapTurnoActivo(data)
   },
 
@@ -267,7 +275,7 @@ export const turnoCajaApi = {
       turnoId: data.apertura_caja_id,
       concepto: data.concepto,
       tipoDestinatario: data.tipo_destinatario,
-      monto: data.monto,
+      monto: Number(data.monto),
       observaciones: data.observaciones ?? null,
       creado: data.creado,
     }
@@ -307,32 +315,21 @@ export const turnoCajaApi = {
       desgloseEfectivo: {
         billetes: (data.desglose_efectivo?.billetes ?? []).map(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (b: any) => ({
-            denominacion: b.denominacion,
-            cantidad: b.cantidad,
-            subtotal: b.denominacion * b.cantidad,
-          }),
+          (b: any) => {
+            const denominacion = Number(b.denominacion)
+            return { denominacion, cantidad: b.cantidad, subtotal: denominacion * b.cantidad }
+          },
         ),
         monedas: (data.desglose_efectivo?.monedas ?? []).map(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (m: any) => ({
-            denominacion: m.denominacion,
-            cantidad: m.cantidad,
-            subtotal: m.denominacion * m.cantidad,
-          }),
+          (m: any) => {
+            const denominacion = Number(m.denominacion)
+            return { denominacion, cantidad: m.cantidad, subtotal: denominacion * m.cantidad }
+          },
         ),
-        totalEfectivo: data.desglose_efectivo?.total ?? 0,
+        totalEfectivo: Number(data.desglose_efectivo?.total ?? 0),
       },
-      balancePorMetodo: (data.balance_por_metodo ?? []).map(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (f: any) => ({
-          metodo: f.metodo,
-          label: f.label,
-          declarado: f.declarado,
-          esperado: f.esperado,
-          diferencia: f.diferencia,
-        }),
-      ),
+      balancePorMetodo: mapBalancePorMetodo(data.balance_por_metodo),
       observaciones: data.observaciones ?? '',
       adminNombre: data.admin_nombre ?? '',
     }

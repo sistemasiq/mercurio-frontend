@@ -26,6 +26,18 @@ import type {
   RetiroParcialPayload,
 } from '@/types/turnoCaja'
 
+// v-model.number sobre <q-input type="text"> no convierte "" a 0 ni a null: Vue
+// solo castea cuando parseFloat produce un número válido, así que al borrar un
+// campo (billete/moneda/monto/total) el ref se queda con el string "" — y "" ?? 0
+// no lo atrapa porque ?? solo reemplaza null/undefined, no cualquier valor "falsy".
+// Eso llegaba tal cual al payload y Pydantic lo rechazaba con 422 "unable to parse
+// string as an integer" (reproducido: dos campos vacíos → el mismo error dos veces).
+function aNumero(valor: number | string | null | undefined): number {
+  if (valor === null || valor === undefined || valor === '') return 0
+  const n = Number(valor)
+  return Number.isFinite(n) ? n : 0
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Store
 // ─────────────────────────────────────────────────────────────────────────────
@@ -136,11 +148,11 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   }
 
   /** Carga el turno activo al montar la página. */
-  async function cargarTurnoActivo(): Promise<void> {
+  async function cargarTurnoActivo(sucursalId?: string | null): Promise<void> {
     cargando.value = true
     error.value = null
     try {
-      const turno = await turnoCajaService.cargarTurnoActivo()
+      const turno = await turnoCajaService.cargarTurnoActivo(sucursalId)
       _aplicarTurno(turno)
     } catch {
       estado.value = 'SIN_TURNO'
@@ -195,7 +207,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   async function enviarConteo(): Promise<void> {
     if (!turnoId.value || !enConteo.value) return
 
-    const totalDeclaradoMonto = totalContadoDeclarado.value ?? 0
+    const totalDeclaradoMonto = aNumero(totalContadoDeclarado.value)
     if (totalDeclaradoMonto <= 0) {
       error.value = 'El total declarado debe ser mayor a $0.00 para poder generar el corte de caja.'
       return
@@ -209,19 +221,19 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
         desgloseEfectivo: {
           billetes: desgloseEfectivo.value.billetes.map((b) => ({
             denominacion: b.value,
-            cantidad: b.amount ?? 0,
+            cantidad: aNumero(b.amount),
           })),
           monedas: desgloseEfectivo.value.monedas.map((m) => ({
             denominacion: m.value,
-            cantidad: m.amount ?? 0,
+            cantidad: aNumero(m.amount),
           })),
           total: desgloseEfectivo.value.total,
         },
         metodosPago: metodosPago.value.map((m) => ({
           metodo: m.metodo,
-          monto: m.monto ?? 0,
+          monto: aNumero(m.monto),
         })),
-        totalDeclarado: totalContadoDeclarado.value ?? 0,
+        totalDeclarado: totalDeclaradoMonto,
       })
       _aplicarTurno(turno)
       credencialesAdmin.email = ''

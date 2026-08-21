@@ -80,27 +80,16 @@
         </q-select>
       </div>
 
-      <!-- Selección de Sucursal (solo AdministradorSistema, que no tiene sucursal propia) -->
-      <div v-if="esAdminSistema" class="form-group q-mb-md">
-        <label class="field-label">Sucursal</label>
-        <q-select
-          v-model="sucursalSeleccionada"
-          outlined
-          dense
-          :options="opcionesSucursales"
-          option-value="value"
-          option-label="label"
-          emit-value
-          map-options
-          placeholder="Selecciona la sucursal"
-          class="sucursal-select"
-          :loading="sucursalesStore.loading"
-        >
-          <template #prepend>
-            <q-icon name="storefront" color="primary" />
-          </template>
-        </q-select>
-      </div>
+      <!-- Aviso para AdministradorSistema si no ha elegido sucursal en el selector
+           global del encabezado (no se duplica el picker aquí, ver authStore.currentBranchId) -->
+      <q-banner
+        v-if="esAdminSistema && !sucursalSeleccionada"
+        rounded
+        class="bg-warning text-dark q-mb-md"
+      >
+        <template #avatar><q-icon name="storefront" /></template>
+        Selecciona una sucursal en el menú superior antes de abrir caja.
+      </q-banner>
 
       <!-- Selección de Terminal / Estación (Cajas BD, filtradas por sucursal) -->
       <div class="form-group q-mb-md">
@@ -182,7 +171,6 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useAuthStore } from '@/stores/auth'
-import { useSucursalesStore } from '@/stores/sucursales'
 import { turnoCajaService } from '@/services/turnoCajaService'
 import { filtrarTeclaDecimal, reglaDecimal } from '@/utils/validacionNumerica'
 import type { TurnoItem, CajaItem } from '@/types/turnoCaja'
@@ -195,18 +183,15 @@ interface OptionItem {
 const $q = useQuasar()
 const turno = useTurnoCajaStore()
 const authStore = useAuthStore()
-const sucursalesStore = useSucursalesStore()
 
 const fondoInicial = ref<number | null>(0)
 const observaciones = ref('')
 
 // AdministradorSistema no tiene sucursal propia en el JWT (branchId === null) y
-// controla todas las sucursales: debe elegir explícitamente en cuál va a abrir caja.
+// controla todas las sucursales: usa la que ya eligió en el selector global del
+// encabezado (authStore.currentBranchId) en vez de un picker propio duplicado aquí.
 const esAdminSistema = computed(() => authStore.hasRole('AdministradorSistema'))
-const sucursalSeleccionada = ref<string | null>(null)
-const opcionesSucursales = computed<OptionItem[]>(() =>
-  sucursalesStore.activas.map((s) => ({ label: s.nombre, value: s.id })),
-)
+const sucursalSeleccionada = computed(() => authStore.currentBranchId)
 
 // Turnos dinámicos
 const turnoSeleccionado = ref<string | null>(null)
@@ -223,7 +208,11 @@ const montosSugeridos = [500, 1000, 1500, 2000, 3000, 5000]
 // Campos obligatorios en BD (apertura_caja: fondo_inicial, caja_id) más la regla de
 // negocio de que AdministradorSistema debe elegir explícitamente la sucursal.
 const puedeAbrirCaja = computed(() => {
-  if (fondoInicial.value === null || fondoInicial.value < 0) return false
+  // v-model.number sobre <q-input type="text"> deja "" (no null) cuando se borra el
+  // campo, y "" < 0 es false en JS (compara como 0) — sin el chequeo de tipo, este
+  // guard dejaba pasar un campo vacío. Ver mismo bug corregido en stores/turnoCaja.ts.
+  if (typeof fondoInicial.value !== 'number' || !Number.isFinite(fondoInicial.value)) return false
+  if (fondoInicial.value < 0) return false
   if (esAdminSistema.value && !sucursalSeleccionada.value) return false
   if (opcionesCajas.value.length > 0 && !cajaSeleccionada.value) return false
   return true
@@ -282,19 +271,17 @@ onMounted(async () => {
     cargandoTurnos.value = false
   }
 
-  if (esAdminSistema.value) {
-    // 2a. AdministradorSistema: cargar el catálogo de sucursales (public.sucursales) para elegir.
-    if (sucursalesStore.sucursales.length === 0) {
-      await sucursalesStore.cargar()
-    }
-  } else {
-    // 2b. Cajero/Administrador: cajas de su propia sucursal directamente.
-    await cargarCajas()
-  }
+  // La sucursal de AdministradorSistema ya viene del selector global del
+  // encabezado (authStore.currentBranchId); cargarCajas() la usa directamente.
+  await cargarCajas()
 })
 
 async function realizarApertura() {
-  if (fondoInicial.value === null || fondoInicial.value < 0) {
+  if (
+    typeof fondoInicial.value !== 'number' ||
+    !Number.isFinite(fondoInicial.value) ||
+    fondoInicial.value < 0
+  ) {
     $q.notify({
       type: 'warning',
       message: 'Ingresa un fondo inicial válido mayor o igual a $0.00',
@@ -305,7 +292,7 @@ async function realizarApertura() {
   if (esAdminSistema.value && !sucursalSeleccionada.value) {
     $q.notify({
       type: 'warning',
-      message: 'Selecciona la sucursal en la que se abrirá la caja.',
+      message: 'Selecciona una sucursal en el menú superior antes de abrir caja.',
     })
     return
   }
