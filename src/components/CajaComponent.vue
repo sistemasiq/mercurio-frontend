@@ -467,7 +467,7 @@ const procesarPago = async (
     $q.notify({
       type: 'positive',
       message: '¡Pedido enviado a cocina!',
-      caption: `Comanda ${comanda.id.slice(0, 8)} · ${itemsTicket.value.length} producto(s) en camino`,
+      caption: `${itemsTicket.value.length} producto(s) en camino`,
       position: 'top-right',
       timeout: 2500,
       icon: 'check_circle',
