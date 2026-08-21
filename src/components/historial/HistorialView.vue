@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import DetalleOrdenPagada from './DetalleOrdenPagada.vue'
 import EditarOrdenModal from './EditarOrdenModal.vue'
@@ -24,29 +24,70 @@ const estadisticas = ref<Estadisticas>({ total_ventas: 0, total_ordenes: 0, tick
 const mostrarFiltros = ref(false)
 const fechaInicio = ref('')
 const fechaFin = ref('')
+const busqueda = ref('')
+const paginaActual = ref(1)
+const itemsPorPagina = 20
+const modoImpresion = ref(false)
+let controladorFetch: AbortController | null = null
 
-async function cargarDatos() {
+function cargarDatos() {
+  if (controladorFetch) controladorFetch.abort()
+  controladorFetch = new AbortController()
+  const signal = controladorFetch.signal
+
   isLoading.value = true
-  try {
-    const fi = fechaInicio.value || undefined
-    const ff = fechaFin.value || undefined
-    const [txs, stats] = await Promise.all([
-      obtenerHistorial(filtroTiempo.value, filtroEstado.value, undefined, fi, ff),
-      obtenerEstadisticas(filtroTiempo.value, undefined, fi, ff),
-    ])
-    transacciones.value = txs
-    estadisticas.value = stats
-  } finally {
-    isLoading.value = false
-  }
+  const fi = fechaInicio.value || undefined
+  const ff = fechaFin.value || undefined
+  Promise.all([
+    obtenerHistorial(filtroTiempo.value, filtroEstado.value, undefined, fi, ff),
+    obtenerEstadisticas(filtroTiempo.value, undefined, fi, ff),
+  ])
+    .then(([txs, stats]) => {
+      if (!signal.aborted) {
+        transacciones.value = txs
+        estadisticas.value = stats
+      }
+    })
+    .finally(() => {
+      if (!signal.aborted) isLoading.value = false
+    })
 }
 
 onMounted(cargarDatos)
 
+onBeforeUnmount(() => {
+  if (controladorFetch) controladorFetch.abort()
+})
+
 watch([filtroTiempo, filtroEstado], cargarDatos)
+
+watch(busqueda, () => {
+  paginaActual.value = 1
+})
+
+const transaccionesFiltradas = computed(() => {
+  const term = busqueda.value.trim().toLowerCase()
+  if (!term) return transacciones.value
+  return transacciones.value.filter(
+    (tx) =>
+      tx.titulo.toLowerCase().includes(term) ||
+      tx.tipo_origen.toLowerCase().includes(term) ||
+      tx.metodos_pago.some((mp) => mp.metodo_pago_nombre.toLowerCase().includes(term)),
+  )
+})
+
+const totalPaginas = computed(() =>
+  Math.max(1, Math.ceil(transaccionesFiltradas.value.length / itemsPorPagina)),
+)
+
+const transaccionesPaginadas = computed(() => {
+  const inicio = (paginaActual.value - 1) * itemsPorPagina
+  return transaccionesFiltradas.value.slice(inicio, inicio + itemsPorPagina)
+})
 
 function aplicarFiltroFecha() {
   mostrarFiltros.value = false
+  paginaActual.value = 1
   cargarDatos()
 }
 
@@ -54,6 +95,7 @@ function limpiarFiltroFecha() {
   fechaInicio.value = ''
   fechaFin.value = ''
   mostrarFiltros.value = false
+  paginaActual.value = 1
   cargarDatos()
 }
 
@@ -138,8 +180,9 @@ function formatearFecha(iso: string): string {
   return `${hh}:${mm} - ${dd} ${mes}`
 }
 
-const imprimirDirecto = () => {
-  window.print()
+const imprimirDirecto = (tipoOrigen: string, referenciaId: string) => {
+  modoImpresion.value = true
+  verDetalleOrden(tipoOrigen, referenciaId, '')
 }
 
 function esEstadoFinal(estado: string): boolean {
@@ -270,7 +313,12 @@ function onOrdenActualizada() {
         <div class="filter-action-bar">
           <div class="search-input-wrapper">
             <q-icon name="search" class="search-icon" size="xs" />
-            <input type="text" placeholder="Buscar orden..." class="search-box-native" />
+            <input
+              v-model="busqueda"
+              type="text"
+              placeholder="Buscar orden..."
+              class="search-box-native"
+            />
           </div>
 
           <div class="selects-actions-group">
@@ -333,7 +381,11 @@ function onOrdenActualizada() {
                   No hay transacciones para este período.
                 </td>
               </tr>
-              <tr v-for="tx in transacciones" :key="tx.referencia_id" class="table-row-hover">
+              <tr
+                v-for="tx in transaccionesPaginadas"
+                :key="tx.referencia_id"
+                class="table-row-hover"
+              >
                 <td class="td-align-middle text-xs text-slate-muted">
                   {{ formatearFecha(tx.creado) }}
                 </td>
@@ -395,7 +447,7 @@ function onOrdenActualizada() {
                       class="btn-cell-action text-orange-deep"
                       title="Imprimir"
                       :disabled="esEstadoFinal(tx.estado_actual)"
-                      @click="imprimirDirecto()"
+                      @click="imprimirDirecto(tx.tipo_origen, tx.referencia_id)"
                     >
                       <q-icon name="print" size="xs" />
                     </button>
@@ -428,8 +480,37 @@ function onOrdenActualizada() {
 
         <div class="pagination-footer-bar">
           <span class="pagination-counter-text">
-            Mostrando {{ transacciones.length }} transacciones
+            Mostrando {{ transaccionesPaginadas.length }} de
+            {{ transaccionesFiltradas.length }} transacciones
           </span>
+          <div class="pagination-buttons-group">
+            <button
+              type="button"
+              class="btn-pager-nav"
+              :disabled="paginaActual <= 1"
+              @click="paginaActual--"
+            >
+              &lt;
+            </button>
+            <button
+              v-for="p in totalPaginas"
+              :key="p"
+              type="button"
+              class="btn-pager-num"
+              :class="{ 'active-page': p === paginaActual }"
+              @click="paginaActual = p"
+            >
+              {{ p }}
+            </button>
+            <button
+              type="button"
+              class="btn-pager-nav"
+              :disabled="paginaActual >= totalPaginas"
+              @click="paginaActual++"
+            >
+              &gt;
+            </button>
+          </div>
         </div>
       </div>
     </main>
@@ -438,7 +519,11 @@ function onOrdenActualizada() {
       v-if="mostrarModalPagado"
       :tipo-origen="detalleTipoOrigen"
       :referencia-id="detalleReferenciaId"
-      @close="mostrarModalPagado = false"
+      :auto-print="modoImpresion"
+      @close="
+        mostrarModalPagado = false
+        modoImpresion = false
+      "
     />
     <EditarOrdenModal
       v-if="mostrarModalEditar"

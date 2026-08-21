@@ -1,6 +1,6 @@
 <!-- src/components/historial/DetalleOrdenPagada.vue -->
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { obtenerDetalleOrden } from '@/services/historialService'
 import type { DetalleOrden } from '@/api/historialApi'
 
@@ -10,8 +10,9 @@ const props = withDefaults(
     referenciaId?: string
     comandaId?: string
     posMode?: boolean
+    autoPrint?: boolean
   }>(),
-  { tipoOrigen: 'comanda', referenciaId: '', comandaId: '', posMode: false },
+  { tipoOrigen: 'comanda', referenciaId: '', comandaId: '', posMode: false, autoPrint: false },
 )
 const emit = defineEmits(['close'])
 
@@ -31,6 +32,10 @@ onMounted(async () => {
   document.body.style.overflow = 'hidden'
   try {
     orden.value = await obtenerDetalleOrden(props.tipoOrigen, props.referenciaId || props.comandaId)
+    if (props.autoPrint) {
+      await nextTick()
+      window.print()
+    }
   } finally {
     isLoading.value = false
   }

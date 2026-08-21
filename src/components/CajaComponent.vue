@@ -207,6 +207,18 @@ const abrirModalPago = () => {
     void router.push('/pos/cierre')
     return
   }
+  if (!nombreCliente.value.trim()) {
+    $q.dialog({
+      title: 'Sin nombre de cliente',
+      message: 'No se ha indicado un nombre para este pedido. ¿Deseas continuar sin nombre?',
+      cancel: { label: 'Cancelar', flat: true, color: 'grey-7' },
+      ok: { label: 'Continuar sin nombre', color: 'primary' },
+      persistent: true,
+    }).onOk(() => {
+      modalPagoAbierto.value = true
+    })
+    return
+  }
   modalPagoAbierto.value = true
 }
 const props = defineProps<{ searchTerm?: string }>()

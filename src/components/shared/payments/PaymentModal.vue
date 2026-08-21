@@ -279,6 +279,10 @@ const celularCliente = ref('')
 const puntosARedimir = ref(0)
 const saldoDisponible = ref<number | null>(null)
 const valorPunto = ref<number | null>(null)
+const mostrarModalTarjeta = ref(false)
+const tarjetaMontoTemporal = ref(0)
+const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
+const tarjetaAutorizacion = ref('')
 
 // Primera categoría con al menos un método activo de ese tipo en el
 // catálogo real de la sucursal -- no asumir que "Efectivo" siempre existe.
@@ -301,6 +305,10 @@ watch(
       saldoDisponible.value = null
       valorPunto.value = null
       puntosARedimir.value = 0
+      mostrarModalTarjeta.value = false
+      tarjetaMontoTemporal.value = 0
+      tarjetaTipo.value = 'CREDITO'
+      tarjetaAutorizacion.value = ''
     }
   },
   { immediate: true },
@@ -335,6 +343,19 @@ const descuentoPuntos = computed(() => {
 
 const totalNeto = computed(() => props.totalToPay - descuentoPuntos.value)
 
+watch(totalNeto, (nuevoTotal) => {
+  let excedente = 0
+  for (const pago of pagosAplicados.value) {
+    if (!esEfectivo(pago.method)) {
+      const maxPermitido = Math.max(0, nuevoTotal - excedente)
+      if (pago.amount > maxPermitido) {
+        pago.amount = maxPermitido
+      }
+      excedente += pago.amount
+    }
+  }
+})
+
 const esEfectivo = (nombre: string) => nombre.trim().toLowerCase().includes('efectivo')
 const esTarjeta = (nombre: string) => {
   const n = nombre.trim().toLowerCase()
@@ -346,11 +367,6 @@ const esTarjeta = (nombre: string) => {
     n.includes('debito')
   )
 }
-
-const mostrarModalTarjeta = ref(false)
-const tarjetaMontoTemporal = ref(0)
-const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
-const tarjetaAutorizacion = ref('')
 
 const totalPagado = computed(() => {
   return pagosAplicados.value.reduce((suma, pago) => suma + pago.amount, 0)
