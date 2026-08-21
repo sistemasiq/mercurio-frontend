@@ -192,6 +192,15 @@ const modalPagoAbierto = ref(false)
 const comandaPagadaId = ref<string | null>(null)
 const ticketPostPagoAbierto = ref(false)
 const abrirModalPago = () => {
+  if (itemsTicket.value.length === 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'Agrega productos al pedido antes de cobrar.',
+      position: 'top',
+      timeout: 3000,
+    })
+    return
+  }
   // El turno pudo haberse cerrado entre "Nuevo Pedido" y este punto — mismo
   // redirect silencioso, sin bloquear ni avisar, como defensa adicional.
   if (!turno.estaOperando) {
