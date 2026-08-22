@@ -105,6 +105,41 @@
                       </td>
                     </tr>
                   </tbody>
+                  <tfoot>
+                    <tr class="rs-balance-total-row">
+                      <td class="font-bold">Total</td>
+                      <td class="text-right font-bold">
+                        ${{
+                          totalesPorMetodo.esperado.toLocaleString('es-MX', {
+                            minimumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                      <td class="text-right font-bold">
+                        ${{
+                          totalesPorMetodo.declarado.toLocaleString('es-MX', {
+                            minimumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                      <td
+                        class="text-right"
+                        :class="claseDiferenciaFila(totalesPorMetodo.diferencia)"
+                      >
+                        {{
+                          totalesPorMetodo.diferencia > 0
+                            ? '+'
+                            : totalesPorMetodo.diferencia < 0
+                              ? '-'
+                              : ''
+                        }}${{
+                          Math.abs(totalesPorMetodo.diferencia).toLocaleString('es-MX', {
+                            minimumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
               <p class="rs-table-hint">
@@ -313,6 +348,17 @@ const diffClass = computed(() => {
   return 'text-positive font-bold'
 })
 
+// Suma de todos los métodos de pago (efectivo, tarjeta, etc.) del comparativo --
+// distinta de turno.totalEsperado/totalDeclarado, que el backend calcula solo
+// sobre efectivo (ver comentario arriba). Este total es el que pidió el negocio
+// para ver de un vistazo si el cajero tiene una diferencia grande en algún
+// método que no sea efectivo (ej. tarjeta).
+const totalesPorMetodo = computed(() => {
+  const esperado = turno.balancePorMetodo.reduce((suma, fila) => suma + fila.esperado, 0)
+  const declarado = turno.balancePorMetodo.reduce((suma, fila) => suma + fila.declarado, 0)
+  return { esperado, declarado, diferencia: declarado - esperado }
+})
+
 function claseDiferenciaFila(diferencia: number): string {
   if (diferencia < 0) return 'text-negative font-bold'
   if (diferencia > 0) return 'text-primary font-bold'
@@ -382,16 +428,16 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
   try {
     const obsText = observacionesModal.value.trim()
 
-    await turno.confirmarCierre(obsText, esExtraordinario)
+    const arqueoId = await turno.confirmarCierre(obsText, esExtraordinario)
+    if (!arqueoId) {
+      throw new Error(turno.error || 'No se pudo confirmar el cierre de caja.')
+    }
     turno.mostrarDialogAutorizacion = false
 
     // Intentar descarga automática de PDF del arqueo
-    if (turno.turnoId) {
+    if (arqueoId) {
       try {
-        await turnoCajaService.descargarPdfArqueo(
-          turno.turnoId,
-          `arqueo_${turno.turnoId.slice(-8)}.pdf`,
-        )
+        await turnoCajaService.descargarPdfArqueo(arqueoId, `arqueo_${arqueoId.slice(-8)}.pdf`)
       } catch (err) {
         console.warn('No se pudo descargar el PDF automáticamente:', err)
       }
@@ -679,6 +725,10 @@ async function ejecutarCierreExtraordinario() {
 }
 .rs-balance-table tr:last-child td {
   border-bottom: none;
+}
+.rs-balance-total-row td {
+  border-top: 2px solid var(--border-color);
+  padding-top: 10px;
 }
 .rs-table-hint {
   margin: 10px 0 0;
