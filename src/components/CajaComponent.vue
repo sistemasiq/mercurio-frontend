@@ -340,8 +340,9 @@ const onPagoExitoso = (
   celularCliente: string | null,
   puntosARedimir: number,
   descuentoPuntos: number,
+  cambio: number,
 ) => {
-  void procesarPago(pagos, celularCliente, puntosARedimir, descuentoPuntos)
+  void procesarPago(pagos, celularCliente, puntosARedimir, descuentoPuntos, cambio)
 }
 
 const mapearMetodoPago = (categoriaSeleccionada: string): string => {
@@ -364,6 +365,7 @@ const procesarPago = async (
   celularCliente: string | null,
   puntosARedimir: number,
   descuentoPuntos: number,
+  cambio: number,
 ) => {
   if (itemsTicket.value.length === 0 || enviando.value) return
 
@@ -407,6 +409,7 @@ const procesarPago = async (
       })),
       ...(celularCliente ? { celular_cliente: celularCliente } : {}),
       ...(puntosARedimir > 0 ? { puntos_a_redimir: puntosARedimir } : {}),
+      ...(cambio > 0 ? { cambio } : {}),
     }
 
     const comanda = await pagosApi.completarPago(payload)
