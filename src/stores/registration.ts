@@ -74,6 +74,7 @@ export const useRegistrationStore = defineStore('registration', () => {
   const pulseras = computed(() => accessControlStore.pulserasDisponibles)
   const metodoPagoId = ref<string | null>(null)
   const pagosFromModal = ref<OnboardingPago[]>([])
+  const cambioFromModal = ref(0)
   const isLoadingCatalog = ref(false)
   const isSubmitting = ref(false)
   const submitError = ref<string | null>(null)
@@ -305,9 +306,10 @@ export const useRegistrationStore = defineStore('registration', () => {
     return motivos
   })
 
-  async function proceedToRFID(pagos?: OnboardingPago[]) {
+  async function proceedToRFID(pagos?: OnboardingPago[], cambio?: number) {
     if (pagos) {
       pagosFromModal.value = pagos
+      cambioFromModal.value = cambio ?? 0
     }
     step.value = 'rfid'
   }
@@ -365,6 +367,7 @@ export const useRegistrationStore = defineStore('registration', () => {
         : pagosFromModal.value.length > 0
           ? pagosFromModal.value
           : [{ metodoPagoId: metodoPagoId.value!, monto: total.value }],
+      cambio: cambioFromModal.value > 0 ? cambioFromModal.value : undefined,
       reservacionId: esEvento ? eventoSeleccionado.value!.id : null,
     }
 
@@ -394,6 +397,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     eventoSeleccionado.value = null
     eventoNoEncontrado.value = false
     pagosFromModal.value = []
+    cambioFromModal.value = 0
     tutor.value = {
       fullName: '',
       relationship: 'Padre / Madre',

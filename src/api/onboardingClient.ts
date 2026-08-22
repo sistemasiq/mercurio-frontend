@@ -65,6 +65,7 @@ export interface OnboardingPayload {
   parentesco: string
   detalles: OnboardingDetalle[]
   pagos: OnboardingPago[]
+  cambio?: number
   reservacionId?: string | null
 }
 

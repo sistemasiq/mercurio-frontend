@@ -57,13 +57,19 @@ const mapearMetodoPago = (categoriaSeleccionada: string): string => {
   return metodo.id
 }
 
-const onPagoExitoso = (pagos: AppliedPayment[]) => {
+const onPagoExitoso = (
+  pagos: AppliedPayment[],
+  _celularCliente: string | null,
+  _puntosARedimir: number,
+  _descuentoPuntos: number,
+  cambio: number,
+) => {
   try {
     const pagosMapeados: OnboardingPago[] = pagos.map((p) => ({
       metodoPagoId: mapearMetodoPago(p.method),
       monto: p.amount,
     }))
-    store.proceedToRFID(pagosMapeados)
+    store.proceedToRFID(pagosMapeados, cambio)
   } catch (err) {
     console.error('[OrderSummary] onPagoExitoso:', err)
     $q.notify({
