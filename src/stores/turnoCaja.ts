@@ -350,6 +350,9 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
    * Transición: BALANCE_REVELADO → CERRADO
    * Confirma el cierre definitivo del turno.
    * @param observaciones - Requerido si hayDiferencias === true
+   * @returns el arqueoId (cierre_caja.id) del cierre recién creado, o null si falló
+   *   -- distinto de turnoId (apertura_caja.id); es el id que espera
+   *   GET /turnos-caja/historial/{cierre_id}/pdf.
    */
   async function confirmarCierre(
     observaciones: string,
@@ -367,7 +370,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       estado.value = 'CERRADO'
       mostrarDialogAutorizacion.value = false
       mostrarDialogAdmin.value = false
-      return resp.pdfUrl
+      return resp.arqueoId
     } catch (err) {
       error.value = resolveErrorMessage(err as ApiError)
       return null
