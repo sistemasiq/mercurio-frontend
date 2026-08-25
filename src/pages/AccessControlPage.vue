@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import { useAuthStore } from '@/stores/auth'
 import { useEstanciasSocket } from '@/composables/useEstanciasSocket'
 import type { EstanciaWsMessage } from '@/types/estancia'
 import StatCard from '@/components/control-acceso/StatCard.vue'
@@ -13,6 +14,7 @@ const POLLING_FALLBACK_MS = 15000
 
 const store = useAccessControlStore()
 const turno = useTurnoCajaStore()
+const auth = useAuthStore()
 const router = useRouter()
 
 const scrollContainer = ref<HTMLElement | null>(null)
@@ -21,7 +23,11 @@ const fallbackIntervalId = ref<number | null>(null)
 onMounted(() => {
   store.loadActivos()
   store.startTicking()
-  void turno.cargarTurnoActivo()
+  // Roles sin ningún permiso de caja (ej. Personal de atención de niños)
+  // nunca tendrán un turno abierto — pedirlo solo genera un 403 de más.
+  if (auth.hasPermission('pos:acceder')) {
+    void turno.cargarTurnoActivo()
+  }
 })
 
 onUnmounted(() => {
@@ -73,7 +79,10 @@ function scrollByCards(direction: 1 | -1) {
 }
 
 function goToNewRegistration() {
-  if (!turno.estaOperando) {
+  // Exigir turno de caja abierto solo aplica a roles que de hecho operan
+  // caja. Un rol sin "pos:acceder" (ej. Personal de atención de niños) va
+  // directo al registro — el guard de la ruta ya valida pulseras libres.
+  if (auth.hasPermission('pos:acceder') && !turno.estaOperando) {
     router.push('/pos/cierre')
     return
   }
