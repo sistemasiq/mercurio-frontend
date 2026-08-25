@@ -208,14 +208,11 @@ const abrirModalPago = () => {
     return
   }
   if (!nombreCliente.value.trim()) {
-    $q.dialog({
-      title: 'Sin nombre de cliente',
-      message: 'No se ha indicado un nombre para este pedido. ¿Deseas continuar sin nombre?',
-      cancel: { label: 'Cancelar', flat: true, color: 'grey-7' },
-      ok: { label: 'Continuar sin nombre', color: 'primary' },
-      persistent: true,
-    }).onOk(() => {
-      modalPagoAbierto.value = true
+    $q.notify({
+      type: 'warning',
+      message: 'Debes ingresar un nombre para el pedido antes de cobrar.',
+      position: 'top',
+      timeout: 3000,
     })
     return
   }
