@@ -229,6 +229,11 @@ function abrirEditar(comandaId: string) {
 function onOrdenActualizada() {
   void cargarDatos()
 }
+
+function onCerrarDetallePagado() {
+  mostrarModalPagado.value = false
+  modoImpresion.value = false
+}
 </script>
 
 <template>
@@ -520,10 +525,7 @@ function onOrdenActualizada() {
       :tipo-origen="detalleTipoOrigen"
       :referencia-id="detalleReferenciaId"
       :auto-print="modoImpresion"
-      @close="
-        mostrarModalPagado = false
-        modoImpresion = false
-      "
+      @close="onCerrarDetallePagado"
     />
     <EditarOrdenModal
       v-if="mostrarModalEditar"
