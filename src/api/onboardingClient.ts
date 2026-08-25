@@ -66,6 +66,7 @@ export interface OnboardingPayload {
   detalles: OnboardingDetalle[]
   pagos: OnboardingPago[]
   reservacionId?: string | null
+  puntosARedimir?: number
 }
 
 export interface OnboardingResponse {

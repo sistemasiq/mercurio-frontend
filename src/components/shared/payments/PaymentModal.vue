@@ -89,8 +89,13 @@
             dense
             mask="##########"
             class="q-mb-sm"
+            :readonly="!!props.celularPrellenado"
             :rules="[(val: string) => !val || val.length === 10 || 'Debe tener 10 dígitos']"
-            hint="Para acumular puntos de lealtad"
+            :hint="
+              props.celularPrellenado
+                ? 'Tel. del tutor, usado para puntos de lealtad'
+                : 'Para acumular puntos de lealtad'
+            "
           />
 
           <template v-if="saldoDisponible !== null && saldoDisponible > 0">
@@ -294,6 +299,9 @@ watch(
   (visible) => {
     if (visible && !metodoSeleccionado.value) {
       metodoSeleccionado.value = primeraCategoriaDisponible.value
+    }
+    if (visible && props.celularPrellenado) {
+      celularCliente.value = props.celularPrellenado
     }
     if (!visible) {
       // El componente queda montado en todos sus consumidores (ninguno usa v-if),
