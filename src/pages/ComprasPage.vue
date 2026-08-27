@@ -72,6 +72,7 @@
             :options="[
               { label: 'Todas', value: 'todas' },
               { label: 'Pendientes', value: 'P' },
+              { label: 'Parciales', value: 'PARCIAL' },
               { label: 'Recibidas', value: 'R' },
               { label: 'Canceladas', value: 'C' },
             ]"
@@ -129,12 +130,24 @@
                 v-if="props.row.estado === 'P'"
                 flat
                 dense
+                color="grey-8"
+                size="sm"
+                class="action-btn q-mr-xs"
+                @click="abrirEditar(props.row)"
+              >
+                <span class="material-symbols-outlined">edit</span>
+                <q-tooltip>Editar</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="props.row.estado === 'P' || props.row.estado === 'PARCIAL'"
+                flat
+                dense
                 color="positive"
                 size="sm"
                 class="q-mr-xs"
                 no-caps
                 label="Recibir"
-                @click="confirmarAccion(props.row, 'recibir')"
+                @click="abrirRecibir(props.row)"
               />
               <q-btn
                 v-if="props.row.estado === 'P'"
@@ -152,11 +165,13 @@
       </q-card>
     </div>
 
-    <!-- ── Dialog Nueva Compra ────────────────────────────────────────────── -->
+    <!-- ── Dialog Nueva / Editar Compra ───────────────────────────────────── -->
     <q-dialog v-model="dialogOpen" persistent>
       <q-card style="min-width: 560px; border-radius: 12px">
         <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Nueva compra</div>
+          <div class="text-h6 text-weight-bold">
+            {{ compraEditando ? 'Editar compra' : 'Nueva compra' }}
+          </div>
         </q-card-section>
 
         <q-separator />
@@ -300,7 +315,7 @@
             unelevated
             no-caps
             color="primary"
-            label="Crear compra"
+            :label="compraEditando ? 'Guardar cambios' : 'Crear compra'"
             style="border-radius: 8px; font-weight: 600"
             :loading="guardando"
             :disable="!formCompra.proveedor_id || lineas.length === 0"
@@ -310,24 +325,15 @@
       </q-card>
     </q-dialog>
 
-    <!-- ── Dialog Confirmar Recibir/Cancelar ────────────────────────────────── -->
+    <!-- ── Dialog Confirmar Cancelar ────────────────────────────────────────── -->
     <q-dialog v-model="dialogConfirmar">
       <q-card style="min-width: 360px; border-radius: 12px">
         <q-card-section>
-          <div class="text-h6 text-weight-bold">
-            {{ accionConfirmar === 'recibir' ? 'Recibir compra' : 'Cancelar compra' }}
-          </div>
+          <div class="text-h6 text-weight-bold">Cancelar compra</div>
           <div class="q-mt-sm text-body2 text-grey-8">
-            <template v-if="accionConfirmar === 'recibir'">
-              ¿Confirmas que llegó la mercancía de
-              <strong>{{ compraConfirmar?.proveedor_nombre }}</strong
-              >? El stock de los insumos subirá y el costo se actualizará.
-            </template>
-            <template v-else>
-              ¿Deseas cancelar la compra a
-              <strong>{{ compraConfirmar?.proveedor_nombre }}</strong
-              >? Esta acción no se puede deshacer.
-            </template>
+            ¿Deseas cancelar la compra a
+            <strong>{{ compraConfirmar?.proveedor_nombre }}</strong
+            >? Esta acción no se puede deshacer.
           </div>
         </q-card-section>
         <q-card-actions align="right" class="q-pa-md q-pt-xs">
@@ -335,11 +341,62 @@
           <q-btn
             unelevated
             no-caps
-            :color="accionConfirmar === 'recibir' ? 'positive' : 'negative'"
-            :label="accionConfirmar === 'recibir' ? 'Recibir' : 'Cancelar compra'"
+            color="negative"
+            label="Cancelar compra"
             style="border-radius: 8px; font-weight: 600"
             :loading="ejecutando"
             @click="ejecutarAccion"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- ── Dialog Recibir (parcial) ─────────────────────────────────────────── -->
+    <q-dialog v-model="dialogRecibir">
+      <q-card style="min-width: 520px; border-radius: 12px">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold">Recibir mercancía</div>
+          <div class="text-body2 text-grey-7">
+            {{ compraRecibir?.proveedor_nombre }} · captura cuánto llegó de cada línea.
+          </div>
+        </q-card-section>
+        <q-separator />
+        <q-card-section>
+          <q-list separator>
+            <q-item v-for="l in lineasRecepcion" :key="l.detalle_id">
+              <q-item-section>
+                <q-item-label>{{ l.insumo_nombre }}</q-item-label>
+                <q-item-label caption>
+                  Pedido {{ l.pedido }} {{ l.unidad }} · recibido {{ l.recibido }} · pendiente
+                  {{ l.pendiente }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side style="width: 120px">
+                <q-input
+                  v-model.number="l.ahora"
+                  dense
+                  outlined
+                  type="number"
+                  min="0"
+                  :max="l.pendiente"
+                  step="0.001"
+                  :disable="l.pendiente <= 0"
+                />
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-md q-pt-xs">
+          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
+          <q-btn
+            unelevated
+            no-caps
+            color="positive"
+            label="Recibir"
+            style="border-radius: 8px; font-weight: 600"
+            :loading="ejecutando"
+            :disable="!hayAlgoQueRecibir"
+            @click="ejecutarRecibir"
           />
         </q-card-actions>
       </q-card>
@@ -433,11 +490,13 @@ onMounted(async () => {
 
 const ESTADO_LABEL: Record<EstadoCompra, string> = {
   P: 'Pendiente',
+  PARCIAL: 'Parcial',
   R: 'Recibida',
   C: 'Cancelada',
 }
-const ESTADO_TONO: Record<EstadoCompra, 'naranja' | 'verde' | 'gris'> = {
+const ESTADO_TONO: Record<EstadoCompra, 'naranja' | 'azul' | 'verde' | 'gris'> = {
   P: 'naranja',
+  PARCIAL: 'azul',
   R: 'verde',
   C: 'gris',
 }
@@ -575,9 +634,34 @@ const lineaTemporalVacia = () => ({
   costo_unitario: 0,
 })
 
+const compraEditando = ref<Compra | null>(null)
+
 const abrirCrear = () => {
+  compraEditando.value = null
   formCompra.value = { proveedor_id: null, notas: '' }
   lineas.value = []
+  lineaTemporal.value = lineaTemporalVacia()
+  dialogOpen.value = true
+}
+
+const abrirEditar = async (row: Compra) => {
+  const completa = await comprasApi.obtener(row.id)
+  compraEditando.value = completa
+  formCompra.value = { proveedor_id: completa.proveedor_id, notas: completa.notas ?? '' }
+  lineas.value = completa.detalles.flatMap((d) => {
+    const insumo = insumosStore.insumos.find((i) => i.id === d.insumo_id)
+    return [
+      {
+        insumo_id: d.insumo_id,
+        insumo_nombre: insumo?.nombre ?? d.insumo_nombre,
+        unidad_medida_id: d.unidad_medida_id,
+        presentacion_id: d.presentacion_id,
+        unidad_label: d.presentacion_nombre ?? d.unidad_medida_codigo ?? '',
+        cantidad: Number(d.cantidad),
+        costo_unitario: Number(d.costo_unitario),
+      },
+    ]
+  })
   lineaTemporal.value = lineaTemporalVacia()
   dialogOpen.value = true
 }
@@ -654,20 +738,30 @@ const guardarCompra = async () => {
   if (!formCompra.value.proveedor_id || lineas.value.length === 0 || !authStore.currentBranchId)
     return
   guardando.value = true
+  const detalles = lineas.value.map((l) => ({
+    insumo_id: l.insumo_id,
+    unidad_medida_id: l.unidad_medida_id,
+    presentacion_id: l.presentacion_id,
+    cantidad: String(l.cantidad),
+    costo_unitario: String(l.costo_unitario),
+  }))
   try {
-    await store.crear({
-      sucursal_id: authStore.currentBranchId,
-      proveedor_id: formCompra.value.proveedor_id,
-      notas: formCompra.value.notas.trim() || null,
-      detalles: lineas.value.map((l) => ({
-        insumo_id: l.insumo_id,
-        unidad_medida_id: l.unidad_medida_id,
-        presentacion_id: l.presentacion_id,
-        cantidad: String(l.cantidad),
-        costo_unitario: String(l.costo_unitario),
-      })),
-    })
-    $q.notify({ type: 'positive', message: 'Compra creada', position: 'top-right' })
+    if (compraEditando.value) {
+      await store.editar(compraEditando.value.id, {
+        proveedor_id: formCompra.value.proveedor_id,
+        notas: formCompra.value.notas.trim() || null,
+        detalles,
+      })
+      $q.notify({ type: 'positive', message: 'Compra actualizada', position: 'top-right' })
+    } else {
+      await store.crear({
+        sucursal_id: authStore.currentBranchId,
+        proveedor_id: formCompra.value.proveedor_id,
+        notas: formCompra.value.notas.trim() || null,
+        detalles,
+      })
+      $q.notify({ type: 'positive', message: 'Compra creada', position: 'top-right' })
+    }
     cerrarDialog()
   } catch (err) {
     $q.notify({
@@ -680,36 +774,98 @@ const guardarCompra = async () => {
   }
 }
 
-// ── Recibir / Cancelar ──────────────────────────────────────────────────────
+// ── Cancelar ────────────────────────────────────────────────────────────────
 
 const dialogConfirmar = ref(false)
 const compraConfirmar = ref<Compra | null>(null)
-const accionConfirmar = ref<'recibir' | 'cancelar'>('recibir')
 const ejecutando = ref(false)
 
-const confirmarAccion = (row: Compra, accion: 'recibir' | 'cancelar') => {
+const confirmarAccion = (row: Compra, _accion: 'cancelar') => {
   compraConfirmar.value = row
-  accionConfirmar.value = accion
   dialogConfirmar.value = true
+}
+
+const refrescarStockLocal = () => {
+  if (authStore.currentBranchId) void insumosStore.cargar(authStore.currentBranchId)
 }
 
 const ejecutarAccion = async () => {
   if (!compraConfirmar.value) return
   ejecutando.value = true
   try {
-    if (accionConfirmar.value === 'recibir') {
-      await store.recibir(compraConfirmar.value.id)
-      $q.notify({
-        type: 'positive',
-        message: 'Compra recibida, stock actualizado',
-        position: 'top-right',
-      })
-    } else {
-      await store.cancelar(compraConfirmar.value.id)
-      $q.notify({ type: 'positive', message: 'Compra cancelada', position: 'top-right' })
-    }
+    await store.cancelar(compraConfirmar.value.id)
+    $q.notify({ type: 'positive', message: 'Compra cancelada', position: 'top-right' })
     dialogConfirmar.value = false
-    if (authStore.currentBranchId) insumosStore.cargar(authStore.currentBranchId)
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+  } finally {
+    ejecutando.value = false
+  }
+}
+
+// ── Recibir (parcial) ───────────────────────────────────────────────────────
+
+interface LineaRecepcionUI {
+  detalle_id: string
+  insumo_nombre: string
+  unidad: string
+  pedido: number
+  recibido: number
+  pendiente: number
+  ahora: number
+}
+
+const dialogRecibir = ref(false)
+const compraRecibir = ref<Compra | null>(null)
+const lineasRecepcion = ref<LineaRecepcionUI[]>([])
+
+const hayAlgoQueRecibir = computed(() =>
+  lineasRecepcion.value.some((l) => l.ahora > 0 && l.ahora <= l.pendiente),
+)
+
+const abrirRecibir = async (row: Compra) => {
+  const completa = await comprasApi.obtener(row.id)
+  compraRecibir.value = completa
+  lineasRecepcion.value = completa.detalles.map((d) => {
+    const pedido = Number(d.cantidad)
+    const recibido = Number(d.cantidad_recibida)
+    const pendiente = Number((pedido - recibido).toFixed(3))
+    return {
+      detalle_id: d.id,
+      insumo_nombre: d.insumo_nombre,
+      unidad: d.presentacion_nombre ?? d.unidad_medida_codigo ?? '',
+      pedido,
+      recibido,
+      pendiente,
+      ahora: pendiente > 0 ? pendiente : 0,
+    }
+  })
+  dialogRecibir.value = true
+}
+
+const ejecutarRecibir = async () => {
+  if (!compraRecibir.value) return
+  ejecutando.value = true
+  try {
+    const actualizada = await store.recibir(compraRecibir.value.id, {
+      lineas: lineasRecepcion.value
+        .filter((l) => l.ahora > 0)
+        .map((l) => ({ detalle_id: l.detalle_id, cantidad: String(l.ahora) })),
+    })
+    $q.notify({
+      type: 'positive',
+      message:
+        actualizada.estado === 'R'
+          ? 'Compra recibida completa, stock actualizado'
+          : 'Recepción parcial registrada',
+      position: 'top-right',
+    })
+    dialogRecibir.value = false
+    refrescarStockLocal()
   } catch (err) {
     $q.notify({
       type: 'negative',

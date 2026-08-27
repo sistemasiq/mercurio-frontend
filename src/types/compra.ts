@@ -1,4 +1,4 @@
-export type EstadoCompra = 'P' | 'R' | 'C'
+export type EstadoCompra = 'P' | 'PARCIAL' | 'R' | 'C'
 
 export interface DetalleCompraItem {
   insumo_id: string
@@ -17,6 +17,7 @@ export interface DetalleCompraOut {
   presentacion_id: string | null
   presentacion_nombre: string | null
   cantidad: string
+  cantidad_recibida: string
   costo_unitario: string
   subtotal: string
 }
@@ -26,6 +27,21 @@ export interface CompraCreate {
   proveedor_id: string
   notas?: string | null
   detalles: DetalleCompraItem[]
+}
+
+export interface CompraEditar {
+  proveedor_id: string
+  notas?: string | null
+  detalles: DetalleCompraItem[]
+}
+
+export interface LineaRecepcion {
+  detalle_id: string
+  cantidad: string
+}
+
+export interface RecibirCompraRequest {
+  lineas?: LineaRecepcion[]
 }
 
 export interface Compra {

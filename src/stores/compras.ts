@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
-import { cancelarCompra, crearCompra, listarCompras, recibirCompra } from '@/services/compraService'
-import type { Compra, CompraCreate } from '@/types/compra'
+import {
+  cancelarCompra,
+  crearCompra,
+  editarCompra,
+  listarCompras,
+  recibirCompra,
+} from '@/services/compraService'
+import type { Compra, CompraCreate, CompraEditar, RecibirCompraRequest } from '@/types/compra'
 
 export interface LineaPrefill {
   insumo_id: string
@@ -55,8 +61,14 @@ export const useComprasStore = defineStore('compras', {
       this.compras.unshift(nueva)
       return nueva
     },
-    async recibir(compraId: string) {
-      const actualizada = await recibirCompra(compraId)
+    async editar(compraId: string, body: CompraEditar) {
+      const actualizada = await editarCompra(compraId, body)
+      const idx = this.compras.findIndex((c) => c.id === compraId)
+      if (idx !== -1) this.compras[idx] = actualizada
+      return actualizada
+    },
+    async recibir(compraId: string, body?: RecibirCompraRequest) {
+      const actualizada = await recibirCompra(compraId, body)
       const idx = this.compras.findIndex((c) => c.id === compraId)
       if (idx !== -1) this.compras[idx] = actualizada
       return actualizada
