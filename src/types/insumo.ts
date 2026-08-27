@@ -7,6 +7,8 @@ export interface Insumo {
   unidad_compra_id: string
   stock_actual: string
   stock_minimo: string
+  punto_reorden: string | null
+  stock_maximo: string | null
   costo_unitario: string | null
   proveedor_principal_id: string | null
   activo: boolean
@@ -24,8 +26,15 @@ export interface InsumoCreate {
   unidad_compra_id: string
   stock_inicial?: string
   stock_minimo?: string
+  punto_reorden?: string | null
+  stock_maximo?: string | null
   costo_unitario?: string | null
   proveedor_principal_id?: string | null
+}
+
+export interface InsumoAlertas {
+  criticos: Insumo[]
+  por_reordenar: Insumo[]
 }
 
 export interface InsumoRecetaInversa {
@@ -39,6 +48,8 @@ export interface InsumoUpdate {
   nombre?: string
   descripcion?: string | null
   stock_minimo?: string
+  punto_reorden?: string | null
+  stock_maximo?: string | null
   costo_unitario?: string | null
   proveedor_principal_id?: string | null
   activo?: boolean

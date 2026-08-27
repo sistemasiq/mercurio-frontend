@@ -416,15 +416,20 @@ const insumosStore = useInsumosStore()
 const unidadesStore = useUnidadesMedidaStore()
 const presentacionesStore = usePresentacionesInsumoStore()
 
-const cargar = () => {
+const cargar = async () => {
   if (!authStore.currentBranchId) return
-  store.cargar(authStore.currentBranchId)
-  proveedoresStore.cargar(authStore.currentBranchId)
-  insumosStore.cargar(authStore.currentBranchId)
-  unidadesStore.cargar()
+  await Promise.all([
+    store.cargar(authStore.currentBranchId),
+    proveedoresStore.cargar(authStore.currentBranchId),
+    insumosStore.cargar(authStore.currentBranchId),
+    unidadesStore.cargar(),
+  ])
 }
 
-onMounted(cargar)
+onMounted(async () => {
+  await cargar()
+  aplicarBorradorPrefill()
+})
 
 const ESTADO_LABEL: Record<EstadoCompra, string> = {
   P: 'Pendiente',
@@ -573,6 +578,32 @@ const lineaTemporalVacia = () => ({
 const abrirCrear = () => {
   formCompra.value = { proveedor_id: null, notas: '' }
   lineas.value = []
+  lineaTemporal.value = lineaTemporalVacia()
+  dialogOpen.value = true
+}
+
+// Borrador armado desde el Reporte de Stock: precarga proveedor + líneas
+// (en la unidad base de cada insumo) y abre el diálogo de nueva compra.
+const aplicarBorradorPrefill = () => {
+  const borrador = store.consumirBorradorPrefill()
+  if (!borrador) return
+  formCompra.value = { proveedor_id: borrador.proveedor_id, notas: '' }
+  lineas.value = borrador.lineas.flatMap((l) => {
+    const insumo = insumosStore.insumos.find((i) => i.id === l.insumo_id)
+    const unidad = unidadesStore.unidades.find((u) => u.id === l.unidad_medida_id)
+    if (!insumo || !unidad) return []
+    return [
+      {
+        insumo_id: l.insumo_id,
+        insumo_nombre: insumo.nombre,
+        unidad_medida_id: unidad.id,
+        presentacion_id: null,
+        unidad_label: unidad.codigo,
+        cantidad: l.cantidad,
+        costo_unitario: l.costo_unitario,
+      },
+    ]
+  })
   lineaTemporal.value = lineaTemporalVacia()
   dialogOpen.value = true
 }

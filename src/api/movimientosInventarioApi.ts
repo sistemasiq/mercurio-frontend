@@ -1,5 +1,9 @@
 import { apiClient } from '@/api/axiosClient'
-import type { MovimientoInventario, MovimientoManualCreate } from '@/types/movimientoInventario'
+import type {
+  ConteoFisicoCreate,
+  MovimientoInventario,
+  MovimientoManualCreate,
+} from '@/types/movimientoInventario'
 
 export const movimientosInventarioApi = {
   async listarPorInsumo(
@@ -19,6 +23,11 @@ export const movimientosInventarioApi = {
       `/insumos/${insumoId}/movimientos`,
       body,
     )
+    return data
+  },
+
+  async conteo(insumoId: string, body: ConteoFisicoCreate): Promise<MovimientoInventario> {
+    const { data } = await apiClient.post<MovimientoInventario>(`/insumos/${insumoId}/conteo`, body)
     return data
   },
 }

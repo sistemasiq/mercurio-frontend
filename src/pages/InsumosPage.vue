@@ -288,6 +288,33 @@
             </div>
           </div>
 
+          <div class="row q-col-gutter-md">
+            <div class="col">
+              <div class="field-label">PUNTO DE REORDEN (opcional)</div>
+              <q-input
+                v-model.number="formDialog.punto_reorden"
+                dense
+                outlined
+                type="number"
+                min="0"
+                step="0.001"
+                hint="Nivel al que conviene volver a pedir"
+              />
+            </div>
+            <div class="col">
+              <div class="field-label">STOCK MÁXIMO (opcional)</div>
+              <q-input
+                v-model.number="formDialog.stock_maximo"
+                dense
+                outlined
+                type="number"
+                min="0"
+                step="0.001"
+                hint="Referencia para sugerir cuánto comprar"
+              />
+            </div>
+          </div>
+
           <div>
             <div class="field-label">PROVEEDOR PRINCIPAL (opcional)</div>
             <q-select
@@ -357,28 +384,74 @@
         <q-separator />
 
         <q-card-section class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">TIPO DE AJUSTE</div>
-            <q-select
-              v-model="formAjuste.tipo"
-              dense
-              outlined
-              emit-value
-              map-options
-              :options="TIPO_AJUSTE_OPTIONS"
-            />
-          </div>
-          <div>
-            <div class="field-label">CANTIDAD</div>
-            <q-input
-              v-model.number="formAjuste.cantidad"
-              dense
-              outlined
-              type="number"
-              min="0"
-              step="0.001"
-            />
-          </div>
+          <q-btn-toggle
+            v-model="modoAjuste"
+            spread
+            no-caps
+            dense
+            unelevated
+            toggle-color="primary"
+            :options="[
+              { label: 'Ajuste manual', value: 'manual' },
+              { label: 'Conteo físico', value: 'conteo' },
+            ]"
+          />
+
+          <template v-if="modoAjuste === 'manual'">
+            <div>
+              <div class="field-label">TIPO DE AJUSTE</div>
+              <q-select
+                v-model="formAjuste.tipo"
+                dense
+                outlined
+                emit-value
+                map-options
+                :options="TIPO_AJUSTE_OPTIONS"
+              />
+            </div>
+            <div>
+              <div class="field-label">CANTIDAD</div>
+              <q-input
+                v-model.number="formAjuste.cantidad"
+                dense
+                outlined
+                type="number"
+                min="0"
+                step="0.001"
+              />
+            </div>
+          </template>
+
+          <template v-else>
+            <div>
+              <div class="field-label">
+                STOCK REAL CONTADO ({{
+                  insumoAjuste ? codigoUnidad(insumoAjuste.unidad_base_id) : ''
+                }})
+              </div>
+              <q-input
+                v-model.number="formConteo.stock_contado"
+                dense
+                outlined
+                type="number"
+                min="0"
+                step="0.001"
+              />
+            </div>
+            <q-banner v-if="insumoAjuste" dense rounded class="bg-blue-1 text-blue-9">
+              <template #avatar><q-icon name="calculate" color="blue-9" /></template>
+              <template v-if="deltaConteo === 0">Coincide con el sistema, no hay ajuste.</template>
+              <template v-else-if="deltaConteo > 0">
+                Entrada de <strong>+{{ deltaConteo }}</strong>
+                {{ codigoUnidad(insumoAjuste.unidad_base_id) }} (sobra stock).
+              </template>
+              <template v-else>
+                Merma de <strong>{{ deltaConteo }}</strong>
+                {{ codigoUnidad(insumoAjuste.unidad_base_id) }} (falta stock).
+              </template>
+            </q-banner>
+          </template>
+
           <div>
             <div class="field-label">NOTAS (opcional)</div>
             <q-input
@@ -395,6 +468,7 @@
         <q-card-actions align="right" class="q-pa-md q-pt-sm">
           <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarAjuste" />
           <q-btn
+            v-if="modoAjuste === 'manual'"
             unelevated
             no-caps
             color="primary"
@@ -403,6 +477,17 @@
             :loading="guardandoAjuste"
             :disable="!formAjuste.cantidad"
             @click="guardarAjuste"
+          />
+          <q-btn
+            v-else
+            unelevated
+            no-caps
+            color="primary"
+            label="Aplicar conteo"
+            style="border-radius: 8px; font-weight: 600"
+            :loading="guardandoAjuste"
+            :disable="deltaConteo === 0"
+            @click="guardarConteo"
           />
         </q-card-actions>
       </q-card>
@@ -619,29 +704,24 @@ const editando = ref<Insumo | null>(null)
 const guardando = ref(false)
 const nombreRef = ref()
 
-const formDialog = ref({
+const formVacio = () => ({
   nombre: '',
   descripcion: '',
   unidad_base_id: null as string | null,
   unidad_compra_id: null as string | null,
   stock_inicial: 0,
   stock_minimo: 0,
+  punto_reorden: null as number | null,
+  stock_maximo: null as number | null,
   costo_unitario: null as number | null,
   proveedor_principal_id: null as string | null,
 })
 
+const formDialog = ref(formVacio())
+
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = {
-    nombre: '',
-    descripcion: '',
-    unidad_base_id: null,
-    unidad_compra_id: null,
-    stock_inicial: 0,
-    stock_minimo: 0,
-    costo_unitario: null,
-    proveedor_principal_id: null,
-  }
+  formDialog.value = formVacio()
   dialogOpen.value = true
 }
 
@@ -654,6 +734,8 @@ const abrirEditar = (row: Insumo) => {
     unidad_compra_id: row.unidad_compra_id,
     stock_inicial: 0,
     stock_minimo: Number(row.stock_minimo),
+    punto_reorden: row.punto_reorden != null ? Number(row.punto_reorden) : null,
+    stock_maximo: row.stock_maximo != null ? Number(row.stock_maximo) : null,
     costo_unitario: row.costo_unitario ? Number(row.costo_unitario) : null,
     proveedor_principal_id: row.proveedor_principal_id,
   }
@@ -685,6 +767,10 @@ const guardar = async () => {
         nombre: formDialog.value.nombre.trim(),
         descripcion: formDialog.value.descripcion.trim() || null,
         stock_minimo: String(formDialog.value.stock_minimo),
+        punto_reorden:
+          formDialog.value.punto_reorden != null ? String(formDialog.value.punto_reorden) : null,
+        stock_maximo:
+          formDialog.value.stock_maximo != null ? String(formDialog.value.stock_maximo) : null,
         costo_unitario:
           formDialog.value.costo_unitario != null ? String(formDialog.value.costo_unitario) : null,
         proveedor_principal_id: formDialog.value.proveedor_principal_id,
@@ -699,6 +785,10 @@ const guardar = async () => {
         unidad_compra_id: formDialog.value.unidad_compra_id!,
         stock_inicial: String(formDialog.value.stock_inicial),
         stock_minimo: String(formDialog.value.stock_minimo),
+        punto_reorden:
+          formDialog.value.punto_reorden != null ? String(formDialog.value.punto_reorden) : null,
+        stock_maximo:
+          formDialog.value.stock_maximo != null ? String(formDialog.value.stock_maximo) : null,
         costo_unitario:
           formDialog.value.costo_unitario != null ? String(formDialog.value.costo_unitario) : null,
         proveedor_principal_id: formDialog.value.proveedor_principal_id,
@@ -753,10 +843,21 @@ const dialogAjuste = ref(false)
 const insumoAjuste = ref<Insumo | null>(null)
 const guardandoAjuste = ref(false)
 
+const modoAjuste = ref<'manual' | 'conteo'>('manual')
+
 const formAjuste = ref({
   tipo: 'E' as TipoMovimientoManual,
   cantidad: 0,
   notas: '',
+})
+
+const formConteo = ref({ stock_contado: 0 })
+
+const deltaConteo = computed(() => {
+  if (!insumoAjuste.value) return 0
+  return Number(
+    (formConteo.value.stock_contado - Number(insumoAjuste.value.stock_actual)).toFixed(3),
+  )
 })
 
 const abrirKardex = (row: Insumo) => {
@@ -765,13 +866,20 @@ const abrirKardex = (row: Insumo) => {
 
 const abrirAjuste = (row: Insumo) => {
   insumoAjuste.value = row
+  modoAjuste.value = 'manual'
   formAjuste.value = { tipo: 'E', cantidad: 0, notas: '' }
+  formConteo.value = { stock_contado: Number(row.stock_actual) }
   dialogAjuste.value = true
 }
 
 const cerrarAjuste = () => {
   dialogAjuste.value = false
   insumoAjuste.value = null
+}
+
+const aplicarStockLocal = (insumoId: string, nuevoStock: string) => {
+  const idx = store.insumos.findIndex((i) => i.id === insumoId)
+  if (idx !== -1) store.insumos[idx] = { ...store.insumos[idx]!, stock_actual: nuevoStock }
 }
 
 const guardarAjuste = async () => {
@@ -783,10 +891,30 @@ const guardarAjuste = async () => {
       cantidad: String(formAjuste.value.cantidad),
       notas: formAjuste.value.notas.trim() || null,
     })
-    const idx = store.insumos.findIndex((i) => i.id === insumoAjuste.value?.id)
-    if (idx !== -1)
-      store.insumos[idx] = { ...store.insumos[idx]!, stock_actual: movimiento.stock_resultante }
+    aplicarStockLocal(insumoAjuste.value.id, movimiento.stock_resultante)
     $q.notify({ type: 'positive', message: 'Ajuste registrado', position: 'top-right' })
+    cerrarAjuste()
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+  } finally {
+    guardandoAjuste.value = false
+  }
+}
+
+const guardarConteo = async () => {
+  if (!insumoAjuste.value || deltaConteo.value === 0) return
+  guardandoAjuste.value = true
+  try {
+    const movimiento = await movimientosStore.conteoFisico(insumoAjuste.value.id, {
+      stock_contado: String(formConteo.value.stock_contado),
+      notas: formAjuste.value.notas.trim() || null,
+    })
+    aplicarStockLocal(insumoAjuste.value.id, movimiento.stock_resultante)
+    $q.notify({ type: 'positive', message: 'Conteo aplicado', position: 'top-right' })
     cerrarAjuste()
   } catch (err) {
     $q.notify({

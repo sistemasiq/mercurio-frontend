@@ -1,5 +1,11 @@
 import { apiClient } from '@/api/axiosClient'
-import type { Insumo, InsumoCreate, InsumoRecetaInversa, InsumoUpdate } from '@/types/insumo'
+import type {
+  Insumo,
+  InsumoAlertas,
+  InsumoCreate,
+  InsumoRecetaInversa,
+  InsumoUpdate,
+} from '@/types/insumo'
 
 export const insumosApi = {
   async listar(sucursalId: string): Promise<Insumo[]> {
@@ -11,6 +17,13 @@ export const insumosApi = {
 
   async estimaciones(sucursalId: string): Promise<InsumoRecetaInversa[]> {
     const { data } = await apiClient.get<InsumoRecetaInversa[]>('/insumos/estimaciones', {
+      params: { sucursal_id: sucursalId },
+    })
+    return data
+  },
+
+  async alertas(sucursalId: string): Promise<InsumoAlertas> {
+    const { data } = await apiClient.get<InsumoAlertas>('/insumos/alertas', {
       params: { sucursal_id: sucursalId },
     })
     return data

@@ -2,10 +2,25 @@ import { defineStore } from 'pinia'
 import { cancelarCompra, crearCompra, listarCompras, recibirCompra } from '@/services/compraService'
 import type { Compra, CompraCreate } from '@/types/compra'
 
+export interface LineaPrefill {
+  insumo_id: string
+  unidad_medida_id: string
+  cantidad: number
+  costo_unitario: number
+}
+
+export interface BorradorCompraPrefill {
+  proveedor_id: string
+  lineas: LineaPrefill[]
+}
+
 interface ComprasState {
   compras: Compra[]
   loading: boolean
   error: string | null
+  /** Borrador de compra armado desde el Reporte de Stock; ComprasPage lo consume
+   * al montar y lo limpia. */
+  borradorPrefill: BorradorCompraPrefill | null
 }
 
 export const useComprasStore = defineStore('compras', {
@@ -13,8 +28,17 @@ export const useComprasStore = defineStore('compras', {
     compras: [],
     loading: false,
     error: null,
+    borradorPrefill: null,
   }),
   actions: {
+    setBorradorPrefill(borrador: BorradorCompraPrefill) {
+      this.borradorPrefill = borrador
+    },
+    consumirBorradorPrefill(): BorradorCompraPrefill | null {
+      const b = this.borradorPrefill
+      this.borradorPrefill = null
+      return b
+    },
     async cargar(sucursalId: string) {
       this.loading = true
       this.error = null

@@ -6,6 +6,11 @@ export interface MovimientoManualCreate {
   notas?: string | null
 }
 
+export interface ConteoFisicoCreate {
+  stock_contado: string
+  notas?: string | null
+}
+
 export interface MovimientoInventario {
   id: string
   sucursal_id: string
