@@ -195,6 +195,12 @@ const navGroups = computed<NavGroup[]>(() => [
         routeName: 'reportes-inventario',
         permission: 'reportes:inventario',
       },
+      {
+        label: 'Costo de Ventas',
+        icon: 'request_quote',
+        routeName: 'reportes-inventario-cogs',
+        permission: 'reportes:inventario',
+      },
     ],
   },
   {

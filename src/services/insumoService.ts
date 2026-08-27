@@ -6,6 +6,7 @@ import type {
   InsumoRecetaInversa,
   InsumoUpdate,
 } from '@/types/insumo'
+import type { CogsRenglon } from '@/types/movimientoInventario'
 
 export async function listarInsumos(sucursalId: string): Promise<Insumo[]> {
   return insumosApi.listar(sucursalId)
@@ -17,6 +18,14 @@ export async function listarEstimaciones(sucursalId: string): Promise<InsumoRece
 
 export async function listarAlertas(sucursalId: string): Promise<InsumoAlertas> {
   return insumosApi.alertas(sucursalId)
+}
+
+export async function listarReporteCogs(
+  sucursalId: string,
+  desde?: string,
+  hasta?: string,
+): Promise<CogsRenglon[]> {
+  return insumosApi.reporteCogs(sucursalId, desde, hasta)
 }
 
 export async function crearInsumo(body: InsumoCreate): Promise<Insumo> {
