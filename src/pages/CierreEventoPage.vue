@@ -371,7 +371,11 @@ onMounted(() => {
   if (!authStore.currentBranchId) return
   paquetesStore.cargar(authStore.currentBranchId)
   extrasStore.cargar(authStore.currentBranchId)
-  productosStore.cargar(authStore.currentBranchId)
+  // Catálogo de cajero: cerrar un evento solo pide `reservaciones:editar`, que el
+  // Cajero sí tiene, pero /productos/admin exige `inventario:ver`, que no. Con el
+  // 403 la lista quedaba vacía y cada producto del evento se mostraba como
+  // "Producto" genérico por el fallback de nombre.
+  productosStore.cargarCatalogo()
   tiposEventoStore.cargar()
 })
 

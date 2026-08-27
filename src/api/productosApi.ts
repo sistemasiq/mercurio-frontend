@@ -6,9 +6,20 @@ import type {
   ProductoUpdate,
 } from '@/types/producto'
 
+/**
+ * Catálogo visible para quien cobra. A diferencia de /productos/admin, no exige
+ * el permiso `inventario:ver` — que el Cajero no tiene — y ya viene acotado a la
+ * sucursal del usuario y a productos activos.
+ *
+ * La respuesta NO trae `activo` ni los campos de auditoría, así que se completa
+ * aquí: sin esto, cualquier consumidor que filtre por `p.activo` recibiría
+ * `undefined` y descartaría la lista entera en silencio.
+ */
 async function fetchProductosCatalogo(signal?: AbortSignal): Promise<ProductoAdmin[]> {
-  const { data } = await apiClient.get<ProductoAdmin[]>('/productos/catalogo', { signal })
-  return data
+  const { data } = await apiClient.get<Omit<ProductoAdmin, 'activo'>[]>('/productos/catalogo', {
+    signal,
+  })
+  return data.map((p) => ({ ...p, activo: true }))
 }
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000/api'
