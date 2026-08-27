@@ -185,7 +185,7 @@ const esEntrada = (tipo: string): boolean => tipo === 'E' || tipo === 'A'
 const TIPO_LABEL: Record<TipoMovimiento, string> = {
   E: 'Entrada',
   S: 'Salida',
-  A: 'Ajuste',
+  A: 'Devolución',
   M: 'Merma',
 }
 const TIPO_TONO: Record<TipoMovimiento, 'verde' | 'rojo' | 'azul' | 'naranja'> = {

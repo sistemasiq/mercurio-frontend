@@ -49,10 +49,25 @@
         </template>
       </q-banner>
 
+      <!-- Filtros -->
+      <div class="row q-col-gutter-sm items-center q-mb-md">
+        <div class="col-12 col-sm-4">
+          <q-input v-model="busqueda" dense outlined clearable placeholder="Buscar por nombre...">
+            <template #prepend><q-icon name="search" /></template>
+          </q-input>
+        </div>
+        <div class="col-auto">
+          <q-toggle v-model="soloBajoMinimo" label="Solo bajo mínimo" dense />
+        </div>
+        <div class="col-auto">
+          <q-toggle v-model="soloActivos" label="Solo activos" dense />
+        </div>
+      </div>
+
       <!-- Tabla -->
       <q-card flat bordered style="border-radius: 12px; overflow: hidden">
         <q-table
-          :rows="store.insumos"
+          :rows="insumosFiltrados"
           :columns="columns"
           row-key="id"
           flat
@@ -120,33 +135,11 @@
                 color="grey-8"
                 size="sm"
                 class="action-btn q-mr-xs"
-                @click="abrirKardex(props.row)"
-              >
-                <span class="material-symbols-outlined">history</span>
-                <q-tooltip>Kardex</q-tooltip>
-              </q-btn>
-              <q-btn
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
                 :disable="!props.row.activo"
                 @click="abrirAjuste(props.row)"
               >
                 <span class="material-symbols-outlined">tune</span>
                 <q-tooltip>Ajustar stock</q-tooltip>
-              </q-btn>
-              <q-btn
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
-                @click="abrirPresentaciones(props.row)"
-              >
-                <span class="material-symbols-outlined">view_module</span>
-                <q-tooltip>Presentaciones</q-tooltip>
               </q-btn>
               <q-btn
                 flat
@@ -164,12 +157,31 @@
                 dense
                 color="grey-8"
                 size="sm"
-                class="action-btn"
+                class="action-btn q-mr-xs"
                 :disable="!props.row.activo"
                 @click="confirmarEliminar(props.row)"
               >
                 <span class="material-symbols-outlined">delete_outline</span>
                 <q-tooltip>Eliminar</q-tooltip>
+              </q-btn>
+              <q-btn flat dense color="grey-8" size="sm" class="action-btn">
+                <span class="material-symbols-outlined">more_vert</span>
+                <q-menu anchor="bottom right" self="top right">
+                  <q-list dense style="min-width: 160px">
+                    <q-item v-close-popup clickable @click="abrirKardex(props.row)">
+                      <q-item-section avatar>
+                        <span class="material-symbols-outlined">history</span>
+                      </q-item-section>
+                      <q-item-section>Kardex</q-item-section>
+                    </q-item>
+                    <q-item v-close-popup clickable @click="abrirPresentaciones(props.row)">
+                      <q-item-section avatar>
+                        <span class="material-symbols-outlined">view_module</span>
+                      </q-item-section>
+                      <q-item-section>Presentaciones</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
               </q-btn>
             </q-td>
           </template>
@@ -511,6 +523,7 @@ import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { useMovimientosInventarioStore } from '@/stores/movimientosInventario'
 import { usePresentacionesInsumoStore } from '@/stores/presentacionesInsumo'
 import { resolveErrorMessage } from '@/utils/errorHandler'
+import { calcularRindePorInsumo } from '@/utils/estimacionRinde'
 import type { ApiError } from '@/types/auth'
 import type { Insumo } from '@/types/insumo'
 import type { TipoMovimientoManual } from '@/types/movimientoInventario'
@@ -557,27 +570,25 @@ const nombreProveedor = (proveedorId: string | null): string => {
 
 const bajoMinimo = (row: Insumo): boolean => Number(row.stock_actual) < Number(row.stock_minimo)
 
-interface EstimacionRinde {
-  min: number
-  producto: string
-  desglose: Array<{ producto: string; unidades: number }>
-}
+const busqueda = ref('')
+const soloBajoMinimo = ref(false)
+const soloActivos = ref(false)
+
+const insumosFiltrados = computed(() => {
+  const t = (busqueda.value ?? '').trim().toLowerCase()
+  return store.insumos.filter((i) => {
+    if (t && !i.nombre.toLowerCase().includes(t)) return false
+    if (soloActivos.value && !i.activo) return false
+    if (soloBajoMinimo.value && !bajoMinimo(i)) return false
+    return true
+  })
+})
 
 // "Rinde para": cuántas unidades de cada producto A/B cubre el stock actual del
-// insumo (stock ÷ cantidad en la receta). La celda muestra el producto de menor
-// rendimiento; el tooltip, el desglose completo.
-const estimacion = (row: Insumo): EstimacionRinde | null => {
-  const recetas = store.recetasPorInsumo.get(row.id)
-  if (!recetas || recetas.length === 0) return null
-  const stock = Number(row.stock_actual)
-  const desglose = recetas
-    .map((r) => ({
-      producto: r.producto_nombre,
-      unidades: Number(r.cantidad) > 0 ? Math.floor(stock / Number(r.cantidad)) : 0,
-    }))
-    .sort((a, b) => a.unidades - b.unidades)
-  return { min: desglose[0]!.unidades, producto: desglose[0]!.producto, desglose }
-}
+// insumo. La celda muestra el producto de menor rendimiento; el tooltip, el
+// desglose completo.
+const estimacion = (row: Insumo) =>
+  calcularRindePorInsumo(Number(row.stock_actual), store.recetasPorInsumo.get(row.id))
 
 const TIPO_AJUSTE_OPTIONS: Array<{ label: string; value: TipoMovimientoManual }> = [
   { label: 'Entrada manual (sumar stock)', value: 'E' },
