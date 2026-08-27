@@ -84,6 +84,24 @@ function textoEstado(estado: string): string {
   return map[estado] ?? estado
 }
 
+/**
+ * Los códigos de estado de una comanda describen su preparación en cocina y no
+ * significan lo mismo para un cobro de evento: ahí el renglón es dinero que ya
+ * entró. Sin esta distinción un anticipo cobrado saldría como "Pendiente",
+ * porque comparte la letra P con las comandas sin preparar.
+ */
+function textoEstadoTx(tx: ITransaccion): string {
+  if (tx.origen === 'evento') return tx.estado_actual === 'C' ? 'Cancelado' : 'Cobrado'
+  return textoEstado(tx.estado_actual)
+}
+
+function claseEstadoTx(tx: ITransaccion): string {
+  if (tx.origen === 'evento') {
+    return tx.estado_actual === 'C' ? 'status-cancelado' : 'status-listo'
+  }
+  return obtenerClaseEstado(tx.estado_actual)
+}
+
 const verDetalleOrden = (comandaId: string, _estado: string) => {
   comandaSeleccionadaId.value = comandaId
   mostrarModalPagado.value = true
@@ -197,7 +215,7 @@ function onOrdenActualizada() {
       <section class="metrics-grid">
         <div class="metric-card border-slate">
           <div class="metric-info">
-            <span class="metric-label">Ventas Totales</span>
+            <span class="metric-label">Ingresos Totales</span>
             <h3 class="metric-value text-blue-primary">
               ${{ Number(estadisticas.total_ventas || 0).toFixed(2) }}
             </h3>
@@ -209,7 +227,7 @@ function onOrdenActualizada() {
 
         <div class="metric-card border-slate">
           <div class="metric-info">
-            <span class="metric-label">Órdenes</span>
+            <span class="metric-label">Movimientos</span>
             <h3 class="metric-value">{{ estadisticas.total_ordenes }}</h3>
           </div>
           <div class="metric-icon-box bg-orange-fixed text-orange-deep">
@@ -219,7 +237,7 @@ function onOrdenActualizada() {
 
         <div class="metric-card border-slate">
           <div class="metric-info">
-            <span class="metric-label">Ticket Prom.</span>
+            <span class="metric-label">Promedio</span>
             <h3 class="metric-value text-orange-deep">
               ${{ Number(estadisticas.ticket_promedio || 0).toFixed(2) }}
             </h3>
@@ -303,8 +321,20 @@ function onOrdenActualizada() {
                 </td>
                 <td class="td-align-middle">
                   <div class="flex-column-cell">
-                    <span class="font-bold text-slate-dark">{{ tx.ticket_numero }}</span>
-                    <span class="subtext-cell">Pedido</span>
+                    <div class="origen-cell">
+                      <span class="font-bold text-slate-dark">{{ tx.ticket_numero }}</span>
+                      <span
+                        class="origen-badge"
+                        :class="
+                          tx.origen === 'evento' ? 'origen-badge--evento' : 'origen-badge--orden'
+                        "
+                      >
+                        {{ tx.origen === 'evento' ? 'Evento' : 'Pedido' }}
+                      </span>
+                    </div>
+                    <span class="subtext-cell">
+                      {{ tx.origen === 'evento' ? tx.concepto || 'Cobro de evento' : 'Pedido' }}
+                    </span>
                   </div>
                 </td>
                 <td class="td-align-middle">
@@ -323,15 +353,20 @@ function onOrdenActualizada() {
                   </div>
                 </td>
                 <td class="td-align-middle">
-                  <span :class="obtenerClaseEstado(tx.estado_actual)" class="status-badge-native">
-                    {{ textoEstado(tx.estado_actual) }}
+                  <span :class="claseEstadoTx(tx)" class="status-badge-native">
+                    {{ textoEstadoTx(tx) }}
                   </span>
                 </td>
                 <td class="td-align-middle text-right font-bold text-slate-dark">
                   ${{ Number(tx.total_final || 0).toFixed(2) }}
                 </td>
                 <td class="td-align-middle">
-                  <div class="actions-cell-group">
+                  <!--
+                    Ver detalle, editar y cancelar operan sobre una comanda, así que
+                    no aplican a los cobros de evento: ahí el renglón es un pago de
+                    reservación y su detalle vive en el cierre del evento.
+                  -->
+                  <div v-if="tx.origen === 'orden'" class="actions-cell-group">
                     <button
                       type="button"
                       class="btn-cell-action text-blue-primary"
@@ -371,6 +406,7 @@ function onOrdenActualizada() {
                       <q-icon name="block" size="xs" />
                     </button>
                   </div>
+                  <span v-else class="text-xs text-slate-muted">—</span>
                 </td>
               </tr>
             </tbody>
@@ -667,6 +703,30 @@ function onOrdenActualizada() {
 .subtext-cell {
   font-size: 11px;
   color: #414754;
+}
+/* El historial mezcla ventas de mostrador y cobros de eventos; la etiqueta es lo
+   único que los distingue de un vistazo, porque un evento no trae folio de ticket. */
+.origen-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.origen-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.origen-badge--orden {
+  background: rgba(2, 95, 224, 0.1);
+  color: #025fe0;
+}
+.origen-badge--evento {
+  background: rgba(155, 81, 224, 0.12);
+  color: #7a2fd0;
 }
 .flex-row-cell {
   display: flex;
