@@ -28,6 +28,13 @@ export interface InsumoCreate {
   proveedor_principal_id?: string | null
 }
 
+export interface InsumoRecetaInversa {
+  insumo_id: string
+  producto_id: string
+  producto_nombre: string
+  cantidad: string
+}
+
 export interface InsumoUpdate {
   nombre?: string
   descripcion?: string | null

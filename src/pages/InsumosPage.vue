@@ -73,6 +73,24 @@
             </q-td>
           </template>
 
+          <template #body-cell-rinde_para="props">
+            <q-td :props="props">
+              <template v-if="estimacion(props.row)">
+                <span
+                  :class="{ 'text-negative text-weight-bold': estimacion(props.row)!.min === 0 }"
+                >
+                  ≈ {{ estimacion(props.row)!.min }} {{ estimacion(props.row)!.producto }}
+                </span>
+                <q-tooltip v-if="estimacion(props.row)!.desglose.length" anchor="top middle">
+                  <div v-for="d in estimacion(props.row)!.desglose" :key="d.producto">
+                    {{ d.producto }}: ≈ {{ d.unidades }}
+                  </div>
+                </q-tooltip>
+              </template>
+              <span v-else class="text-grey-6">—</span>
+            </q-td>
+          </template>
+
           <template #body-cell-costo_unitario="props">
             <q-td :props="props">
               {{
@@ -509,6 +527,7 @@ const presentacionesStore = usePresentacionesInsumoStore()
 const cargar = () => {
   if (!authStore.currentBranchId) return
   store.cargar(authStore.currentBranchId)
+  store.cargarEstimaciones(authStore.currentBranchId)
   proveedoresStore.cargar(authStore.currentBranchId)
   unidadesStore.cargar()
 }
@@ -538,6 +557,28 @@ const nombreProveedor = (proveedorId: string | null): string => {
 
 const bajoMinimo = (row: Insumo): boolean => Number(row.stock_actual) < Number(row.stock_minimo)
 
+interface EstimacionRinde {
+  min: number
+  producto: string
+  desglose: Array<{ producto: string; unidades: number }>
+}
+
+// "Rinde para": cuántas unidades de cada producto A/B cubre el stock actual del
+// insumo (stock ÷ cantidad en la receta). La celda muestra el producto de menor
+// rendimiento; el tooltip, el desglose completo.
+const estimacion = (row: Insumo): EstimacionRinde | null => {
+  const recetas = store.recetasPorInsumo.get(row.id)
+  if (!recetas || recetas.length === 0) return null
+  const stock = Number(row.stock_actual)
+  const desglose = recetas
+    .map((r) => ({
+      producto: r.producto_nombre,
+      unidades: Number(r.cantidad) > 0 ? Math.floor(stock / Number(r.cantidad)) : 0,
+    }))
+    .sort((a, b) => a.unidades - b.unidades)
+  return { min: desglose[0]!.unidades, producto: desglose[0]!.producto, desglose }
+}
+
 const TIPO_AJUSTE_OPTIONS: Array<{ label: string; value: TipoMovimientoManual }> = [
   { label: 'Entrada manual (sumar stock)', value: 'E' },
   { label: 'Merma (restar stock)', value: 'M' },
@@ -547,6 +588,7 @@ const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
   { name: 'unidad_base_id', label: 'UNIDAD', field: 'unidad_base_id', align: 'left' },
   { name: 'stock_actual', label: 'STOCK', field: 'stock_actual', align: 'left', sortable: true },
+  { name: 'rinde_para', label: 'RINDE PARA', field: 'id', align: 'left' },
   { name: 'stock_minimo', label: 'MÍNIMO', field: 'stock_minimo', align: 'left' },
   { name: 'costo_unitario', label: 'COSTO', field: 'costo_unitario', align: 'left' },
   {
