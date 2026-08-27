@@ -49,10 +49,40 @@
         </template>
       </q-banner>
 
+      <!-- Filtros -->
+      <div class="row q-col-gutter-sm items-center q-mb-md">
+        <div class="col-12 col-sm-4">
+          <q-input
+            v-model="busqueda"
+            dense
+            outlined
+            clearable
+            placeholder="Buscar por proveedor..."
+          >
+            <template #prepend><q-icon name="search" /></template>
+          </q-input>
+        </div>
+        <div class="col-auto">
+          <q-btn-toggle
+            v-model="filtroEstado"
+            no-caps
+            dense
+            unelevated
+            toggle-color="primary"
+            :options="[
+              { label: 'Todas', value: 'todas' },
+              { label: 'Pendientes', value: 'P' },
+              { label: 'Recibidas', value: 'R' },
+              { label: 'Canceladas', value: 'C' },
+            ]"
+          />
+        </div>
+      </div>
+
       <!-- Tabla -->
       <q-card flat bordered style="border-radius: 12px; overflow: hidden">
         <q-table
-          :rows="store.compras"
+          :rows="comprasFiltradas"
           :columns="columns"
           row-key="id"
           flat
@@ -84,6 +114,17 @@
 
           <template #body-cell-actions="props">
             <q-td :props="props" class="text-right">
+              <q-btn
+                flat
+                dense
+                color="grey-8"
+                size="sm"
+                class="action-btn q-mr-xs"
+                @click="abrirDetalle(props.row)"
+              >
+                <span class="material-symbols-outlined">receipt_long</span>
+                <q-tooltip>Ver detalle</q-tooltip>
+              </q-btn>
               <q-btn
                 v-if="props.row.estado === 'P'"
                 flat
@@ -303,6 +344,51 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- ── Dialog Detalle de compra ────────────────────────────────────────── -->
+    <q-dialog v-model="dialogDetalle">
+      <q-card style="min-width: 520px; border-radius: 12px">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold">Detalle de compra</div>
+          <div class="text-body2 text-grey-7">
+            {{ detalleCompra?.proveedor_nombre }} ·
+            {{ detalleCompra ? formatearFecha(detalleCompra.fecha_pedido) : '' }}
+          </div>
+        </q-card-section>
+        <q-separator />
+        <q-card-section>
+          <div v-if="cargandoDetalle" class="text-center q-py-md">
+            <q-spinner size="24px" color="primary" />
+          </div>
+          <q-list v-else-if="detalleCompra?.detalles.length" separator>
+            <q-item v-for="l in detalleCompra.detalles" :key="l.id">
+              <q-item-section>
+                <q-item-label>{{ l.insumo_nombre }}</q-item-label>
+                <q-item-label caption>
+                  {{ Number(l.cantidad) }}
+                  {{ l.presentacion_nombre ?? l.unidad_medida_codigo ?? '' }} × ${{
+                    Number(l.costo_unitario).toFixed(2)
+                  }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side class="text-weight-medium">
+                ${{ Number(l.subtotal).toFixed(2) }}
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-else class="text-body2 text-grey-7 q-py-sm">Sin líneas.</div>
+          <div v-if="detalleCompra" class="row justify-end q-mt-sm text-subtitle2 text-weight-bold">
+            Total: ${{ Number(detalleCompra.total).toFixed(2) }}
+          </div>
+          <div v-if="detalleCompra?.notas" class="text-caption text-grey-7 q-mt-sm">
+            Notas: {{ detalleCompra.notas }}
+          </div>
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-md q-pt-xs">
+          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -318,6 +404,7 @@ import { useProveedoresStore } from '@/stores/proveedores'
 import { useInsumosStore } from '@/stores/insumos'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { usePresentacionesInsumoStore } from '@/stores/presentacionesInsumo'
+import { comprasApi } from '@/api/comprasApi'
 import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 import type { Compra, EstadoCompra } from '@/types/compra'
 
@@ -351,6 +438,41 @@ const ESTADO_TONO: Record<EstadoCompra, 'naranja' | 'verde' | 'gris'> = {
 }
 
 const formatearFecha = (iso: string): string => new Date(iso).toLocaleDateString('es-MX')
+
+// ── Filtros ────────────────────────────────────────────────────────────────
+const busqueda = ref('')
+const filtroEstado = ref<'todas' | EstadoCompra>('todas')
+
+const comprasFiltradas = computed(() => {
+  const t = (busqueda.value ?? '').trim().toLowerCase()
+  return store.compras.filter((c) => {
+    if (t && !c.proveedor_nombre.toLowerCase().includes(t)) return false
+    if (filtroEstado.value !== 'todas' && c.estado !== filtroEstado.value) return false
+    return true
+  })
+})
+
+// ── Detalle de compra ──────────────────────────────────────────────────────
+const dialogDetalle = ref(false)
+const cargandoDetalle = ref(false)
+const detalleCompra = ref<Compra | null>(null)
+
+const abrirDetalle = async (row: Compra) => {
+  detalleCompra.value = row
+  dialogDetalle.value = true
+  cargandoDetalle.value = true
+  try {
+    detalleCompra.value = await comprasApi.obtener(row.id)
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+  } finally {
+    cargandoDetalle.value = false
+  }
+}
 
 const columns: QTableColumn[] = [
   {
