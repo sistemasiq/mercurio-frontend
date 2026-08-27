@@ -61,6 +61,15 @@
                   <div class="col-4">
                     <div class="field-label">NÚMERO DE NIÑOS</div>
                     <q-input v-model.number="form.ninos" dense outlined type="number" min="1" />
+                    <!-- Aviso, no bloqueo: la sucursal puede conseguir pulseras
+                         extra o prestarlas, así que la decisión es del staff. -->
+                    <div v-if="pulserasInsuficientes" class="aviso-pulseras">
+                      <q-icon name="warning" size="16px" />
+                      <span>
+                        La sucursal tiene {{ inventarioPulseras }} pulseras y el evento pide
+                        {{ form.ninos }}. Confirma que habrá suficientes.
+                      </span>
+                    </div>
                   </div>
                   <div class="col">
                     <div class="field-label">TIPO DE EVENTO</div>
@@ -242,11 +251,11 @@
                   Ningún paquete cubre {{ form.ninos }} niños. Ajusta el número de niños en el paso
                   anterior o crea un paquete con ese rango.
                 </div>
-                <div v-else class="row q-gutter-md">
+                <div v-else class="packages-grid">
                   <div
                     v-for="pkg in paquetesDisponibles"
                     :key="pkg.id"
-                    class="col package-card"
+                    class="package-card"
                     :class="{ 'package-card--selected': form.selectedPackage === pkg.id }"
                     @click="selectPackage(pkg.id)"
                   >
@@ -262,9 +271,11 @@
                       <li v-if="pkg.descripcion">
                         <q-icon name="check_circle" />{{ pkg.descripcion }}
                       </li>
-                      <li v-if="parseFloat(pkg.precio_pulsera) > 0">
-                        <q-icon name="check_circle" />+{{ fmt(parseFloat(pkg.precio_pulsera)) }}
-                        por pulsera de cada invitado
+                      <li v-if="parseFloat(pkg.precio_hora_pulsera) > 0">
+                        <q-icon name="check_circle" />+{{
+                          fmt(parseFloat(pkg.precio_hora_pulsera))
+                        }}
+                        por pulsera, por invitado y por hora
                       </li>
                       <li v-for="item in pkg.productos_incluidos ?? []" :key="item.producto_id">
                         <q-icon name="check_circle" />Incluye {{ item.cantidad }}x
@@ -290,8 +301,9 @@
                   style="border-radius: 8px; font-size: 0.85rem"
                 >
                   <q-icon name="info" size="18px" class="q-mr-xs" />
-                  {{ form.ninos }} pulsera{{ form.ninos === 1 ? '' : 's' }} a
-                  {{ fmt(parseFloat(selectedPkg.precio_pulsera)) }} c/u, total
+                  {{ form.ninos }} pulsera{{ form.ninos === 1 ? '' : 's' }} ×
+                  {{ horasSeleccionadas }} hora{{ horasSeleccionadas === 1 ? '' : 's' }} a
+                  {{ fmt(parseFloat(selectedPkg.precio_hora_pulsera)) }} c/u por hora, total
                   <strong>{{ fmt(precioPulserasNum) }}</strong>
                 </div>
               </div>
@@ -346,9 +358,24 @@
                   Productos Adicionales
                 </div>
 
+                <!--
+                  Sin sufijo de breakpoint, col-5/col-2/col-3 conservan su fracción
+                  en cualquier ancho: en pantallas chicas el select de producto y el
+                  campo de notas quedaban de unos pocos caracteres. Con col-12 de
+                  base se apilan, y a partir de sm recuperan la fila de una línea.
+                -->
                 <div class="row q-col-gutter-sm items-end">
-                  <div class="col-5">
+                  <div class="col-12 col-sm-5">
                     <div class="field-label">Producto</div>
+                    <!--
+                      behavior="dialog": el desplegable normal se ancla a la
+                      posición del campo y, como este vive al fondo de una página
+                      larga, al hacer scroll quedaba flotando sobre las tarjetas de
+                      paquetes, despegado de su input. El selector en diálogo no
+                      depende del scroll y además da más espacio en pantallas
+                      chicas. use-input permite filtrar cuando la sucursal tiene
+                      muchos productos.
+                    -->
                     <q-select
                       v-model="productoAdicionalTemporal.producto_id"
                       dense
@@ -357,12 +384,29 @@
                       map-options
                       option-value="id"
                       option-label="nombre"
-                      :options="productosDisponiblesParaAdicionales"
+                      :options="opcionesProductoFiltradas"
+                      behavior="dialog"
+                      use-input
+                      input-debounce="0"
                       placeholder="Elige un producto"
                       no-options-label="No hay más productos disponibles"
-                    />
+                      @filter="filtrarProductosAdicionales"
+                    >
+                      <template #option="scope">
+                        <q-item v-bind="scope.itemProps">
+                          <q-item-section>
+                            <q-item-label>{{ scope.opt.nombre }}</q-item-label>
+                          </q-item-section>
+                          <q-item-section side>
+                            <q-item-label caption>
+                              {{ fmt(parseFloat(scope.opt.precio_unitario)) }}
+                            </q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                    </q-select>
                   </div>
-                  <div class="col-2">
+                  <div class="col-4 col-sm-2">
                     <div class="field-label">Cant.</div>
                     <q-input
                       v-model.number="productoAdicionalTemporal.cantidad"
@@ -372,7 +416,7 @@
                       min="1"
                     />
                   </div>
-                  <div class="col-3">
+                  <div class="col-8 col-sm-3">
                     <div class="field-label">Notas</div>
                     <q-input
                       v-model="productoAdicionalTemporal.notas"
@@ -381,7 +425,7 @@
                       placeholder="Opcional"
                     />
                   </div>
-                  <div class="col-2 flex flex-center">
+                  <div class="col-12 col-sm-2 flex flex-center">
                     <q-btn
                       color="primary"
                       icon="add"
@@ -508,6 +552,29 @@
                   </div>
                 </div>
 
+                <div class="q-mb-md">
+                  <div class="field-label">PORCENTAJE A CUBRIR</div>
+                  <div class="anticipo-opciones">
+                    <button
+                      v-for="opcion in OPCIONES_ANTICIPO"
+                      :key="opcion"
+                      type="button"
+                      class="anticipo-chip"
+                      :class="{ 'anticipo-chip--activa': porcentajeSeleccionado === opcion }"
+                      @click="aplicarPorcentaje(opcion)"
+                    >
+                      <span class="anticipo-chip__pct">{{ opcion }}%</span>
+                      <span class="anticipo-chip__monto">{{
+                        fmt(montoPorPorcentaje(opcion))
+                      }}</span>
+                      <span v-if="opcion === 100" class="anticipo-chip__nota">Liquida todo</span>
+                      <span v-else-if="opcion === PORCENTAJE_MINIMO" class="anticipo-chip__nota">
+                        Mínimo
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
                 <div class="q-mb-lg">
                   <div class="field-label">MONTO DEL ANTICIPO</div>
                   <q-input
@@ -516,7 +583,9 @@
                     outlined
                     type="number"
                     prefix="$"
-                    :hint="`Mínimo sugerido: ${advanceAmount}`"
+                    :error="anticipoInsuficiente"
+                    :error-message="`El anticipo mínimo es ${PORCENTAJE_MINIMO}% (${advanceAmount})`"
+                    :hint="`Puedes capturar otra cantidad, desde ${advanceAmount}`"
                   />
                 </div>
 
@@ -528,7 +597,7 @@
                   style="border-radius: 8px; font-weight: 700; height: 44px"
                   class="q-px-lg"
                   no-caps
-                  :disable="anticipoIngresado <= 0"
+                  :disable="anticipoIngresado <= 0 || anticipoInsuficiente"
                   @click="abrirModalPago"
                 />
               </template>
@@ -557,144 +626,181 @@
 
             <!-- ── STEP 4: Confirmación ───────────────────────────────────── -->
             <q-step :name="4" title="Confirmación" icon="check_circle">
-              <div class="text-h6 q-mb-md" style="font-weight: 800; color: var(--text-primary)">
-                Resumen de la Reservación
-              </div>
-              <p class="text-body2 text-grey-8 q-mb-lg">
-                Verifica todos los datos antes de confirmar.
-              </p>
-
-              <!-- Bloque: Cliente -->
-              <div
-                class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
-                style="border: 1px solid var(--border-color)"
-              >
-                <div class="resumen-section-title">Cliente</div>
-                <div class="resumen-row">
-                  <span>Nombre</span><span>{{ form.nombre || '—' }}</span>
-                </div>
-                <div class="resumen-row">
-                  <span>Teléfono</span><span>{{ form.telefono || '—' }}</span>
-                </div>
-                <div class="resumen-row">
-                  <span>Email</span><span>{{ form.email || '—' }}</span>
-                </div>
-              </div>
-
-              <!-- Bloque: Evento -->
-              <div
-                class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
-                style="border: 1px solid var(--border-color)"
-              >
-                <div class="resumen-section-title">Evento</div>
-                <div class="resumen-row">
-                  <span>Tipo</span><span>{{ tipoEventoNombre }}</span>
-                </div>
-                <div class="resumen-row">
-                  <span>Fecha</span><span>{{ selectedDateLabel }}</span>
-                </div>
-                <div class="resumen-row">
-                  <span>Horario</span><span>{{ timeSlotLabel }}</span>
-                </div>
-                <div class="resumen-row">
-                  <span>Personas</span><span>{{ form.ninos }}</span>
-                </div>
-              </div>
-
-              <!-- Bloque: Paquete y Extras -->
-              <div
-                class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
-                style="border: 1px solid var(--border-color)"
-              >
-                <div class="resumen-section-title">Paquete y Extras</div>
-                <div class="resumen-row">
-                  <span>Paquete</span><span>{{ selectedPackageName || '—' }}</span>
-                </div>
-                <div class="resumen-row">
-                  <span>Precio base</span><span>{{ packagePrice }}</span>
-                </div>
-                <div v-if="precioPulserasNum > 0" class="resumen-row">
-                  <span>Pulseras ({{ form.ninos }})</span><span>{{ fmt(precioPulserasNum) }}</span>
-                </div>
-                <div
-                  v-for="item in productosAdicionales"
-                  :key="item.producto_id"
-                  class="resumen-row"
-                >
-                  <span
-                    >{{ item.cantidad }}x
-                    {{ obtenerNombreProductoAdicional(item.producto_id) }}</span
-                  ><span>{{ fmt(precioUnitarioProducto(item.producto_id) * item.cantidad) }}</span>
-                </div>
-                <template v-if="extrasSeleccionados.length">
-                  <div v-for="e in extrasSeleccionados" :key="e.id" class="resumen-row">
-                    <span>{{ e.nombre }}</span
-                    ><span>{{ fmt(parseFloat(e.precio)) }}</span>
+              <!-- Ya confirmada: se entrega el comprobante en lugar de navegar
+                   de inmediato a la lista, para poder imprimirlo en el momento. -->
+              <template v-if="ticket">
+                <div class="ticket-exito q-mb-lg">
+                  <q-icon name="check_circle" color="positive" size="30px" />
+                  <div>
+                    <div class="ticket-exito__titulo">Reservación confirmada</div>
+                    <div class="ticket-exito__nota">
+                      Imprime el comprobante para el cliente o continúa a la lista.
+                    </div>
                   </div>
-                </template>
-                <div v-else class="resumen-row">
-                  <span class="text-grey-6">Extras</span><span class="text-grey-6">Ninguno</span>
                 </div>
-              </div>
 
-              <!-- Bloque: Pago -->
-              <div
-                class="q-pa-md bg-white rounded-borders shadow-1 q-mb-lg"
-                style="border: 1px solid var(--border-color)"
-              >
-                <div class="resumen-section-title">Pago</div>
-                <div class="resumen-row">
-                  <span>Total</span><span style="font-weight: 700">{{ totalAmount }}</span>
-                </div>
-                <div class="resumen-row">
-                  <span>Anticipo pagado</span>
-                  <span class="text-positive" style="font-weight: 600">{{ fmt(montoPagado) }}</span>
-                </div>
-                <div class="resumen-row">
-                  <span>Método</span><span>{{ metodosPagoResumen }}</span>
-                </div>
-                <div class="resumen-row">
-                  <span>Saldo pendiente</span>
-                  <span style="font-weight: 700">{{ fmt(totalNum - montoPagado) }}</span>
-                </div>
-              </div>
+                <TicketReservacion v-bind="ticket" />
 
-              <!-- Términos -->
-              <div
-                class="q-pa-md bg-white rounded-borders shadow-1 q-mb-lg"
-                style="border: 1px solid var(--border-color)"
-              >
-                <q-checkbox v-model="form.termsAccepted" dense style="align-items: flex-start">
-                  <span style="font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary)">
-                    He revisado los datos del cliente y la disponibilidad de fecha con el reglamento
-                    de cancelación vigente.
-                  </span>
-                </q-checkbox>
-              </div>
+                <q-stepper-navigation class="q-mt-lg">
+                  <q-btn
+                    color="primary"
+                    label="Ir a reservaciones"
+                    icon-right="arrow_forward"
+                    unelevated
+                    no-caps
+                    style="border-radius: 8px; font-weight: 600"
+                    @click="irAListaReservaciones"
+                  />
+                </q-stepper-navigation>
+              </template>
 
-              <q-stepper-navigation class="q-mt-lg flex items-center">
-                <q-btn
-                  unelevated
-                  :color="form.termsAccepted ? 'positive' : 'grey-4'"
-                  :text-color="form.termsAccepted ? 'white' : 'grey-6'"
-                  label="Confirmar Reservación"
-                  icon="check_circle_outline"
-                  style="border-radius: 8px; font-weight: 700"
-                  class="q-px-lg"
-                  no-caps
-                  :disable="!form.termsAccepted"
-                  :loading="confirmando"
-                  @click="confirmarReservacion"
-                />
-                <q-btn
-                  flat
-                  color="primary"
-                  label="Atrás"
-                  class="q-ml-sm"
-                  no-caps
-                  @click="step = 3"
-                />
-              </q-stepper-navigation>
+              <template v-else>
+                <div class="text-h6 q-mb-md" style="font-weight: 800; color: var(--text-primary)">
+                  Resumen de la Reservación
+                </div>
+                <p class="text-body2 text-grey-8 q-mb-lg">
+                  Verifica todos los datos antes de confirmar.
+                </p>
+
+                <!-- Bloque: Cliente -->
+                <div
+                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
+                  style="border: 1px solid var(--border-color)"
+                >
+                  <div class="resumen-section-title">Cliente</div>
+                  <div class="resumen-row">
+                    <span>Nombre</span><span>{{ form.nombre || '—' }}</span>
+                  </div>
+                  <div class="resumen-row">
+                    <span>Teléfono</span><span>{{ form.telefono || '—' }}</span>
+                  </div>
+                  <div class="resumen-row">
+                    <span>Email</span><span>{{ form.email || '—' }}</span>
+                  </div>
+                </div>
+
+                <!-- Bloque: Evento -->
+                <div
+                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
+                  style="border: 1px solid var(--border-color)"
+                >
+                  <div class="resumen-section-title">Evento</div>
+                  <div class="resumen-row">
+                    <span>Tipo</span><span>{{ tipoEventoNombre }}</span>
+                  </div>
+                  <div class="resumen-row">
+                    <span>Fecha</span><span>{{ selectedDateLabel }}</span>
+                  </div>
+                  <div class="resumen-row">
+                    <span>Horario</span><span>{{ timeSlotLabel }}</span>
+                  </div>
+                  <div class="resumen-row">
+                    <span>Personas</span><span>{{ form.ninos }}</span>
+                  </div>
+                </div>
+
+                <!-- Bloque: Paquete y Extras -->
+                <div
+                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
+                  style="border: 1px solid var(--border-color)"
+                >
+                  <div class="resumen-section-title">Paquete y Extras</div>
+                  <div class="resumen-row">
+                    <span>Paquete</span><span>{{ selectedPackageName || '—' }}</span>
+                  </div>
+                  <div class="resumen-row">
+                    <span>Precio base</span><span>{{ packagePrice }}</span>
+                  </div>
+                  <div v-if="precioPulserasNum > 0" class="resumen-row">
+                    <span>Pulseras ({{ form.ninos }} × {{ horasSeleccionadas }}h)</span
+                    ><span>{{ fmt(precioPulserasNum) }}</span>
+                  </div>
+                  <div
+                    v-for="item in productosAdicionales"
+                    :key="item.producto_id"
+                    class="resumen-row"
+                  >
+                    <span
+                      >{{ item.cantidad }}x
+                      {{ obtenerNombreProductoAdicional(item.producto_id) }}</span
+                    ><span>{{
+                      fmt(precioUnitarioProducto(item.producto_id) * item.cantidad)
+                    }}</span>
+                  </div>
+                  <template v-if="extrasSeleccionados.length">
+                    <div v-for="e in extrasSeleccionados" :key="e.id" class="resumen-row">
+                      <span>{{ e.nombre }}</span
+                      ><span>{{ fmt(parseFloat(e.precio)) }}</span>
+                    </div>
+                  </template>
+                  <div v-else class="resumen-row">
+                    <span class="text-grey-6">Extras</span><span class="text-grey-6">Ninguno</span>
+                  </div>
+                </div>
+
+                <!-- Bloque: Pago -->
+                <div
+                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-lg"
+                  style="border: 1px solid var(--border-color)"
+                >
+                  <div class="resumen-section-title">Pago</div>
+                  <div class="resumen-row">
+                    <span>Total</span><span style="font-weight: 700">{{ totalAmount }}</span>
+                  </div>
+                  <div class="resumen-row">
+                    <span>Anticipo pagado</span>
+                    <span class="text-positive" style="font-weight: 600">{{
+                      fmt(montoPagado)
+                    }}</span>
+                  </div>
+                  <div class="resumen-row">
+                    <span>Método</span><span>{{ metodosPagoResumen }}</span>
+                  </div>
+                  <div class="resumen-row">
+                    <span>Saldo pendiente</span>
+                    <span style="font-weight: 700">{{ fmt(saldoPendienteReal) }}</span>
+                  </div>
+                </div>
+
+                <!-- Términos -->
+                <div
+                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-lg"
+                  style="border: 1px solid var(--border-color)"
+                >
+                  <q-checkbox v-model="form.termsAccepted" dense style="align-items: flex-start">
+                    <span
+                      style="font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary)"
+                    >
+                      He revisado los datos del cliente y la disponibilidad de fecha con el
+                      reglamento de cancelación vigente.
+                    </span>
+                  </q-checkbox>
+                </div>
+
+                <q-stepper-navigation class="q-mt-lg flex items-center">
+                  <q-btn
+                    unelevated
+                    :color="form.termsAccepted ? 'positive' : 'grey-4'"
+                    :text-color="form.termsAccepted ? 'white' : 'grey-6'"
+                    label="Confirmar Reservación"
+                    icon="check_circle_outline"
+                    style="border-radius: 8px; font-weight: 700"
+                    class="q-px-lg"
+                    no-caps
+                    :disable="!form.termsAccepted"
+                    :loading="confirmando"
+                    @click="confirmarReservacion"
+                  />
+                  <q-btn
+                    flat
+                    color="primary"
+                    label="Atrás"
+                    class="q-ml-sm"
+                    no-caps
+                    @click="step = 3"
+                  />
+                </q-stepper-navigation>
+              </template>
             </q-step>
           </q-stepper>
         </div>
@@ -716,7 +822,7 @@
                 <span class="amount">{{ selectedPkg ? packagePrice : '—' }}</span>
               </div>
               <div v-if="precioPulserasNum > 0" class="payment-card__row">
-                <span>Pulseras ({{ form.ninos }})</span>
+                <span>Pulseras ({{ form.ninos }} × {{ horasSeleccionadas }}h)</span>
                 <span class="amount">{{ fmt(precioPulserasNum) }}</span>
               </div>
               <div
@@ -756,26 +862,34 @@
                 >
                   <span style="font-weight: 700; color: var(--text-primary)">Saldo pendiente</span>
                   <span style="font-weight: 800; font-size: 1rem; color: var(--q-primary)">{{
-                    fmt(totalNum - montoPagado)
+                    fmt(saldoPendienteReal)
                   }}</span>
                 </div>
               </template>
 
-              <!-- Anticipo sugerido antes de pagar -->
+              <!-- Anticipo antes de pagar: sigue al monto capturado en el paso 3 -->
               <template v-else>
                 <div class="payment-card__advance">
-                  <div class="advance-label">Anticipo Requerido (30%)</div>
-                  <div class="advance-amount">{{ selectedPkg ? advanceAmount : '—' }}</div>
+                  <div class="advance-label">
+                    {{ anticipoLiquidaTodo ? 'Liquidación total' : 'Anticipo' }}
+                    ({{ porcentajeAnticipo }}%)
+                  </div>
+                  <div class="advance-amount">{{ selectedPkg ? fmt(anticipoAplicado) : '—' }}</div>
                   <q-linear-progress
-                    :value="0.3"
-                    color="primary"
+                    :value="porcentajeAnticipo / 100"
+                    :color="anticipoLiquidaTodo ? 'positive' : 'primary'"
                     track-color="blue-1"
                     rounded
                     style="height: 8px; margin-top: 8px"
                   />
                   <div class="advance-note">
-                    El resto ({{ selectedPkg ? remainingAmount : '—' }}) se liquida el día del
-                    evento
+                    <template v-if="!selectedPkg"> Elige un paquete para ver el desglose </template>
+                    <template v-else-if="anticipoLiquidaTodo">
+                      El evento queda pagado por completo
+                    </template>
+                    <template v-else>
+                      El resto ({{ fmt(saldoTrasAnticipo) }}) se liquida el día del evento
+                    </template>
                   </div>
                 </div>
               </template>
@@ -821,6 +935,9 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { usePaquetesStore } from '@/stores/paquetes'
 import type { Paquetes } from '@/types/paquetes'
+import type { ProductoAdmin } from '@/types/producto'
+import TicketReservacion from '@/components/eventos/TicketReservacion.vue'
+import type { TicketConcepto, TicketReservacionProps } from '@/types/ticketReservacion'
 import { useExtrasStore } from '@/stores/extras'
 import { useProductosStore } from '@/stores/productos'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
@@ -833,8 +950,9 @@ import { useReservacionExtrasStore } from '@/stores/reservacion_extras'
 import { useReservacionProductosStore } from '@/stores/reservacion_productos'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
-import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 import { horasFacturables } from '@/utils/horario'
+import { descontarCambio, resolverMetodoPagoId, totalPagado } from '@/utils/pagos'
+import { pulserasApi } from '@/api/pulserasApi'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -864,8 +982,20 @@ onMounted(() => {
   if (!authStore.currentBranchId) return
   paquetesStore.cargar(authStore.currentBranchId)
   extrasStore.cargar(authStore.currentBranchId)
-  productosStore.cargar(authStore.currentBranchId)
+  // Catálogo de cajero, no el de administración: quien levanta una reservación
+  // suele ser Cajero y ese rol no tiene `inventario:ver`.
+  productosStore.cargarCatalogo()
   tiposEventoStore.cargar()
+  // El aviso de pulseras es informativo: si la consulta falla se omite en vez de
+  // interrumpir el alta de la reservación por un dato accesorio.
+  pulserasApi
+    .obtenerInventario(authStore.currentBranchId)
+    .then((inv) => {
+      inventarioPulseras.value = inv.total_activas
+    })
+    .catch(() => {
+      inventarioPulseras.value = null
+    })
   resStore.cargar(authStore.currentBranchId)
 })
 
@@ -902,6 +1032,27 @@ const tipoEventoNombre = computed(
 )
 
 // ── Validación paso 1 ────────────────────────────────────────────────────────
+
+/**
+ * Pulseras activas que posee la sucursal. Es el tope físico de niños que puede
+ * pulsear un evento.
+ *
+ * Se compara contra el INVENTARIO, no contra las libres en este momento: un
+ * evento ocurre en una fecha futura, y las pulseras puestas hoy ya estarán
+ * devueltas para entonces. Validar contra las libres daría falsas alarmas (en La
+ * Piedad: 110 en inventario frente a 60 libres una tarde cualquiera).
+ *
+ * null mientras no se haya podido consultar; en ese caso no se avisa nada, para
+ * no acusar un faltante que no se pudo comprobar.
+ */
+const inventarioPulseras = ref<number | null>(null)
+
+const pulserasInsuficientes = computed(
+  () =>
+    inventarioPulseras.value !== null &&
+    form.value.ninos > 0 &&
+    form.value.ninos > inventarioPulseras.value,
+)
 
 const horarioValido = computed(
   () =>
@@ -1040,6 +1191,21 @@ const productosDisponiblesParaAdicionales = computed(() => {
   return productosStore.productos.filter((p) => p.activo && !yaAgregados.has(p.id))
 })
 
+// Lista que realmente pinta el q-select. Se mantiene aparte del computed porque
+// use-input exige entregar las opciones desde el callback de @filter.
+const opcionesProductoFiltradas = ref<ProductoAdmin[]>([])
+
+const filtrarProductosAdicionales = (texto: string, update: (fn: () => void) => void): void => {
+  update(() => {
+    const termino = texto.trim().toLowerCase()
+    opcionesProductoFiltradas.value = termino
+      ? productosDisponiblesParaAdicionales.value.filter((p) =>
+          p.nombre.toLowerCase().includes(termino),
+        )
+      : productosDisponiblesParaAdicionales.value
+  })
+}
+
 const precioUnitarioProducto = (productoId: string): number => {
   const prod = productosStore.productos.find((p) => p.id === productoId)
   return prod ? parseFloat(String(prod.precio_unitario)) : 0
@@ -1109,17 +1275,6 @@ const metodosPagoResumen = computed(() => {
   return nombres.length ? [...new Set(nombres)].join(', ') : '—'
 })
 
-const mapearMetodoPago = (categoriaSeleccionada: string): string => {
-  const categoria = CATEGORIAS_METODO_PAGO.find((c) => c.valor === categoriaSeleccionada)
-  const metodo = metodosPagoStore.activos.find((m) => m.tipo === categoria?.tipo)
-  if (!metodo) {
-    throw new Error(
-      `No hay un método de pago activo de tipo "${categoriaSeleccionada}" configurado para esta sucursal.`,
-    )
-  }
-  return metodo.id
-}
-
 // Pre-rellena el anticipo al llegar al step 3
 watch(step, (s) => {
   if (s === 3 && !pagoRegistrado.value) anticipoIngresado.value = advanceNum.value
@@ -1130,8 +1285,12 @@ const abrirModalPago = () => {
 }
 
 const onPagoExitoso = (pagos: AppliedPayment[]) => {
-  pagosAplicados.value = pagos
-  montoPagado.value = pagos.reduce((suma, p) => suma + p.amount, 0)
+  // El teclado registra lo que el cliente entrega; si pagó de más se le devolvió
+  // cambio, y ese excedente no es ingreso del evento. Guardar el bruto hacía que
+  // la BD rechazara la reservación (anticipo > precio_total) y que el saldo
+  // pendiente saliera negativo.
+  pagosAplicados.value = descontarCambio(pagos, totalNum.value)
+  montoPagado.value = totalPagado(pagosAplicados.value)
   pagoRegistrado.value = true
 }
 
@@ -1198,8 +1357,14 @@ const horasSeleccionadas = computed(() =>
 )
 
 // La pulsera se cobra por cada invitado del evento, no solo por un excedente.
+// La pulsera se cobra por invitado Y por hora de evento. horasSeleccionadas
+// tiene mínimo de 1 hora (ver horasFacturables), así que el cargo nunca se
+// anula por un horario mal capturado.
 const precioPulserasNum = computed(
-  () => form.value.ninos * parseFloat(selectedPkg.value?.precio_pulsera ?? '0'),
+  () =>
+    form.value.ninos *
+    parseFloat(selectedPkg.value?.precio_hora_pulsera ?? '0') *
+    horasSeleccionadas.value,
 )
 
 const extraServicesNum = computed(() =>
@@ -1216,18 +1381,103 @@ const subtotal = computed(
     extraServicesNum.value,
 )
 const totalNum = computed(() => subtotal.value)
-const advanceNum = computed(() => Math.round(totalNum.value * 0.3))
-const remainingNum = computed(() => totalNum.value - advanceNum.value)
+
+/** Piso de anticipo que acepta el negocio. */
+const PORCENTAJE_MINIMO = 30
+/** Atajos ofrecidos al cliente. El 100% equivale a liquidar el evento por adelantado. */
+const OPCIONES_ANTICIPO = [30, 50, 75, 100] as const
+
+const montoPorPorcentaje = (porcentaje: number) => Math.round((totalNum.value * porcentaje) / 100)
+
+const advanceNum = computed(() => montoPorPorcentaje(PORCENTAJE_MINIMO))
+
+/**
+ * Porcentaje que corresponde al monto capturado, o null si el cajero escribió una
+ * cantidad libre que no coincide con ningún atajo. Se deriva del monto en vez de
+ * guardarse aparte para que editar el campo a mano no deje una opción marcada que
+ * ya no refleja lo que se va a cobrar.
+ */
+const porcentajeSeleccionado = computed(
+  () => OPCIONES_ANTICIPO.find((p) => montoPorPorcentaje(p) === anticipoIngresado.value) ?? null,
+)
+
+const aplicarPorcentaje = (porcentaje: number) => {
+  anticipoIngresado.value = montoPorPorcentaje(porcentaje)
+}
+
+const anticipoInsuficiente = computed(
+  () => anticipoIngresado.value > 0 && anticipoIngresado.value < advanceNum.value,
+)
+
+// ── Reflejo del anticipo en el desglose lateral ──────────────────────────────
+// El panel mostraba "Anticipo Requerido (30%)" fijo, así que elegir 75% o liquidar
+// todo no cambiaba nada de lo que el cliente veía. Estos derivados hacen que el
+// desglose siga al monto realmente capturado.
+
+/** Monto que se va a cobrar: lo capturado, o el mínimo mientras no se toque nada. */
+const anticipoAplicado = computed(() =>
+  anticipoIngresado.value > 0 ? anticipoIngresado.value : advanceNum.value,
+)
+
+const porcentajeAnticipo = computed(() => {
+  if (totalNum.value <= 0) return PORCENTAJE_MINIMO
+  // Se topa en 100 porque el cajero puede capturar libremente un monto mayor al
+  // total y la barra de progreso no debe desbordarse.
+  return Math.min(100, Math.round((anticipoAplicado.value / totalNum.value) * 100))
+})
+
+const saldoTrasAnticipo = computed(() => Math.max(0, totalNum.value - anticipoAplicado.value))
+
+const anticipoLiquidaTodo = computed(
+  () => totalNum.value > 0 && anticipoAplicado.value >= totalNum.value,
+)
+
+/**
+ * Saldo que queda por cobrar tras el pago registrado. Nunca negativo: si el
+ * cliente entregó de más, la diferencia se le devolvió como cambio y el evento
+ * queda saldado, no "sobrepagado".
+ */
+const saldoPendienteReal = computed(() => Math.max(0, totalNum.value - montoPagado.value))
 
 const packagePrice = computed(() => fmt(packagePriceNum.value))
 const extraServicesTotal = computed(() => fmt(extraServicesNum.value))
 const totalAmount = computed(() => fmt(totalNum.value))
 const advanceAmount = computed(() => fmt(advanceNum.value))
-const remainingAmount = computed(() => fmt(remainingNum.value))
 
 // ── Confirmar reservación ─────────────────────────────────────────────────────
 
 const confirmando = ref(false)
+
+/**
+ * Datos del comprobante. Null hasta confirmar; en cuanto tiene valor, el paso 4
+ * cambia del resumen editable al ticket imprimible.
+ */
+const ticket = ref<TicketReservacionProps | null>(null)
+
+/** Renglones del desglose, en el mismo orden que el panel lateral. */
+function conceptosTicket(): TicketConcepto[] {
+  const lineas: TicketConcepto[] = [
+    { descripcion: `Paquete ${selectedPackageName.value}`, importe: packagePriceNum.value },
+  ]
+  if (precioPulserasNum.value > 0) {
+    lineas.push({
+      descripcion: `Pulseras (${form.value.ninos} × ${horasSeleccionadas.value}h)`,
+      importe: precioPulserasNum.value,
+    })
+  }
+  for (const item of productosAdicionales.value) {
+    lineas.push({
+      descripcion: `${item.cantidad}x ${obtenerNombreProductoAdicional(item.producto_id)}`,
+      importe: precioUnitarioProducto(item.producto_id) * item.cantidad,
+    })
+  }
+  for (const extra of extrasSeleccionados.value) {
+    lineas.push({ descripcion: extra.nombre, importe: parseFloat(extra.precio) })
+  }
+  return lineas
+}
+
+const irAListaReservaciones = () => router.push({ name: 'eventos-reservaciones' })
 
 const confirmarReservacion = async () => {
   const sucursalId = authStore.currentBranchId
@@ -1322,7 +1572,7 @@ const confirmarReservacion = async () => {
     for (const pago of pagosAplicados.value) {
       await pagosStore.crearPagosReservacion({
         reservacion_id: nuevaReservacion.id,
-        metodo_pago_id: mapearMetodoPago(pago.method),
+        metodo_pago_id: resolverMetodoPagoId(pago.method, metodosPagoStore.activos),
         monto: String(pago.amount),
         notas: pago.cardType
           ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
@@ -1330,12 +1580,31 @@ const confirmarReservacion = async () => {
       })
     }
 
+    // Se arma el ticket aquí, con los valores que se acaban de cobrar, en vez de
+    // navegar de inmediato: así el cajero puede imprimirle el comprobante al
+    // cliente sin perder la pantalla ni tener que buscar la reservación.
+    ticket.value = {
+      folio: nuevaReservacion.id,
+      sucursal: authStore.currentBranchName ?? 'Sucursal',
+      clienteNombre: form.value.nombre,
+      clienteTelefono: telefonoLimpio,
+      clienteEmail: form.value.email || null,
+      tipoEvento: tipoEventoNombre.value,
+      fechaEvento: selectedDateLabel.value,
+      horario: timeSlotLabel.value,
+      numeroNinos: form.value.ninos,
+      paqueteNombre: selectedPackageName.value,
+      conceptos: conceptosTicket(),
+      total: totalNum.value,
+      anticipo: montoPagado.value,
+      metodosPago: metodosPagoResumen.value,
+    }
+
     $q.notify({
       type: 'positive',
       message: 'Reservación confirmada exitosamente',
       position: 'top-right',
     })
-    router.push({ name: 'eventos-reservaciones' })
   } catch (err: unknown) {
     const apiErr = err as { message?: string; statusCode?: number }
     const msg = apiErr?.message || 'Error al guardar la reservación'
@@ -1374,5 +1643,97 @@ const confirmarReservacion = async () => {
 
 .resumen-row:last-child {
   border-bottom: none;
+}
+
+.aviso-pulseras {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #a35200;
+}
+
+/* ── Confirmación con ticket ──────────────────────────────────────────────── */
+.ticket-exito {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: rgba(63, 168, 52, 0.12);
+  border: 1px solid rgba(63, 168, 52, 0.35);
+}
+
+.ticket-exito__titulo {
+  font-weight: 700;
+  color: #2e7d32;
+}
+
+.ticket-exito__nota {
+  font-size: 0.85rem;
+  color: #2e7d32;
+}
+
+/* ── Opciones de anticipo ──────────────────────────────────────────────────
+   Rejilla en vez de fila fija: con cuatro opciones y montos de cinco cifras,
+   una fila las apretaba hasta encimar el porcentaje con el monto. Así saltan
+   de renglón solas en pantallas angostas. */
+.anticipo-opciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
+  gap: 10px;
+}
+
+.anticipo-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.anticipo-chip:hover {
+  border-color: var(--q-primary);
+}
+
+.anticipo-chip--activa {
+  border-color: var(--q-primary);
+  background: rgba(2, 95, 224, 0.06);
+}
+
+.anticipo-chip__pct {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+
+.anticipo-chip--activa .anticipo-chip__pct {
+  color: var(--q-primary);
+}
+
+.anticipo-chip__monto {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.anticipo-chip__nota {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 </style>
