@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSucursalesStore } from '@/stores/sucursales'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import { useAlertasInventarioStore } from '@/stores/alertasInventario'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
 
 interface NavItem {
@@ -21,6 +22,7 @@ interface NavGroup {
 const auth = useAuthStore()
 const turno = useTurnoCajaStore()
 const sucursalesStore = useSucursalesStore()
+const alertasInventario = useAlertasInventarioStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -193,6 +195,12 @@ const navGroups = computed<NavGroup[]>(() => [
         routeName: 'reportes-inventario',
         permission: 'reportes:inventario',
       },
+      {
+        label: 'Costo de Ventas',
+        icon: 'request_quote',
+        routeName: 'reportes-inventario-cogs',
+        permission: 'reportes:inventario',
+      },
     ],
   },
   {
@@ -306,6 +314,15 @@ const estadoTurnoInfo = computed(() => {
   return { label: 'En Corte de Caja', clase: 'estado-turno--corte', icon: 'hourglass_empty' }
 })
 
+const INTERVALO_ALERTAS_MS = 3 * 60 * 1000
+let alertasIntervalId: ReturnType<typeof setInterval> | undefined
+
+const refrescarAlertasInventario = (avisar = true) => {
+  if (auth.hasPermission('inventario:ver') && auth.currentBranchId) {
+    void alertasInventario.refrescar(auth.currentBranchId, avisar)
+  }
+}
+
 onMounted(() => {
   if (mostrarEstadoTurno.value) {
     turno.cargarTurnoActivo()
@@ -313,10 +330,31 @@ onMounted(() => {
   if (auth.isSistema) {
     sucursalesStore.cargar()
   }
+  refrescarAlertasInventario(false)
+  alertasIntervalId = setInterval(() => refrescarAlertasInventario(true), INTERVALO_ALERTAS_MS)
 })
+
+onBeforeUnmount(() => {
+  if (alertasIntervalId) clearInterval(alertasIntervalId)
+})
+
+watch(
+  () => auth.currentBranchId,
+  () => {
+    alertasInventario.limpiar()
+    refrescarAlertasInventario(false)
+  },
+)
 
 function isActive(routeName: string): boolean {
   return route.name === routeName
+}
+
+function badgeCount(routeName: string): number {
+  if (routeName === 'insumos-listar' || routeName === 'reportes-inventario') {
+    return alertasInventario.totalAlertas
+  }
+  return 0
 }
 
 async function handleLogout(): Promise<void> {
@@ -358,6 +396,9 @@ async function handleLogout(): Promise<void> {
               >
                 <q-item-section avatar>
                   <q-icon :name="item.icon" size="18px" />
+                  <q-badge v-if="badgeCount(item.routeName) > 0" color="negative" floating rounded>
+                    {{ badgeCount(item.routeName) }}
+                  </q-badge>
                 </q-item-section>
                 <q-item-section v-if="!sidebarCollapsed">{{ item.label }}</q-item-section>
                 <q-tooltip v-if="sidebarCollapsed" anchor="center right" self="center left">

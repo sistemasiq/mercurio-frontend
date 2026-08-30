@@ -49,10 +49,22 @@
         </template>
       </q-banner>
 
+      <!-- Filtros -->
+      <div class="row q-col-gutter-sm items-center q-mb-md">
+        <div class="col-12 col-sm-4">
+          <q-input v-model="busqueda" dense outlined clearable placeholder="Buscar por nombre...">
+            <template #prepend><q-icon name="search" /></template>
+          </q-input>
+        </div>
+        <div class="col-auto">
+          <q-toggle v-model="soloActivos" label="Solo activos" dense />
+        </div>
+      </div>
+
       <!-- Tabla -->
       <q-card flat bordered style="border-radius: 12px; overflow: hidden">
         <q-table
-          :rows="store.proveedores"
+          :rows="proveedoresFiltrados"
           :columns="columns"
           row-key="id"
           flat
@@ -205,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { resolveErrorMessage } from '@/utils/errorHandler'
@@ -224,6 +236,18 @@ const cargar = () => {
 }
 
 onMounted(cargar)
+
+const busqueda = ref('')
+const soloActivos = ref(false)
+
+const proveedoresFiltrados = computed(() => {
+  const t = (busqueda.value ?? '').trim().toLowerCase()
+  return store.proveedores.filter((p) => {
+    if (t && !p.nombre.toLowerCase().includes(t)) return false
+    if (soloActivos.value && !p.activo) return false
+    return true
+  })
+})
 
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },

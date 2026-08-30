@@ -75,6 +75,7 @@ export const useRegistrationStore = defineStore('registration', () => {
   const pulseras = computed(() => accessControlStore.pulserasDisponibles)
   const metodoPagoId = ref<string | null>(null)
   const pagosFromModal = ref<OnboardingPago[]>([])
+  const puntosARedimirValue = ref(0)
   const isLoadingCatalog = ref(false)
   const isSubmitting = ref(false)
   const submitError = ref<string | null>(null)
@@ -320,9 +321,12 @@ export const useRegistrationStore = defineStore('registration', () => {
     return motivos
   })
 
-  async function proceedToRFID(pagos?: OnboardingPago[]) {
+  async function proceedToRFID(pagos?: OnboardingPago[], puntosARedimir?: number) {
     if (pagos) {
       pagosFromModal.value = pagos
+    }
+    if (puntosARedimir) {
+      puntosARedimirValue.value = puntosARedimir
     }
     step.value = 'rfid'
   }
@@ -381,6 +385,7 @@ export const useRegistrationStore = defineStore('registration', () => {
           ? pagosFromModal.value
           : [{ metodoPagoId: metodoPagoId.value!, monto: total.value }],
       reservacionId: esEvento ? eventoSeleccionado.value!.id : null,
+      puntosARedimir: puntosARedimirValue.value,
     }
 
     try {
@@ -409,6 +414,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     eventoSeleccionado.value = null
     eventoNoEncontrado.value = false
     pagosFromModal.value = []
+    puntosARedimirValue.value = 0
     tutor.value = {
       fullName: '',
       relationship: 'Padre / Madre',

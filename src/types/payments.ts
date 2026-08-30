@@ -2,6 +2,7 @@ import type { DetalleComandaRequest } from './comanda'
 
 export interface PaymentProps {
   totalToPay: number
+  celularPrellenado?: string
 }
 
 export interface AppliedPayment {

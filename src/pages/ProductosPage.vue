@@ -573,7 +573,11 @@
               />
             </div>
             <div class="col-5">
-              <div class="field-label">CANTIDAD</div>
+              <div class="field-label">
+                CANTIDAD<span v-if="unidadRecetaSeleccionada">
+                  ({{ unidadRecetaSeleccionada.codigo }})</span
+                >
+              </div>
               <q-input
                 v-model.number="formReceta.cantidad"
                 dense
@@ -581,9 +585,20 @@
                 type="number"
                 min="0"
                 step="0.001"
+                :suffix="unidadRecetaSeleccionada?.codigo"
               />
             </div>
           </div>
+          <q-banner
+            v-if="avisoCantidadReceta"
+            dense
+            rounded
+            class="bg-amber-1 text-amber-9"
+            style="border-radius: 10px"
+          >
+            <template #avatar><q-icon name="warning" color="amber-9" /></template>
+            {{ avisoCantidadReceta }}
+          </q-banner>
           <q-btn
             unelevated
             no-caps
@@ -638,6 +653,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useProductosStore } from '@/stores/productos'
 import { useInsumosStore } from '@/stores/insumos'
 import { useRecetaProductoStore } from '@/stores/recetaProducto'
+import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import {
   TIPO_LABELS,
   type ComboItemCreate,
@@ -659,6 +675,7 @@ const authStore = useAuthStore()
 const store = useProductosStore()
 const insumosStore = useInsumosStore()
 const recetaStore = useRecetaProductoStore()
+const unidadesStore = useUnidadesMedidaStore()
 
 const TIPO_TONO: Record<TipoProducto, 'verde' | 'rojo' | 'azul' | 'naranja' | 'gris'> = {
   A: 'verde',
@@ -1076,11 +1093,32 @@ const insumoOptions = computed(() =>
   insumosStore.insumos.filter((i) => i.activo).map((i) => ({ label: i.nombre, value: i.id })),
 )
 
+// Unidad base del insumo elegido para la línea de receta (la cantidad se
+// captura siempre en esa unidad: g / ml / pza).
+const unidadRecetaSeleccionada = computed(() => {
+  const insumo = insumosStore.insumos.find((i) => i.id === formReceta.value.insumo_id)
+  if (!insumo) return null
+  return unidadesStore.unidades.find((u) => u.id === insumo.unidad_base_id) ?? null
+})
+
+// Aviso suave: 1000+ g/ml por unidad de producto casi siempre es un error de
+// unidad (se quiso poner kg/l). No bloquea.
+const avisoCantidadReceta = computed(() => {
+  const u = unidadRecetaSeleccionada.value
+  if (!u || (u.tipo !== 'masa' && u.tipo !== 'volumen')) return null
+  if (formReceta.value.cantidad >= 1000) {
+    const mayor = u.tipo === 'masa' ? 'kg' : 'l'
+    return `${formReceta.value.cantidad} ${u.codigo} por unidad. ¿No querías ${mayor}? 1 ${mayor} = 1000 ${u.codigo}.`
+  }
+  return null
+})
+
 const abrirReceta = (row: ProductoAdmin) => {
   productoReceta.value = row
   formReceta.value = { insumo_id: null, cantidad: 0 }
   dialogReceta.value = true
   recetaStore.cargar(row.id)
+  void unidadesStore.cargar()
   if (authStore.currentBranchId) insumosStore.cargar(authStore.currentBranchId)
 }
 
