@@ -5,6 +5,7 @@ import type { ComandaWsMessage } from '@/types/comanda'
 export type EstadoSocket = 'conectando' | 'conectado' | 'reconectando' | 'caido'
 
 const MAX_INTENTOS_ANTES_DE_FALLBACK = 5
+const MAX_INTENTOS_TOTALES = 20
 const BACKOFF_INICIAL_MS = 1000
 const BACKOFF_MAX_MS = 30000
 
@@ -52,6 +53,10 @@ export function useComandasSocket(onMessage: (msg: ComandaWsMessage) => void) {
 
   function programarReconexion() {
     intentos++
+    if (intentos > MAX_INTENTOS_TOTALES) {
+      estado.value = 'caido'
+      return
+    }
     estado.value = intentos > MAX_INTENTOS_ANTES_DE_FALLBACK ? 'caido' : 'reconectando'
     const espera = Math.min(BACKOFF_INICIAL_MS * 2 ** Math.min(intentos - 1, 10), BACKOFF_MAX_MS)
     limpiarTimeout()
@@ -60,6 +65,13 @@ export function useComandasSocket(onMessage: (msg: ComandaWsMessage) => void) {
 
   function conectar() {
     if (cerradoManualmente) return
+
+    if (socket) {
+      socket.onclose = null
+      socket.onerror = null
+      socket.close()
+      socket = null
+    }
 
     const url = construirUrlWs()
     if (!url) {

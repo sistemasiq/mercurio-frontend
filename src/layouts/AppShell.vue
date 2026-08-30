@@ -726,3 +726,27 @@ async function handleLogout(): Promise<void> {
   background: var(--bg-main);
 }
 </style>
+
+<style>
+@media print {
+  .q-drawer,
+  .q-header,
+  .q-footer {
+    display: none !important;
+  }
+
+  body,
+  .q-layout,
+  .q-page-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .q-page {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+</style>

@@ -14,7 +14,18 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
   const loading = ref(false)
   const error = ref<PadresAuthState['error']>(null)
 
-  const isAuthenticated = computed(() => !!token.value)
+  const isAuthenticated = computed(() => {
+    if (!token.value) return false
+    return true
+  })
+
+  function _isTokenExpired(): boolean {
+    if (!expiresIn.value) return false
+    const savedAt = sessionStorage.getItem(`${STORAGE_KEY}_ts`)
+    if (!savedAt) return false
+    const elapsed = (Date.now() - Number(savedAt)) / 1000
+    return elapsed > expiresIn.value
+  }
 
   const currentTutor = computed<Tutor | null>(() => tutor.value)
 
@@ -30,10 +41,12 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
 
   function _persistKey(newKey: string): void {
     sessionStorage.setItem(STORAGE_KEY, newKey)
+    sessionStorage.setItem(`${STORAGE_KEY}_ts`, String(Date.now()))
   }
 
   function _clearPersistedKey(): void {
     sessionStorage.removeItem(STORAGE_KEY)
+    sessionStorage.removeItem(`${STORAGE_KEY}_ts`)
   }
 
   function _loadPersistedKey(): string | null {
@@ -66,6 +79,10 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
   async function restoreOrFetchSession(): Promise<boolean> {
     const savedCode = _loadPersistedKey()
     if (!savedCode) return false
+    if (_isTokenExpired()) {
+      _clearPersistedKey()
+      return false
+    }
 
     try {
       await loginConCode(savedCode)
@@ -73,6 +90,22 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
     } catch {
       _clearPersistedKey()
       return false
+    }
+  }
+
+  async function refrescarNinos(): Promise<void> {
+    const savedCode = _loadPersistedKey()
+    if (!savedCode) return
+    if (_isTokenExpired()) {
+      logout()
+      return
+    }
+    try {
+      const data = await padresApi.loginConCode(savedCode)
+      ninosActivos.value = data.ninosActivos
+      tutor.value = data.tutor
+    } catch {
+      // Si falla, no hacemos logout automáticamente — el polling lo manejará
     }
   }
 
@@ -105,6 +138,7 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
     allChildren,
     loginConCode,
     restoreOrFetchSession,
+    refrescarNinos,
     logout,
     clearError,
   }
