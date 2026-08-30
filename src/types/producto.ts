@@ -15,6 +15,17 @@ export interface ComboItemCreate {
   cantidad: number
 }
 
+export interface TramoEstancia {
+  min_horas: number
+  max_horas: number
+  precio: number
+}
+
+export interface PrecioEstancia {
+  id: string
+  config_estancia: TramoEstancia[]
+}
+
 export interface ProductoBase {
   id: string
   nombre: string
@@ -25,6 +36,7 @@ export interface ProductoBase {
   descripcion: string | null
   es_combo: boolean
   productos_combo?: ComboItemCreate[]
+  config_estancia?: TramoEstancia[]
 }
 
 export interface Producto extends Omit<ProductoBase, 'precio_unitario'> {
@@ -49,6 +61,7 @@ export interface ProductoCreate {
   imagen?: string | null
   es_combo?: boolean
   productos_combo?: ComboItemCreate[] | null
+  config_estancia?: TramoEstancia[] | null
 }
 
 export interface ProductoUpdate {
@@ -60,6 +73,7 @@ export interface ProductoUpdate {
   activo?: boolean
   es_combo?: boolean
   productos_combo?: ComboItemCreate[] | null
+  config_estancia?: TramoEstancia[] | null
 }
 
 export interface ProductoComboHijo {

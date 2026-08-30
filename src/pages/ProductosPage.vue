@@ -62,7 +62,12 @@
           class="fec-table"
         >
           <template #body-cell-precio_unitario="props">
-            <q-td :props="props"> ${{ Number(props.row.precio_unitario).toFixed(2) }} </q-td>
+            <q-td :props="props">
+              <span v-if="props.row.tipo === 'E'" class="text-caption text-grey-7">
+                Configurado por rangos de horas
+              </span>
+              <span v-else>${{ Number(props.row.precio_unitario).toFixed(2) }}</span>
+            </q-td>
           </template>
 
           <template #body-cell-tipo="props">
@@ -170,6 +175,7 @@
               :rules="[(v) => !!v || 'El nombre es requerido']"
             />
           </div>
+
           <div>
             <div class="field-label">Tipo</div>
             <q-select
@@ -181,6 +187,7 @@
               :options="TIPO_OPTIONS"
             />
           </div>
+
           <div>
             <div class="field-label">Precio unitario</div>
             <q-input
@@ -191,9 +198,118 @@
               min="0"
               step="0.01"
               prefix="$"
-              :rules="[(v) => v > 0 || 'El precio debe ser mayor a 0']"
+              :disable="formDialog.tipo === 'E'"
+              :hint="
+                formDialog.tipo === 'E' ? 'El precio se calcula por la configuración de tramos' : ''
+              "
+              :rules="[(v) => formDialog.tipo === 'E' || v > 0 || 'El precio debe ser mayor a 0']"
             />
           </div>
+
+          <!-- ── SECCIÓN CONFIGURACIÓN ESTANCIA (TIPO 'E') ──────────────── -->
+          <div
+            v-if="formDialog.tipo === 'E'"
+            class="bg-grey-1 rounded-borders q-mt-md"
+            style="border: 1px dashed var(--q-primary); border-radius: 8px; padding: 12px"
+          >
+            <div class="text-subtitle2 text-weight-bold q-mb-xs text-primary">
+              CONFIGURACIÓN DE TARIFAS POR HORA
+            </div>
+            <div class="text-caption text-grey-7 q-mb-sm">
+              Define los rangos de tiempo y el precio asignado para cada rango de horas.
+            </div>
+
+            <div class="row q-col-gutter-xs items-end">
+              <div class="col-3">
+                <div class="field-label text-caption">Min (hrs)</div>
+                <q-input
+                  v-model.number="tramoTemporal.min_horas"
+                  dense
+                  outlined
+                  type="number"
+                  min="0"
+                />
+              </div>
+              <div class="col-3">
+                <div class="field-label text-caption">Max (hrs)</div>
+                <q-input
+                  v-model.number="tramoTemporal.max_horas"
+                  dense
+                  outlined
+                  type="number"
+                  min="0"
+                />
+              </div>
+              <div class="col-4">
+                <div class="field-label text-caption">Precio por hora($)</div>
+                <q-input
+                  v-model.number="tramoTemporal.precio"
+                  dense
+                  outlined
+                  type="number"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div class="col-2 flex flex-center">
+                <q-btn
+                  color="primary"
+                  icon="add"
+                  unelevated
+                  style="height: 40px; width: 100%; border-radius: 6px"
+                  @click="agregarTramoEstancia"
+                >
+                  <q-tooltip>Agregar rango</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+
+            <div class="q-mt-sm">
+              <div
+                v-if="formDialog.config_estancia.length === 0"
+                class="text-caption text-negative text-center q-py-sm"
+              >
+                Debes agregar al menos un rango de estancia.
+              </div>
+
+              <q-list
+                v-else
+                separator
+                dense
+                class="bg-white rounded-borders q-mt-xs"
+                style="border: 1px solid #e2e8f0"
+              >
+                <q-item
+                  v-for="(tramo, index) in formDialog.config_estancia"
+                  :key="index"
+                  class="q-py-xs"
+                >
+                  <q-item-section>
+                    <q-item-label class="text-weight-bold text-body2">
+                      {{ tramo.min_horas }} hrs - {{ tramo.max_horas }} hrs
+                    </q-item-label>
+                    <q-item-label caption>
+                      Precio: ${{ Number(tramo.precio).toFixed(2) }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      color="negative"
+                      size="sm"
+                      icon="delete"
+                      @click="removerTramoEstancia(index)"
+                    >
+                      <q-tooltip>Eliminar rango</q-tooltip>
+                    </q-btn>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+          </div>
+
           <div>
             <div class="field-label">Foto / miniatura (opcional)</div>
             <div class="row items-center q-gutter-md">
@@ -214,6 +330,8 @@
               </q-file>
             </div>
           </div>
+
+          <!-- ── SECCIÓN PRODUCTOS DEL COMBO (TIPO 'C') ─────────────────── -->
           <div
             v-if="formDialog.tipo === 'C'"
             class="q-p-sm bg-grey-1 rounded-borders q-mt-md"
@@ -283,9 +401,9 @@
                     class="q-py-sm"
                   >
                     <q-item-section>
-                      <q-item-label class="text-weight-medium">{{
-                        obtenerNombreProducto(item.producto_id)
-                      }}</q-item-label>
+                      <q-item-label class="text-weight-medium">
+                        {{ obtenerNombreProducto(item.producto_id) }}
+                      </q-item-label>
                     </q-item-section>
                     <q-item-section side>
                       <div class="row items-center q-gutter-sm">
@@ -333,6 +451,7 @@
               </template>
             </div>
           </div>
+
           <div>
             <div class="field-label">Descripción opcional</div>
             <q-input
@@ -529,6 +648,12 @@ import { apiClient } from '@/api/axiosClient.ts'
 import { getProductoImagenUrl } from '@/api/productosApi'
 import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 
+interface TramoEstancia {
+  min_horas: number
+  max_horas: number
+  precio: number
+}
+
 const $q = useQuasar()
 const authStore = useAuthStore()
 const store = useProductosStore()
@@ -580,15 +705,119 @@ const productosDisponiblesParaCombo = computed(() => {
   )
 })
 
+// ── Estado del dialog ─────────────────────────────────────────────────────────
+
+const dialogOpen = ref(false)
+const editando = ref<ProductoAdmin | null>(null)
+const guardando = ref(false)
+const nombreRef = ref()
+
+const formDialog = ref({
+  nombre: '',
+  tipo: 'A' as TipoProducto,
+  precio_unitario: 0,
+  descripcion: '',
+  productos_combo: [] as ComboItemCreate[],
+  config_estancia: [] as TramoEstancia[],
+})
+
+const tramoTemporal = ref<TramoEstancia>({
+  min_horas: 1,
+  max_horas: 1,
+  precio: 0,
+})
+
+const productoComboTemporal = ref({
+  producto_id: '',
+  cantidad: 1,
+})
+
+const imagenFile = ref<File | null>(null)
+const imagenPreviewLocal = ref<string | null>(null)
+
+// Si el tipo cambia a 'E', forzar precio_unitario a 0
+watch(
+  () => formDialog.value.tipo,
+  (nuevoTipo) => {
+    if (nuevoTipo === 'E') {
+      formDialog.value.precio_unitario = 0
+    }
+  },
+)
+
 const formularioValido = computed(() => {
-  const { nombre, precio_unitario, tipo, productos_combo } = formDialog.value
-  if (!nombre.trim() || precio_unitario <= 0) return false
+  const { nombre, precio_unitario, tipo, productos_combo, config_estancia } = formDialog.value
+  if (!nombre.trim()) return false
+
+  if (tipo === 'E') {
+    if (config_estancia.length === 0) return false
+    return true
+  }
+
+  if (precio_unitario <= 0) return false
+
   if (tipo === 'C') {
     if (productos_combo.length < 2) return false
     if (productos_combo.some((item) => !item.cantidad || item.cantidad <= 0)) return false
   }
+
   return true
 })
+
+// ── Gestión de tramos de Estancia ────────────────────────────────────────────
+
+const agregarTramoEstancia = () => {
+  const { min_horas, max_horas, precio } = tramoTemporal.value
+
+  if (min_horas < 0 || max_horas < 0 || precio <= 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'Las horas deben ser >= 0 y el precio > 0.',
+      position: 'top-right',
+    })
+    return
+  }
+
+  if (min_horas > max_horas) {
+    $q.notify({
+      type: 'warning',
+      message: 'El mínimo de horas no puede ser mayor al máximo.',
+      position: 'top-right',
+    })
+    return
+  }
+
+  // Verificar solapamientos con tramos ya agregados
+  const haySolapamiento = formDialog.value.config_estancia.some((tramo) => {
+    return Math.max(tramo.min_horas, min_horas) <= Math.min(tramo.max_horas, max_horas)
+  })
+
+  if (haySolapamiento) {
+    $q.notify({
+      type: 'warning',
+      message: 'El rango de horas se solapa con uno existente.',
+      position: 'top-right',
+    })
+    return
+  }
+
+  formDialog.value.config_estancia.push({ min_horas, max_horas, precio })
+  // Mantener orden cronológico
+  formDialog.value.config_estancia.sort((a, b) => a.min_horas - b.min_horas)
+
+  // Sugerir el siguiente rango consecutivo
+  tramoTemporal.value = {
+    min_horas: max_horas + 1,
+    max_horas: max_horas + 1,
+    precio: 0,
+  }
+}
+
+const removerTramoEstancia = (index: number) => {
+  formDialog.value.config_estancia.splice(index, 1)
+}
+
+// ── Gestión de combos ─────────────────────────────────────────────────────────
 
 const agregarItemAlCombo = () => {
   const { producto_id, cantidad } = productoComboTemporal.value
@@ -625,29 +854,6 @@ const obtenerNombreProducto = (id: string) => {
   return prod ? prod.nombre : 'Producto no encontrado'
 }
 
-// ── Estado del dialog ─────────────────────────────────────────────────────────
-
-const dialogOpen = ref(false)
-const editando = ref<ProductoAdmin | null>(null)
-const guardando = ref(false)
-const nombreRef = ref()
-
-const formDialog = ref({
-  nombre: '',
-  tipo: 'A' as TipoProducto,
-  precio_unitario: 0,
-  descripcion: '',
-  productos_combo: [] as ComboItemCreate[],
-})
-
-const productoComboTemporal = ref({
-  producto_id: '',
-  cantidad: 1,
-})
-
-const imagenFile = ref<File | null>(null)
-const imagenPreviewLocal = ref<string | null>(null)
-
 watch(imagenFile, (file, _oldFile, onCleanup) => {
   if (!file) {
     imagenPreviewLocal.value = null
@@ -670,7 +876,9 @@ const abrirCrear = () => {
     precio_unitario: 0,
     descripcion: '',
     productos_combo: [],
+    config_estancia: [],
   }
+  tramoTemporal.value = { min_horas: 1, max_horas: 1, precio: 0 }
   productoComboTemporal.value = { producto_id: '', cantidad: 1 }
   imagenFile.value = null
   dialogOpen.value = true
@@ -679,20 +887,30 @@ const abrirCrear = () => {
 const abrirEditar = async (row: ProductoAdmin) => {
   editando.value = row
   let productosComboCargados: ComboItemCreate[] = []
+  let configEstanciaCargada: TramoEstancia[] = []
 
-  if (row.tipo === 'C') {
+  if (row.tipo === 'C' || row.tipo === 'E') {
     try {
       const { data } = await apiClient.get<ProductoAdmin>(`/productos/${row.id}`)
-      if (data && data.productos_combo) {
-        productosComboCargados = data.productos_combo.map((item) => ({
-          producto_id: item.producto_id,
-          cantidad: item.cantidad,
-        }))
+      if (data) {
+        if (data.productos_combo) {
+          productosComboCargados = data.productos_combo.map((item) => ({
+            producto_id: item.producto_id,
+            cantidad: item.cantidad,
+          }))
+        }
+        if (data.config_estancia) {
+          configEstanciaCargada = (data.config_estancia as unknown as TramoEstancia[]).map((t) => ({
+            min_horas: Number(t.min_horas),
+            max_horas: Number(t.max_horas),
+            precio: Number(t.precio),
+          }))
+        }
       }
     } catch {
       $q.notify({
         type: 'negative',
-        message: 'No se pudieron recuperar los productos del combo desde el servidor.',
+        message: 'No se pudieron recuperar los detalles del producto.',
         position: 'top-right',
       })
       return
@@ -705,8 +923,15 @@ const abrirEditar = async (row: ProductoAdmin) => {
     precio_unitario: Number(row.precio_unitario),
     descripcion: row.descripcion ?? '',
     productos_combo: productosComboCargados,
+    config_estancia: configEstanciaCargada,
   }
 
+  const ultimaHora =
+    configEstanciaCargada.length > 0
+      ? Math.max(...configEstanciaCargada.map((t) => t.max_horas)) + 1
+      : 1
+
+  tramoTemporal.value = { min_horas: ultimaHora, max_horas: ultimaHora, precio: 0 }
   productoComboTemporal.value = { producto_id: '', cantidad: 1 }
   imagenFile.value = null
   dialogOpen.value = true
@@ -723,7 +948,17 @@ const guardar = async () => {
     nombreRef.value?.validate()
     return
   }
-  if (formDialog.value.precio_unitario <= 0) {
+
+  if (formDialog.value.tipo === 'E') {
+    if (formDialog.value.config_estancia.length === 0) {
+      $q.notify({
+        type: 'warning',
+        message: 'Debes definir al menos un tramo de estancia.',
+        position: 'top-right',
+      })
+      return
+    }
+  } else if (formDialog.value.precio_unitario <= 0) {
     $q.notify({
       type: 'warning',
       message: 'El precio debe ser mayor a cero.',
@@ -753,18 +988,17 @@ const guardar = async () => {
 
   guardando.value = true
   try {
+    const payload = {
+      nombre: formDialog.value.nombre.trim(),
+      tipo: formDialog.value.tipo,
+      precio_unitario: String(formDialog.value.tipo === 'E' ? 0 : formDialog.value.precio_unitario),
+      descripcion: formDialog.value.descripcion.trim() || null,
+      productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
+      config_estancia: formDialog.value.tipo === 'E' ? formDialog.value.config_estancia : null,
+    }
+
     if (editando.value) {
-      await store.actualizar(
-        editando.value.id,
-        {
-          nombre: formDialog.value.nombre.trim(),
-          tipo: formDialog.value.tipo,
-          precio_unitario: String(formDialog.value.precio_unitario),
-          descripcion: formDialog.value.descripcion.trim() || null,
-          productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
-        },
-        imagenFile.value,
-      )
+      await store.actualizar(editando.value.id, payload, imagenFile.value)
       $q.notify({ type: 'positive', message: 'Producto actualizado', position: 'top-right' })
     } else {
       const sucursalId = authStore.currentBranchId
@@ -779,12 +1013,8 @@ const guardar = async () => {
 
       await store.crear(
         {
-          nombre: formDialog.value.nombre.trim(),
-          tipo: formDialog.value.tipo,
-          precio_unitario: String(formDialog.value.precio_unitario),
-          descripcion: formDialog.value.descripcion.trim() || null,
+          ...payload,
           sucursal_id: sucursalId,
-          productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
         },
         imagenFile.value,
       )
@@ -933,8 +1163,8 @@ const ejecutarReactivar = async () => {
 }
 
 .producto-dialog-card {
-  width: 460px;
-  height: 620px;
+  width: 480px;
+  height: 660px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;

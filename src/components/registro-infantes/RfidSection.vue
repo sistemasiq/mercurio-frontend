@@ -1,58 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
 
 const store = useRegistrationStore()
-
-// Pulsera del TUTOR
-const tutorScanActive = ref(false)
-const tutorScanInput = ref('')
-const tutorScanError = ref('')
-const tutorScanFieldRef = ref<HTMLInputElement | null>(null)
-
-function activateTutorScan() {
-  tutorScanActive.value = true
-  tutorScanError.value = ''
-  tutorScanInput.value = ''
-  setTimeout(() => tutorScanFieldRef.value?.focus(), 100)
-}
-
-function onTutorScanEnter() {
-  const scanned = tutorScanInput.value.trim()
-  if (!scanned) return
-
-  // Validar que exista en la lista de pulseras disponibles
-  const found = store.pulseras.find((p) => p.pulseraRfid === scanned)
-  if (!found) {
-    tutorScanError.value = `Pulsera "${scanned}" no encontrada en el sistema.`
-    tutorScanInput.value = ''
-    return
-  }
-
-  // Validar que no esté ya asignada a un niño
-  const usedByChild = store.children.some((c) => c.rfidBracelet === found.id)
-  if (usedByChild) {
-    tutorScanError.value = `Pulsera "${scanned}" ya está asignada a un niño.`
-    tutorScanInput.value = ''
-    return
-  }
-
-  store.tutor.braceletGuardianId = found.id
-  tutorScanActive.value = false
-  tutorScanError.value = ''
-}
-
-function clearTutorBracelet() {
-  store.tutor.braceletGuardianId = ''
-  tutorScanInput.value = ''
-  tutorScanError.value = ''
-  tutorScanActive.value = false
-}
-
-const tutorBraceletLabel = computed(() => {
-  if (!store.tutor.braceletGuardianId) return null
-  return store.pulseras.find((p) => p.id === store.tutor.braceletGuardianId)?.pulseraRfid ?? null
-})
 
 //Pulseras de NIÑOS
 // índice del niño que tiene el escáner activo (-1 = ninguno)
@@ -79,13 +29,12 @@ function onChildScanEnter(childId: string) {
     return
   }
 
-  // Validar que no esté usada por otro niño ni por el tutor
+  // Validar que no esté usada por otro niño
   const usedByOtherChild = store.savedChildren.some(
     (c) => c.id !== childId && c.rfidBracelet === found.id,
   )
-  const usedByTutor = store.tutor.braceletGuardianId === found.id
 
-  if (usedByOtherChild || usedByTutor) {
+  if (usedByOtherChild) {
     childScanErrors.value[childId] = `Pulsera "${scanned}" ya está en uso.`
     childScanInputs.value[childId] = ''
     return
@@ -124,114 +73,12 @@ function braceletLabelForChild(childId: string) {
         <span class="text-subtitle1 text-weight-bold">Vinculación de pulseras</span>
         <q-chip
           dense
-          :color="store.allChildrenHaveBracelet && store.tutorHasBracelet ? 'positive' : 'warning'"
+          :color="store.allChildrenHaveBracelet ? 'positive' : 'warning'"
           text-color="white"
-          :label="
-            store.allChildrenHaveBracelet && store.tutorHasBracelet
-              ? 'Todos vinculados'
-              : 'Pendientes'
-          "
+          :label="store.allChildrenHaveBracelet ? 'Todos vinculados' : 'Pendientes'"
           size="md"
           class="q-ml-sm"
         />
-      </div>
-
-      <!-- ── PULSERA DEL TUTOR ── -->
-      <div
-        class="rfid-row q-mb-md q-pa-sm"
-        :class="store.tutorHasBracelet ? 'rfid-assigned' : 'rfid-pending'"
-      >
-        <div class="row items-center q-mb-sm">
-          <q-icon
-            :name="store.tutorHasBracelet ? 'check_circle' : 'radio_button_unchecked'"
-            :color="store.tutorHasBracelet ? 'positive' : 'grey-5'"
-            size="20px"
-            class="q-mr-sm"
-          />
-          <div class="col">
-            <div class="text-weight-medium" style="font-size: 16px">
-              {{ store.tutor.fullName || 'Tutor' }}
-              <q-chip
-                dense
-                color="blue-1"
-                text-color="blue-9"
-                label="Tutor"
-                size="md"
-                class="q-ml-md"
-              />
-            </div>
-          </div>
-
-          <!-- Ya asignada -->
-          <template v-if="store.tutorHasBracelet">
-            <q-chip
-              dense
-              color="positive"
-              text-color="white"
-              icon="nfc"
-              :label="tutorBraceletLabel ?? ''"
-              size="md"
-            />
-            <q-btn
-              flat
-              round
-              dense
-              icon="close"
-              size="xs"
-              color="grey-6"
-              class="q-ml-xs"
-              @click="clearTutorBracelet"
-            />
-          </template>
-
-          <!-- Sin asignar / escaneando -->
-          <template v-else-if="!store.tutorHasBracelet">
-            <q-btn
-              v-if="!tutorScanActive"
-              unelevated
-              dense
-              size="sm"
-              icon="nfc"
-              label="Escanear pulsera"
-              color="primary"
-              @click="activateTutorScan"
-            />
-            <div v-else class="row items-center q-gutter-xs">
-              <q-chip
-                dense
-                color="primary"
-                text-color="white"
-                icon="sensors"
-                label="Esperando escaneo..."
-                size="sm"
-                class="scanning-pulse"
-              />
-              <q-btn
-                flat
-                round
-                dense
-                icon="close"
-                size="xs"
-                color="grey-6"
-                @click="tutorScanActive = false"
-              />
-            </div>
-          </template>
-        </div>
-
-        <!-- Input invisible — captura el lector RFID sin mostrarse -->
-        <input
-          v-if="tutorScanActive && !store.tutorHasBracelet"
-          :ref="(el) => (tutorScanFieldRef = el as HTMLInputElement)"
-          v-model="tutorScanInput"
-          class="hidden-scan-input"
-          autocomplete="off"
-          @keydown.enter.prevent="onTutorScanEnter"
-        />
-
-        <div v-if="tutorScanError" class="text-caption text-negative q-mt-xs">
-          <q-icon name="error_outline" size="14px" class="q-mr-xs" />{{ tutorScanError }}
-        </div>
       </div>
 
       <!-- ── PULSERAS DE NIÑOS ── -->
@@ -283,7 +130,6 @@ function braceletLabelForChild(childId: string) {
               icon="nfc"
               label="Escanear pulsera"
               color="primary"
-              :disable="!store.tutorHasBracelet"
               @click="activateChildScan(child.id, i)"
             />
           </template>
@@ -327,20 +173,6 @@ function braceletLabelForChild(childId: string) {
           <q-icon name="error_outline" size="14px" class="q-mr-xs" />{{ childScanErrors[child.id] }}
         </div>
       </div>
-
-      <!-- Aviso: primero asignar pulsera al tutor -->
-      <q-banner
-        v-if="!store.tutorHasBracelet && store.savedChildren.length > 0"
-        dense
-        rounded
-        class="bg-blue-1 text-blue-9 q-mt-sm"
-        style="font-size: 12px"
-      >
-        <template #avatar>
-          <q-icon name="info" color="primary" size="16px" />
-        </template>
-        Primero asigna la pulsera al tutor antes de asignar las de los niños.
-      </q-banner>
     </q-card-section>
   </q-card>
 </template>
