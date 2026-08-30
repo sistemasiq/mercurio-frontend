@@ -15,35 +15,37 @@ export function useCajaMetrics() {
   const isLoading = ref(false)
 
   let intervalId: ReturnType<typeof setInterval> | null = null
-  let fetching = false
+  let fetchingComandas = false
+  let fetchingProductos = false
 
   async function refrescarComandas() {
-    if (fetching || !authStore.currentBranchId) return
-    fetching = true
+    if (fetchingComandas || !authStore.currentBranchId) return
+    fetchingComandas = true
     try {
       comandasActivas.value = await comandasApi.listar()
     } catch {
       // silently ignore polling errors
     } finally {
-      fetching = false
+      fetchingComandas = false
     }
   }
 
   async function refrescarProductos() {
-    if (fetching || !authStore.currentBranchId) return
-    fetching = true
+    if (fetchingProductos || !authStore.currentBranchId) return
+    fetchingProductos = true
     try {
       productos.value = await obtenerProductos()
     } catch {
       // silently ignore
     } finally {
-      fetching = false
+      fetchingProductos = false
     }
   }
 
   async function refrescarTodo() {
-    if (fetching || !authStore.currentBranchId) return
-    fetching = true
+    if (!authStore.currentBranchId) return
+    fetchingComandas = true
+    fetchingProductos = true
     isLoading.value = true
     try {
       const [comandas, prods] = await Promise.all([comandasApi.listar(), obtenerProductos()])
@@ -52,7 +54,8 @@ export function useCajaMetrics() {
     } catch {
       // silently ignore
     } finally {
-      fetching = false
+      fetchingComandas = false
+      fetchingProductos = false
       isLoading.value = false
     }
   }

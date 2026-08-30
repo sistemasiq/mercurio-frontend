@@ -18,8 +18,9 @@ export interface MetodoPagoDetalle {
 }
 
 export interface DetalleOrden {
-  comanda_id: string
-  ticket_numero: string
+  tipo_origen: 'comanda' | 'estancia' | 'reservacion'
+  referencia_id: string
+  titulo: string
   total_final: number
   estado_actual: string
   fecha_hora: string | null
@@ -27,6 +28,9 @@ export interface DetalleOrden {
   creado_por_nombre: string | null
   metodos_pago: MetodoPagoDetalle[]
   detalles: DetalleProducto[]
+  comanda_id: string | null
+  ticket_numero: string | null
+  nombre_cliente: string | null
 }
 
 export interface Estadisticas {
@@ -53,8 +57,15 @@ export const historialApi = {
     return data
   },
 
-  async getDetalle(comandaId: string, signal?: AbortSignal): Promise<DetalleOrden> {
-    const { data } = await apiClient.get<DetalleOrden>(`/pagos/detalles/${comandaId}`, { signal })
+  async getDetalle(
+    tipoOrigen: string,
+    referenciaId: string,
+    signal?: AbortSignal,
+  ): Promise<DetalleOrden> {
+    const { data } = await apiClient.get<DetalleOrden>(
+      `/pagos/detalles/${tipoOrigen}/${referenciaId}`,
+      { signal },
+    )
     return data
   },
 

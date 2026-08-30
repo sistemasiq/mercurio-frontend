@@ -1,7 +1,7 @@
 import AuditFields from '@/types/shared'
 
 // E = Efectivo | T = Tarjeta (crédito/débito/wallets) | C = Cupón | L = Lealtad
-// O = Otro (método sin botón dedicado hoy en el modal de pago)
+// O = Otro (transferencias, otros métodos)
 export type TipoMetodoPago = 'E' | 'T' | 'C' | 'L' | 'O'
 
 export interface MetodosPago extends AuditFields {
@@ -31,7 +31,7 @@ export interface MetodosPagoActivacion {
 export interface CategoriaMetodoPago {
   nombre: string
   valor: string
-  tipo: Exclude<TipoMetodoPago, 'O'>
+  tipo: TipoMetodoPago
   icon: string
   color: string
 }
@@ -41,4 +41,5 @@ export const CATEGORIAS_METODO_PAGO: CategoriaMetodoPago[] = [
   { nombre: 'Crédito/Débito', valor: 'Tarjeta', tipo: 'T', icon: 'credit_card', color: 'blue' },
   { nombre: 'Cupones', valor: 'Cupones', tipo: 'C', icon: 'redeem', color: 'orange' },
   { nombre: 'Lealtad', valor: 'Lealtad', tipo: 'L', icon: 'loyalty', color: 'purple' },
+  { nombre: 'Otro', valor: 'Otro', tipo: 'O', icon: 'account_balance_wallet', color: 'grey' },
 ]

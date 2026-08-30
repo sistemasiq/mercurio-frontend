@@ -4,6 +4,7 @@ import type {
   ProductoComboHijo,
   ProductoCreate,
   ProductoUpdate,
+  PrecioEstancia,
 } from '@/types/producto'
 
 async function fetchProductosCatalogo(signal?: AbortSignal): Promise<ProductoAdmin[]> {
@@ -74,6 +75,11 @@ export const productosApi = {
 
   async obtenerComboHijos(comboId: string): Promise<ProductoComboHijo[]> {
     const { data } = await apiClient.get<ProductoComboHijo[]>(`/productos/${comboId}/combo-hijos`)
+    return data
+  },
+
+  async obtenerPreciosEstancia(): Promise<PrecioEstancia> {
+    const { data } = await apiClient.get<PrecioEstancia>('/productos/estancia')
     return data
   },
 }

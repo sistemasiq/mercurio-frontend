@@ -90,11 +90,13 @@
         v-if="ticketAbierto"
         :items="itemsTicket"
         :enviando="enviando"
+        :nombre-cliente="nombreCliente"
         @cancelar="cancelarTicket"
         @cambiar-cantidad="cambiarCantidad"
         @editar-notas="abrirNotasDialog"
         @split-combo="handleSplitCombo"
         @pagar="abrirModalPago"
+        @actualizar-nombre="actualizarNombreCliente"
       />
     </transition>
     <!-- Dialog de notas especiales -->
@@ -135,6 +137,23 @@
       @pago-exitoso="onPagoExitoso"
     />
 
+    <!-- TICKET POST-PAGO -->
+    <q-dialog
+      v-model="ticketPostPagoAbierto"
+      persistent
+      full-width
+      full-height
+      no-route-dismiss
+      class="ticket-dialog"
+    >
+      <DetalleOrdenPagada
+        v-if="comandaPagadaId"
+        :comanda-id="comandaPagadaId"
+        :pos-mode="true"
+        @close="onCerrarTicket"
+      />
+    </q-dialog>
+
     <!-- MODALES DE PERSONALIZACIÓN -->
     <ProductNoteModal v-model="notasDialog" :item="itemEditando" @guardar="guardarNotasLocal" />
   </div>
@@ -149,6 +168,7 @@ import ProductoCard from '@/components/comandas/ProductoCard.vue'
 import TicketPanel from '@/components/comandas/TicketPanel.vue'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import ProductNoteModal from '@/components/comandas/ProductNoteModal.vue'
+import DetalleOrdenPagada from '@/components/historial/DetalleOrdenPagada.vue'
 import type { ItemTicket } from '@/components/comandas/TicketItem.vue'
 import { pagosApi } from '@/api/pagosApi'
 import { metodosPagoApi } from '@/api/metodosPagoApi'
@@ -164,7 +184,7 @@ import type { ApiError } from '@/types/auth'
 import type { TipoProducto } from '@/types/producto'
 import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment, PagoCompletoRequest } from '@/types/payments'
-import type { ComandaWsMessage, DetalleComandaRequest } from '@/types/comanda'
+import type { ComandaWsMessage } from '@/types/comanda'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -172,11 +192,31 @@ const authStore = useAuthStore()
 const turno = useTurnoCajaStore()
 
 const modalPagoAbierto = ref(false)
+const comandaPagadaId = ref<string | null>(null)
+const ticketPostPagoAbierto = ref(false)
 const abrirModalPago = () => {
+  if (itemsTicket.value.length === 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'Agrega productos al pedido antes de cobrar.',
+      position: 'top',
+      timeout: 3000,
+    })
+    return
+  }
   // El turno pudo haberse cerrado entre "Nuevo Pedido" y este punto — mismo
   // redirect silencioso, sin bloquear ni avisar, como defensa adicional.
   if (!turno.estaOperando) {
     void router.push('/pos/cierre')
+    return
+  }
+  if (!nombreCliente.value.trim()) {
+    $q.notify({
+      type: 'warning',
+      message: 'Debes ingresar un nombre para el pedido antes de cobrar.',
+      position: 'top',
+      timeout: 3000,
+    })
     return
   }
   modalPagoAbierto.value = true
@@ -184,8 +224,16 @@ const abrirModalPago = () => {
 const props = defineProps<{ searchTerm?: string }>()
 const abortController = new AbortController()
 
-const { itemsTicket, agregarProducto, splitCombo, cambiarCantidad, cancelarOrden, guardarNotas } =
-  useTicketComanda()
+const {
+  itemsTicket,
+  agregarProducto,
+  splitCombo,
+  cambiarCantidad,
+  cancelarOrden,
+  guardarNotas,
+  detallesParaEnvio,
+  nombreCliente,
+} = useTicketComanda()
 
 const { comandasActivas, productos, refrescarComandas } = useCajaMetrics()
 
@@ -319,6 +367,17 @@ const agregarAlTicket = async (producto: ReturnType<typeof Object> & { id: strin
 const cancelarTicket = () => {
   cancelarOrden()
   ticketAbierto.value = false
+  nombreCliente.value = ''
+}
+
+const actualizarNombreCliente = (nombre: string) => {
+  nombreCliente.value = nombre
+}
+
+const onCerrarTicket = () => {
+  ticketPostPagoAbierto.value = false
+  comandaPagadaId.value = null
+  cancelarTicket()
 }
 
 const handleSplitCombo = async (item: ItemTicket) => {
@@ -401,17 +460,7 @@ const procesarPago = async (
   enviando.value = true
 
   try {
-    const detalles: DetalleComandaRequest[] = itemsTicket.value.map((item) => ({
-      producto_id: item.producto.id,
-      nombre: item.producto.nombre,
-      cantidad: item.cantidad,
-      precio_unitario: item.producto.precio_unitario,
-      subtotal: item.producto.precio_unitario * item.cantidad,
-      notas_especiales: item.notas || undefined,
-      nombre_combo_padre: item.nombre_combo_padre || undefined,
-      es_hijo_de: item.es_hijo_de || undefined,
-      es_hijo_combo: item.es_hijo_combo || undefined,
-    }))
+    const detalles = detallesParaEnvio()
 
     const totalBruto = itemsTicket.value
       .filter((i) => !i.es_hijo_combo)
@@ -429,6 +478,7 @@ const procesarPago = async (
       })),
       ...(celularCliente ? { celular_cliente: celularCliente } : {}),
       ...(puntosARedimir > 0 ? { puntos_a_redimir: puntosARedimir } : {}),
+      ...(nombreCliente.value.trim() ? { nombre_cliente: nombreCliente.value.trim() } : {}),
     }
 
     const comanda = await pagosApi.completarPago(payload)
@@ -436,13 +486,14 @@ const procesarPago = async (
     $q.notify({
       type: 'positive',
       message: '¡Pedido enviado a cocina!',
-      caption: `Comanda ${comanda.id.slice(0, 8)} · ${itemsTicket.value.length} producto(s) en camino`,
+      caption: `${itemsTicket.value.length} producto(s) en camino`,
       position: 'top-right',
       timeout: 2500,
       icon: 'check_circle',
     })
 
-    cancelarTicket()
+    comandaPagadaId.value = comanda.id
+    ticketPostPagoAbierto.value = true
 
     // Actualización optimista: refrescar comandas de inmediato
     void refrescarComandas()
@@ -674,5 +725,22 @@ onBeforeUnmount(() => abortController.abort())
 .slide-ticket-leave-to {
   transform: translateX(100%);
   opacity: 0;
+}
+
+:deep(.ticket-dialog) {
+  z-index: 3000 !important;
+}
+:deep(.ticket-dialog .q-dialog__inner) {
+  background: transparent;
+  padding: 0;
+  align-items: stretch;
+}
+:deep(.ticket-dialog .q-card) {
+  background: transparent;
+  box-shadow: none;
+  max-height: none;
+  height: 100%;
+  width: 100%;
+  border-radius: 0;
 }
 </style>
