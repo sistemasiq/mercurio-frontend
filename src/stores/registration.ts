@@ -1,17 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
-  fetchProductos,
   postOnboarding,
   fetchMetodoPagoPorDefecto,
-  type ProductoDto,
   type OnboardingDetalle,
   type OnboardingPago,
 } from '@/api/onboardingClient'
+import { productosApi } from '@/api/productosApi'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { reservacionesApi } from '@/api/reservacionesApi'
 import type { EventoDelDia } from '@/types/reservaciones'
+import type { PrecioEstancia, TramoEstancia } from '@/types/producto'
 
 export interface Child {
   id: string
@@ -27,9 +27,8 @@ export interface TutorData {
   relationship: string
   phone: string
   secondaryGuardian: string | null
-  braceletGuardianId: string
   inePhoto: File | null
-  arrivalPhoto: File | null
+  arrivalPhotos: File[]
   estimatedTime: string
 }
 
@@ -55,22 +54,24 @@ export const useRegistrationStore = defineStore('registration', () => {
   const eventoNoEncontrado = ref(false)
 
   const isEventoMode = computed(() => modo.value === 'evento')
+  const isLocked = computed(
+    () => isEventoMode.value || step.value === 'rfid' || step.value === 'complete',
+  )
 
   const tutor = ref<TutorData>({
     fullName: '',
     relationship: 'Padre / Madre',
     phone: '',
     secondaryGuardian: '',
-    braceletGuardianId: '',
     inePhoto: null,
-    arrivalPhoto: null,
+    arrivalPhotos: [],
     estimatedTime: '1 hr',
   })
 
   const children = ref<Child[]>([createChild()])
   const currentChildIndex = ref(0)
 
-  const productoBase = ref<ProductoDto | null>(null)
+  const productoBase = ref<PrecioEstancia | null>(null)
   const pulseras = computed(() => accessControlStore.pulserasDisponibles)
   const metodoPagoId = ref<string | null>(null)
   const pagosFromModal = ref<OnboardingPago[]>([])
@@ -124,10 +125,9 @@ export const useRegistrationStore = defineStore('registration', () => {
     isLoadingCatalog.value = true
     submitError.value = null
     try {
-      const productos = await fetchProductos(authStore.currentBranchId)
-      productoBase.value = productos[0] ?? null
+      productoBase.value = await productosApi.obtenerPreciosEstancia()
     } catch (err) {
-      submitError.value = 'No se pudo cargar el catálogo de precios.'
+      submitError.value = 'No se pudo cargar el catálogo de precios de estancia.'
       console.error(err)
     } finally {
       isLoadingCatalog.value = false
@@ -182,13 +182,29 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   const savedChildren = computed(() => children.value.filter((c) => c.saved))
-  const tutorHasBracelet = computed(() => tutor.value.braceletGuardianId !== '')
   const hours = computed(() => HOUR_OPTIONS[tutor.value.estimatedTime] ?? 1)
+
+  // ── Cálculo de tarifa por tramos ──────────────────────────────────────────
+
+  const tramoAplicable = computed<TramoEstancia | null>(() => {
+    if (!productoBase.value?.config_estancia?.length) return null
+    const h = hours.value
+    return (
+      productoBase.value.config_estancia.find(
+        (tramo) => h >= tramo.min_horas && h <= tramo.max_horas,
+      ) ?? null
+    )
+  })
+
+  const tieneTarifaValida = computed(() => {
+    if (modo.value === 'evento') return true
+    return tramoAplicable.value !== null
+  })
 
   const pricePerChild = computed(() => {
     if (modo.value === 'evento') return 0
-    if (!productoBase.value) return 0
-    return productoBase.value.precioUnitario * hours.value
+    if (!tramoAplicable.value) return 0
+    return Number(tramoAplicable.value.precio) * hours.value
   })
 
   const total = computed(() => savedChildren.value.length * pricePerChild.value)
@@ -203,10 +219,7 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   const allChildrenHaveBracelet = computed(
-    () =>
-      tutor.value.braceletGuardianId !== '' &&
-      savedChildren.value.length > 0 &&
-      savedChildren.value.every((c) => c.rfidBracelet !== ''),
+    () => savedChildren.value.length > 0 && savedChildren.value.every((c) => c.rfidBracelet !== ''),
   )
 
   const cupoEventoRestante = computed(() => {
@@ -254,7 +267,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     const hasValidPhone = cleanPhone.length === 10
 
     const hasInePhoto = tutor.value.inePhoto !== null
-    const hasArrivalPhoto = tutor.value.arrivalPhoto !== null
+    const hasArrivalPhotos = tutor.value.arrivalPhotos.length > 0
 
     const hasChildren = savedChildren.value.length > 0
 
@@ -267,15 +280,13 @@ export const useRegistrationStore = defineStore('registration', () => {
       hasValidName &&
       hasValidPhone &&
       hasInePhoto &&
-      hasArrivalPhoto &&
+      hasArrivalPhotos &&
       hasChildren &&
-      childrenAreValid
+      childrenAreValid &&
+      tieneTarifaValida.value
     )
   })
 
-  /** Lista de requisitos que faltan para poder completar el pago -- para
-   * mostrarle al operador exactamente qué falta en vez de un aviso genérico
-   * cuando el botón "Completar pago" está deshabilitado. */
   const motivosPendientes = computed(() => {
     const motivos: string[] = []
 
@@ -288,8 +299,8 @@ export const useRegistrationStore = defineStore('registration', () => {
     if (tutor.value.inePhoto === null) {
       motivos.push('Toma la foto de INE del tutor')
     }
-    if (tutor.value.arrivalPhoto === null) {
-      motivos.push('Toma la foto de llegada del tutor')
+    if (tutor.value.arrivalPhotos.length === 0) {
+      motivos.push('Toma al menos una foto de llegada del tutor')
     }
     if (savedChildren.value.length === 0) {
       motivos.push('Guarda al menos un niño')
@@ -300,6 +311,10 @@ export const useRegistrationStore = defineStore('registration', () => {
       )
     ) {
       motivos.push('Revisa el nombre y la edad de cada niño guardado')
+    }
+
+    if (!tieneTarifaValida.value) {
+      motivos.push(`No existe tarifa configurada para ${hours.value} hora(s) de estancia.`)
     }
 
     return motivos
@@ -322,17 +337,18 @@ export const useRegistrationStore = defineStore('registration', () => {
       return
     }
 
+    if (!tieneTarifaValida.value) {
+      submitError.value = `No hay un precio configurado para ${hours.value} hora(s).`
+      return
+    }
+
     if (esEvento && !eventoSeleccionado.value) {
       submitError.value = 'Selecciona el evento antes de completar el registro.'
       return
     }
 
     if (!esEvento && !metodoPagoId.value) {
-      //Hasta no tener componente para hacer pruebas se tomara este
       metodoPagoId.value = 'b827363b-6453-40e4-9536-f7a004711f91'
-      //console.log("No hay nada")
-      //submitError.value = 'No hay métodos de pago configurados. Crea uno en Métodos de Pago.'
-      //return
     }
 
     if (!authStore.currentBranchId) {
@@ -357,7 +373,6 @@ export const useRegistrationStore = defineStore('registration', () => {
         telefono: tutor.value.phone,
       },
       nombreSegundoTutor: tutor.value.secondaryGuardian || null,
-      pulseraTutorId: tutor.value.braceletGuardianId,
       parentesco: tutor.value.relationship,
       detalles,
       pagos: esEvento
@@ -372,7 +387,7 @@ export const useRegistrationStore = defineStore('registration', () => {
       const response = await postOnboarding(
         payload,
         tutor.value.inePhoto!,
-        tutor.value.arrivalPhoto!,
+        tutor.value.arrivalPhotos,
       )
 
       registroId.value = response.registroId
@@ -399,9 +414,8 @@ export const useRegistrationStore = defineStore('registration', () => {
       relationship: 'Padre / Madre',
       phone: '',
       secondaryGuardian: '',
-      braceletGuardianId: '',
       inePhoto: null,
-      arrivalPhoto: null,
+      arrivalPhotos: [],
       estimatedTime: '1 hr',
     }
     children.value = [createChild()]
@@ -412,6 +426,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     step,
     modo,
     isEventoMode,
+    isLocked,
     eventoSeleccionado,
     isLoadingEvento,
     eventoNoEncontrado,
@@ -431,6 +446,8 @@ export const useRegistrationStore = defineStore('registration', () => {
     estadoFromServer,
     savedChildren,
     hours,
+    tramoAplicable,
+    tieneTarifaValida,
     pricePerChild,
     total,
     usedBracelets,
@@ -440,7 +457,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     motivosPendientes,
     maxChildrenAllowed,
     reachedBraceletLimit,
-    tutorHasBracelet,
     showBraceletLimitBanner,
     addChild,
     removeChild,

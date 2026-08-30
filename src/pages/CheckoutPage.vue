@@ -25,12 +25,6 @@ onMounted(() => {
 
 const child = computed(() => store.checkoutChild)
 
-const checkoutScanActive = ref(false)
-const checkoutScanInput = ref('')
-const checkoutScanError = ref('')
-const checkoutScanRef = ref<HTMLInputElement | null>(null)
-const tutorVerified = ref(false)
-
 const metodosPagoDisponibles = ref<MetodosPago[]>([])
 
 /*
@@ -81,30 +75,6 @@ const mapearMetodoPago = (nombreMetodo: string): string => {
     )
   }
   return metodo.id
-}
-
-function activateCheckoutScan() {
-  checkoutScanActive.value = true
-  checkoutScanError.value = ''
-  checkoutScanInput.value = ''
-  setTimeout(() => checkoutScanRef.value?.focus(), 100)
-}
-
-function onCheckoutScanEnter() {
-  const scanned = checkoutScanInput.value.trim()
-  if (!scanned) return
-
-  if (scanned === child.value?.pulseraTutorRfid) {
-    tutorVerified.value = true
-    checkoutScanActive.value = false
-    checkoutScanError.value = ''
-    checkoutScanInput.value = ''
-  } else {
-    checkoutScanError.value = 'Pulsera incorrecta. Debe ser la pulsera del tutor registrado.'
-    checkoutScanInput.value = ''
-    // re-enfocar para que pueda intentar de nuevo sin tocar nada
-    setTimeout(() => checkoutScanRef.value?.focus(), 100)
-  }
 }
 
 const isLoading = ref(false)
@@ -174,7 +144,7 @@ async function confirmarSalida() {
 async function ejecutarCheckout(pagos: { metodoPagoId: string; monto: number }[]) {
   if (!child.value) return
 
-  const result = await checkout(child.value.detalleId, child.value.pulseraTutorId, pagos)
+  const result = await checkout(child.value.detalleId, pagos)
 
   Notify.create({
     type: 'positive',
@@ -410,81 +380,6 @@ function cancelar() {
           </q-card-section>
         </q-card>
 
-        <!-- Verificación RFID del tutor -->
-        <q-card flat bordered class="checkout-card q-mb-md">
-          <q-card-section>
-            <div class="info-label q-mb-sm">VERIFICACIÓN DE SALIDA</div>
-
-            <!-- Ya verificado -->
-            <div v-if="tutorVerified" class="row items-center q-gutter-sm">
-              <q-icon name="check_circle" color="positive" size="22px" />
-              <span class="text-body2 text-positive text-weight-medium"
-                >Pulsera del tutor verificada</span
-              >
-            </div>
-
-            <!-- Sin verificar -->
-            <template v-else>
-              <div class="text-caption text-grey-7 q-mb-sm">
-                Escanea la pulsera del tutor para habilitar la salida.
-              </div>
-
-              <!-- Input invisible — captura el lector en segundo plano -->
-              <input
-                v-if="checkoutScanActive"
-                :ref="
-                  (el) => {
-                    if (el) checkoutScanRef = el as HTMLInputElement
-                  }
-                "
-                v-model="checkoutScanInput"
-                class="hidden-scan-input"
-                autocomplete="off"
-                @keydown.enter.prevent="onCheckoutScanEnter"
-              />
-
-              <!-- Botón: cambia según estado de escaneo -->
-              <q-btn
-                v-if="!checkoutScanActive"
-                unelevated
-                color="primary"
-                icon="nfc"
-                label="Escanear pulsera del tutor"
-                no-caps
-                dense
-                class="full-width"
-                @click="activateCheckoutScan"
-              />
-              <div v-else class="row items-center justify-between">
-                <q-chip
-                  dense
-                  color="primary"
-                  text-color="white"
-                  icon="sensors"
-                  label="Esperando escaneo..."
-                  size="sm"
-                  class="scanning-pulse"
-                />
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="close"
-                  size="xs"
-                  color="grey-6"
-                  @click="checkoutScanActive = false"
-                />
-              </div>
-
-              <!-- Error de verificación -->
-              <div v-if="checkoutScanError" class="row items-center q-mt-sm">
-                <q-icon name="error_outline" color="negative" size="16px" class="q-mr-xs" />
-                <span class="text-caption text-negative">{{ checkoutScanError }}</span>
-              </div>
-            </template>
-          </q-card-section>
-        </q-card>
-
         <q-btn
           unelevated
           color="primary"
@@ -494,7 +389,7 @@ function cancelar() {
           no-caps
           style="border-radius: 8px; font-weight: 600"
           :loading="isLoading"
-          :disable="!tutorVerified || mostrarModalPagoExtra"
+          :disable="mostrarModalPagoExtra"
           @click="confirmarSalida"
         />
         <q-btn

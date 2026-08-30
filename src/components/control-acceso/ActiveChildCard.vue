@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import type { ActiveChild } from '@/stores/accessControl'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
-import { fetchFotoIneUrl, fetchFotoLlegadaUrl } from '@/api/onboardingClient'
+import { fetchFotoIneUrl, fetchFotosLlegadaUrls } from '@/api/onboardingClient'
 
 const MAX_TUTOR_NAME_LENGTH = 28
 const MAX_CHILD_NAME_LENGTH = 18
@@ -88,7 +88,7 @@ function truncateName(nombre: string, maxLength: number, truncatedLength: number
 }
 
 const fotoIneUrl = ref<string | null>(null)
-const fotoLlegadaUrl = ref<string | null>(null)
+const fotosLlegadaUrls = ref<string[]>([])
 
 const showFotosDialog = ref(false)
 const fotoIneError = ref(false)
@@ -96,9 +96,9 @@ const fotoLlegadaError = ref(false)
 
 function revokeFotoUrls() {
   if (fotoIneUrl.value) URL.revokeObjectURL(fotoIneUrl.value)
-  if (fotoLlegadaUrl.value) URL.revokeObjectURL(fotoLlegadaUrl.value)
+  fotosLlegadaUrls.value.forEach((url) => URL.revokeObjectURL(url))
   fotoIneUrl.value = null
-  fotoLlegadaUrl.value = null
+  fotosLlegadaUrls.value = []
 }
 
 async function openFotosDialog() {
@@ -113,7 +113,7 @@ async function openFotosDialog() {
   }
 
   try {
-    fotoLlegadaUrl.value = await fetchFotoLlegadaUrl(props.child.registroId)
+    fotosLlegadaUrls.value = await fetchFotosLlegadaUrls(props.child.registroId)
   } catch {
     fotoLlegadaError.value = true
   }
@@ -286,45 +286,73 @@ function closeFotosDialog() {
           @click="closeFotosDialog"
         />
 
-        <div class="fotos-dialog-content">
-          <div class="text-h6 text-white text-center q-mb-lg">
-            {{ truncateName(child.nino, MAX_CHILD_NAME_LENGTH, TRUNCATED_LENGTH_CHILD) }}
-          </div>
+        <!-- Dialog de fotos a pantalla completa en una sola columna grande -->
+        <q-dialog
+          v-model="showFotosDialog"
+          maximized
+          transition-show="fade"
+          transition-hide="fade"
+          @hide="revokeFotoUrls"
+        >
+          <q-card class="fotos-dialog-card">
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              size="lg"
+              color="white"
+              class="fotos-close-btn"
+              @click="closeFotosDialog"
+            />
 
-          <div class="row q-col-gutter-lg justify-center">
-            <div class="col-12 col-sm-15 text-center">
-              <div class="text-subtitle2 text-white q-mb-sm">INE</div>
-              <div v-if="fotoIneError" class="fotos-dialog-img-error">
-                <q-icon name="broken_image" size="48px" color="grey-5" />
-                <div class="text-caption text-grey-5 q-mt-sm">No disponible</div>
+            <div class="fotos-dialog-content">
+              <div class="text-h4 text-weight-bold text-white text-center q-mb-xl">
+                {{ truncateName(child.nino, MAX_CHILD_NAME_LENGTH, TRUNCATED_LENGTH_CHILD) }}
               </div>
-              <div v-else-if="!fotoIneUrl" class="fotos-dialog-img-error">
-                <q-spinner color="white" size="32px" />
+
+              <!-- SECCIÓN INE -->
+              <div class="foto-block q-mb-xl">
+                <div class="text-h6 text-weight-bold text-white text-center q-mb-md">
+                  INE / Identificación
+                </div>
+                <div v-if="fotoIneError" class="fotos-dialog-img-error">
+                  <q-icon name="broken_image" size="64px" color="grey-5" />
+                  <div class="text-body1 text-grey-5 q-mt-sm">No disponible</div>
+                </div>
+                <div v-else-if="!fotoIneUrl" class="fotos-dialog-img-error">
+                  <q-spinner color="white" size="56px" />
+                </div>
+                <div v-else class="fotos-dialog-img-wrap">
+                  <img :src="fotoIneUrl" class="fotos-dialog-img" @error="fotoIneError = true" />
+                </div>
               </div>
-              <div v-else class="fotos-dialog-img-wrap">
-                <img :src="fotoIneUrl" class="fotos-dialog-img" @error="fotoIneError = true" />
+
+              <!-- SECCIÓN FOTOS DE LLEGADA -->
+              <div class="foto-block">
+                <div class="text-h6 text-weight-bold text-white text-center q-mb-md">
+                  Fotos de Llegada
+                </div>
+                <div v-if="fotoLlegadaError" class="fotos-dialog-img-error">
+                  <q-icon name="broken_image" size="64px" color="grey-5" />
+                  <div class="text-body1 text-grey-5 q-mt-sm">No disponible</div>
+                </div>
+                <div v-else-if="!fotosLlegadaUrls.length" class="fotos-dialog-img-error">
+                  <q-spinner color="white" size="56px" />
+                </div>
+                <div v-else class="column q-gutter-y-xl">
+                  <div
+                    v-for="(url, index) in fotosLlegadaUrls"
+                    :key="index"
+                    class="fotos-dialog-img-wrap"
+                  >
+                    <img :src="url" class="fotos-dialog-img" />
+                  </div>
+                </div>
               </div>
             </div>
-
-            <div class="col-12 col-sm-15 text-center">
-              <div class="text-subtitle2 text-white q-mb-sm">Foto de Llegada</div>
-              <div v-if="fotoLlegadaError" class="fotos-dialog-img-error">
-                <q-icon name="broken_image" size="48px" color="grey-5" />
-                <div class="text-caption text-grey-5 q-mt-sm">No disponible</div>
-              </div>
-              <div v-else-if="!fotoLlegadaUrl" class="fotos-dialog-img-error">
-                <q-spinner color="white" size="32px" />
-              </div>
-              <div v-else class="fotos-dialog-img-wrap">
-                <img
-                  :src="fotoLlegadaUrl"
-                  class="fotos-dialog-img"
-                  @error="fotoLlegadaError = true"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+          </q-card>
+        </q-dialog>
       </q-card>
     </q-dialog>
   </div>
@@ -441,12 +469,11 @@ function closeFotosDialog() {
 }
 
 .fotos-dialog-card {
-  background: rgba(20, 20, 20, 0.97);
+  background: rgba(18, 18, 18, 0.98);
   width: 100%;
   height: 100%;
-  display: block;
   overflow-y: auto;
-  padding-top: 60px;
+  padding: 80px 20px 60px 20px;
 }
 
 .fotos-close-btn {
@@ -459,29 +486,40 @@ function closeFotosDialog() {
 
 .fotos-dialog-content {
   width: 100%;
-  max-width: 1200px;
-  padding: 24px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
+.foto-section {
+  width: 100%;
+}
+
 .fotos-dialog-img-wrap {
-  border-radius: 12px;
+  width: 100%;
+  min-height: 550px;
+  max-height: 80vh;
+  border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .fotos-dialog-img {
   width: 100%;
-  max-height: 60vh;
+  height: 100%;
   object-fit: contain;
   display: block;
 }
 
 .fotos-dialog-img-error {
-  height: 240px;
-  border-radius: 12px;
-  border: 1px dashed rgba(255, 255, 255, 0.2);
+  width: 100%;
+  height: 550px;
+  border-radius: 16px;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.03);
   display: flex;
   flex-direction: column;
   align-items: center;

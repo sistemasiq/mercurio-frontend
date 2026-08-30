@@ -2,7 +2,7 @@
 import { useRegistrationStore } from '@/stores/registration'
 import { allowOnlyLettersKeydown } from '@/utils/validators'
 import { DB_LIMITS } from '@/utils/constants'
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 
 const store = useRegistrationStore()
 
@@ -19,16 +19,31 @@ const TIME_OPTIONS = ['1 hr', '2 hr', '3 hr', '4 hr', '5 hr']
 const showSegundoTutor = ref(false)
 const showInePreview = ref(false)
 const showArrivalPreview = ref(false)
-
 const inePreviewUrl = ref<string>()
-const arrivalPreviewUrl = ref<string>()
+const arrivalPreviewUrls = ref<string[]>([])
+
+// Índice de navegación de la pila de fotos de llegada
+const currentArrivalIndex = ref(0)
 
 const cameraActive = ref(false)
 const videoRef = ref<HTMLVideoElement | null>(null)
 let streamInstance: MediaStream | null = null
 let currentPhotoTarget: 'ine' | 'arrival' | null = null
 
+const currentArrivalOriginalIndex = computed(() => {
+  const total = store.tutor.arrivalPhotos.length
+  if (total === 0) return -1
+  return total - 1 - currentArrivalIndex.value
+})
+
+const currentArrivalPhotoUrl = computed(() => {
+  const idx = currentArrivalOriginalIndex.value
+  return idx >= 0 ? arrivalPreviewUrls.value[idx] : undefined
+})
+
 async function startCamera(target: 'ine' | 'arrival') {
+  if (store.isLocked) return
+
   currentPhotoTarget = target
   cameraActive.value = true
 
@@ -81,13 +96,13 @@ function capturePhoto() {
         const previewUrl = URL.createObjectURL(blob)
 
         if (currentPhotoTarget === 'ine') {
-          store.tutor.inePhoto = file // Ahora es un File
+          store.tutor.inePhoto = file
           if (inePreviewUrl.value) URL.revokeObjectURL(inePreviewUrl.value)
           inePreviewUrl.value = previewUrl
         } else {
-          store.tutor.arrivalPhoto = file // Ahora es un File
-          if (arrivalPreviewUrl.value) URL.revokeObjectURL(arrivalPreviewUrl.value)
-          arrivalPreviewUrl.value = previewUrl
+          store.tutor.arrivalPhotos.push(file)
+          arrivalPreviewUrls.value.push(previewUrl)
+          currentArrivalIndex.value = 0
         }
 
         stopCamera()
@@ -99,24 +114,34 @@ function capturePhoto() {
 }
 
 function retakeIne() {
+  if (store.isLocked) return
   store.tutor.inePhoto = null
   if (inePreviewUrl.value) URL.revokeObjectURL(inePreviewUrl.value)
   inePreviewUrl.value = undefined
   startCamera('ine')
 }
 
-function retakeArrival() {
-  store.tutor.arrivalPhoto = null
-  if (arrivalPreviewUrl.value) URL.revokeObjectURL(arrivalPreviewUrl.value)
-  arrivalPreviewUrl.value = undefined
-  startCamera('arrival')
+function removeCurrentArrivalPhoto() {
+  if (store.isLocked) return
+  const idx = currentArrivalOriginalIndex.value
+  if (idx < 0) return
+
+  store.tutor.arrivalPhotos.splice(idx, 1)
+  if (arrivalPreviewUrls.value[idx]) {
+    URL.revokeObjectURL(arrivalPreviewUrls.value[idx])
+  }
+  arrivalPreviewUrls.value.splice(idx, 1)
+
+  const newLength = store.tutor.arrivalPhotos.length
+  if (currentArrivalIndex.value > newLength - 1) {
+    currentArrivalIndex.value = Math.max(0, newLength - 1)
+  }
 }
 
 onBeforeUnmount(() => {
   stopCamera()
-  // Limpiar URLs temporales para no dejar fugas de memoria si se destruye el componente
   if (inePreviewUrl.value) URL.revokeObjectURL(inePreviewUrl.value)
-  if (arrivalPreviewUrl.value) URL.revokeObjectURL(arrivalPreviewUrl.value)
+  arrivalPreviewUrls.value.forEach((url) => URL.revokeObjectURL(url))
 })
 </script>
 
@@ -128,7 +153,7 @@ onBeforeUnmount(() => {
         <span class="text-subtitle1 text-weight-bold">Datos del Tutor</span>
       </div>
 
-      <!-- Full Name -->
+      <!-- Nombre Completo -->
       <q-input
         v-model="store.tutor.fullName"
         label="Nombre Completo"
@@ -137,7 +162,7 @@ onBeforeUnmount(() => {
         dense
         class="q-mb-md"
         lazy-rules
-        :readonly="store.isEventoMode"
+        :readonly="store.isLocked"
         :maxlength="DB_LIMITS.GUARDIAN.NAME_MAX_LENGTH"
         :rules="[
           (val) => !!val || 'El nombre completo es obligatorio',
@@ -147,7 +172,7 @@ onBeforeUnmount(() => {
         @keydown="allowOnlyLettersKeydown"
       />
 
-      <!-- Relationship + Phone -->
+      <!-- Parentesco y Teléfono -->
       <div class="row q-col-gutter-md q-mb-md">
         <div class="col-12 col-sm-6">
           <q-select
@@ -156,7 +181,7 @@ onBeforeUnmount(() => {
             label="Parentesco"
             outlined
             dense
-            :readonly="store.isEventoMode"
+            :readonly="store.isLocked"
           />
         </div>
         <div class="col-12 col-sm-6">
@@ -168,7 +193,7 @@ onBeforeUnmount(() => {
             dense
             mask="##########"
             lazy-rules
-            :readonly="store.isEventoMode"
+            :readonly="store.isLocked"
             :rules="[
               (val) => !!val || 'El teléfono es obligatorio',
               (val) => val.length === 10 || 'El teléfono debe tener exactamente 10 dígitos',
@@ -177,23 +202,35 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Photo Captures -->
+      <!-- Captura de Fotografías -->
       <div class="row q-col-gutter-md q-mb-md">
-        <!-- INE Photo -->
+        <!-- Foto INE -->
         <div class="col-12 col-sm-6">
+          <div class="text-caption text-grey-7 q-mb-xs">Foto INE</div>
+
           <div
             v-if="!store.tutor.inePhoto"
-            class="photo-capture-box cursor-pointer"
-            @click="startCamera('ine')"
+            class="photo-capture-box"
+            :class="{ 'cursor-pointer': !store.isLocked, 'photo-capture-disabled': store.isLocked }"
+            @click="!store.isLocked && startCamera('ine')"
           >
-            <q-icon name="photo_camera" size="28px" color="primary" />
-            <span class="text-caption text-primary q-mt-xs">Tomar Foto de INE</span>
+            <q-icon
+              name="photo_camera"
+              size="28px"
+              :color="store.isLocked ? 'grey-5' : 'primary'"
+            />
+            <span
+              class="text-caption q-mt-xs"
+              :class="store.isLocked ? 'text-grey-6' : 'text-primary'"
+            >
+              {{ store.isLocked ? 'Sin foto capturada' : 'Tomar Foto de INE' }}
+            </span>
           </div>
 
           <div v-else class="photo-preview-box">
             <img :src="inePreviewUrl" class="photo-thumb" @click="showInePreview = true" />
             <div class="row q-col-gutter-xs q-mt-xs">
-              <div class="col-6">
+              <div :class="store.isLocked ? 'col-12' : 'col-6'">
                 <q-btn
                   flat
                   dense
@@ -205,7 +242,7 @@ onBeforeUnmount(() => {
                   @click="showInePreview = true"
                 />
               </div>
-              <div class="col-6">
+              <div v-if="!store.isLocked" class="col-6">
                 <q-btn
                   flat
                   dense
@@ -221,57 +258,114 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Arrival Photo -->
+        <!-- Fotos de Llegada -->
         <div class="col-12 col-sm-6">
-          <div
-            v-if="!store.tutor.arrivalPhoto"
-            class="photo-capture-box cursor-pointer"
-            @click="startCamera('arrival')"
-          >
-            <q-icon name="add_a_photo" size="28px" color="primary" />
-            <span class="text-caption text-primary q-mt-xs">Tomar Foto de Llegada</span>
+          <div class="row items-center justify-between q-mb-xs">
+            <span class="text-caption text-grey-7">Fotos Llegada</span>
+
+            <div
+              v-if="store.tutor.arrivalPhotos.length > 0"
+              class="row items-center text-caption text-grey-7"
+            >
+              <q-btn
+                flat
+                dense
+                round
+                icon="chevron_left"
+                size="xs"
+                :disable="currentArrivalIndex === 0"
+                @click="currentArrivalIndex--"
+              />
+              <span class="q-px-xs">
+                {{ currentArrivalIndex + 1 }} / {{ store.tutor.arrivalPhotos.length }}
+              </span>
+              <q-btn
+                flat
+                dense
+                round
+                icon="chevron_right"
+                size="xs"
+                :disable="currentArrivalIndex === store.tutor.arrivalPhotos.length - 1"
+                @click="currentArrivalIndex++"
+              />
+            </div>
           </div>
 
+          <!-- Sin fotos aún -->
+          <div
+            v-if="store.tutor.arrivalPhotos.length === 0"
+            class="photo-capture-box"
+            :class="{ 'cursor-pointer': !store.isLocked, 'photo-capture-disabled': store.isLocked }"
+            @click="!store.isLocked && startCamera('arrival')"
+          >
+            <q-icon name="add_a_photo" size="28px" :color="store.isLocked ? 'grey-5' : 'primary'" />
+            <span
+              class="text-caption q-mt-xs"
+              :class="store.isLocked ? 'text-grey-6' : 'text-primary'"
+            >
+              {{ store.isLocked ? 'Sin foto capturada' : 'Agregar Foto de Llegada' }}
+            </span>
+          </div>
+
+          <!-- Visor de fotos -->
           <div v-else class="photo-preview-box">
-            <img :src="arrivalPreviewUrl" class="photo-thumb" @click="showArrivalPreview = true" />
+            <img
+              :src="currentArrivalPhotoUrl"
+              class="photo-thumb"
+              @click="showArrivalPreview = true"
+            />
             <div class="row q-col-gutter-xs q-mt-xs">
-              <div class="col-6">
+              <div :class="store.isLocked ? 'col-12' : 'col-4'">
                 <q-btn
                   flat
                   dense
                   size="md"
                   icon="zoom_in"
-                  label="Ver foto"
+                  label="Ver"
                   color="primary"
                   class="full-width"
                   @click="showArrivalPreview = true"
                 />
               </div>
-              <div class="col-6">
-                <q-btn
-                  flat
-                  dense
-                  size="md"
-                  icon="camera_alt"
-                  label="Tomar de nuevo"
-                  color="grey-7"
-                  class="full-width"
-                  @click="retakeArrival"
-                />
-              </div>
+              <template v-if="!store.isLocked">
+                <div class="col-4">
+                  <q-btn
+                    flat
+                    dense
+                    size="md"
+                    icon="add_a_photo"
+                    label="Agregar"
+                    color="grey-7"
+                    class="full-width"
+                    @click="startCamera('arrival')"
+                  />
+                </div>
+                <div class="col-4">
+                  <q-btn
+                    flat
+                    dense
+                    size="md"
+                    icon="delete"
+                    label="Borrar"
+                    color="negative"
+                    class="full-width"
+                    @click="removeCurrentArrivalPhoto"
+                  />
+                </div>
+              </template>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Estimated Time -->
+      <!-- Tiempo Estimado -->
       <q-select
         :model-value="store.isEventoMode ? store.horasEvento : store.tutor.estimatedTime"
         :options="TIME_OPTIONS"
         label="Tiempo Estimado"
         outlined
         dense
-        :readonly="store.isEventoMode"
+        :readonly="store.isLocked"
         @update:model-value="store.tutor.estimatedTime = $event"
       />
 
@@ -285,36 +379,39 @@ onBeforeUnmount(() => {
         >
           Segundo Tutor (opcional)
         </span>
-        <q-btn
-          v-if="!showSegundoTutor"
-          flat
-          dense
-          size="sm"
-          icon="person_add"
-          label="Agregar segundo tutor"
-          color="primary"
-          @click="showSegundoTutor = true"
-        />
-        <q-btn
-          v-else
-          flat
-          dense
-          size="sm"
-          icon="close"
-          label="Quitar"
-          color="grey-7"
-          @click="((showSegundoTutor = false), (store.tutor.secondaryGuardian = null))"
-        />
+        <template v-if="!store.isLocked">
+          <q-btn
+            v-if="!showSegundoTutor"
+            flat
+            dense
+            size="sm"
+            icon="person_add"
+            label="Agregar segundo tutor"
+            color="primary"
+            @click="showSegundoTutor = true"
+          />
+          <q-btn
+            v-else
+            flat
+            dense
+            size="sm"
+            icon="close"
+            label="Quitar"
+            color="grey-7"
+            @click="((showSegundoTutor = false), (store.tutor.secondaryGuardian = null))"
+          />
+        </template>
       </div>
 
       <q-input
-        v-if="showSegundoTutor"
+        v-if="showSegundoTutor || (store.isLocked && store.tutor.secondaryGuardian)"
         v-model="store.tutor.secondaryGuardian"
         label="Nombre del segundo tutor"
         placeholder="Ej. María García"
         outlined
         dense
         lazy-rules
+        :readonly="store.isLocked"
         :maxlength="DB_LIMITS.GUARDIAN.NAME_MAX_LENGTH"
         :rules="[
           (val) => !!val || 'El nombre es obligatorio',
@@ -325,7 +422,7 @@ onBeforeUnmount(() => {
     </q-card-section>
   </q-card>
 
-  <!-- Interactive Camera Modal Dialog -->
+  <!-- Diálogo de la Cámara -->
   <q-dialog v-model="cameraActive" persistent>
     <q-card style="max-width: 500px; width: 100%; border-radius: 12px">
       <q-card-section class="row items-center q-pb-xs">
@@ -357,7 +454,7 @@ onBeforeUnmount(() => {
     </q-card>
   </q-dialog>
 
-  <!-- INE Preview Dialog -->
+  <!-- Vista previa de INE -->
   <q-dialog v-model="showInePreview">
     <q-card style="max-width: 600px; width: 100%">
       <q-card-section class="row items-center q-pb-none">
@@ -371,16 +468,18 @@ onBeforeUnmount(() => {
     </q-card>
   </q-dialog>
 
-  <!-- Arrival Preview Dialog -->
+  <!-- Vista previa de Llegada -->
   <q-dialog v-model="showArrivalPreview">
     <q-card style="max-width: 600px; width: 100%">
       <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">Foto de Llegada</div>
+        <div class="text-h6">
+          Foto de Llegada {{ currentArrivalIndex + 1 }} de {{ store.tutor.arrivalPhotos.length }}
+        </div>
         <q-space />
         <q-btn v-close-popup icon="close" flat round dense />
       </q-card-section>
       <q-card-section>
-        <img :src="arrivalPreviewUrl" style="width: 100%; border-radius: 8px" />
+        <img :src="currentArrivalPhotoUrl" style="width: 100%; border-radius: 8px" />
       </q-card-section>
     </q-card>
   </q-dialog>
@@ -404,8 +503,14 @@ onBeforeUnmount(() => {
   transition: background 0.2s;
 }
 
-.photo-capture-box:hover {
+.photo-capture-box:hover:not(.photo-capture-disabled) {
   background: rgba(2, 95, 224, 0.12);
+}
+
+.photo-capture-disabled {
+  border-color: #bdbdbd;
+  background: #f5f5f5;
+  cursor: default;
 }
 
 .photo-preview-box {
