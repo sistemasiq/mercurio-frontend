@@ -1,9 +1,14 @@
 import { defineStore } from 'pinia'
 import {
   listarMovimientosPorInsumo,
+  registrarConteoFisico,
   registrarMovimiento,
 } from '@/services/movimientoInventarioService'
-import type { MovimientoInventario, MovimientoManualCreate } from '@/types/movimientoInventario'
+import type {
+  ConteoFisicoCreate,
+  MovimientoInventario,
+  MovimientoManualCreate,
+} from '@/types/movimientoInventario'
 
 interface MovimientosInventarioState {
   items: MovimientoInventario[]
@@ -31,6 +36,11 @@ export const useMovimientosInventarioStore = defineStore('movimientosInventario'
     },
     async registrar(insumoId: string, body: MovimientoManualCreate) {
       const movimiento = await registrarMovimiento(insumoId, body)
+      this.items.unshift(movimiento)
+      return movimiento
+    },
+    async conteoFisico(insumoId: string, body: ConteoFisicoCreate) {
+      const movimiento = await registrarConteoFisico(insumoId, body)
       this.items.unshift(movimiento)
       return movimiento
     },

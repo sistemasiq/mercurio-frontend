@@ -1,6 +1,4 @@
 node_modules
-<<<<<<< HEAD
-=======
 dist
 dist-ssr
 coverage
@@ -21,4 +19,3 @@ coverage
 .idea
 
 CLAUDE.md
->>>>>>> 401a970290c8f8613dad024e64d5c89e44b569f5

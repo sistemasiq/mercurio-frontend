@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import DetalleOrdenPagada from './DetalleOrdenPagada.vue'
 import EditarOrdenModal from './EditarOrdenModal.vue'
@@ -18,33 +18,76 @@ const filtroTiempo = ref<'hoy' | 'semana' | 'mes'>('hoy')
 const filtroEstado = ref<'todos' | 'pagado' | 'cancelado'>('todos')
 const transacciones = ref<ITransaccion[]>([])
 const comandaSeleccionadaId = ref('')
+const detalleTipoOrigen = ref<'comanda' | 'estancia' | 'reservacion'>('comanda')
+const detalleReferenciaId = ref('')
 const estadisticas = ref<Estadisticas>({ total_ventas: 0, total_ordenes: 0, ticket_promedio: 0 })
 const mostrarFiltros = ref(false)
 const fechaInicio = ref('')
 const fechaFin = ref('')
+const busqueda = ref('')
+const paginaActual = ref(1)
+const itemsPorPagina = 20
+const modoImpresion = ref(false)
+let controladorFetch: AbortController | null = null
 
-async function cargarDatos() {
+function cargarDatos() {
+  if (controladorFetch) controladorFetch.abort()
+  controladorFetch = new AbortController()
+  const signal = controladorFetch.signal
+
   isLoading.value = true
-  try {
-    const fi = fechaInicio.value || undefined
-    const ff = fechaFin.value || undefined
-    const [txs, stats] = await Promise.all([
-      obtenerHistorial(filtroTiempo.value, filtroEstado.value, undefined, fi, ff),
-      obtenerEstadisticas(filtroTiempo.value, undefined, fi, ff),
-    ])
-    transacciones.value = txs
-    estadisticas.value = stats
-  } finally {
-    isLoading.value = false
-  }
+  const fi = fechaInicio.value || undefined
+  const ff = fechaFin.value || undefined
+  Promise.all([
+    obtenerHistorial(filtroTiempo.value, filtroEstado.value, undefined, fi, ff),
+    obtenerEstadisticas(filtroTiempo.value, undefined, fi, ff),
+  ])
+    .then(([txs, stats]) => {
+      if (!signal.aborted) {
+        transacciones.value = txs
+        estadisticas.value = stats
+      }
+    })
+    .finally(() => {
+      if (!signal.aborted) isLoading.value = false
+    })
 }
 
 onMounted(cargarDatos)
 
+onBeforeUnmount(() => {
+  if (controladorFetch) controladorFetch.abort()
+})
+
 watch([filtroTiempo, filtroEstado], cargarDatos)
+
+watch(busqueda, () => {
+  paginaActual.value = 1
+})
+
+const transaccionesFiltradas = computed(() => {
+  const term = busqueda.value.trim().toLowerCase()
+  if (!term) return transacciones.value
+  return transacciones.value.filter(
+    (tx) =>
+      tx.titulo.toLowerCase().includes(term) ||
+      tx.tipo_origen.toLowerCase().includes(term) ||
+      tx.metodos_pago.some((mp) => mp.metodo_pago_nombre.toLowerCase().includes(term)),
+  )
+})
+
+const totalPaginas = computed(() =>
+  Math.max(1, Math.ceil(transaccionesFiltradas.value.length / itemsPorPagina)),
+)
+
+const transaccionesPaginadas = computed(() => {
+  const inicio = (paginaActual.value - 1) * itemsPorPagina
+  return transaccionesFiltradas.value.slice(inicio, inicio + itemsPorPagina)
+})
 
 function aplicarFiltroFecha() {
   mostrarFiltros.value = false
+  paginaActual.value = 1
   cargarDatos()
 }
 
@@ -52,6 +95,7 @@ function limpiarFiltroFecha() {
   fechaInicio.value = ''
   fechaFin.value = ''
   mostrarFiltros.value = false
+  paginaActual.value = 1
   cargarDatos()
 }
 
@@ -63,17 +107,56 @@ function obtenerIconoMetodo(nombre: string): string {
   return 'account_balance_wallet'
 }
 
-function obtenerClaseEstado(estado: string): string {
-  const e = estado.toUpperCase()
+const verDetalleOrden = (tipoOrigen: string, referenciaId: string, _estado: string) => {
+  detalleTipoOrigen.value = tipoOrigen as 'comanda' | 'estancia' | 'reservacion'
+  detalleReferenciaId.value = referenciaId
+  mostrarModalPagado.value = true
+}
+
+function infoTipo(tipo: string): { label: string; icon: string; clase: string } {
+  if (tipo === 'estancia')
+    return { label: 'Estancia', icon: 'child_care', clase: 'tipo-badge-estancia' }
+  if (tipo === 'reservacion')
+    return { label: 'Evento', icon: 'event', clase: 'tipo-badge-reservacion' }
+  return { label: 'Pedido', icon: 'receipt_long', clase: 'tipo-badge-comanda' }
+}
+
+function obtenerClaseEstado(tipoOrigen: string, estado: string): string {
+  const e = tipoOrigen === 'reservacion' ? estado.toLowerCase() : estado.toUpperCase()
+  if (tipoOrigen === 'reservacion') {
+    if (e === 'cancelada') return 'status-cancelado'
+    if (e === 'pendiente') return 'status-pendiente'
+    if (e === 'en_curso') return 'status-proceso'
+    return 'status-listo'
+  }
+  if (tipoOrigen === 'estancia') {
+    if (e === 'P') return 'status-pendiente'
+    if (e === 'A') return 'status-proceso'
+    return 'status-entregado'
+  }
+  if (e === 'C') return 'status-cancelado'
   if (e === 'P') return 'status-pendiente'
   if (e === 'E') return 'status-proceso'
-  if (e === 'L' || e === 'PAGADO') return 'status-listo'
+  if (e === 'L') return 'status-listo'
   if (e === 'T') return 'status-entregado'
-  if (e === 'C' || e === 'CANCELADO') return 'status-cancelado'
   return 'status-cancelado'
 }
 
-function textoEstado(estado: string): string {
+function textoEstado(tipoOrigen: string, estado: string): string {
+  if (tipoOrigen === 'reservacion') {
+    const map: Record<string, string> = {
+      pendiente: 'Pendiente',
+      confirmada: 'Confirmada',
+      en_curso: 'En curso',
+      completada: 'Completada',
+      cancelada: 'Cancelada',
+    }
+    return map[estado.toLowerCase()] ?? estado
+  }
+  if (tipoOrigen === 'estancia') {
+    const map: Record<string, string> = { P: 'Pendiente', A: 'Activo', C: 'Cerrado' }
+    return map[estado.toUpperCase()] ?? estado
+  }
   const map: Record<string, string> = {
     P: 'Pendiente',
     E: 'En preparación',
@@ -81,30 +164,7 @@ function textoEstado(estado: string): string {
     T: 'Entregado',
     C: 'Cancelado',
   }
-  return map[estado] ?? estado
-}
-
-/**
- * Los códigos de estado de una comanda describen su preparación en cocina y no
- * significan lo mismo para un cobro de evento: ahí el renglón es dinero que ya
- * entró. Sin esta distinción un anticipo cobrado saldría como "Pendiente",
- * porque comparte la letra P con las comandas sin preparar.
- */
-function textoEstadoTx(tx: ITransaccion): string {
-  if (tx.origen === 'evento') return tx.estado_actual === 'C' ? 'Cancelado' : 'Cobrado'
-  return textoEstado(tx.estado_actual)
-}
-
-function claseEstadoTx(tx: ITransaccion): string {
-  if (tx.origen === 'evento') {
-    return tx.estado_actual === 'C' ? 'status-cancelado' : 'status-listo'
-  }
-  return obtenerClaseEstado(tx.estado_actual)
-}
-
-const verDetalleOrden = (comandaId: string, _estado: string) => {
-  comandaSeleccionadaId.value = comandaId
-  mostrarModalPagado.value = true
+  return map[estado.toUpperCase()] ?? estado
 }
 
 function formatearMonto(monto: number): string {
@@ -120,8 +180,9 @@ function formatearFecha(iso: string): string {
   return `${hh}:${mm} - ${dd} ${mes}`
 }
 
-const imprimirDirecto = () => {
-  window.print()
+const imprimirDirecto = (tipoOrigen: string, referenciaId: string) => {
+  modoImpresion.value = true
+  verDetalleOrden(tipoOrigen, referenciaId, '')
 }
 
 function esEstadoFinal(estado: string): boolean {
@@ -167,6 +228,11 @@ function abrirEditar(comandaId: string) {
 
 function onOrdenActualizada() {
   void cargarDatos()
+}
+
+function onCerrarDetallePagado() {
+  mostrarModalPagado.value = false
+  modoImpresion.value = false
 }
 </script>
 
@@ -215,7 +281,7 @@ function onOrdenActualizada() {
       <section class="metrics-grid">
         <div class="metric-card border-slate">
           <div class="metric-info">
-            <span class="metric-label">Ingresos Totales</span>
+            <span class="metric-label">Ingresos</span>
             <h3 class="metric-value text-blue-primary">
               ${{ Number(estadisticas.total_ventas || 0).toFixed(2) }}
             </h3>
@@ -252,7 +318,12 @@ function onOrdenActualizada() {
         <div class="filter-action-bar">
           <div class="search-input-wrapper">
             <q-icon name="search" class="search-icon" size="xs" />
-            <input type="text" placeholder="Buscar orden..." class="search-box-native" />
+            <input
+              v-model="busqueda"
+              type="text"
+              placeholder="Buscar orden..."
+              class="search-box-native"
+            />
           </div>
 
           <div class="selects-actions-group">
@@ -315,98 +386,110 @@ function onOrdenActualizada() {
                   No hay transacciones para este período.
                 </td>
               </tr>
-              <tr v-for="tx in transacciones" :key="tx.comanda_id" class="table-row-hover">
+              <tr
+                v-for="tx in transaccionesPaginadas"
+                :key="tx.referencia_id"
+                class="table-row-hover"
+              >
                 <td class="td-align-middle text-xs text-slate-muted">
                   {{ formatearFecha(tx.creado) }}
                 </td>
                 <td class="td-align-middle">
                   <div class="flex-column-cell">
-                    <div class="origen-cell">
-                      <span class="font-bold text-slate-dark">{{ tx.ticket_numero }}</span>
-                      <span
-                        class="origen-badge"
-                        :class="
-                          tx.origen === 'evento' ? 'origen-badge--evento' : 'origen-badge--orden'
-                        "
-                      >
-                        {{ tx.origen === 'evento' ? 'Evento' : 'Pedido' }}
+                    <span class="font-bold text-slate-dark">{{ tx.titulo }}</span>
+                    <div class="tipo-label-row">
+                      <q-icon
+                        :name="infoTipo(tx.tipo_origen).icon"
+                        size="12px"
+                        class="tipo-label-icon"
+                      />
+                      <span :class="['subtext-cell', infoTipo(tx.tipo_origen).clase]">
+                        {{ infoTipo(tx.tipo_origen).label }}
                       </span>
                     </div>
-                    <span class="subtext-cell">
-                      {{ tx.origen === 'evento' ? tx.concepto || 'Cobro de evento' : 'Pedido' }}
-                    </span>
                   </div>
                 </td>
                 <td class="td-align-middle">
                   <div class="payment-methods-cell">
-                    <div v-for="(mp, idx) in tx.metodos_pago" :key="idx" class="payment-method-row">
-                      <q-icon
-                        :name="obtenerIconoMetodo(mp.metodo_pago_nombre)"
-                        size="xs"
-                        class="text-slate-muted"
-                      />
-                      <span class="text-xs text-slate-dark">{{ mp.metodo_pago_nombre }}</span>
-                      <span class="text-xs font-bold text-slate-dark">{{
-                        formatearMonto(mp.monto)
-                      }}</span>
+                    <div
+                      v-for="(mp, idx) in tx.metodos_pago"
+                      :key="idx"
+                      class="payment-method-group"
+                    >
+                      <div class="payment-method-row">
+                        <q-icon
+                          :name="obtenerIconoMetodo(mp.metodo_pago_nombre)"
+                          size="xs"
+                          class="text-slate-muted"
+                        />
+                        <span class="text-xs text-slate-dark">{{ mp.metodo_pago_nombre }}</span>
+                        <span class="text-xs font-bold text-slate-dark">{{
+                          formatearMonto(mp.monto)
+                        }}</span>
+                      </div>
+                      <!--
+                        En un evento la nota del pago es el concepto del cobro
+                        (anticipo, liquidacion...). Un evento se cobra en varias
+                        exhibiciones, asi que sin esto los renglones de metodo de
+                        pago se ven identicos entre si y no se sabe cual es cual.
+                      -->
+                      <span v-if="mp.notas_pago" class="payment-note">{{ mp.notas_pago }}</span>
                     </div>
                   </div>
                 </td>
                 <td class="td-align-middle">
-                  <span :class="claseEstadoTx(tx)" class="status-badge-native">
-                    {{ textoEstadoTx(tx) }}
+                  <span
+                    :class="obtenerClaseEstado(tx.tipo_origen, tx.estado_actual)"
+                    class="status-badge-native"
+                  >
+                    {{ textoEstado(tx.tipo_origen, tx.estado_actual) }}
                   </span>
                 </td>
                 <td class="td-align-middle text-right font-bold text-slate-dark">
                   ${{ Number(tx.total_final || 0).toFixed(2) }}
                 </td>
                 <td class="td-align-middle">
-                  <!--
-                    Ver detalle, editar y cancelar operan sobre una comanda, así que
-                    no aplican a los cobros de evento: ahí el renglón es un pago de
-                    reservación y su detalle vive en el cierre del evento.
-                  -->
-                  <div v-if="tx.origen === 'orden'" class="actions-cell-group">
+                  <div class="actions-cell-group">
                     <button
                       type="button"
                       class="btn-cell-action text-blue-primary"
                       title="Ver detalle"
-                      @click="verDetalleOrden(tx.comanda_id, tx.estado_actual)"
+                      @click="verDetalleOrden(tx.tipo_origen, tx.referencia_id, tx.estado_actual)"
                     >
                       <q-icon name="visibility" size="xs" />
                     </button>
 
                     <button
+                      v-if="tx.tipo_origen === 'comanda'"
                       type="button"
                       class="btn-cell-action text-orange-deep"
                       title="Imprimir"
                       :disabled="esEstadoFinal(tx.estado_actual)"
-                      @click="imprimirDirecto()"
+                      @click="imprimirDirecto(tx.tipo_origen, tx.referencia_id)"
                     >
                       <q-icon name="print" size="xs" />
                     </button>
 
                     <button
-                      v-if="esEditable(tx.estado_actual)"
+                      v-if="tx.tipo_origen === 'comanda' && esEditable(tx.estado_actual)"
                       type="button"
                       class="btn-cell-action text-blue-primary"
                       title="Editar orden"
-                      @click="abrirEditar(tx.comanda_id)"
+                      @click="abrirEditar(tx.comanda_id!)"
                     >
                       <q-icon name="edit" size="xs" />
                     </button>
 
                     <button
-                      v-if="!esEstadoFinal(tx.estado_actual)"
+                      v-if="tx.tipo_origen === 'comanda' && !esEstadoFinal(tx.estado_actual)"
                       type="button"
                       class="btn-cell-action text-red-error"
                       title="Cancelar orden"
-                      @click="abrirCancelar(tx.comanda_id)"
+                      @click="abrirCancelar(tx.comanda_id!)"
                     >
                       <q-icon name="block" size="xs" />
                     </button>
                   </div>
-                  <span v-else class="text-xs text-slate-muted">—</span>
                 </td>
               </tr>
             </tbody>
@@ -415,16 +498,47 @@ function onOrdenActualizada() {
 
         <div class="pagination-footer-bar">
           <span class="pagination-counter-text">
-            Mostrando {{ transacciones.length }} transacciones
+            Mostrando {{ transaccionesPaginadas.length }} de
+            {{ transaccionesFiltradas.length }} transacciones
           </span>
+          <div class="pagination-buttons-group">
+            <button
+              type="button"
+              class="btn-pager-nav"
+              :disabled="paginaActual <= 1"
+              @click="paginaActual--"
+            >
+              &lt;
+            </button>
+            <button
+              v-for="p in totalPaginas"
+              :key="p"
+              type="button"
+              class="btn-pager-num"
+              :class="{ 'active-page': p === paginaActual }"
+              @click="paginaActual = p"
+            >
+              {{ p }}
+            </button>
+            <button
+              type="button"
+              class="btn-pager-nav"
+              :disabled="paginaActual >= totalPaginas"
+              @click="paginaActual++"
+            >
+              &gt;
+            </button>
+          </div>
         </div>
       </div>
     </main>
 
     <DetalleOrdenPagada
       v-if="mostrarModalPagado"
-      :comanda-id="comandaSeleccionadaId"
-      @close="mostrarModalPagado = false"
+      :tipo-origen="detalleTipoOrigen"
+      :referencia-id="detalleReferenciaId"
+      :auto-print="modoImpresion"
+      @close="onCerrarDetallePagado"
     />
     <EditarOrdenModal
       v-if="mostrarModalEditar"
@@ -704,29 +818,26 @@ function onOrdenActualizada() {
   font-size: 11px;
   color: #414754;
 }
-/* El historial mezcla ventas de mostrador y cobros de eventos; la etiqueta es lo
-   único que los distingue de un vistazo, porque un evento no trae folio de ticket. */
-.origen-cell {
+.tipo-label-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  margin-top: 2px;
 }
-.origen-badge {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 20px;
-  white-space: nowrap;
+.tipo-label-icon {
+  color: #717786;
 }
-.origen-badge--orden {
-  background: rgba(2, 95, 224, 0.1);
-  color: #025fe0;
+.tipo-badge-estancia {
+  color: #0059bb;
+  font-weight: 600;
 }
-.origen-badge--evento {
-  background: rgba(155, 81, 224, 0.12);
-  color: #7a2fd0;
+.tipo-badge-reservacion {
+  color: #b45309;
+  font-weight: 600;
+}
+.tipo-badge-comanda {
+  color: #717786;
+  font-weight: 600;
 }
 .flex-row-cell {
   display: flex;
@@ -740,10 +851,22 @@ function onOrdenActualizada() {
   flex-direction: column;
   gap: 4px;
 }
+.payment-method-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .payment-method-row {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+/* Alineado con el nombre del metodo, no con el icono (16px + 6px de gap). */
+.payment-note {
+  padding-left: 22px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #717786;
 }
 .text-slate-muted {
   color: #717786;

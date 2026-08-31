@@ -6,6 +6,11 @@ export interface MovimientoManualCreate {
   notas?: string | null
 }
 
+export interface ConteoFisicoCreate {
+  stock_contado: string
+  notas?: string | null
+}
+
 export interface MovimientoInventario {
   id: string
   sucursal_id: string
@@ -17,6 +22,14 @@ export interface MovimientoInventario {
   motivo: string
   referencia_id: string | null
   notas: string | null
+  costo_total: string | null
   creado: string
   creado_por: string | null
+}
+
+export interface CogsRenglon {
+  insumo_id: string
+  insumo_nombre: string
+  cantidad_salida: string
+  costo_total: string
 }

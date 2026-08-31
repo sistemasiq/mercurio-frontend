@@ -1,36 +1,45 @@
 import { apiClient } from '@/api/axiosClient'
 import { metodosPagoApi } from '@/api/metodosPagoApi'
+import JSZip from 'jszip'
 
 const onboardingClient = apiClient
 
 // Las fotos de INE/llegada se sirven en una ruta protegida por JWT, que un
 // <img src="..."> no puede enviar. Se descargan con el cliente autenticado y
 // se exponen como blob URL para usarlas en <img>.
-async function fetchFotoBlobUrl(carpeta: 'identificaciones' | 'llegadas', registroId: string) {
-  const { data } = await onboardingClient.get(`/uploads/${carpeta}/${registroId}.jpg`, {
+async function fetchFotoIneBlobUrl(registroId: string) {
+  const { data } = await onboardingClient.get(`/uploads/identificaciones/${registroId}.jpg`, {
     responseType: 'blob',
   })
   return URL.createObjectURL(data)
 }
 
 export function fetchFotoIneUrl(registroId: string): Promise<string> {
-  return fetchFotoBlobUrl('identificaciones', registroId)
+  return fetchFotoIneBlobUrl(registroId)
 }
 
-export function fetchFotoLlegadaUrl(registroId: string): Promise<string> {
-  return fetchFotoBlobUrl('llegadas', registroId)
+export async function fetchFotosLlegadaUrls(registroId: string): Promise<string[]> {
+  const { data } = await onboardingClient.get<Blob>(`/uploads/registros/${registroId}/llegadas`, {
+    responseType: 'blob',
+  })
+
+  const zip = await JSZip.loadAsync(data)
+  const urls: string[] = []
+
+  for (const filename of Object.keys(zip.files)) {
+    const file = zip.files[filename]
+    if (!file.dir && /\.(jpe?g|png|webp)$/i.test(filename)) {
+      const blob = await file.async('blob')
+      urls.push(URL.createObjectURL(blob))
+    }
+  }
+
+  return urls
 }
 
 export interface FotosUploadResponse {
   fotoIneUrl?: string
   fotoLlegadaUrl?: string
-}
-
-export interface ProductoDto {
-  id: string
-  nombre: string
-  precioUnitario: number
-  descripcion: string
 }
 
 export interface PulseraDto {
@@ -61,11 +70,11 @@ export interface OnboardingPayload {
     telefono: string
   }
   nombreSegundoTutor: string | null
-  pulseraTutorId: string
   parentesco: string
   detalles: OnboardingDetalle[]
   pagos: OnboardingPago[]
   reservacionId?: string | null
+  puntosARedimir?: number
 }
 
 export interface OnboardingResponse {
@@ -78,8 +87,6 @@ export interface OnboardingResponse {
 export interface ActivoDto {
   registroId: string
   nombreSegundoTutor: string | null
-  pulseraTutorId: string
-  pulseraTutorRfid: string
   detalleId: string
   nino: string
   notas: string | null
@@ -117,12 +124,6 @@ export async function fetchMetodoPagoPorDefecto(): Promise<string | null> {
   return activo?.id ?? null
 }
 
-// GET /estancias/productos/${sucursalId} para obtener el costo por hora
-export async function fetchProductos(sucursalId: string): Promise<ProductoDto[]> {
-  const { data } = await onboardingClient.get<ProductoDto[]>(`/estancias/productos/${sucursalId}`)
-  return data
-}
-
 // GET /pulseras/sucursal/{sucursalId}
 export async function fetchPulseras(sucursalId: string): Promise<PulseraDto[]> {
   const { data } = await onboardingClient.get<PulseraDto[]>(`/pulseras/sucursal/${sucursalId}`)
@@ -133,12 +134,14 @@ export async function fetchPulseras(sucursalId: string): Promise<PulseraDto[]> {
 export async function postOnboarding(
   payload: OnboardingPayload,
   fotoIne: File | Blob,
-  fotoLlegada: File | Blob,
+  fotosLlegada: File[],
 ): Promise<OnboardingResponse> {
   const formData = new FormData()
 
   formData.append('fotoIne', fotoIne)
-  formData.append('fotoLlegada', fotoLlegada)
+  fotosLlegada.forEach((foto) => {
+    formData.append('fotosLlegada', foto)
+  })
 
   formData.append('payload', JSON.stringify(payload))
 
@@ -172,11 +175,9 @@ export async function cotizarCheckout(detalleId: string): Promise<CotizacionChec
 // en el momento de esta llamada (recalculado en el backend) o responde 409.
 export async function checkout(
   detalleId: string,
-  pulseraTutorId: string,
   pagos: OnboardingPago[] = [],
 ): Promise<CheckoutResponse> {
   const { data } = await onboardingClient.post(`/estancias/${detalleId}/checkout`, {
-    pulseraTutorId: pulseraTutorId,
     pagos,
   })
 
