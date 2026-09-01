@@ -61,6 +61,7 @@ function getChildFirstName(child: Child, index: number) {
 
         <!-- Add child -->
         <q-btn
+          v-if="!store.isLocked"
           flat
           dense
           icon="add_circle_outline"
@@ -68,14 +69,14 @@ function getChildFirstName(child: Child, index: number) {
           color="primary"
           size="md"
           class="q-ml-md"
-          :disable="store.step !== 'form' || store.reachedBraceletLimit"
+          :disable="store.reachedBraceletLimit"
           @click="(store.addChild(), (store.currentChildIndex = store.children.length - 1))"
         />
       </div>
 
-      <!-- Aviso de límite de pulseras (Solo aparece a partir del segundo niño si se llega al límite) -->
+      <!-- Aviso de límite de pulseras -->
       <q-banner
-        v-if="store.showBraceletLimitBanner"
+        v-if="store.showBraceletLimitBanner && !store.isLocked"
         dense
         rounded
         class="bg-orange-1 text-orange-9 q-mb-sm"
@@ -89,10 +90,10 @@ function getChildFirstName(child: Child, index: number) {
         {{ store.maxChildrenAllowed === 1 ? 'niño' : 'niños' }}.
       </q-banner>
 
-      <!-- Show only the current child -->
+      <!-- Tarjeta del niño actual -->
       <ChildCard :index="store.currentChildIndex" />
 
-      <!-- Unsaved chips navigation -->
+      <!-- Navegación por chips (permite consultar cada niño aún estando bloqueado) -->
       <div v-if="store.children.length > 1" class="row q-gutter-sm q-mt-md">
         <q-chip
           v-for="(child, i) in store.children"

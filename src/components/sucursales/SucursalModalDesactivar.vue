@@ -28,7 +28,14 @@
 
       <!-- Botones -->
       <q-card-actions class="modal-actions">
-        <q-btn flat no-caps color="grey-7" label="Cancelar" class="btn-cancelar" @click="show = false" />
+        <q-btn
+          flat
+          no-caps
+          color="grey-7"
+          label="Cancelar"
+          class="btn-cancelar"
+          @click="show = false"
+        />
         <q-btn
           unelevated
           no-caps

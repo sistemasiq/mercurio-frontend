@@ -46,6 +46,9 @@ export interface DetalleComanda {
   productos_combo?: ComboItemComanda[] | null
   es_hijo_de?: string | null
   es_hijo_combo?: boolean
+  // Instancia de combo: identifica la unidad a la que pertenece el hijo
+  // (permite separar combos múltiples en el visor de cocina).
+  id_combo_padre?: string | null
 }
 
 // Shape de la comanda tal como la retorna el backend (asdict de models/Comanda)
@@ -63,12 +66,13 @@ export interface Comanda {
   // Alias legacy que puede llegar en algunos payloads del WS
   created_at?: string
   updated_at?: string
+  // Nombre del cliente para comandas de mostrador / para llevar
+  nombre_cliente?: string | null
 }
 
 // Mensajes WebSocket del canal de comandas (app/api/routers/comandas.py)
 export type ComandaWsMessage =
-  | { type: 'comanda_creada'; comanda: Comanda }
-  | { type: 'comanda_actualizada'; comanda: Comanda }
+  { type: 'comanda_creada'; comanda: Comanda } | { type: 'comanda_actualizada'; comanda: Comanda }
 
 // Payload para crear una comanda (POST /api/comandas/)
 export interface CrearComandaRequest {
@@ -91,4 +95,5 @@ export interface DetalleComandaRequest {
   nombre_combo_padre?: string
   es_hijo_de?: string
   es_hijo_combo?: boolean
+  id_combo_padre?: string
 }

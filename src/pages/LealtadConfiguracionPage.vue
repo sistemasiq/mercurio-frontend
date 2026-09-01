@@ -87,6 +87,35 @@
           </div>
         </div>
 
+        <q-separator class="q-my-lg" />
+
+        <div class="text-subtitle2 text-weight-bold q-mb-sm" style="color: var(--text-primary)">
+          Orígenes que otorgan puntos
+        </div>
+        <div class="row q-col-gutter-md">
+          <div class="col-12">
+            <q-toggle
+              v-model="form.otorga_puntos_comandas"
+              label="Ventas de caja (comandas)"
+              color="primary"
+            />
+          </div>
+          <div class="col-12">
+            <q-toggle
+              v-model="form.otorga_puntos_reservaciones"
+              label="Anticipos de reservación"
+              color="primary"
+            />
+          </div>
+          <div class="col-12">
+            <q-toggle
+              v-model="form.otorga_puntos_checkin"
+              label="Check-in de niños"
+              color="primary"
+            />
+          </div>
+        </div>
+
         <div class="row justify-end q-mt-lg">
           <q-btn
             unelevated
@@ -123,6 +152,9 @@ const form = reactive<ConfiguracionLealtadInput>({
   dias_caducidad: 30,
   valor_punto: 1,
   activo: true,
+  otorga_puntos_comandas: true,
+  otorga_puntos_reservaciones: true,
+  otorga_puntos_checkin: true,
 })
 
 const cargar = async () => {
@@ -133,6 +165,9 @@ const cargar = async () => {
     form.dias_caducidad = store.configuracion.dias_caducidad
     form.valor_punto = store.configuracion.valor_punto
     form.activo = store.configuracion.activo
+    form.otorga_puntos_comandas = store.configuracion.otorga_puntos_comandas
+    form.otorga_puntos_reservaciones = store.configuracion.otorga_puntos_reservaciones
+    form.otorga_puntos_checkin = store.configuracion.otorga_puntos_checkin
   }
 }
 

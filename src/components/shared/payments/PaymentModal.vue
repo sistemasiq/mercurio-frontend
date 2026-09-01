@@ -59,7 +59,12 @@
             <span class="text-grey-7 text-caption">Método: {{ metodoSeleccionado }}</span>
           </div>
 
-          <PaymentKeypad class="full-width" style="flex-grow: 1" @add-payment="iniciarAbono" />
+          <PaymentKeypad
+            class="full-width"
+            style="flex-grow: 1"
+            :action-label="metodoSeleccionado === 'Lealtad' ? 'Aplicar Puntos' : 'Aplicar Pago'"
+            @add-payment="iniciarAbono"
+          />
         </div>
       </div>
 
@@ -83,29 +88,30 @@
         >
           <div class="field-label">Celular del cliente (opcional)</div>
           <q-input
+            ref="celularInputRef"
             v-model="celularCliente"
             placeholder="10 dígitos"
             outlined
             dense
             mask="##########"
             class="q-mb-sm"
+            :readonly="!!props.celularPrellenado"
             :rules="[(val: string) => !val || val.length === 10 || 'Debe tener 10 dígitos']"
-            hint="Para acumular puntos de lealtad"
+            :hint="
+              props.celularPrellenado
+                ? 'Tel. del tutor, usado para puntos de lealtad'
+                : 'Para acumular puntos de lealtad'
+            "
           />
 
-          <template v-if="saldoDisponible !== null && saldoDisponible > 0">
-            <div class="field-label">Puntos a redimir</div>
-            <q-input
-              v-model.number="puntosARedimir"
-              outlined
-              dense
-              type="number"
-              min="0"
-              :max="maxPuntosRedimibles"
-              class="q-mb-sm"
-              :hint="`Disponibles: ${saldoDisponible} pts · $${valorPunto?.toFixed(2)} c/u`"
-            />
-          </template>
+          <div
+            v-if="saldoDisponible !== null && saldoDisponible > 0"
+            class="row justify-between text-caption q-mb-sm"
+            style="color: var(--text-secondary)"
+          >
+            <span>Puntos disponibles</span>
+            <span>{{ saldoDisponible }} pts · ${{ valorPunto?.toFixed(2) }} c/u</span>
+          </div>
 
           <div class="row justify-between text-grey-8 text-caption q-mb-xs">
             <span>Subtotal</span>
@@ -125,7 +131,7 @@
         </div>
 
         <div style="flex-grow: 1; padding: 12px; overflow-y: auto; min-height: 0">
-          <AppliedPaymentsList :pagos="pagosAplicados" @remove-payment="eliminarPago" />
+          <AppliedPaymentsList :pagos="pagosParaMostrar" @remove-payment="eliminarPago" />
         </div>
 
         <div
@@ -247,7 +253,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useQuasar, type QInput } from 'quasar'
 import type { PaymentProps, AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
@@ -276,10 +282,15 @@ const lealtadStore = useLealtadStore()
 
 const metodoSeleccionado = ref('')
 const pagosAplicados = ref<AppliedPayment[]>([])
+const celularInputRef = ref<QInput | null>(null)
 const celularCliente = ref('')
 const puntosARedimir = ref(0)
 const saldoDisponible = ref<number | null>(null)
 const valorPunto = ref<number | null>(null)
+const mostrarModalTarjeta = ref(false)
+const tarjetaMontoTemporal = ref(0)
+const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
+const tarjetaAutorizacion = ref('')
 
 // Primera categoría con al menos un método activo de ese tipo en el
 // catálogo real de la sucursal -- no asumir que "Efectivo" siempre existe.
@@ -293,20 +304,27 @@ const primeraCategoriaDisponible = computed(
 watch(
   () => props.modelValue,
   (visible) => {
-    if (visible && !metodoSeleccionado.value) {
+    if (visible) {
       metodoSeleccionado.value = primeraCategoriaDisponible.value
-    }
-    if (!visible) {
+      if (props.celularPrellenado) {
+        celularCliente.value = props.celularPrellenado
+      }
+    } else {
       // El componente queda montado en todos sus consumidores (ninguno usa v-if),
       // así que al cerrar sin finalizar hay que descartar los pagos capturados.
       // Si no, reaparecen en el siguiente cobro y se aplican como pagos reales
       // por dinero que nunca se recibió. finalizarPago() ya emitió una copia
       // antes de cerrar, así que limpiar aquí no le quita nada.
       pagosAplicados.value = []
+      metodoSeleccionado.value = ''
       celularCliente.value = ''
       saldoDisponible.value = null
       valorPunto.value = null
       puntosARedimir.value = 0
+      mostrarModalTarjeta.value = false
+      tarjetaMontoTemporal.value = 0
+      tarjetaTipo.value = 'CREDITO'
+      tarjetaAutorizacion.value = ''
     }
   },
   { immediate: true },
@@ -341,7 +359,21 @@ const descuentoPuntos = computed(() => {
 
 const totalNeto = computed(() => props.totalToPay - descuentoPuntos.value)
 
+watch(totalNeto, (nuevoTotal) => {
+  let excedente = 0
+  for (const pago of pagosAplicados.value) {
+    if (!esEfectivo(pago.method)) {
+      const maxPermitido = Math.max(0, nuevoTotal - excedente)
+      if (pago.amount > maxPermitido) {
+        pago.amount = maxPermitido
+      }
+      excedente += pago.amount
+    }
+  }
+})
+
 const esEfectivo = (nombre: string) => nombre.trim().toLowerCase().includes('efectivo')
+const esLealtad = (nombre: string) => nombre.trim().toLowerCase().includes('lealtad')
 const esTarjeta = (nombre: string) => {
   const n = nombre.trim().toLowerCase()
   return (
@@ -352,11 +384,6 @@ const esTarjeta = (nombre: string) => {
     n.includes('debito')
   )
 }
-
-const mostrarModalTarjeta = ref(false)
-const tarjetaMontoTemporal = ref(0)
-const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
-const tarjetaAutorizacion = ref('')
 
 const totalPagado = computed(() => {
   return pagosAplicados.value.reduce((suma, pago) => suma + pago.amount, 0)
@@ -375,6 +402,11 @@ const cambioADevolver = computed(() => {
 const iniciarAbono = (monto: number) => {
   if (monto <= 0 || !metodoSeleccionado.value) return
 
+  if (esLealtad(metodoSeleccionado.value)) {
+    aplicarRedencionLealtad(monto)
+    return
+  }
+
   if (!esEfectivo(metodoSeleccionado.value) && monto > saldoPendiente.value) {
     $q.notify({
       type: 'warning',
@@ -391,6 +423,33 @@ const iniciarAbono = (monto: number) => {
   } else {
     agregarPago(monto)
   }
+}
+
+const aplicarRedencionLealtad = (monto: number) => {
+  if (!saldoDisponible.value) {
+    $q.notify({
+      type: 'warning',
+      message: 'Captura el celular del cliente en el campo de arriba para usar sus puntos.',
+      position: 'top',
+      timeout: 3000,
+    })
+    celularInputRef.value?.focus()
+    return
+  }
+
+  const puntosDisponiblesRestantes = maxPuntosRedimibles.value - puntosARedimir.value
+  const puntosSolicitados = Math.round(monto / (valorPunto.value ?? 1))
+
+  if (puntosSolicitados > puntosDisponiblesRestantes) {
+    $q.notify({
+      type: 'warning',
+      message: `Solo puede aplicar hasta $${(puntosDisponiblesRestantes * (valorPunto.value ?? 1)).toFixed(2)} en puntos.`,
+      position: 'top',
+      timeout: 3000,
+    })
+  }
+
+  puntosARedimir.value += Math.min(puntosSolicitados, puntosDisponiblesRestantes)
 }
 
 const confirmarPagoTarjeta = () => {
@@ -433,7 +492,30 @@ const limpiarModalTarjeta = () => {
   tarjetaAutorizacion.value = ''
 }
 
+const ID_REDENCION_LEALTAD = 'redencion-lealtad'
+
+// La redención de puntos no es un pago más (pagosAplicados): es un
+// descuento sobre el subtotal, ya reflejado en totalNeto. Se agrega aquí
+// solo como tarjeta visual, para que el cajero la vea junto al resto de lo
+// aplicado; quitarla resetea puntosARedimir en vez de filtrar un pago real.
+const pagosParaMostrar = computed<AppliedPayment[]>(() => {
+  if (puntosARedimir.value <= 0) return pagosAplicados.value
+  return [
+    ...pagosAplicados.value,
+    {
+      id: ID_REDENCION_LEALTAD,
+      method: 'Lealtad',
+      amount: descuentoPuntos.value,
+      timestamp: new Date(),
+    },
+  ]
+})
+
 const eliminarPago = (id: string) => {
+  if (id === ID_REDENCION_LEALTAD) {
+    puntosARedimir.value = 0
+    return
+  }
   pagosAplicados.value = pagosAplicados.value.filter((p) => p.id !== id)
 }
 
@@ -448,6 +530,7 @@ const finalizarPago = () => {
   )
   emit('update:modelValue', false)
   pagosAplicados.value = []
+  metodoSeleccionado.value = ''
   celularCliente.value = ''
   puntosARedimir.value = 0
   saldoDisponible.value = null

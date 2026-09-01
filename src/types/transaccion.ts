@@ -6,12 +6,15 @@ export interface MetodoPagoResumen {
 }
 
 export interface ITransaccion {
-  comanda_id: string
-  ticket_numero: string
+  tipo_origen: 'comanda' | 'estancia' | 'reservacion'
+  referencia_id: string
+  titulo: string
   total_final: number
   estado_actual: string
   sucursal_id: string
   creado: string
   creado_por: string | null
   metodos_pago: MetodoPagoResumen[]
+  comanda_id: string | null
+  ticket_numero: string | null
 }

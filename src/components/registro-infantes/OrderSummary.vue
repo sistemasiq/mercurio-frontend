@@ -60,7 +60,7 @@ const mapearMetodoPago = (categoriaSeleccionada: string): string => {
 const onPagoExitoso = (
   pagos: AppliedPayment[],
   _celularCliente: string | null,
-  _puntosARedimir: number,
+  puntosARedimir: number,
   _descuentoPuntos: number,
   cambio: number,
 ) => {
@@ -69,7 +69,7 @@ const onPagoExitoso = (
       metodoPagoId: mapearMetodoPago(p.method),
       monto: p.amount,
     }))
-    store.proceedToRFID(pagosMapeados, cambio)
+    store.proceedToRFID(pagosMapeados, cambio, puntosARedimir)
   } catch (err) {
     console.error('[OrderSummary] onPagoExitoso:', err)
     $q.notify({
@@ -132,6 +132,7 @@ const onPagoExitoso = (
           v-if="!store.isEventoMode"
           v-model="mostrarModalPago"
           :total-to-pay="store.total"
+          :celular-prellenado="store.tutor.phone"
           :metodos-pago="metodosPagoDisponibles"
           @pago-exitoso="onPagoExitoso"
         />
