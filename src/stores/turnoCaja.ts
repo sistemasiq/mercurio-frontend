@@ -24,6 +24,7 @@ import type {
   FilaBalance,
   RevisionAdminResponse,
   RetiroParcialPayload,
+  IngresoEfectivoPayload,
 } from '@/types/turnoCaja'
 
 // v-model.number sobre <q-input type="text"> no convierte "" a 0 ni a null: Vue
@@ -346,6 +347,23 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     }
   }
 
+  async function registrarIngreso(monto: number): Promise<boolean> {
+    if (!turnoId.value) return false
+    cargando.value = true
+    error.value = null
+    try {
+      const payload: IngresoEfectivoPayload = { turnoId: turnoId.value, monto }
+      await turnoCajaService.registrarIngreso(payload)
+      await cargarTurnoActivo()
+      return true
+    } catch (err) {
+      error.value = (err as Error).message
+      return false
+    } finally {
+      cargando.value = false
+    }
+  }
+
   /**
    * Transición: BALANCE_REVELADO → CERRADO
    * Confirma el cierre definitivo del turno.
@@ -532,6 +550,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     autenticarAdmin,
     cancelarConteo,
     registrarRetiro,
+    registrarIngreso,
     confirmarCierre,
     // helper de pruebas (DEV only — tree-shaken en producción)
     ...(import.meta.env.DEV

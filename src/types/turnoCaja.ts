@@ -206,6 +206,18 @@ export interface RetiroParcialResponse {
   creado: string
 }
 
+export interface IngresoEfectivoPayload {
+  turnoId: string
+  monto: number
+}
+
+export interface IngresoEfectivoResponse {
+  id: string
+  turnoId: string
+  monto: number
+  creado: string
+}
+
 // ---------------------------------------------------------------------------
 // Historial de arqueos
 // ---------------------------------------------------------------------------
