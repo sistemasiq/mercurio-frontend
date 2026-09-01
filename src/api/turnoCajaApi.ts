@@ -12,6 +12,8 @@ import type {
   FiltrosHistorial,
   HistorialArqueosResponse,
   DetalleArqueo,
+  IngresoEfectivoPayload,
+  IngresoEfectivoResponse,
   RetiroParcialPayload,
   RetiroParcialResponse,
   FilaBalance,
@@ -277,6 +279,23 @@ export const turnoCajaApi = {
       tipoDestinatario: data.tipo_destinatario,
       monto: Number(data.monto),
       observaciones: data.observaciones ?? null,
+      creado: data.creado,
+    }
+  },
+
+  /**
+   * POST /turnos-caja/ingreso-efectivo
+   * Registra un ingreso de efectivo sobre el turno activo (solo en estado OPERANDO).
+   */
+  async registrarIngreso(payload: IngresoEfectivoPayload): Promise<IngresoEfectivoResponse> {
+    const { data } = await apiClient.post(`${BASE}/ingreso-efectivo`, {
+      apertura_caja_id: payload.turnoId,
+      monto: payload.monto,
+    })
+    return {
+      id: data.id,
+      turnoId: data.apertura_caja_id,
+      monto: Number(data.monto),
       creado: data.creado,
     }
   },
