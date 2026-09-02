@@ -83,6 +83,7 @@ export interface OnboardingResponse {
   total: number
   pagado: number
   estado: string
+  advertenciaEfectivo?: string | null
 }
 
 export interface ActivoDto {

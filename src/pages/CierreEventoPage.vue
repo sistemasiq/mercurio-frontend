@@ -500,7 +500,7 @@ const onPagoExitoso = async (
   if (!reservacion.value) return
   procesandoPago.value = true
   try {
-    await pagosReservacionApi.completar({
+    const resultado = await pagosReservacionApi.completar({
       reservacion_id: reservacion.value.id,
       pagos: pagosAplicados.map((pago) => ({
         metodo_pago_id: mapearMetodoPago(pago.method),
@@ -512,6 +512,15 @@ const onPagoExitoso = async (
       ...(cambio > 0 ? { cambio: String(cambio) } : {}),
     })
     $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
+    if (resultado.advertencia_efectivo) {
+      $q.notify({
+        type: 'warning',
+        message: 'No hay suficiente efectivo en caja',
+        caption: resultado.advertencia_efectivo,
+        position: 'top-right',
+        timeout: 6000,
+      })
+    }
     await cargarTodo()
   } catch (err: unknown) {
     $q.notify({

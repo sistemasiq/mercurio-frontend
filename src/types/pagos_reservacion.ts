@@ -36,4 +36,5 @@ export interface Pagos_reservacion_completar_request {
 export interface Pagos_reservacion_completar_response {
   pagos: Pagos_reservacion[]
   cambio: string
+  advertencia_efectivo?: string | null
 }

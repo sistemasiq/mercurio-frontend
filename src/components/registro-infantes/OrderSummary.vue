@@ -187,6 +187,16 @@ const onPagoExitoso = (
           </template>
           Registro completado correctamente.
         </q-banner>
+        <q-banner
+          v-if="store.advertenciaEfectivoFromServer"
+          dense
+          rounded
+          class="bg-orange-1 text-orange-9 q-mt-sm"
+          style="font-size: 12px"
+        >
+          <template #avatar><q-icon name="warning" color="warning" /></template>
+          {{ store.advertenciaEfectivoFromServer }}
+        </q-banner>
       </template>
     </q-card-section>
   </q-card>

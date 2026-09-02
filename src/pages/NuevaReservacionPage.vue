@@ -1328,7 +1328,7 @@ const confirmarReservacion = async () => {
     }
 
     if (pagosAplicados.value.length > 0) {
-      await pagosStore.completarPagosReservacion({
+      const resultadoPago = await pagosStore.completarPagosReservacion({
         reservacion_id: nuevaReservacion.id,
         pagos: pagosAplicados.value.map((pago) => ({
           metodo_pago_id: mapearMetodoPago(pago.method),
@@ -1339,6 +1339,15 @@ const confirmarReservacion = async () => {
         })),
         ...(cambioDevuelto.value > 0 ? { cambio: String(cambioDevuelto.value) } : {}),
       })
+      if (resultadoPago.advertencia_efectivo) {
+        $q.notify({
+          type: 'warning',
+          message: 'No hay suficiente efectivo en caja',
+          caption: resultadoPago.advertencia_efectivo,
+          position: 'top-right',
+          timeout: 6000,
+        })
+      }
     }
 
     $q.notify({

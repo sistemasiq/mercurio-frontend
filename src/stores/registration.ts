@@ -85,6 +85,7 @@ export const useRegistrationStore = defineStore('registration', () => {
   const totalFromServer = ref<number | null>(null)
   const pagadoFromServer = ref<number | null>(null)
   const estadoFromServer = ref('')
+  const advertenciaEfectivoFromServer = ref<string | null>(null)
 
   function createChild(): Child {
     return {
@@ -402,6 +403,7 @@ export const useRegistrationStore = defineStore('registration', () => {
       totalFromServer.value = response.total
       pagadoFromServer.value = response.pagado
       estadoFromServer.value = response.estado
+      advertenciaEfectivoFromServer.value = response.advertenciaEfectivo ?? null
       step.value = 'complete'
     } catch (err) {
       submitError.value = 'No se pudo completar el registro. Intenta de nuevo.'
@@ -454,6 +456,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     totalFromServer,
     pagadoFromServer,
     estadoFromServer,
+    advertenciaEfectivoFromServer,
     savedChildren,
     hours,
     tramoAplicable,

@@ -498,6 +498,17 @@ const procesarPago = async (
     comandaPagadaId.value = comanda.id
     ticketPostPagoAbierto.value = true
 
+    if (comanda.advertenciaEfectivo) {
+      $q.notify({
+        type: 'warning',
+        message: 'No hay suficiente efectivo en caja',
+        caption: comanda.advertenciaEfectivo,
+        position: 'top-right',
+        timeout: 6000,
+        icon: 'warning',
+      })
+    }
+
     // Actualización optimista: refrescar comandas de inmediato
     void refrescarComandas()
   } catch (err) {
