@@ -75,6 +75,7 @@ export const useRegistrationStore = defineStore('registration', () => {
   const pulseras = computed(() => accessControlStore.pulserasDisponibles)
   const metodoPagoId = ref<string | null>(null)
   const pagosFromModal = ref<OnboardingPago[]>([])
+  const cambioFromModal = ref(0)
   const puntosARedimirValue = ref(0)
   const isLoadingCatalog = ref(false)
   const isSubmitting = ref(false)
@@ -84,6 +85,7 @@ export const useRegistrationStore = defineStore('registration', () => {
   const totalFromServer = ref<number | null>(null)
   const pagadoFromServer = ref<number | null>(null)
   const estadoFromServer = ref('')
+  const advertenciaEfectivoFromServer = ref<string | null>(null)
 
   function createChild(): Child {
     return {
@@ -321,9 +323,10 @@ export const useRegistrationStore = defineStore('registration', () => {
     return motivos
   })
 
-  async function proceedToRFID(pagos?: OnboardingPago[], puntosARedimir?: number) {
+  async function proceedToRFID(pagos?: OnboardingPago[], cambio?: number, puntosARedimir?: number) {
     if (pagos) {
       pagosFromModal.value = pagos
+      cambioFromModal.value = cambio ?? 0
     }
     if (puntosARedimir) {
       puntosARedimirValue.value = puntosARedimir
@@ -384,6 +387,7 @@ export const useRegistrationStore = defineStore('registration', () => {
         : pagosFromModal.value.length > 0
           ? pagosFromModal.value
           : [{ metodoPagoId: metodoPagoId.value!, monto: total.value }],
+      cambio: cambioFromModal.value > 0 ? cambioFromModal.value : undefined,
       reservacionId: esEvento ? eventoSeleccionado.value!.id : null,
       puntosARedimir: puntosARedimirValue.value,
     }
@@ -399,6 +403,7 @@ export const useRegistrationStore = defineStore('registration', () => {
       totalFromServer.value = response.total
       pagadoFromServer.value = response.pagado
       estadoFromServer.value = response.estado
+      advertenciaEfectivoFromServer.value = response.advertenciaEfectivo ?? null
       step.value = 'complete'
     } catch (err) {
       submitError.value = 'No se pudo completar el registro. Intenta de nuevo.'
@@ -414,6 +419,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     eventoSeleccionado.value = null
     eventoNoEncontrado.value = false
     pagosFromModal.value = []
+    cambioFromModal.value = 0
     puntosARedimirValue.value = 0
     tutor.value = {
       fullName: '',
@@ -450,6 +456,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     totalFromServer,
     pagadoFromServer,
     estadoFromServer,
+    advertenciaEfectivoFromServer,
     savedChildren,
     hours,
     tramoAplicable,

@@ -12,6 +12,8 @@ import type {
   FiltrosHistorial,
   HistorialArqueosResponse,
   DetalleArqueo,
+  IngresoEfectivoPayload,
+  IngresoEfectivoResponse,
   RetiroParcialPayload,
   RetiroParcialResponse,
   FilaBalance,
@@ -41,6 +43,7 @@ function mapTurnoActivo(raw: any): TurnoActivoResponse {
     fechaApertura: raw.fecha_apertura,
     totalVentas: Number(raw.total_ventas ?? 0),
     totalRetiros: Number(raw.total_retiros ?? 0),
+    totalIngresos: Number(raw.total_ingresos ?? 0),
     movimientos: (raw.movimientos ?? []).map(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (m: any) => ({ metodo: m.metodo, totalVentas: Number(m.total_ventas) }),
@@ -277,6 +280,23 @@ export const turnoCajaApi = {
       tipoDestinatario: data.tipo_destinatario,
       monto: Number(data.monto),
       observaciones: data.observaciones ?? null,
+      creado: data.creado,
+    }
+  },
+
+  /**
+   * POST /turnos-caja/ingreso-efectivo
+   * Registra un ingreso de efectivo sobre el turno activo (solo en estado OPERANDO).
+   */
+  async registrarIngreso(payload: IngresoEfectivoPayload): Promise<IngresoEfectivoResponse> {
+    const { data } = await apiClient.post(`${BASE}/ingreso-efectivo`, {
+      apertura_caja_id: payload.turnoId,
+      monto: payload.monto,
+    })
+    return {
+      id: data.id,
+      turnoId: data.apertura_caja_id,
+      monto: Number(data.monto),
       creado: data.creado,
     }
   },

@@ -16,7 +16,7 @@
             >
           </h2>
           <p class="rs-modal-sub">
-            Cajero: <strong>{{ turno.cajeroNombre || 'Diana Ayala' }}</strong> • Terminal:
+            Cajero: <strong>{{ turno.cajeroNombre || 'Cajero' }}</strong> • Terminal:
             <strong>{{ turno.terminal || 'CAJA 01' }}</strong> • Sucursal:
             <strong>{{ turno.sucursalNombre || 'Centro' }}</strong>
           </p>
@@ -52,6 +52,18 @@
                   <span class="rs-detail-val"
                     >-${{
                       (turno.totalRetiros || 0).toLocaleString('es-MX', {
+                        minimumFractionDigits: 2,
+                      })
+                    }}</span
+                  >
+                </div>
+                <div v-if="(turno.totalIngresos || 0) > 0" class="rs-detail-row text-positive">
+                  <span class="rs-detail-label flex items-center">
+                    <q-icon name="add_circle" size="16px" class="q-mr-xs" /> Ingresos de Efectivo
+                  </span>
+                  <span class="rs-detail-val"
+                    >+${{
+                      (turno.totalIngresos || 0).toLocaleString('es-MX', {
                         minimumFractionDigits: 2,
                       })
                     }}</span
@@ -105,6 +117,41 @@
                       </td>
                     </tr>
                   </tbody>
+                  <tfoot>
+                    <tr class="rs-balance-total-row">
+                      <td class="font-bold">Total</td>
+                      <td class="text-right font-bold">
+                        ${{
+                          totalesPorMetodo.esperado.toLocaleString('es-MX', {
+                            minimumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                      <td class="text-right font-bold">
+                        ${{
+                          totalesPorMetodo.declarado.toLocaleString('es-MX', {
+                            minimumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                      <td
+                        class="text-right"
+                        :class="claseDiferenciaFila(totalesPorMetodo.diferencia)"
+                      >
+                        {{
+                          totalesPorMetodo.diferencia > 0
+                            ? '+'
+                            : totalesPorMetodo.diferencia < 0
+                              ? '-'
+                              : ''
+                        }}${{
+                          Math.abs(totalesPorMetodo.diferencia).toLocaleString('es-MX', {
+                            minimumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
               <p class="rs-table-hint">
@@ -171,10 +218,13 @@
                 <input
                   v-model="pinCajero"
                   type="password"
+                  inputmode="numeric"
+                  autocomplete="off"
                   maxlength="4"
                   class="rs-pin-input"
                   placeholder="####"
                   :disabled="pinCajeroConfirmado || cargandoPinCajero"
+                  @keydown="filtrarTeclaEntero"
                   @keyup.enter="confirmarPinCajero"
                 />
               </div>
@@ -197,7 +247,7 @@
                 }}
               </button>
               <div class="text-xs text-grey-7 text-center border-top-line pt-2">
-                Cajero: <strong>{{ turno.cajeroNombre || 'Diana Ayala' }}</strong>
+                Cajero: <strong>{{ turno.cajeroNombre || 'Cajero' }}</strong>
               </div>
             </div>
 
@@ -212,10 +262,13 @@
                 <input
                   v-model="pinAdmin"
                   type="password"
+                  inputmode="numeric"
+                  autocomplete="off"
                   maxlength="4"
                   class="rs-pin-input"
                   placeholder="####"
                   :disabled="pinAdminConfirmado || cargandoPinAdmin"
+                  @keydown="filtrarTeclaEntero"
                   @keyup.enter="confirmarPinAdmin"
                 />
               </div>
@@ -284,6 +337,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { turnoCajaService } from '@/services/turnoCajaService'
+import { filtrarTeclaEntero } from '@/utils/validacionNumerica'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -311,6 +365,17 @@ const diffClass = computed(() => {
   if (turno.diferenciaNeta < 0) return 'text-negative font-bold'
   if (turno.diferenciaNeta > 0) return 'text-primary font-bold'
   return 'text-positive font-bold'
+})
+
+// Suma de todos los métodos de pago (efectivo, tarjeta, etc.) del comparativo --
+// distinta de turno.totalEsperado/totalDeclarado, que el backend calcula solo
+// sobre efectivo (ver comentario arriba). Este total es el que pidió el negocio
+// para ver de un vistazo si el cajero tiene una diferencia grande en algún
+// método que no sea efectivo (ej. tarjeta).
+const totalesPorMetodo = computed(() => {
+  const esperado = turno.balancePorMetodo.reduce((suma, fila) => suma + fila.esperado, 0)
+  const declarado = turno.balancePorMetodo.reduce((suma, fila) => suma + fila.declarado, 0)
+  return { esperado, declarado, diferencia: declarado - esperado }
 })
 
 function claseDiferenciaFila(diferencia: number): string {
@@ -382,16 +447,16 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
   try {
     const obsText = observacionesModal.value.trim()
 
-    await turno.confirmarCierre(obsText, esExtraordinario)
+    const arqueoId = await turno.confirmarCierre(obsText, esExtraordinario)
+    if (!arqueoId) {
+      throw new Error(turno.error || 'No se pudo confirmar el cierre de caja.')
+    }
     turno.mostrarDialogAutorizacion = false
 
     // Intentar descarga automática de PDF del arqueo
-    if (turno.turnoId) {
+    if (arqueoId) {
       try {
-        await turnoCajaService.descargarPdfArqueo(
-          turno.turnoId,
-          `arqueo_${turno.turnoId.slice(-8)}.pdf`,
-        )
+        await turnoCajaService.descargarPdfArqueo(arqueoId, `arqueo_${arqueoId.slice(-8)}.pdf`)
       } catch (err) {
         console.warn('No se pudo descargar el PDF automáticamente:', err)
       }
@@ -679,6 +744,10 @@ async function ejecutarCierreExtraordinario() {
 }
 .rs-balance-table tr:last-child td {
   border-bottom: none;
+}
+.rs-balance-total-row td {
+  border-top: 2px solid var(--border-color);
+  padding-top: 10px;
 }
 .rs-table-hint {
   margin: 10px 0 0;

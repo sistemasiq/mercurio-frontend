@@ -73,6 +73,7 @@ export interface OnboardingPayload {
   parentesco: string
   detalles: OnboardingDetalle[]
   pagos: OnboardingPago[]
+  cambio?: number
   reservacionId?: string | null
   puntosARedimir?: number
 }
@@ -82,6 +83,7 @@ export interface OnboardingResponse {
   total: number
   pagado: number
   estado: string
+  advertenciaEfectivo?: string | null
 }
 
 export interface ActivoDto {

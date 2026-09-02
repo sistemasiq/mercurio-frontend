@@ -421,8 +421,9 @@ const onPagoExitoso = (
   celularCliente: string | null,
   puntosARedimir: number,
   descuentoPuntos: number,
+  cambio: number,
 ) => {
-  void procesarPago(pagos, celularCliente, puntosARedimir, descuentoPuntos)
+  void procesarPago(pagos, celularCliente, puntosARedimir, descuentoPuntos, cambio)
 }
 
 const mapearMetodoPago = (categoriaSeleccionada: string): string => {
@@ -445,6 +446,7 @@ const procesarPago = async (
   celularCliente: string | null,
   puntosARedimir: number,
   descuentoPuntos: number,
+  cambio: number,
 ) => {
   if (itemsTicket.value.length === 0 || enviando.value) return
 
@@ -478,6 +480,7 @@ const procesarPago = async (
       })),
       ...(celularCliente ? { celular_cliente: celularCliente } : {}),
       ...(puntosARedimir > 0 ? { puntos_a_redimir: puntosARedimir } : {}),
+      ...(cambio > 0 ? { cambio } : {}),
       ...(nombreCliente.value.trim() ? { nombre_cliente: nombreCliente.value.trim() } : {}),
     }
 
@@ -494,6 +497,17 @@ const procesarPago = async (
 
     comandaPagadaId.value = comanda.id
     ticketPostPagoAbierto.value = true
+
+    if (comanda.advertenciaEfectivo) {
+      $q.notify({
+        type: 'warning',
+        message: 'No hay suficiente efectivo en caja',
+        caption: comanda.advertenciaEfectivo,
+        position: 'top-right',
+        timeout: 6000,
+        icon: 'warning',
+      })
+    }
 
     // Actualización optimista: refrescar comandas de inmediato
     void refrescarComandas()

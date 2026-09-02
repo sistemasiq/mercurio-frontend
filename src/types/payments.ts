@@ -30,4 +30,6 @@ export interface PagoCompletoRequest {
   pagos: PaymentItemRequest[]
   celular_cliente?: string
   puntos_a_redimir?: number
+  cambio?: number
+  nombre_cliente?: string
 }

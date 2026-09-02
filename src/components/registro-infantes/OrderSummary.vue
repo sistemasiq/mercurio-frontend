@@ -61,13 +61,15 @@ const onPagoExitoso = (
   pagos: AppliedPayment[],
   _celularCliente: string | null,
   puntosARedimir: number,
+  _descuentoPuntos: number,
+  cambio: number,
 ) => {
   try {
     const pagosMapeados: OnboardingPago[] = pagos.map((p) => ({
       metodoPagoId: mapearMetodoPago(p.method),
       monto: p.amount,
     }))
-    store.proceedToRFID(pagosMapeados, puntosARedimir)
+    store.proceedToRFID(pagosMapeados, cambio, puntosARedimir)
   } catch (err) {
     console.error('[OrderSummary] onPagoExitoso:', err)
     $q.notify({
@@ -184,6 +186,16 @@ const onPagoExitoso = (
             <q-icon name="check_circle" color="positive" />
           </template>
           Registro completado correctamente.
+        </q-banner>
+        <q-banner
+          v-if="store.advertenciaEfectivoFromServer"
+          dense
+          rounded
+          class="bg-orange-1 text-orange-9 q-mt-sm"
+          style="font-size: 12px"
+        >
+          <template #avatar><q-icon name="warning" color="warning" /></template>
+          {{ store.advertenciaEfectivoFromServer }}
         </q-banner>
       </template>
     </q-card-section>
