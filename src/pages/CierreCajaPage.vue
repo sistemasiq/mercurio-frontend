@@ -47,14 +47,14 @@
                   <div class="rs-hub-icon rs-hub-icon--ingreso">
                     <q-icon name="add_card" size="32px" />
                   </div>
-                  <h2 class="rs-hub-card-title">Registrar Ingreso de Efectivo</h2>
+                  <h2 class="rs-hub-card-title">Ingreso de Efectivo</h2>
                   <p class="rs-hub-card-sub">Agregar dinero físico a la caja actual.</p>
                 </button>
                 <button type="button" class="rs-hub-card" @click="vistaOperando = 'retiro'">
                   <div class="rs-hub-icon rs-hub-icon--retiro">
                     <q-icon name="payments" size="32px" />
                   </div>
-                  <h2 class="rs-hub-card-title">Registrar Retiro Parcial</h2>
+                  <h2 class="rs-hub-card-title">Retiro Parcial</h2>
                   <p class="rs-hub-card-sub">Extraer fondos para operaciones específicas.</p>
                 </button>
                 <button
@@ -105,11 +105,6 @@
                     v-model="turno.totalContadoDeclarado"
                     :total-calculado="totalCalculado"
                   />
-
-                  <q-banner v-if="turno.error" rounded class="bg-negative text-white q-mt-sm">
-                    <template #avatar><q-icon name="error" /></template>
-                    {{ turno.error }}
-                  </q-banner>
 
                   <div class="rs-submit-row row q-gutter-md justify-between items-center q-mt-md">
                     <q-btn

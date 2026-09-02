@@ -34,11 +34,6 @@
             @keydown="filtrarTeclaDecimal"
           />
         </div>
-
-        <q-banner v-if="turno.error" rounded class="bg-negative text-white q-mt-md">
-          <template #avatar><q-icon name="error" /></template>
-          {{ turno.error }}
-        </q-banner>
       </div>
 
       <div class="ie-footer">

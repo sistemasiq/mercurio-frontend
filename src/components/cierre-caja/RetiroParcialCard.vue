@@ -71,11 +71,6 @@
             placeholder="Detalles adicionales sobre este retiro..."
           />
         </div>
-
-        <q-banner v-if="turno.error" rounded class="bg-negative text-white q-mt-md">
-          <template #avatar><q-icon name="error" /></template>
-          {{ turno.error }}
-        </q-banner>
       </div>
 
       <div class="rp-footer">
@@ -132,12 +127,14 @@ const opcionesConcepto: { label: string; value: ConceptoRetiro }[] = [
   { label: 'Pago de servicios', value: 'Pago de servicios' },
   { label: 'Gastos administrativos', value: 'Gastos administrativos' },
   { label: 'Gastos varios', value: 'Gastos varios' },
+  { label: 'Devolución', value: 'Devolución' },
 ]
 
 const opcionesDestinatario: { label: string; value: TipoDestinatario }[] = [
   { label: 'Proveedor', value: 'Proveedor' },
   { label: 'Empleado', value: 'Empleado' },
   { label: 'Administrador', value: 'Administrador' },
+  { label: 'Cliente', value: 'Cliente' },
 ]
 
 const puedeRegistrar = computed(

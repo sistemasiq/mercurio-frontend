@@ -16,7 +16,7 @@
             >
           </h2>
           <p class="rs-modal-sub">
-            Cajero: <strong>{{ turno.cajeroNombre || 'Diana Ayala' }}</strong> • Terminal:
+            Cajero: <strong>{{ turno.cajeroNombre || 'Cajero' }}</strong> • Terminal:
             <strong>{{ turno.terminal || 'CAJA 01' }}</strong> • Sucursal:
             <strong>{{ turno.sucursalNombre || 'Centro' }}</strong>
           </p>
@@ -52,6 +52,18 @@
                   <span class="rs-detail-val"
                     >-${{
                       (turno.totalRetiros || 0).toLocaleString('es-MX', {
+                        minimumFractionDigits: 2,
+                      })
+                    }}</span
+                  >
+                </div>
+                <div v-if="(turno.totalIngresos || 0) > 0" class="rs-detail-row text-positive">
+                  <span class="rs-detail-label flex items-center">
+                    <q-icon name="add_circle" size="16px" class="q-mr-xs" /> Ingresos de Efectivo
+                  </span>
+                  <span class="rs-detail-val"
+                    >+${{
+                      (turno.totalIngresos || 0).toLocaleString('es-MX', {
                         minimumFractionDigits: 2,
                       })
                     }}</span
@@ -206,10 +218,13 @@
                 <input
                   v-model="pinCajero"
                   type="password"
+                  inputmode="numeric"
+                  autocomplete="off"
                   maxlength="4"
                   class="rs-pin-input"
                   placeholder="####"
                   :disabled="pinCajeroConfirmado || cargandoPinCajero"
+                  @keydown="filtrarTeclaEntero"
                   @keyup.enter="confirmarPinCajero"
                 />
               </div>
@@ -232,7 +247,7 @@
                 }}
               </button>
               <div class="text-xs text-grey-7 text-center border-top-line pt-2">
-                Cajero: <strong>{{ turno.cajeroNombre || 'Diana Ayala' }}</strong>
+                Cajero: <strong>{{ turno.cajeroNombre || 'Cajero' }}</strong>
               </div>
             </div>
 
@@ -247,10 +262,13 @@
                 <input
                   v-model="pinAdmin"
                   type="password"
+                  inputmode="numeric"
+                  autocomplete="off"
                   maxlength="4"
                   class="rs-pin-input"
                   placeholder="####"
                   :disabled="pinAdminConfirmado || cargandoPinAdmin"
+                  @keydown="filtrarTeclaEntero"
                   @keyup.enter="confirmarPinAdmin"
                 />
               </div>
@@ -319,6 +337,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { turnoCajaService } from '@/services/turnoCajaService'
+import { filtrarTeclaEntero } from '@/utils/validacionNumerica'
 
 const $q = useQuasar()
 const router = useRouter()
