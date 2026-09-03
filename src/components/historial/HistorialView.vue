@@ -293,7 +293,7 @@ function onCerrarDetallePagado() {
 
         <div class="metric-card border-slate">
           <div class="metric-info">
-            <span class="metric-label">Ventas Totales</span>
+            <span class="metric-label">Movimientos</span>
             <h3 class="metric-value">{{ estadisticas.total_ordenes }}</h3>
           </div>
           <div class="metric-icon-box bg-orange-fixed text-orange-deep">
@@ -303,7 +303,7 @@ function onCerrarDetallePagado() {
 
         <div class="metric-card border-slate">
           <div class="metric-info">
-            <span class="metric-label">Ticket Prom.</span>
+            <span class="metric-label">Promedio</span>
             <h3 class="metric-value text-orange-deep">
               ${{ Number(estadisticas.ticket_promedio || 0).toFixed(2) }}
             </h3>
@@ -411,16 +411,29 @@ function onCerrarDetallePagado() {
                 </td>
                 <td class="td-align-middle">
                   <div class="payment-methods-cell">
-                    <div v-for="(mp, idx) in tx.metodos_pago" :key="idx" class="payment-method-row">
-                      <q-icon
-                        :name="obtenerIconoMetodo(mp.metodo_pago_nombre)"
-                        size="xs"
-                        class="text-slate-muted"
-                      />
-                      <span class="text-xs text-slate-dark">{{ mp.metodo_pago_nombre }}</span>
-                      <span class="text-xs font-bold text-slate-dark">{{
-                        formatearMonto(mp.monto)
-                      }}</span>
+                    <div
+                      v-for="(mp, idx) in tx.metodos_pago"
+                      :key="idx"
+                      class="payment-method-group"
+                    >
+                      <div class="payment-method-row">
+                        <q-icon
+                          :name="obtenerIconoMetodo(mp.metodo_pago_nombre)"
+                          size="xs"
+                          class="text-slate-muted"
+                        />
+                        <span class="text-xs text-slate-dark">{{ mp.metodo_pago_nombre }}</span>
+                        <span class="text-xs font-bold text-slate-dark">{{
+                          formatearMonto(mp.monto)
+                        }}</span>
+                      </div>
+                      <!--
+                        En un evento la nota del pago es el concepto del cobro
+                        (anticipo, liquidacion...). Un evento se cobra en varias
+                        exhibiciones, asi que sin esto los renglones de metodo de
+                        pago se ven identicos entre si y no se sabe cual es cual.
+                      -->
+                      <span v-if="mp.notas_pago" class="payment-note">{{ mp.notas_pago }}</span>
                     </div>
                   </div>
                 </td>
@@ -838,10 +851,22 @@ function onCerrarDetallePagado() {
   flex-direction: column;
   gap: 4px;
 }
+.payment-method-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .payment-method-row {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+/* Alineado con el nombre del metodo, no con el icono (16px + 6px de gap). */
+.payment-note {
+  padding-left: 22px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #717786;
 }
 .text-slate-muted {
   color: #717786;

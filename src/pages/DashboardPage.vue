@@ -240,22 +240,14 @@ import type { QTableColumn } from 'quasar'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { usePaquetesStore } from '@/stores/paquetes'
 import { useAuthStore } from '@/stores/auth'
-import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import { useNuevaReservacion } from '@/composables/useNuevaReservacion'
 import type { Paquetes } from '@/types/paquetes'
 
 const router = useRouter()
 const store = useReservacionesStore()
 const paquetesStore = usePaquetesStore()
 const authStore = useAuthStore()
-const turno = useTurnoCajaStore()
-
-function irANuevaReservacion() {
-  if (!turno.estaOperando) {
-    router.push('/pos/cierre')
-    return
-  }
-  router.push({ name: 'eventos-reservaciones-crear' })
-}
+const irANuevaReservacion = useNuevaReservacion()
 
 onMounted(() => {
   if (!authStore.currentBranchId) return
