@@ -316,7 +316,7 @@ import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import TicketPagoEvento from '@/components/eventos/TicketPagoEvento.vue'
 import { horasFacturables } from '@/utils/horario'
-import { resumenMetodosPago, totalPagado as sumaPagos } from '@/utils/pagos'
+import { descontarCambio, resumenMetodosPago, totalPagado as sumaPagos } from '@/utils/pagos'
 
 const route = useRoute()
 const router = useRouter()
@@ -512,9 +512,17 @@ const onPagoExitoso = async (pagosAplicados: AppliedPayment[]) => {
   const res = reservacion.value
   const saldoAntes = saldoPendiente.value
 
+  // El modal entrega lo que el cliente ENTREGÓ; descontarCambio() lo ajusta a
+  // lo que de verdad se queda en caja antes de guardarlo, porque el excedente
+  // se le devolvió como cambio y no es ingreso del evento (mismo ajuste que
+  // hace PagosPage.vue — sin él, un pago en efectivo con cambio se guardaba
+  // completo y descuadraba el corte de caja).
+  const aplicados = descontarCambio(pagosAplicados, saldoAntes)
+  if (!aplicados.length) return
+
   procesandoPago.value = true
   try {
-    for (const pago of pagosAplicados) {
+    for (const pago of aplicados) {
       await pagosReservacionApi.crear({
         reservacion_id: res.id,
         metodo_pago_id: mapearMetodoPago(pago.method),
@@ -524,7 +532,7 @@ const onPagoExitoso = async (pagosAplicados: AppliedPayment[]) => {
           : 'Pago registrado en cierre de evento',
       })
     }
-    const montoPagado = sumaPagos(pagosAplicados)
+    const montoPagado = sumaPagos(aplicados)
     $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
 
     const totalEvento = parseFloat(res.precio_total)
@@ -539,7 +547,7 @@ const onPagoExitoso = async (pagosAplicados: AppliedPayment[]) => {
       montoPagado,
       totalPagadoAcumulado: totalEvento - saldoAntes + montoPagado,
       saldoPendiente: Math.max(0, saldoAntes - montoPagado),
-      metodosPago: resumenMetodosPago(pagosAplicados),
+      metodosPago: resumenMetodosPago(aplicados),
       notas: 'Pago registrado en cierre de evento',
     }
     ticketAbierto.value = true
