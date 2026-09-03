@@ -196,6 +196,11 @@
       :metodos-pago="metodosPagoStore.activos"
       @pago-exitoso="onCobroExitoso"
     />
+
+    <!-- Ticket del pago recién registrado -->
+    <q-dialog v-model="ticketAbierto" persistent>
+      <TicketPagoEvento v-if="ticketData" v-bind="ticketData" @close="ticketAbierto = false" />
+    </q-dialog>
   </q-page>
 </template>
 
@@ -211,8 +216,15 @@ import { useTiposEventoStore } from '@/stores/tipos_evento'
 import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import type { AppliedPayment } from '@/types/payments'
+import type { TicketPagoEventoProps } from '@/types/ticketPagoEvento'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
-import { descontarCambio, resolverMetodoPagoId, totalPagado } from '@/utils/pagos'
+import TicketPagoEvento from '@/components/eventos/TicketPagoEvento.vue'
+import {
+  descontarCambio,
+  resolverMetodoPagoId,
+  resumenMetodosPago,
+  totalPagado,
+} from '@/utils/pagos'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -388,11 +400,20 @@ const abrirCobro = () => {
  * que de verdad se queda en caja antes de guardarlo, porque el excedente se le
  * devolvió como cambio y no es ingreso del evento.
  */
+const ticketAbierto = ref(false)
+const ticketData = ref<TicketPagoEventoProps | null>(null)
+
 const onCobroExitoso = async (pagos: AppliedPayment[]) => {
   const reservacionId = form.value.reservacion_id
   if (!reservacionId) return
 
-  const aplicados = descontarCambio(pagos, saldoSeleccionado.value ?? 0)
+  // El saldo se captura antes de resetear el formulario: es el "antes" del
+  // que dependen el acumulado y el saldo restante que muestra el ticket.
+  const saldoAntes = saldoSeleccionado.value ?? 0
+  const res = resStore.reservaciones.find((r) => r.id === reservacionId)
+  const notasForm = form.value.notas
+
+  const aplicados = descontarCambio(pagos, saldoAntes)
   if (!aplicados.length) return
 
   guardando.value = true
@@ -403,15 +424,41 @@ const onCobroExitoso = async (pagos: AppliedPayment[]) => {
         metodo_pago_id: resolverMetodoPagoId(pago.method, metodosPagoStore.activos),
         monto: String(pago.amount),
         notas:
-          form.value.notas ||
+          notasForm ||
           (pago.cardType ? `Pago (${pago.cardType} - Folio: ${pago.authCode ?? ''})` : null),
       })
     }
+    const montoPagado = totalPagado(aplicados)
     $q.notify({
       type: 'positive',
-      message: `Pago registrado por ${fmt(totalPagado(aplicados))}`,
+      message: `Pago registrado por ${fmt(montoPagado)}`,
       position: 'top-right',
     })
+
+    if (res) {
+      const totalEvento = parseFloat(res.precio_total)
+      const tipoEvento = tiposEventoStore.activos.find((t) => t.id === res.tipo_evento_id)?.nombre
+      ticketData.value = {
+        folio: res.id,
+        sucursal: authStore.currentBranchName ?? 'Sucursal',
+        clienteNombre:
+          `${res.nombre_cliente}${res.apellidos_cliente ? ' ' + res.apellidos_cliente : ''}`.trim(),
+        tipoEvento: tipoEvento ?? '—',
+        fechaEvento: new Date(`${res.fecha_evento}T00:00:00`).toLocaleDateString('es-MX', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }),
+        totalEvento,
+        montoPagado,
+        totalPagadoAcumulado: totalEvento - saldoAntes + montoPagado,
+        saldoPendiente: Math.max(0, saldoAntes - montoPagado),
+        metodosPago: resumenMetodosPago(aplicados),
+        notas: notasForm || null,
+      }
+      ticketAbierto.value = true
+    }
+
     form.value = { reservacion_id: null, notas: '' }
     await Promise.all([
       pagosStore.cargar(),

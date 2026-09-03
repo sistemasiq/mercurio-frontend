@@ -70,3 +70,30 @@ export function resolverMetodoPagoId(categoria: string, metodos: MetodosPago[]):
   }
   return metodo.id
 }
+
+function esTarjeta(metodo: string): boolean {
+  const n = metodo.trim().toLowerCase()
+  return (
+    n.includes('tarjeta') ||
+    n.includes('crédito') ||
+    n.includes('débito') ||
+    n.includes('credito') ||
+    n.includes('debito')
+  )
+}
+
+/**
+ * Resume los métodos usados en un cobro para mostrarlos en un ticket
+ * ("Efectivo, Tarjeta Crédito"), distinguiendo débito/crédito cuando aplica.
+ *
+ * Misma lógica que `metodosPagoResumen` en el asistente de reservación, para
+ * que el texto se vea igual en cualquier ticket que muestre un pago.
+ */
+export function resumenMetodosPago(pagos: AppliedPayment[]): string {
+  const nombres = pagos.map((p) =>
+    esTarjeta(p.method) && p.cardType
+      ? `Tarjeta ${p.cardType === 'DEBITO' ? 'Débito' : 'Crédito'}`
+      : p.method,
+  )
+  return nombres.length ? [...new Set(nombres)].join(', ') : '—'
+}
