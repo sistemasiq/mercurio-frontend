@@ -14,8 +14,13 @@ const $q = useQuasar()
 const mostrarModalPago = ref(false)
 const metodosPagoDisponibles = ref<MetodosPago[]>([])
 
-function formatCurrency(value: number) {
+const formatCurrency = (value: number) => {
   return `$${value.toFixed(2)}`
+}
+
+const formatPricePerHour = (pricePerChild: number, hours: number) => {
+  if (hours === 0) return formatCurrency(0)
+  return formatCurrency(pricePerChild / hours) + '/hr'
 }
 
 const cargarMetodosPago = async () => {
@@ -96,7 +101,9 @@ const onPagoExitoso = (pagos: AppliedPayment[]) => {
           class="row justify-between items-center q-mb-xs"
         >
           <span class="text-body2 text-grey-8">
-            1× ({{ child.name }}) ({{ store.tutor.estimatedTime }})
+            {{ formatPricePerHour(store.pricePerChild, store.hours) }} ({{ child.name }}) ({{
+              store.tutor.estimatedTime
+            }})
           </span>
           <span class="text-body2">{{ formatCurrency(store.pricePerChild) }}</span>
         </div>

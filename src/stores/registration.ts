@@ -78,6 +78,7 @@ export const useRegistrationStore = defineStore('registration', () => {
   const isLoadingCatalog = ref(false)
   const isSubmitting = ref(false)
   const submitError = ref<string | null>(null)
+  const noPreciosDisponibles = ref(false)
 
   const registroId = ref('')
   const totalFromServer = ref<number | null>(null)
@@ -124,8 +125,14 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
     isLoadingCatalog.value = true
     submitError.value = null
+    noPreciosDisponibles.value = false
     try {
       productoBase.value = await productosApi.obtenerPreciosEstancia()
+
+      // Verificar si hay rangos de precios configurados
+      if (!productoBase.value?.config_estancia?.length) {
+        noPreciosDisponibles.value = true
+      }
     } catch (err) {
       submitError.value = 'No se pudo cargar el catálogo de precios de estancia.'
       console.error(err)
@@ -189,11 +196,20 @@ export const useRegistrationStore = defineStore('registration', () => {
   const tramoAplicable = computed<TramoEstancia | null>(() => {
     if (!productoBase.value?.config_estancia?.length) return null
     const h = hours.value
-    return (
-      productoBase.value.config_estancia.find(
-        (tramo) => h >= tramo.min_horas && h <= tramo.max_horas,
-      ) ?? null
+
+    // Primero buscar tramo exacto
+    const tramoExacto = productoBase.value.config_estancia.find(
+      (tramo) => h >= tramo.min_horas && h <= tramo.max_horas,
     )
+
+    if (tramoExacto) return tramoExacto
+
+    // Si no encuentra, usar el tramo con min_horas más bajo
+    const tramoMasBajo = productoBase.value.config_estancia.reduce((min, tramo) =>
+      tramo.min_horas < min.min_horas ? tramo : min,
+    )
+
+    return tramoMasBajo ?? null
   })
 
   const tieneTarifaValida = computed(() => {
@@ -440,6 +456,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     isLoadingCatalog,
     isSubmitting,
     submitError,
+    noPreciosDisponibles,
     registroId,
     totalFromServer,
     pagadoFromServer,

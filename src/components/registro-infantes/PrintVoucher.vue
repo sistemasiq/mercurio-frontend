@@ -48,11 +48,6 @@ function printVoucher() {
   window.print()
   document.title = originalTitle
 }
-
-function getBraceletLabel(braceletId: string) {
-  const bracelet = store.pulseras.find((p) => p.id === braceletId)
-  return bracelet?.pulseraRfid ?? braceletId
-}
 </script>
 
 <template>
@@ -87,14 +82,6 @@ function getBraceletLabel(braceletId: string) {
         <span class="text-body2 text-weight-medium">{{ store.tutor.phone }}</span>
       </div>
 
-      <!-- Second Tutor -->
-      <div v-if="store.tutor.secondaryGuardian" class="q-mb-md">
-        <div class="row justify-between q-mb-xs">
-          <span class="text-body2">Segundo Tutor:</span>
-          <span class="text-body2 text-weight-medium">{{ store.tutor.secondaryGuardian }}</span>
-        </div>
-      </div>
-
       <q-separator class="q-mb-sm" />
 
       <!-- Children -->
@@ -102,27 +89,16 @@ function getBraceletLabel(braceletId: string) {
       <div class="row text-caption text-grey-7 q-mb-xs">
         <div class="col">Nombre</div>
         <div style="width: 50px" class="text-center">Edad</div>
-        <div style="width: 100px" class="text-right">Pulsera</div>
       </div>
       <div v-for="child in store.savedChildren" :key="child.id" class="row items-center q-mb-xs">
         <div class="col text-weight-medium" style="font-size: 14px">{{ child.name }}</div>
         <div style="width: 50px" class="text-center text-body2">{{ child.age }}</div>
-        <div style="width: 100px" class="text-right">
-          <span class="text-caption text-grey-7 bracelet-code">{{
-            getBraceletLabel(child.rfidBracelet)
-          }}</span>
-        </div>
       </div>
 
       <q-separator class="q-my-md" />
 
       <!-- Stay details -->
       <div class="stay-box q-pa-sm q-mb-md">
-        <div class="voucher-section-title q-mb-sm">DETALLES DE ESTANCIA</div>
-        <div class="row justify-between q-mb-xs">
-          <span class="text-body2">Tiempo Prepagado:</span>
-          <span class="text-weight-bold">{{ store.tutor.estimatedTime }}</span>
-        </div>
         <div class="row justify-between">
           <span class="text-body2">Salida Programada:</span>
           <q-chip dense color="grey-3" text-color="grey-9" :label="scheduledExit()" size="md" />
