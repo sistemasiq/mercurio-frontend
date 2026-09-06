@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePadresAuthStore } from '@/stores/padres/padresAuthStore'
 import HijoCard from '@/components/padres/HijoCard.vue'
@@ -7,6 +7,19 @@ import HijoCard from '@/components/padres/HijoCard.vue'
 const route = useRoute()
 const router = useRouter()
 const store = usePadresAuthStore()
+
+let pollingId: ReturnType<typeof setInterval> | null = null
+const POLLING_MS = 30_000
+
+async function refrescarSesion() {
+  if (!store.isAuthenticated) return
+  try {
+    await store.refrescarNinos()
+  } catch {
+    store.logout()
+    void router.replace('/padres/access')
+  }
+}
 
 onMounted(async () => {
   const rawCode = route.query.code
@@ -20,14 +33,21 @@ onMounted(async () => {
     } catch {
       await router.replace('/padres/access')
     }
-    return
+  } else if (!store.isAuthenticated) {
+    const restored = await store.restoreOrFetchSession()
+    if (!restored) {
+      await router.replace('/padres/access')
+      return
+    }
   }
 
-  if (store.isAuthenticated) return
+  pollingId = setInterval(refrescarSesion, POLLING_MS)
+})
 
-  const restored = await store.restoreOrFetchSession()
-  if (!restored) {
-    await router.replace('/padres/access')
+onBeforeUnmount(() => {
+  if (pollingId !== null) {
+    clearInterval(pollingId)
+    pollingId = null
   }
 })
 </script>

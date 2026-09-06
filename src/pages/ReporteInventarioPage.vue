@@ -11,6 +11,17 @@
             Resumen del estado del inventario de la sucursal.
           </div>
         </div>
+        <q-space />
+        <q-btn
+          v-if="insumosParaReponer.length > 0"
+          color="primary"
+          icon="shopping_cart_checkout"
+          label="Generar orden de compra"
+          unelevated
+          no-caps
+          style="border-radius: 8px; font-weight: 600"
+          @click="dialogGenerar = true"
+        />
       </div>
 
       <!-- Sin sucursal activa -->
@@ -39,8 +50,16 @@
           <div class="stat-card__icon stat-card__icon--orange">
             <q-icon name="warning" size="20px" />
           </div>
-          <div class="stat-card__value">{{ insumosBajoMinimo.length }}</div>
-          <div class="stat-card__label">Insumos bajo mínimo</div>
+          <div class="stat-card__value">{{ criticos.length }}</div>
+          <div class="stat-card__label">Bajo mínimo</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card__icon stat-card__icon--orange">
+            <q-icon name="notification_important" size="20px" />
+          </div>
+          <div class="stat-card__value">{{ porReordenar.length }}</div>
+          <div class="stat-card__label">Por reordenar</div>
         </div>
 
         <div class="stat-card">
@@ -52,14 +71,6 @@
         </div>
 
         <div class="stat-card">
-          <div class="stat-card__icon stat-card__icon--pink">
-            <q-icon name="local_shipping" size="20px" />
-          </div>
-          <div class="stat-card__value">{{ proveedoresActivos.length }}</div>
-          <div class="stat-card__label">Proveedores activos</div>
-        </div>
-
-        <div class="stat-card">
           <div class="stat-card__icon stat-card__icon--blue">
             <q-icon name="shopping_cart" size="20px" />
           </div>
@@ -68,13 +79,13 @@
         </div>
       </div>
 
-      <!-- Alerta: insumos bajo mínimo -->
+      <!-- Insumos bajo mínimo -->
       <div class="text-subtitle1 text-weight-bold q-mb-sm" style="color: var(--text-primary)">
         Insumos bajo mínimo
       </div>
-      <q-card flat bordered style="border-radius: 12px; overflow: hidden">
+      <q-card flat bordered class="q-mb-lg" style="border-radius: 12px; overflow: hidden">
         <q-table
-          :rows="insumosBajoMinimo"
+          :rows="criticos"
           :columns="columns"
           row-key="id"
           flat
@@ -88,13 +99,11 @@
               {{ Number(props.row.stock_actual) }} {{ codigoUnidad(props.row.unidad_base_id) }}
             </q-td>
           </template>
-
-          <template #body-cell-stock_minimo="props">
+          <template #body-cell-umbral="props">
             <q-td :props="props">
               {{ Number(props.row.stock_minimo) }} {{ codigoUnidad(props.row.unidad_base_id) }}
             </q-td>
           </template>
-
           <template #body-cell-deficit="props">
             <q-td :props="props">
               {{ (Number(props.row.stock_minimo) - Number(props.row.stock_actual)).toFixed(3) }}
@@ -103,41 +112,113 @@
           </template>
         </q-table>
       </q-card>
+
+      <!-- Insumos por reordenar -->
+      <div class="text-subtitle1 text-weight-bold q-mb-sm" style="color: var(--text-primary)">
+        Por reordenar (bajo el punto de reorden, aún sobre el mínimo)
+      </div>
+      <q-card flat bordered style="border-radius: 12px; overflow: hidden">
+        <q-table
+          :rows="porReordenar"
+          :columns="columns"
+          row-key="id"
+          flat
+          :loading="loading"
+          :rows-per-page-options="[10, 25, 50]"
+          no-data-label="Ningún insumo está bajo su punto de reorden"
+          class="fec-table"
+        >
+          <template #body-cell-stock_actual="props">
+            <q-td :props="props" class="text-orange-9 text-weight-bold">
+              {{ Number(props.row.stock_actual) }} {{ codigoUnidad(props.row.unidad_base_id) }}
+            </q-td>
+          </template>
+          <template #body-cell-umbral="props">
+            <q-td :props="props">
+              {{ Number(props.row.punto_reorden ?? props.row.stock_minimo) }}
+              {{ codigoUnidad(props.row.unidad_base_id) }}
+            </q-td>
+          </template>
+          <template #body-cell-deficit="props">
+            <q-td :props="props">
+              {{
+                (
+                  Number(props.row.punto_reorden ?? props.row.stock_minimo) -
+                  Number(props.row.stock_actual)
+                ).toFixed(3)
+              }}
+              {{ codigoUnidad(props.row.unidad_base_id) }}
+            </q-td>
+          </template>
+        </q-table>
+      </q-card>
     </div>
+
+    <!-- ── Dialog Generar orden de compra ─────────────────────────────────── -->
+    <q-dialog v-model="dialogGenerar">
+      <q-card style="min-width: 460px; border-radius: 12px">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold">Generar orden de compra</div>
+          <div class="text-body2 text-grey-7">
+            Se crea un borrador por proveedor con los insumos por reponer y una cantidad sugerida
+            (hasta el stock máximo / punto de reorden).
+          </div>
+        </q-card-section>
+        <q-separator />
+        <q-card-section>
+          <q-list v-if="gruposPorProveedor.length" separator>
+            <q-item v-for="g in gruposPorProveedor" :key="g.proveedorId ?? 'sin'">
+              <q-item-section>
+                <q-item-label>{{ g.proveedorNombre }}</q-item-label>
+                <q-item-label caption>{{ g.insumos.length }} insumo(s) por reponer</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-btn
+                  v-if="g.proveedorId"
+                  unelevated
+                  no-caps
+                  dense
+                  color="primary"
+                  label="Generar"
+                  style="border-radius: 8px"
+                  @click="generarOrden(g)"
+                />
+                <q-badge v-else color="grey-5">Sin proveedor principal</q-badge>
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-else class="text-body2 text-grey-7 q-py-sm">No hay insumos por reponer.</div>
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-md q-pt-xs">
+          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useInsumosStore } from '@/stores/insumos'
 import { useProveedoresStore } from '@/stores/proveedores'
-import { useComprasStore } from '@/stores/compras'
+import { useComprasStore, type LineaPrefill } from '@/stores/compras'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
-import { playAlertChime } from '@/utils/notificationSound'
+import { useAlertasInventarioStore } from '@/stores/alertasInventario'
+import type { Insumo } from '@/types/insumo'
 
-// Cada cuánto se refresca el stock mientras la página sigue abierta, para
-// detectar insumos que cruzan su mínimo sin que el usuario tenga que recargar.
-const INTERVALO_REFRESCO_MS = 20000
-
-const $q = useQuasar()
+const router = useRouter()
 const authStore = useAuthStore()
 const insumosStore = useInsumosStore()
 const proveedoresStore = useProveedoresStore()
 const comprasStore = useComprasStore()
 const unidadesStore = useUnidadesMedidaStore()
+const alertas = useAlertasInventarioStore()
 
 const loading = ref(false)
-let intervaloId: ReturnType<typeof setInterval> | undefined
-let primeraCarga = true
-const idsBajoMinimoVistos = new Set<string>()
-
-const cargarInsumos = async () => {
-  if (!authStore.currentBranchId) return
-  await insumosStore.cargar(authStore.currentBranchId)
-}
+const dialogGenerar = ref(false)
 
 onMounted(async () => {
   if (!authStore.currentBranchId) return
@@ -148,27 +229,19 @@ onMounted(async () => {
       proveedoresStore.cargar(authStore.currentBranchId),
       comprasStore.cargar(authStore.currentBranchId),
       unidadesStore.cargar(),
+      alertas.refrescar(authStore.currentBranchId, false),
     ])
   } finally {
     loading.value = false
   }
-  intervaloId = setInterval(() => void cargarInsumos(), INTERVALO_REFRESCO_MS)
 })
 
-onBeforeUnmount(() => {
-  if (intervaloId) clearInterval(intervaloId)
-})
-
-const codigoUnidad = (unidadId: string): string => {
-  const unidad = unidadesStore.unidades.find((u) => u.id === unidadId)
-  return unidad ? unidad.codigo : '—'
-}
+const codigoUnidad = (unidadId: string): string =>
+  unidadesStore.unidades.find((u) => u.id === unidadId)?.codigo ?? '—'
 
 const insumosActivos = computed(() => insumosStore.insumos.filter((i) => i.activo))
-
-const insumosBajoMinimo = computed(() =>
-  insumosActivos.value.filter((i) => Number(i.stock_actual) < Number(i.stock_minimo)),
-)
+const criticos = computed(() => alertas.criticos)
+const porReordenar = computed(() => alertas.porReordenar)
 
 const valorInventario = computed(() =>
   insumosActivos.value.reduce(
@@ -177,39 +250,55 @@ const valorInventario = computed(() =>
   ),
 )
 
-const proveedoresActivos = computed(() => proveedoresStore.proveedores.filter((p) => p.activo))
-
 const comprasPendientes = computed(() => comprasStore.compras.filter((c) => c.estado === 'P'))
 
-// Alerta con timbre solo para insumos que ACABAN de cruzar el mínimo — no en
-// la carga inicial de la página, para no repetir aviso de algo ya conocido.
-watch(insumosBajoMinimo, (actual) => {
-  const nuevos = primeraCarga ? [] : actual.filter((i) => !idsBajoMinimoVistos.has(i.id))
+const insumosParaReponer = computed<Insumo[]>(() => [...criticos.value, ...porReordenar.value])
 
-  idsBajoMinimoVistos.clear()
-  actual.forEach((i) => idsBajoMinimoVistos.add(i.id))
-  primeraCarga = false
+interface GrupoProveedor {
+  proveedorId: string | null
+  proveedorNombre: string
+  insumos: Insumo[]
+}
 
-  if (nuevos.length === 0) return
-
-  playAlertChime()
-  $q.notify({
-    type: 'warning',
-    icon: 'notifications_active',
-    message:
-      nuevos.length === 1
-        ? `Stock bajo: ${nuevos[0]!.nombre}`
-        : `${nuevos.length} insumos entraron en stock bajo`,
-    caption: nuevos.map((i) => i.nombre).join(', '),
-    position: 'top-right',
-    timeout: 8000,
-  })
+const gruposPorProveedor = computed<GrupoProveedor[]>(() => {
+  const mapa = new Map<string | null, Insumo[]>()
+  for (const ins of insumosParaReponer.value) {
+    const key = ins.proveedor_principal_id
+    const lista = mapa.get(key)
+    if (lista) lista.push(ins)
+    else mapa.set(key, [ins])
+  }
+  return [...mapa.entries()].map(([proveedorId, insumos]) => ({
+    proveedorId,
+    proveedorNombre: proveedorId
+      ? (proveedoresStore.proveedores.find((p) => p.id === proveedorId)?.nombre ?? 'Proveedor')
+      : 'Sin proveedor principal',
+    insumos,
+  }))
 })
+
+const cantidadSugerida = (ins: Insumo): number => {
+  const objetivo = Number(ins.stock_maximo ?? ins.punto_reorden ?? ins.stock_minimo)
+  return Math.max(0, Number((objetivo - Number(ins.stock_actual)).toFixed(3)))
+}
+
+const generarOrden = (grupo: GrupoProveedor) => {
+  if (!grupo.proveedorId) return
+  const lineas: LineaPrefill[] = grupo.insumos.map((ins) => ({
+    insumo_id: ins.id,
+    unidad_medida_id: ins.unidad_base_id,
+    cantidad: cantidadSugerida(ins) || 1,
+    costo_unitario: Number(ins.costo_unitario ?? 0),
+  }))
+  comprasStore.setBorradorPrefill({ proveedor_id: grupo.proveedorId, lineas })
+  dialogGenerar.value = false
+  router.push({ name: 'compras-listar' })
+}
 
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'INSUMO', field: 'nombre', align: 'left', sortable: true },
   { name: 'stock_actual', label: 'STOCK ACTUAL', field: 'stock_actual', align: 'left' },
-  { name: 'stock_minimo', label: 'MÍNIMO', field: 'stock_minimo', align: 'left' },
+  { name: 'umbral', label: 'UMBRAL', field: 'id', align: 'left' },
   { name: 'deficit', label: 'DÉFICIT', field: 'id', align: 'left' },
 ]
 </script>

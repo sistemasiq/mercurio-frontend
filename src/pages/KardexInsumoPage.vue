@@ -124,6 +124,14 @@
               {{ Number(props.row.stock_resultante) }}
             </q-td>
           </template>
+
+          <template #body-cell-costo="props">
+            <q-td :props="props">
+              {{
+                props.row.costo_total != null ? `$${Number(props.row.costo_total).toFixed(2)}` : '—'
+              }}
+            </q-td>
+          </template>
         </q-table>
       </q-card>
     </div>
@@ -185,7 +193,7 @@ const esEntrada = (tipo: string): boolean => tipo === 'E' || tipo === 'A'
 const TIPO_LABEL: Record<TipoMovimiento, string> = {
   E: 'Entrada',
   S: 'Salida',
-  A: 'Ajuste',
+  A: 'Devolución',
   M: 'Merma',
 }
 const TIPO_TONO: Record<TipoMovimiento, 'verde' | 'rojo' | 'azul' | 'naranja'> = {
@@ -200,6 +208,8 @@ const MOTIVO_LABEL: Record<string, string> = {
   entrada_manual: 'Entrada manual',
   merma: 'Merma',
   compra: 'Compra',
+  conteo_fisico: 'Conteo físico',
+  ajuste_fifo: 'Ajuste',
 }
 
 const formatearFecha = (iso: string): string =>
@@ -212,6 +222,7 @@ const columns: QTableColumn[] = [
   { name: 'entrada', label: 'ENTRADA', field: 'cantidad', align: 'left' },
   { name: 'salida', label: 'SALIDA', field: 'cantidad', align: 'left' },
   { name: 'saldo', label: 'SALDO', field: 'stock_resultante', align: 'left' },
+  { name: 'costo', label: 'COSTO', field: 'costo_total', align: 'left' },
 ]
 </script>
 

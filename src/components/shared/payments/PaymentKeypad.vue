@@ -24,7 +24,7 @@
 
       <!-- Botón de Acción Principal -->
       <button class="apply-btn" :disabled="!montoValido" @click="submitAmount">
-        <q-icon name="add_circle" size="sm" /> Aplicar Pago
+        <q-icon name="add_circle" size="sm" /> {{ actionLabel }}
       </button>
     </div>
   </div>
@@ -32,6 +32,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+
+const { actionLabel = 'Aplicar Pago' } = defineProps<{
+  actionLabel?: string
+}>()
 
 const emit = defineEmits<{
   (e: 'add-payment', amount: number): void

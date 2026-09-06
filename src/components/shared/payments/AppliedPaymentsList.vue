@@ -56,6 +56,7 @@ const METHOD_META: Record<string, { icon: string; color: string }> = {
   tarjeta: { icon: 'credit_card', color: 'primary' },
   cupones: { icon: 'redeem', color: 'warning' },
   lealtad: { icon: 'loyalty', color: 'secondary' },
+  otro: { icon: 'account_balance_wallet', color: 'grey' },
 }
 
 const getMeta = (method: string) => {

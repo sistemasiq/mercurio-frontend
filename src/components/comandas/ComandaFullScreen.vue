@@ -25,7 +25,10 @@
                 </div>
 
                 <div class="kds-fs-header-center">
-                  <h2 class="kds-fs-ticket">#{{ comanda.ticket_numero ?? comanda.id }}</h2>
+                  <p v-if="comanda.nombre_cliente" class="kds-fs-ticket">
+                    {{ comanda.nombre_cliente }}
+                  </p>
+                  <h2 class="kds-fs-client-name">#{{ comanda.ticket_numero ?? comanda.id }}</h2>
                   <div class="kds-fs-badges">
                     <span class="kds-fs-badge badge-estado" :class="badgeEstadoClass">
                       <span class="kds-fs-badge-dot" />
@@ -260,11 +263,14 @@ const ticketsAgrupados = computed<ElementoRender[]>(() => {
   for (const d of detalles) {
     // Un ítem solo se agrupa como parte de un combo cuando la orden lo trajo
     // así (es_hijo_de + nombre_combo_padre). Los productos vendidos sueltos
-    // jamás deben heredar la etiqueta de un paquete.
+    // jamás deben heredar la etiqueta de un paquete. Cada unidad de combo se
+    // agrupa por id_combo_padre para separar combos múltiples en tarjetas
+    // independientes; sin instancia (datos legacy) se fusionan por nombre.
     if (d.nombre_combo_padre && d.es_hijo_de) {
-      const arr = comboGroups.get(d.nombre_combo_padre)
+      const key = d.id_combo_padre ?? d.nombre_combo_padre
+      const arr = comboGroups.get(key)
       if (arr) arr.push(d)
-      else comboGroups.set(d.nombre_combo_padre, [d])
+      else comboGroups.set(key, [d])
     }
   }
 
@@ -273,13 +279,13 @@ const ticketsAgrupados = computed<ElementoRender[]>(() => {
 
   for (const detalle of detalles) {
     if (detalle.nombre_combo_padre && detalle.es_hijo_de) {
-      const key = detalle.nombre_combo_padre
+      const key = detalle.id_combo_padre ?? detalle.nombre_combo_padre
       if (!emittedCombos.has(key)) {
         emittedCombos.add(key)
         resultado.push({
           tipo: 'combo',
           key: `combo-${key}`,
-          nombre: key,
+          nombre: detalle.nombre_combo_padre,
           items: comboGroups.get(key)!,
         })
       }
@@ -491,6 +497,14 @@ const tipoEntrega = computed(() => props.comanda?.mesa ?? 'MOSTRADOR')
   font-weight: 800;
   line-height: 1.1;
   margin: 0;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.kds-fs-client-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 4px 0 0 0;
   letter-spacing: -0.02em;
   white-space: nowrap;
 }

@@ -116,7 +116,7 @@ const idsAEliminar = computed(() => {
 
 onMounted(async () => {
   try {
-    orden.value = await obtenerDetalleOrden(props.comandaId)
+    orden.value = await obtenerDetalleOrden('comanda', props.comandaId)
   } finally {
     isLoading.value = false
   }

@@ -11,10 +11,8 @@
       @keydown.space.prevent="onVerDetalle"
     >
       <div>
-        <span class="kds-status-label" :class="statusLabelClass">
-          {{ estadoLabel(comanda.estado_actual) }}
-        </span>
-        <h3 class="kds-ticket-number">#{{ comanda.ticket_numero ?? comanda.id }}</h3>
+        <p v-if="comanda.nombre_cliente" class="kds-ticket-number">{{ comanda.nombre_cliente }}</p>
+        <h3 class="kds-client-name">#{{ comanda.ticket_numero ?? comanda.id }}</h3>
       </div>
       <div class="kds-time-container">
         <div class="kds-time" :class="esEnProceso ? 'text-alerta' : 'text-normal'">
@@ -127,17 +125,6 @@ const onEntregar = () => {
   emit('cambiar-estado', comanda.id, 'T')
 }
 
-const estadoLabel = (estado: EstadoActualComanda): string => {
-  const labels: Record<EstadoActualComanda, string> = {
-    P: 'PENDIENTE',
-    E: 'EN PREPARACIÓN',
-    L: 'LISTO PARA ENTREGA',
-    T: 'ENTREGADO',
-    C: 'CANCELADO',
-  }
-  return labels[estado] ?? estado
-}
-
 // Si la fecha no está disponible o la orden acaba de entrar, muestra '--'
 // para no generar presión visual prematura.
 const tiempoDesde = (fechaISO: string | null | undefined): string => {
@@ -169,11 +156,14 @@ const ticketsAgrupados = computed<ElementoRender[]>(() => {
   for (const d of detalles) {
     // Un ítem solo se agrupa como parte de un combo cuando la orden lo trajo
     // así (es_hijo_de + nombre_combo_padre). Los productos vendidos sueltos
-    // jamás deben heredar la etiqueta de un paquete.
+    // jamás deben heredar la etiqueta de un paquete. Cada unidad de combo se
+    // agrupa por id_combo_padre para separar combos múltiples en tarjetas
+    // independientes; sin instancia (datos legacy) se fusionan por nombre.
     if (d.nombre_combo_padre && d.es_hijo_de) {
-      const arr = comboGroups.get(d.nombre_combo_padre)
+      const key = d.id_combo_padre ?? d.nombre_combo_padre
+      const arr = comboGroups.get(key)
       if (arr) arr.push(d)
-      else comboGroups.set(d.nombre_combo_padre, [d])
+      else comboGroups.set(key, [d])
     }
   }
 
@@ -182,13 +172,13 @@ const ticketsAgrupados = computed<ElementoRender[]>(() => {
 
   for (const detalle of detalles) {
     if (detalle.nombre_combo_padre && detalle.es_hijo_de) {
-      const key = detalle.nombre_combo_padre
+      const key = detalle.id_combo_padre ?? detalle.nombre_combo_padre
       if (!emittedCombos.has(key)) {
         emittedCombos.add(key)
         resultado.push({
           tipo: 'combo',
           key: `combo-${key}`,
-          nombre: key,
+          nombre: detalle.nombre_combo_padre,
           items: comboGroups.get(key)!,
         })
       }
@@ -216,18 +206,11 @@ const headerClass = computed(() => ({
   'header-bg-listo': esListo.value,
 }))
 
-const statusLabelClass = computed(() => ({
-  'text-proceso': esEnProceso.value,
-  'text-pendiente': esPendiente.value,
-  'text-listo': esListo.value,
-}))
-
 const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
 </script>
 
 <style lang="scss" scoped>
 .kds-card {
-  height: 100%;
   background-color: var(--bg-card);
   border-radius: 12px;
   display: grid;
@@ -295,6 +278,15 @@ const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
   font-size: 32px;
   font-weight: 700;
   margin: 4px 0 0 0;
+}
+.kds-client-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 4px 0 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .kds-time-container {

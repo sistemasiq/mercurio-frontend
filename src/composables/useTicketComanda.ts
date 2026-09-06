@@ -1,6 +1,7 @@
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { obtenerComboHijos } from '@/services/productoService'
 import type { Producto } from '@/types/producto'
+import type { DetalleComandaRequest } from '@/types/comanda'
 import type { ItemTicket } from '@/components/comandas/TicketItem.vue'
 
 /**
@@ -20,6 +21,7 @@ import type { ItemTicket } from '@/components/comandas/TicketItem.vue'
  */
 export function useTicketComanda() {
   const itemsTicket = ref<ItemTicket[]>([])
+  const nombreCliente = ref('')
 
   // ── Tracking de instancias ────────────────────────────────────────
   // padre TicketItem.id → Set de hijos TicketItem.id
@@ -247,6 +249,56 @@ export function useTicketComanda() {
     if (target) target.notas = notas
   }
 
+  // Payload para el backend. Cada combo padre (cantidad N) se expande en N
+  // instancias independientes: el visor de cocina agrupa a los hijos por
+  // id_combo_padre y muestra una unidad por tarjeta en vez de fusionarlas.
+  // La línea del combo padre se conserva tal cual para que el backend
+  // descuente stock de sus insumos; los hijos son líneas informativas
+  // (es_hijo_combo = true) que el inventario ignora.
+  function detallesParaEnvio(): DetalleComandaRequest[] {
+    const detalles: DetalleComandaRequest[] = []
+
+    for (const item of itemsTicket.value) {
+      if (item.es_hijo_combo) continue
+
+      const esCombo = Boolean(item.producto.es_combo)
+      detalles.push({
+        producto_id: item.producto.id,
+        nombre: item.producto.nombre,
+        cantidad: item.cantidad,
+        precio_unitario: item.producto.precio_unitario,
+        subtotal: item.producto.precio_unitario * item.cantidad,
+        notas_especiales: item.notas || undefined,
+        nombre_combo_padre: item.nombre_combo_padre || undefined,
+        es_hijo_de: item.es_hijo_de || undefined,
+        es_hijo_combo: item.es_hijo_combo || undefined,
+      })
+
+      if (!esCombo) continue
+
+      const hijos = itemsTicket.value.filter((i) => i.padreTicketId === item.id)
+      for (let unidad = 0; unidad < item.cantidad; unidad++) {
+        const idInstancia = crypto.randomUUID()
+        for (const hijo of hijos) {
+          detalles.push({
+            producto_id: hijo.producto.id,
+            nombre: hijo.producto.nombre,
+            cantidad: hijo.cantidad_base ?? 1,
+            precio_unitario: 0,
+            subtotal: 0,
+            notas_especiales: hijo.notas || undefined,
+            nombre_combo_padre: hijo.nombre_combo_padre || item.producto.nombre,
+            es_hijo_de: hijo.es_hijo_de || item.producto.id,
+            es_hijo_combo: true,
+            id_combo_padre: idInstancia,
+          })
+        }
+      }
+    }
+
+    return detalles
+  }
+
   onBeforeUnmount(() => {
     comboInstances.clear()
     prevParentQty.clear()
@@ -259,5 +311,7 @@ export function useTicketComanda() {
     cambiarCantidad,
     cancelarOrden,
     guardarNotas,
+    detallesParaEnvio,
+    nombreCliente,
   }
 }

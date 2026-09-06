@@ -1,5 +1,5 @@
 import { apiClient } from '@/api/axiosClient'
-import type { Compra, CompraCreate } from '@/types/compra'
+import type { Compra, CompraCreate, CompraEditar, RecibirCompraRequest } from '@/types/compra'
 
 export const comprasApi = {
   async listar(sucursalId: string): Promise<Compra[]> {
@@ -19,8 +19,13 @@ export const comprasApi = {
     return data
   },
 
-  async recibir(compraId: string): Promise<Compra> {
-    const { data } = await apiClient.post<Compra>(`/compras/${compraId}/recibir`)
+  async editar(compraId: string, body: CompraEditar): Promise<Compra> {
+    const { data } = await apiClient.put<Compra>(`/compras/${compraId}`, body)
+    return data
+  },
+
+  async recibir(compraId: string, body?: RecibirCompraRequest): Promise<Compra> {
+    const { data } = await apiClient.post<Compra>(`/compras/${compraId}/recibir`, body ?? {})
     return data
   },
 

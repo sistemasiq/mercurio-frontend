@@ -1,5 +1,9 @@
 import { movimientosInventarioApi } from '@/api/movimientosInventarioApi'
-import type { MovimientoInventario, MovimientoManualCreate } from '@/types/movimientoInventario'
+import type {
+  ConteoFisicoCreate,
+  MovimientoInventario,
+  MovimientoManualCreate,
+} from '@/types/movimientoInventario'
 
 export async function listarMovimientosPorInsumo(
   insumoId: string,
@@ -14,4 +18,11 @@ export async function registrarMovimiento(
   body: MovimientoManualCreate,
 ): Promise<MovimientoInventario> {
   return movimientosInventarioApi.registrar(insumoId, body)
+}
+
+export async function registrarConteoFisico(
+  insumoId: string,
+  body: ConteoFisicoCreate,
+): Promise<MovimientoInventario> {
+  return movimientosInventarioApi.conteo(insumoId, body)
 }

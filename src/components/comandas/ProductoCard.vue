@@ -1,7 +1,7 @@
 <template>
   <div
     class="producto-card"
-    :class="{ 'producto-card--combo': producto.es_combo }"
+    :class="{ 'producto-card--combo': producto.es_combo, 'producto-card--agotado': sinStock }"
     @click="$emit('agregar', producto)"
   >
     <div class="producto-card__img-wrap">
@@ -21,6 +21,15 @@
       </div>
       <span class="producto-card__badge">${{ producto.precio_unitario.toFixed(2) }}</span>
       <span v-if="producto.es_combo" class="producto-card__combo-badge">COMBO</span>
+      <span v-if="sinStock" class="producto-card__stock-badge producto-card__stock-badge--out">
+        SIN STOCK
+      </span>
+      <span
+        v-else-if="stockBajo"
+        class="producto-card__stock-badge producto-card__stock-badge--low"
+      >
+        Quedan ~{{ rinde }}
+      </span>
     </div>
 
     <div class="producto-card__body">
@@ -45,10 +54,23 @@ import { computed } from 'vue'
 import { getProductoImagenUrl } from '@/api/productosApi'
 import type { Producto } from '@/types/producto'
 
-const props = defineProps<{ producto: Producto }>()
+const props = withDefaults(
+  defineProps<{
+    producto: Producto
+    /** Unidades estimadas que se pueden preparar con el stock actual. null = sin receta / sin dato. */
+    rinde?: number | null
+  }>(),
+  { rinde: null },
+)
 defineEmits<{ (e: 'agregar', producto: Producto): void }>()
 
+const UMBRAL_STOCK_BAJO = 3
+
 const imagenSrc = computed(() => getProductoImagenUrl(props.producto.imagen))
+const sinStock = computed(() => props.rinde === 0)
+const stockBajo = computed(
+  () => props.rinde !== null && props.rinde > 0 && props.rinde <= UMBRAL_STOCK_BAJO,
+)
 </script>
 
 <style scoped>
@@ -114,6 +136,29 @@ const imagenSrc = computed(() => getProductoImagenUrl(props.producto.imagen))
 .producto-card--combo {
   border-color: rgba(63, 168, 52, 0.45);
   border-width: 1.5px;
+}
+
+.producto-card--agotado {
+  opacity: 0.55;
+}
+
+.producto-card__stock-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+.producto-card__stock-badge--out {
+  background: #d32f2f;
+}
+.producto-card__stock-badge--low {
+  background: #ed8936;
 }
 
 .producto-card__body {

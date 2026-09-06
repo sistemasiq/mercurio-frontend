@@ -6,6 +6,7 @@ import { userService } from '@/services/userService'
 import { branchService } from '@/services/branchService'
 import { useAuthStore } from '@/stores/auth'
 import { useRolesStore } from '@/stores/roles'
+import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { UserRole, ApiError } from '@/types/auth'
 import type { Branch } from '@/types/branch'
 
@@ -65,14 +66,6 @@ const branchRules = [
   (v: string | null) => !requiresBranch.value || !!v || 'La sucursal es requerida para este rol',
 ]
 const passwordRules = [(v: string) => !v || v.length >= 8 || 'Mínimo 8 caracteres']
-
-function resolveErrorMessage(err: ApiError): string {
-  if (err.statusCode === 404) return 'Usuario no encontrado.'
-  if (err.statusCode === 409) return 'Ya existe un usuario con ese correo electrónico.'
-  if (err.statusCode === 403) return 'No tienes permiso para asignar ese rol.'
-  if (err.statusCode === 422) return 'La sucursal es requerida para este rol.'
-  return 'No se pudo guardar el usuario. Verifica los datos.'
-}
 
 async function handleSubmit(): Promise<void> {
   loading.value = true

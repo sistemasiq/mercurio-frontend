@@ -4,6 +4,9 @@ export interface ConfiguracionLealtad {
   dias_caducidad: number
   valor_punto: number
   activo: boolean
+  otorga_puntos_comandas: boolean
+  otorga_puntos_reservaciones: boolean
+  otorga_puntos_checkin: boolean
   creado?: string | null
   creado_por?: string | null
   modificado?: string | null
@@ -15,6 +18,9 @@ export interface ConfiguracionLealtadInput {
   dias_caducidad: number
   valor_punto: number
   activo: boolean
+  otorga_puntos_comandas: boolean
+  otorga_puntos_reservaciones: boolean
+  otorga_puntos_checkin: boolean
 }
 
 export interface SaldoPuntos {
