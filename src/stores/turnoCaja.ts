@@ -68,6 +68,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   const totalRetiros = ref(0)
   const totalIngresos = ref(0)
   const totalVentas = ref(0)
+  const totalVentasEfectivo = ref(0)
   const estado = ref<EstadoTurno>('SIN_TURNO')
 
   // ── Estado de carga y errores ─────────────────────────────────────────────
@@ -131,6 +132,11 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   /** true si hay diferencias (para forzar observaciones) */
   const hayDiferencias = computed(() => diferenciaNeta.value !== 0)
 
+  /** Efectivo físico esperado en caja: fondo + ingresos - retiros + ventas cobradas en efectivo. */
+  const efectivoDisponible = computed(
+    () => fondoInicial.value + totalIngresos.value - totalRetiros.value + totalVentasEfectivo.value,
+  )
+
   // ─────────────────────────────────────────────────────────────────────────
   // Acciones
   // ─────────────────────────────────────────────────────────────────────────
@@ -190,6 +196,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     fondoInicial.value = 0
     totalRetiros.value = 0
     totalIngresos.value = 0
+    totalVentasEfectivo.value = 0
     estado.value = 'SIN_TURNO'
     error.value = null
     adminNombre.value = ''
@@ -435,6 +442,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalRetiros.value = turno.totalRetiros
     totalIngresos.value = turno.totalIngresos
     totalVentas.value = turno.totalVentas ?? 0
+    const movEfectivo = turno.movimientos.find((m) => m.metodo.trim().toLowerCase() === 'efectivo')
+    totalVentasEfectivo.value = movEfectivo?.totalVentas ?? 0
     estado.value = turno.estado
 
     // Si el turno ya llega en ESPERANDO_REVISION (ej. el cajero recargó la página
@@ -491,6 +500,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalRetiros,
     totalIngresos,
     totalVentas,
+    totalVentasEfectivo,
+    efectivoDisponible,
     estado,
     cargando,
     error,
