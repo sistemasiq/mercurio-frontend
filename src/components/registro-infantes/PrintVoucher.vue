@@ -211,46 +211,46 @@ function printVoucher() {
 <style>
 @media print {
   @page {
-    size: 58mm auto;
+    /* auto se adapta tanto a rollo térmico como a hojas estándar (A5, Carta) */
+    size: auto;
     margin: 0;
   }
 
-  body,
-  #q-app,
-  .q-layout,
-  .q-page-container {
-    background: transparent !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
+  /* 1. Ocultar visualmente todo el árbol de la app */
   body * {
-    visibility: hidden !important;
+    visibility: hidden;
   }
 
-  .voucher-wrapper,
-  .voucher-wrapper * {
-    visibility: visible !important;
+  /* 2. Colapsar el contenedor principal para que no mida altura y no cree páginas extra */
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
   }
 
-  .voucher-wrapper {
-    position: absolute !important;
+  /* 3. Hacer visible ÚNICAMENTE el ticket y sus descendientes */
+  #printable-voucher,
+  #printable-voucher * {
+    visibility: visible;
+  }
+
+  /* 4. Anclar el ticket como fixed al inicio de la página 1 */
+  #printable-voucher {
+    position: fixed !important;
     left: 0 !important;
     top: 0 !important;
-    width: 58mm !important;
-    padding: 0 !important;
+    width: 72mm !important; /* Ancho legible en A5 o térmico */
+    max-width: 100% !important;
     margin: 0 !important;
-    display: block !important;
-    background: none !important;
-  }
-
-  .voucher {
-    width: 58mm !important;
-    max-width: 58mm !important;
-    padding: 2mm 3mm 8mm 3mm !important;
+    padding: 6mm 8mm !important;
+    background: #fff !important;
     box-shadow: none !important;
     border-radius: 0 !important;
     color: #000 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   .ticket-sub,
@@ -259,6 +259,7 @@ function printVoucher() {
     color: #000 !important;
   }
 
+  /* 5. Asegurar que el botón desaparezca completamente */
   .print-hide {
     display: none !important;
   }
