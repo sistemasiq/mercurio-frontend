@@ -53,24 +53,26 @@ const esCancelado = computed(() => {
   return estado === 'C'
 })
 
-const referenciaLabel = computed(() =>
-  orden.value?.tipo_origen === 'comanda' ? 'TICKET' : 'CLIENTE',
-)
+const detallesAgrupados = computed(() => {
+  if (!orden.value?.detalles) return []
 
-function badgeClase(): string {
-  return esCancelado.value ? 'badge-cancelado' : 'badge-pagado'
-}
+  // Separamos los productos normales/padres de los que son contenido de combo
+  const principales = orden.value.detalles.filter((item) => !item.nombre_combo_padre)
+  const hijos = orden.value.detalles.filter((item) => item.nombre_combo_padre)
 
-function textoEstado(): string {
-  return esCancelado.value ? 'CANCELADO' : 'PAGADO'
-}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resultado: any[] = []
 
-function metodoIcono(nombre: string): string {
-  const n = nombre.toLowerCase()
-  if (n.includes('tarjeta') || n.includes('credito') || n.includes('debito')) return 'credit_card'
-  if (n.includes('efectivo') || n.includes('cash')) return 'payments'
-  return 'account_balance_wallet'
-}
+  principales.forEach((padre) => {
+    resultado.push(padre) // Metemos el producto principal a la lista final
+
+    // Si este producto es un combo, buscamos sus hijos y los metemos justo debajo
+    const susHijos = hijos.filter((h) => h.nombre_combo_padre === padre.producto_nombre)
+    resultado.push(...susHijos)
+  })
+
+  return resultado
+})
 
 function formatearFecha(iso: string | null): string {
   if (!iso) return ''
@@ -92,155 +94,130 @@ const ejecutarImpresion = () => {
 <template>
   <div :class="posMode ? 'ticket-pos-root' : 'modal-backdrop-blur'" @click="onBackdropClick">
     <div class="order-detail-card" @click.stop>
-      <!-- Header compacto -->
-      <header class="pos-header">
+      <!-- Header de la ventana (Oculto al imprimir) -->
+      <header class="pos-header print-hide">
         <span v-if="orden" class="pos-header__title">Pago Registrado</span>
-        <q-btn
-          icon="close"
-          round
-          unelevated
-          class="close-styled-btn"
-          aria-label="Cerrar detalle de orden"
-          @click="emit('close')"
-        />
+        <q-btn icon="close" round unelevated class="close-styled-btn" @click="emit('close')" />
       </header>
 
       <div class="detail-scroll-area">
         <div class="detail-content">
-          <!-- Loading -->
-          <div v-if="isLoading" class="loading-container">
+          <div v-if="isLoading" class="loading-state print-hide">
             <q-spinner size="32px" color="primary" />
-            <p class="loading-text">Cargando detalle...</p>
+            <p>Cargando detalle...</p>
           </div>
 
-          <!-- Contenido -->
-          <template v-else-if="orden">
-            <!-- Encabezado ticket -->
-            <div class="pos-ticket-head">
-              <div class="pos-ticket-head__row">
-                <span class="pos-ticket-head__label">{{ referenciaLabel }}</span>
-                <span class="pos-ticket-head__value">{{ orden.titulo }}</span>
-              </div>
-              <div class="pos-ticket-head__row">
-                <span class="pos-ticket-head__label">FECHA</span>
-                <span class="pos-ticket-head__value">{{ formatearFecha(orden.fecha_hora) }}</span>
-              </div>
-              <div class="pos-ticket-head__row">
-                <span class="pos-ticket-head__label">ESTADO</span>
-                <span :class="['badge', badgeClase()]">
-                  {{ textoEstado() }}
-                </span>
-              </div>
-              <div v-if="orden.creado_por_nombre" class="pos-ticket-head__row">
-                <span class="pos-ticket-head__label">CAJERO</span>
-                <span class="pos-ticket-head__value">{{ orden.creado_por_nombre }}</span>
-              </div>
-              <div v-if="orden.nombre_cliente" class="pos-ticket-head__row">
-                <span class="pos-ticket-head__label">CLIENTE</span>
-                <span class="pos-ticket-head__value">{{ orden.nombre_cliente }}</span>
-              </div>
+          <!-- TICKET TÉRMICO CON CSS PURO -->
+          <div v-else-if="orden" class="ticket-receipt">
+            <div class="ticket-header">
+              <h1>WOOW KIDS</h1>
+              <p>Nigromante 391, Peña</p>
+              <p>59375 La Piedad de Cabadas, Mich.</p>
             </div>
 
-            <!-- Motivo de cancelación -->
-            <div v-if="esCancelado" class="cancel-reason-banner">
-              <q-icon name="warning" color="negative" size="sm" />
-              <div>
-                <strong>Motivo de cancelación:</strong>
-                <p>{{ orden.motivo_cancelacion || 'Cancelación sin motivo especificado' }}</p>
-              </div>
+            <div class="ticket-divider"></div>
+
+            <div class="ticket-info">
+              <span><strong>TICKET:</strong> {{ orden.titulo }}</span>
+              <span
+                ><strong>FECHA:</strong> {{ formatearFecha(orden.fecha_hora).split(',')[0] }}</span
+              >
+            </div>
+            <div class="ticket-info">
+              <span
+                ><strong>CAJERO:</strong>
+                {{ orden.creado_por_nombre?.split(' ')[0] || 'N/A' }}</span
+              >
+              <span
+                ><strong>HORA:</strong>
+                {{ formatearFecha(orden.fecha_hora).split(',')[1] || '' }}</span
+              >
+            </div>
+            <div v-if="orden.nombre_cliente" class="ticket-info">
+              <span><strong>CLIENTE:</strong> {{ orden.nombre_cliente }}</span>
             </div>
 
-            <!-- Productos List -->
-            <section class="products-section">
-              <h3 class="section-subtitle">Productos</h3>
-              <div class="products-list">
-                <div
-                  v-for="(item, idx) in orden.detalles"
-                  :key="idx"
-                  class="product-item"
-                  :class="{ 'product-item--combo-child': item.nombre_combo_padre }"
-                >
-                  <div v-if="!item.nombre_combo_padre" class="product-qty-box">
-                    {{ item.cantidad }}x
-                  </div>
-                  <div v-else class="product-qty-box product-qty-box--child">
-                    <q-icon name="check" size="14px" />
-                  </div>
-                  <div class="product-details">
-                    <p class="product-name">
-                      {{ item.producto_nombre }}
-                      <span v-if="item.nombre_combo_padre" class="combo-tag">
-                        ({{ item.nombre_combo_padre }})
-                      </span>
-                    </p>
-                    <p v-if="item.nombre_combo_padre" class="product-included">
-                      <q-icon name="check_circle" size="11px" class="q-mr-xs" />Incluido en combo
-                    </p>
-                    <p v-else-if="item.notas_especiales" class="product-meta">
-                      {{ item.notas_especiales }}
-                    </p>
-                    <p v-else class="product-unit-price">
-                      ${{ Number(item.precio_unitario).toFixed(2) }} c/u
-                    </p>
-                  </div>
-                  <p v-if="!item.nombre_combo_padre" class="product-total-price">
-                    ${{ Number(item.importe).toFixed(2) }}
-                  </p>
+            <div v-if="esCancelado" class="ticket-cancelado">
+              *** TICKET CANCELADO ***<br />
+              <small>{{ orden.motivo_cancelacion }}</small>
+            </div>
+
+            <div class="ticket-divider"></div>
+
+            <div class="ticket-table-header">
+              <div class="col-cant">CANT</div>
+              <div class="col-desc">DESCRIPCIÓN</div>
+              <div class="col-imp">IMP</div>
+            </div>
+
+            <div class="ticket-products">
+              <div
+                v-for="(item, idx) in detallesAgrupados"
+                :key="idx"
+                class="ticket-row"
+                :style="item.nombre_combo_padre ? 'margin-bottom: 2px;' : ''"
+              >
+                <!-- Columna Cantidad -->
+                <div class="col-cant">
+                  <!-- Solo mostramos el número grande si NO es hijo de un combo -->
+                  <span v-if="!item.nombre_combo_padre">{{ item.cantidad }}</span>
                 </div>
-              </div>
-            </section>
 
-            <!-- Payment & Financial Summary -->
-            <section class="summary-section bg-gray-light">
-              <div class="summary-layout">
-                <!-- Left: Payment Methods List -->
-                <div class="payment-method-block">
-                  <span class="info-label">MÉTODOS DE PAGO</span>
-                  <div class="payment-methods-list">
-                    <div
-                      v-for="(mp, idx) in orden.metodos_pago"
-                      :key="idx"
-                      class="payment-card-box"
-                    >
-                      <q-icon
-                        :name="metodoIcono(mp.metodo_pago_nombre)"
-                        size="sm"
-                        class="card-icon"
-                      />
-                      <div class="card-info">
-                        <p class="card-type-text">{{ mp.metodo_pago_nombre }}</p>
-                        <p v-if="mp.notas_pago" class="card-meta-text">{{ mp.notas_pago }}</p>
-                      </div>
-                      <span class="card-amount">${{ Number(mp.monto).toFixed(2) }}</span>
-                    </div>
+                <!-- Columna Descripción -->
+                <div class="col-desc" :style="item.nombre_combo_padre ? 'padding-left: 12px;' : ''">
+                  <!-- Nombre normal para productos y combos principales -->
+                  <strong v-if="!item.nombre_combo_padre">{{ item.producto_nombre }}</strong>
+
+                  <!-- Sub-elemento de combo (con sangría y viñeta) -->
+                  <span v-else style="font-size: 10px; color: #333">
+                    - {{ item.cantidad }}x {{ item.producto_nombre }}
+                  </span>
+
+                  <div v-if="item.notas_especiales" class="ticket-note">
+                    * {{ item.notas_especiales }}
+                  </div>
+                  <div v-if="item.cantidad > 1 && !item.nombre_combo_padre" class="ticket-note">
+                    ${{ Number(item.precio_unitario).toFixed(2) }} c/u
                   </div>
                 </div>
 
-                <!-- Right: Totals Breakdown -->
-                <div class="totals-breakdown">
-                  <div class="total-row">
-                    <span class="total-label">Total Pagado</span>
-                    <span class="total-val">
-                      ${{ Number(orden.metodos_pago.reduce((s, m) => s + m.monto, 0)).toFixed(2) }}
-                    </span>
-                  </div>
-                  <div class="divider-dash"></div>
-                  <div class="total-final-row">
-                    <span class="final-label">Total Venta</span>
-                    <span class="final-val">${{ Number(orden.total_final).toFixed(2) }}</span>
-                  </div>
+                <!-- Columna Importe -->
+                <div class="col-imp">
+                  <!-- Ocultamos el precio si es parte de un combo -->
+                  <span v-if="!item.nombre_combo_padre"
+                    >${{ Number(item.importe).toFixed(2) }}</span
+                  >
                 </div>
               </div>
-            </section>
-
-            <!-- Botones: imprimir + cerrar -->
-            <div class="pos-actions">
-              <button type="button" class="btn-pos-print" @click="ejecutarImpresion()">
-                <q-icon name="print" size="sm" class="q-mr-xs" /> Imprimir Ticket
-              </button>
-              <button type="button" class="btn-pos-close" @click="emit('close')">Cerrar</button>
             </div>
-          </template>
+
+            <div class="ticket-divider"></div>
+
+            <div class="ticket-totals">
+              <div v-for="(mp, idx) in orden.metodos_pago" :key="idx" class="ticket-totals-row">
+                <span>PAGO {{ mp.metodo_pago_nombre }}</span>
+                <span>${{ Number(mp.monto).toFixed(2) }}</span>
+              </div>
+
+              <div class="ticket-grand-total">
+                <span>TOTAL VENTA</span>
+                <span>${{ Number(orden.total_final).toFixed(2) }}</span>
+              </div>
+            </div>
+
+            <div class="ticket-footer">
+              <p>*** GRACIAS POR SU COMPRA ***</p>
+              <p>ESTE NO ES UN COMPROBANTE FISCAL</p>
+            </div>
+          </div>
+
+          <!-- Botones de Acción (Ocultos al imprimir) -->
+          <div v-if="orden" class="pos-actions print-hide">
+            <button type="button" class="btn-pos-print" @click="ejecutarImpresion()">
+              <q-icon name="print" size="sm" class="q-mr-xs" /> Imprimir Ticket
+            </button>
+            <button type="button" class="btn-pos-close" @click="emit('close')">Cerrar</button>
+          </div>
         </div>
       </div>
     </div>
@@ -248,8 +225,7 @@ const ejecutarImpresion = () => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap');
-
+/* ── UI Del Modal ── */
 .modal-backdrop-blur {
   position: fixed;
   top: 0;
@@ -257,390 +233,270 @@ const ejecutarImpresion = () => {
   width: 100vw;
   height: 100vh;
   display: flex;
-  flex-direction: column;
-  background-color: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  z-index: 4000;
-  box-sizing: border-box;
   justify-content: center;
   align-items: center;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 4000;
 }
-.modal-backdrop-blur .order-detail-card {
-  max-width: 520px;
+.order-detail-card {
+  max-width: 450px;
   width: 100%;
   max-height: 90vh;
-  background-color: #ffffff;
-  border: none;
-  box-shadow: none;
-  border-radius: 20px;
-  overflow: hidden;
+  background-color: #f8fafc;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
-
 .ticket-pos-root {
   width: 100%;
   height: 100%;
-  box-sizing: border-box;
-  background: transparent;
   display: flex;
   flex-direction: column;
 }
 .ticket-pos-root .order-detail-card {
-  max-width: 520px;
-  width: 100%;
+  max-width: 450px;
   margin: 0 auto;
-  background-color: #ffffff;
-  border: none;
-  box-shadow: none;
-  border-radius: 20px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  border-radius: 16px;
   flex: 1;
-  min-height: 0;
 }
 .pos-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   padding: 14px 20px;
   background-color: #ffffff;
-  flex-shrink: 0;
+  border-bottom: 1px solid #e2e8f0;
 }
 .pos-header__title {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: bold;
   color: #0f172a;
 }
-.close-styled-btn {
-  background: transparent;
-  color: #025fe0;
-  transition:
-    background 0.2s ease,
-    color 0.2s ease;
+.detail-scroll-area {
+  flex: 1;
+  overflow-y: auto;
 }
-.close-styled-btn:hover {
-  background: #025fe0;
-  color: #ffffff;
+.detail-content {
+  padding: 20px;
 }
-.pos-ticket-head {
+.loading-state {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 20px;
-}
-.pos-ticket-head__row {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-.pos-ticket-head__label {
-  font-size: 11px;
-  font-weight: 700;
+  padding: 40px 0;
   color: #64748b;
-  letter-spacing: 0.05em;
-}
-.pos-ticket-head__value {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
 }
 .pos-actions {
   display: flex;
   gap: 10px;
   margin-top: 20px;
 }
-.btn-pos-print {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 44px;
-  border: 1px solid #0059bb;
-  background: transparent;
-  color: #0059bb;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.btn-pos-print:hover {
-  background-color: #f0f6ff;
-}
+.btn-pos-print,
 .btn-pos-close {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   height: 44px;
-  border: none;
-  background-color: #0059bb;
-  color: #ffffff;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 700;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  font-weight: bold;
   cursor: pointer;
+  font-size: 14px;
 }
-.btn-pos-close:hover {
-  background-color: #004a9c;
+.btn-pos-print {
+  background: transparent;
+  border: 1px solid #0059bb;
+  color: #0059bb;
 }
-.ticket-pos-root .detail-content {
-  padding: 20px 20px 24px;
+.btn-pos-close {
+  background: #0059bb;
+  border: none;
+  color: white;
 }
 
-/* ── Scroll ─────────────────────────────────────── */
-.detail-scroll-area {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-.detail-content {
-  padding: 20px 20px 24px;
+/* ── DISEÑO ESTRICTO DEL TICKET ── */
+.ticket-receipt {
+  font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  background: white;
+  color: black;
+  font-size: 12px;
+  line-height: 1.6; /* Mayor respiro general entre líneas de texto */
+  padding: 15px;
   box-sizing: border-box;
 }
-
-.loading-container {
+.ticket-header {
+  text-align: center;
+  margin-bottom: 4px;
+} /* Reducido para evitar el doble espacio */
+.ticket-header h1 {
+  font-size: 22px;
+  font-weight: 900;
+  margin: 0 0 4px 0;
+  letter-spacing: 1px;
+}
+.ticket-header p {
+  margin: 3px 0;
+  font-size: 11px;
+}
+.ticket-divider {
+  border-bottom: 1px dashed black;
+  margin: 14px 0;
+} /* Más espacio alrededor de separadores */
+.ticket-info {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 64px 0;
-  gap: 12px;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 8px;
+} /* Aumentado de 4px a 8px */
+.ticket-cancelado {
+  text-align: center;
+  color: red;
+  font-weight: bold;
+  border: 1px solid red;
+  padding: 5px;
+  margin: 12px 0;
 }
-.loading-text {
-  font-size: 14px;
-  color: #64748b;
+.ticket-table-header {
+  display: flex;
+  font-weight: bold;
+  font-size: 11px;
+  border-bottom: 1px solid black;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
 }
-
-.cancel-reason-banner {
+.ticket-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  color: #7f1d1d;
-}
-.cancel-reason-banner strong {
+  margin-bottom: 14px;
   font-size: 11px;
-  text-transform: uppercase;
-  color: #991b1b;
+} /* Separación clara entre cada producto */
+.col-cant {
+  width: 15%;
+  text-align: left;
 }
-.cancel-reason-banner p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  line-height: 1.4;
+.col-desc {
+  width: 60%;
+  padding-right: 5px;
+  word-wrap: break-word;
 }
-
-.info-label {
+.col-imp {
+  width: 25%;
+  text-align: right;
+}
+.ticket-note {
   font-size: 10px;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.05em;
+  color: #555;
+  margin-top: 4px;
+  font-weight: normal;
 }
-
-.products-section {
-  margin-bottom: 24px;
-}
-.section-subtitle {
-  font-size: 12px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 12px 0;
-}
-.products-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.product-item {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 12px 14px;
-}
-.product-item--combo-child {
-  background-color: rgba(2, 95, 224, 0.03);
-  border-color: rgba(2, 95, 224, 0.15);
-  border-left: 3px solid #025fe0;
-  padding: 8px 12px 8px 10px;
-}
-.product-qty-box {
-  width: 36px;
-  height: 36px;
-  background-color: #e2e8f0;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #0059bb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.product-qty-box--child {
-  width: 28px;
-  height: 28px;
-  background-color: rgba(2, 95, 224, 0.1);
-  color: #025fe0;
-  border-radius: 6px;
-}
-.product-details {
-  flex-grow: 1;
-}
-.product-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0;
-}
-.combo-tag {
-  font-size: 11px;
-  font-weight: 500;
-  color: #64748b;
-}
-.product-unit-price {
-  font-size: 11px;
-  color: #64748b;
-  margin: 2px 0 0 0;
-}
-.product-included {
-  font-size: 11px;
-  font-weight: 600;
-  color: #025fe0;
-  margin: 2px 0 0 0;
-  display: flex;
-  align-items: center;
-  opacity: 0.85;
-}
-.product-meta {
-  font-size: 11px;
-  color: #64748b;
-  margin: 2px 0 0 0;
-}
-.product-total-price {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0;
-}
-
-/* ── Payment summary ──────────────────────────────── */
-.bg-gray-light {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-}
-.summary-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.payment-method-block {
-  display: flex;
-  flex-direction: column;
-}
-.payment-methods-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-}
-.payment-card-box {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.card-icon {
-  color: #0059bb;
-}
-.card-info {
-  display: flex;
-  flex-direction: column;
-}
-.card-type-text {
-  font-size: 12px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-.card-meta-text {
-  font-size: 10px;
-  color: #64748b;
-  margin: 2px 0 0 0;
-}
-.card-amount {
-  margin-left: auto;
-  font-size: 14px;
-  font-weight: 700;
-  color: #0059bb;
-  white-space: nowrap;
-}
-
-.totals-breakdown {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 16px;
-}
-.total-row {
+.ticket-totals-row {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 500;
-}
-.divider-dash {
-  border-top: 1px dashed #cbd5e1;
+  font-size: 11px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+} /* Más aire entre pagos */
+.ticket-grand-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: bold;
+  margin-top: 14px;
+  border-top: 2px solid black;
+  padding-top: 12px;
+} /* Gran respiro para el total final */
+.ticket-footer {
+  text-align: center;
+  font-size: 10px;
+  font-weight: bold;
+  margin-top: 24px;
+} /* Separado del cobro */
+.ticket-footer p {
   margin: 4px 0;
 }
-.total-final-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-.final-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #0f172a;
-  text-transform: uppercase;
-}
-.final-val {
-  font-size: 22px;
-  font-weight: 800;
-  color: #025fe0;
-}
+</style>
 
-.badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 9999px;
+<style>
+/* Reglas globales inquebrantables para imprimir */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body,
+  html {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  .print-hide {
+    display: none !important;
+  }
+  .modal-backdrop-blur,
+  .ticket-pos-root,
+  .order-detail-card,
+  .detail-scroll-area,
+  .detail-content {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+  .ticket-receipt {
+    padding: 0 !important;
+    width: 72mm !important; /* Ajusta perfecto a impresoras térmicas */
+  }
+  @page {
+    margin: 0mm;
+  }
 }
-.badge-pagado {
-  background-color: #008645;
-  color: #ffffff;
-}
-.badge-cancelado {
-  background-color: #dc2626;
-  color: #ffffff;
+</style>
+
+<style>
+/* Reglas estrictas para exportación a PDF y ticketera */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body,
+  html {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .modal-backdrop-blur,
+  .ticket-pos-root,
+  .order-detail-card,
+  .detail-scroll-area {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+  /* Ajuste de márgenes predeterminados de impresión web */
+  @page {
+    margin: 0mm;
+  }
 }
 </style>
 
