@@ -34,7 +34,7 @@ onMounted(async () => {
     orden.value = await obtenerDetalleOrden(props.tipoOrigen, props.referenciaId || props.comandaId)
     if (props.autoPrint) {
       await nextTick()
-      window.print()
+      ejecutarImpresion()
     }
   } finally {
     isLoading.value = false
@@ -86,8 +86,74 @@ function formatearFecha(iso: string | null): string {
   })
 }
 
-const ejecutarImpresion = () => {
-  window.print()
+const TICKET_PRINT_CSS = `
+  @page { size: 80mm auto; margin: 0; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+  body, html { margin: 0 !important; padding: 0 !important; background: #fff !important; width: 80mm; }
+  body { font-family: 'Courier New', Courier, monospace; }
+  .ticket-print-root {
+    width: 80mm;
+    padding: 4mm;
+    background: #fff;
+    color: #000;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .ticket-print-root h1 { font-size: 20px; font-weight: 900; margin: 0 0 2mm; letter-spacing: 1px; text-align: center; }
+  .ticket-print-root .t-header { text-align: center; margin-bottom: 2mm; }
+  .ticket-print-root .t-header p { margin: 1mm 0; font-size: 10px; }
+  .ticket-print-root .t-divider { border-bottom: 1px dashed #000; margin: 3mm 0; }
+  .ticket-print-root .t-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2mm; }
+  .ticket-print-root .t-row strong { font-weight: 700; }
+  .ticket-print-root .t-table-head { display: flex; font-weight: 700; font-size: 10px; border-bottom: 1px solid #000; padding-bottom: 2mm; margin-bottom: 2mm; }
+  .ticket-print-root .t-product { display: flex; align-items: flex-start; margin-bottom: 3mm; font-size: 10px; }
+  .ticket-print-root .t-product .c-cant { width: 12%; text-align: left; }
+  .ticket-print-root .t-product .c-desc { width: 60%; padding-right: 2mm; word-wrap: break-word; }
+  .ticket-print-root .t-product .c-desc strong { font-weight: 700; }
+  .ticket-print-root .t-product .c-imp { width: 28%; text-align: right; }
+  .ticket-print-root .t-product .t-note { font-size: 9px; color: #555; margin-top: 1mm; }
+  .ticket-print-root .t-cancelado { text-align: center; color: red; font-weight: 700; border: 1px solid red; padding: 2mm; margin: 3mm 0; }
+  .ticket-print-root .t-totals-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2mm; text-transform: uppercase; }
+  .ticket-print-root .t-grand-total { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; margin-top: 3mm; border-top: 2px solid #000; padding-top: 2mm; }
+  .ticket-print-root .t-footer { text-align: center; font-size: 9px; font-weight: 700; margin-top: 5mm; }
+  .ticket-print-root .t-footer p { margin: 1mm 0; }
+`
+
+function getTicketHtml(): string {
+  const el = document.querySelector('.ticket-receipt')
+  if (!el) return ''
+  return el.outerHTML
+}
+
+function ejecutarImpresion() {
+  const html = getTicketHtml()
+  if (!html) return
+
+  const ticketWidth = 302
+  const ticketHeight = 600
+  const left = (screen.width - ticketWidth) / 2
+  const top = (screen.height - ticketHeight) / 2
+
+  const printWin = window.open(
+    '',
+    '_blank',
+    `width=${ticketWidth},height=${ticketHeight},left=${left},top=${top},scrollbars=no`,
+  )
+  if (!printWin) return
+
+  printWin.document.write(`<!DOCTYPE html>
+<html><head><title>Ticket</title></head><body>
+<div class="ticket-print-root">${html}</div>
+<style>${TICKET_PRINT_CSS}</style>
+</body></html>`)
+  printWin.document.close()
+
+  printWin.onload = () => {
+    setTimeout(() => {
+      printWin.print()
+      printWin.close()
+    }, 250)
+  }
 }
 </script>
 
@@ -422,21 +488,31 @@ const ejecutarImpresion = () => {
 </style>
 
 <style>
-/* Reglas globales inquebrantables para imprimir */
 @media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+
   body,
   html {
     margin: 0 !important;
     padding: 0 !important;
-    background: white !important;
+    background: #fff !important;
   }
-  .print-hide {
+
+  .print-hide,
+  .pos-header,
+  .pos-actions,
+  .close-styled-btn {
     display: none !important;
   }
+
   .modal-backdrop-blur,
   .ticket-pos-root,
   .order-detail-card,
@@ -449,251 +525,20 @@ const ejecutarImpresion = () => {
     height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: white !important;
+    background: #fff !important;
     border: none !important;
     box-shadow: none !important;
     overflow: visible !important;
   }
+
   .ticket-receipt {
-    padding: 0 !important;
-    width: 72mm !important; /* Ajusta perfecto a impresoras térmicas */
-  }
-  @page {
-    margin: 0mm;
-  }
-}
-</style>
-
-<style>
-/* Reglas estrictas para exportación a PDF y ticketera */
-@media print {
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  body,
-  html {
+    width: 80mm !important;
+    max-width: 80mm !important;
+    padding: 4mm !important;
     margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-  }
-  .modal-backdrop-blur,
-  .ticket-pos-root,
-  .order-detail-card,
-  .detail-scroll-area {
-    display: block !important;
-    position: static !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    border: none !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-  }
-  /* Ajuste de márgenes predeterminados de impresión web */
-  @page {
-    margin: 0mm;
-  }
-}
-</style>
-
-<style>
-/* ── Print styles ──────────────────────────────────────── */
-@media print {
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  body {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-  }
-
-  .pos-header,
-  .pos-actions,
-  .close-styled-btn {
-    display: none !important;
-  }
-
-  .modal-backdrop-blur,
-  .ticket-pos-root {
-    position: static !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    background: none !important;
-    backdrop-filter: none !important;
-    display: block !important;
-    padding: 0 !important;
-  }
-
-  .order-detail-card {
-    max-width: 340px !important;
-    width: 100% !important;
-    margin: 0 auto !important;
-    background: #fff !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-    height: auto !important;
-  }
-
-  .detail-scroll-area {
-    overflow: visible !important;
-    max-height: none !important;
-  }
-
-  .detail-content {
-    padding: 24px 20px !important;
     font-family: 'Courier New', Courier, monospace !important;
   }
 
-  /* Encabezado ticket */
-  .pos-ticket-head {
-    background: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    padding: 0 !important;
-    margin-bottom: 16px !important;
-    gap: 6px !important;
-  }
-
-  .pos-ticket-head__row {
-    display: flex !important;
-    justify-content: space-between !important;
-    padding: 3px 0 !important;
-    border-bottom: 1px dotted #e2e8f0 !important;
-  }
-
-  .pos-ticket-head__row:last-child {
-    border-bottom: none !important;
-  }
-
-  .pos-ticket-head__label {
-    font-size: 10px !important;
-    font-weight: 700 !important;
-    color: #717786 !important;
-    text-transform: uppercase !important;
-  }
-
-  .pos-ticket-head__value {
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    color: #191c1d !important;
-  }
-
-  .badge {
-    font-size: 9px !important;
-    padding: 2px 8px !important;
-    border-radius: 4px !important;
-  }
-
-  /* Productos */
-  .products-section {
-    margin-bottom: 16px !important;
-  }
-
-  .section-subtitle {
-    font-size: 10px !important;
-    font-weight: 700 !important;
-    color: #717786 !important;
-    text-transform: uppercase !important;
-    margin: 0 0 8px 0 !important;
-    padding-bottom: 4px !important;
-    border-bottom: 1px dashed #cbd5e1 !important;
-  }
-
-  .product-item {
-    border: none !important;
-    border-radius: 0 !important;
-    border-bottom: 1px dotted #e2e8f0 !important;
-    padding: 8px 0 !important;
-    background: none !important;
-  }
-
-  .product-item:last-child {
-    border-bottom: none !important;
-  }
-
-  .product-item--combo-child {
-    background: none !important;
-    border-left: none !important;
-    padding-left: 24px !important;
-  }
-
-  .product-qty-box {
-    background: #f1f5f9 !important;
-    border-radius: 4px !important;
-  }
-
-  .product-qty-box--child {
-    background: none !important;
-    color: #717786 !important;
-  }
-
-  .product-name {
-    color: #191c1d !important;
-  }
-
-  .product-total-price {
-    color: #191c1d !important;
-  }
-
-  /* Métodos de pago */
-  .summary-section {
-    background: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    padding: 0 !important;
-  }
-
-  .payment-card-box {
-    border: none !important;
-    border-radius: 0 !important;
-    border-bottom: 1px dotted #e2e8f0 !important;
-    padding: 6px 0 !important;
-    background: none !important;
-  }
-
-  .payment-card-box:last-child {
-    border-bottom: none !important;
-  }
-
-  .card-amount {
-    color: #191c1d !important;
-  }
-
-  /* Totales */
-  .totals-breakdown {
-    background: none !important;
-    border: none !important;
-    border-top: 2px dashed #191c1d !important;
-    border-bottom: 2px dashed #191c1d !important;
-    border-radius: 0 !important;
-    padding: 12px 0 !important;
-    margin-top: 8px !important;
-  }
-
-  .divider-dash {
-    border-top: 1px dotted #cbd5e1 !important;
-  }
-
-  .final-val {
-    font-size: 18px !important;
-    font-weight: 800 !important;
-    color: #191c1d !important;
-  }
-}
-</style>
-
-<style>
-@media print {
   .historial-layout-wrapper > * {
     display: none !important;
   }
