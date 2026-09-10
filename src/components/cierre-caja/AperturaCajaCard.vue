@@ -80,17 +80,6 @@
         </q-select>
       </div>
 
-      <!-- Aviso para AdministradorSistema si no ha elegido sucursal en el selector
-           global del encabezado (no se duplica el picker aquí, ver authStore.currentBranchId) -->
-      <q-banner
-        v-if="esAdminSistema && !sucursalSeleccionada"
-        rounded
-        class="bg-warning text-dark q-mb-md"
-      >
-        <template #avatar><q-icon name="storefront" /></template>
-        Selecciona una sucursal en el menú superior antes de abrir caja.
-      </q-banner>
-
       <!-- Selección de Terminal / Estación (Cajas BD, filtradas por sucursal) -->
       <div class="form-group q-mb-md">
         <label class="field-label">Terminal / Estación (Caja BD)</label>
@@ -140,12 +129,6 @@
           placeholder="Notas iniciales, condición física de caja, etc."
         />
       </div>
-
-      <!-- Banner de error si existe -->
-      <q-banner v-if="turno.error" rounded class="bg-negative text-white q-mb-md">
-        <template #avatar><q-icon name="error" /></template>
-        {{ turno.error }}
-      </q-banner>
 
       <!-- Acciones de confirmación -->
       <div class="apertura-actions">

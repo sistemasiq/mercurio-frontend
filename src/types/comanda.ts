@@ -68,6 +68,9 @@ export interface Comanda {
   updated_at?: string
   // Nombre del cliente para comandas de mostrador / para llevar
   nombre_cliente?: string | null
+  // Presente cuando el cambio entregado excedió el efectivo que había en caja
+  // antes de esta venta -- el pago se autoriza igual, solo se avisa al cajero.
+  advertenciaEfectivo?: string | null
 }
 
 // Mensajes WebSocket del canal de comandas (app/api/routers/comandas.py)
