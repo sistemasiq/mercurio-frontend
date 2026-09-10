@@ -1,6 +1,7 @@
 import type { Router } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessControlStore } from '@/stores/accessControl'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 
 export function setupRouterGuards(router: Router): void {
   router.beforeEach(async (to) => {
@@ -49,6 +50,13 @@ export function setupRouterGuards(router: Router): void {
       const accessControlStore = useAccessControlStore()
       if (!accessControlStore.checkoutChild) {
         return { name: 'estancias-control-acceso' }
+      }
+    }
+
+    if (to.name === 'estancias-registro-infantes') {
+      const turno = useTurnoCajaStore()
+      if (!turno.estaOperando) {
+        return { name: 'pos-cierre' }
       }
     }
   })
