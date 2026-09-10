@@ -283,6 +283,11 @@
       :metodos-pago="metodosPagoStore.activos"
       @pago-exitoso="onPagoExitoso"
     />
+
+    <!-- Ticket del pago recién registrado -->
+    <q-dialog v-model="ticketAbierto" persistent>
+      <TicketPagoEvento v-if="ticketData" v-bind="ticketData" @close="ticketAbierto = false" />
+    </q-dialog>
   </q-page>
 </template>
 
@@ -306,9 +311,12 @@ import type { Pagos_reservacion } from '@/types/pagos_reservacion'
 import type { Reservacion_extras } from '@/types/reservacion_extras'
 import type { Reservacion_productos } from '@/types/reservacion_productos'
 import type { AppliedPayment } from '@/types/payments'
+import type { TicketPagoEventoProps } from '@/types/ticketPagoEvento'
 import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
+import TicketPagoEvento from '@/components/eventos/TicketPagoEvento.vue'
 import { horasFacturables } from '@/utils/horario'
+import { descontarCambio, resumenMetodosPago, totalPagado as sumaPagos } from '@/utils/pagos'
 
 const route = useRoute()
 const router = useRouter()
@@ -371,7 +379,11 @@ onMounted(() => {
   if (!authStore.currentBranchId) return
   paquetesStore.cargar(authStore.currentBranchId)
   extrasStore.cargar(authStore.currentBranchId)
-  productosStore.cargar(authStore.currentBranchId)
+  // Catálogo de cajero: cerrar un evento solo pide `reservaciones:editar`, que el
+  // Cajero sí tiene, pero /productos/admin exige `inventario:ver`, que no. Con el
+  // 403 la lista quedaba vacía y cada producto del evento se mostraba como
+  // "Producto" genérico por el fallback de nombre.
+  productosStore.cargarCatalogo()
   tiposEventoStore.cargar()
 })
 
@@ -498,6 +510,19 @@ const onPagoExitoso = async (
   cambio: number,
 ) => {
   if (!reservacion.value) return
+  // Snapshot antes de que cargarTodo() reemplace reservacion/pagos: el ticket
+  // debe mostrar el "antes" y el "después" de ESTA transacción.
+  const res = reservacion.value
+  const saldoAntes = saldoPendiente.value
+
+  // El modal entrega lo que el cliente ENTREGÓ; descontarCambio() lo ajusta a
+  // lo que de verdad se queda en caja antes de guardarlo, porque el excedente
+  // se le devolvió como cambio y no es ingreso del evento (mismo ajuste que
+  // hace PagosPage.vue — sin él, un pago en efectivo con cambio se guardaba
+  // completo y descuadraba el corte de caja).
+  const aplicados = descontarCambio(pagosAplicados, saldoAntes)
+  if (!aplicados.length) return
+
   procesandoPago.value = true
   try {
     const resultado = await pagosReservacionApi.completar({

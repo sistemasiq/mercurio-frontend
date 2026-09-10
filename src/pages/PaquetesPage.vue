@@ -60,8 +60,8 @@
           <q-td :props="props"> ${{ Number(props.row.precio_base).toFixed(2) }} </q-td>
         </template>
 
-        <template #body-cell-precio_pulsera="props">
-          <q-td :props="props"> ${{ Number(props.row.precio_pulsera).toFixed(2) }} </q-td>
+        <template #body-cell-precio_hora_pulsera="props">
+          <q-td :props="props"> ${{ Number(props.row.precio_hora_pulsera).toFixed(2) }} </q-td>
         </template>
 
         <template #body-cell-productos_incluidos="props">
@@ -171,9 +171,9 @@
               />
             </div>
             <div class="col-6">
-              <div class="field-label">PRECIO DE LA PULSERA</div>
+              <div class="field-label">PRECIO POR PULSERA POR HORA</div>
               <q-input
-                v-model.number="formDialog.precio_pulsera"
+                v-model.number="formDialog.precio_hora_pulsera"
                 dense
                 outlined
                 type="number"
@@ -182,7 +182,8 @@
                 prefix="$"
               />
               <div class="text-caption text-grey-6 q-mt-xs">
-                Se cobra por cada invitado del evento, además del precio base.
+                Se cobra por cada invitado y por cada hora que dure el evento, además del precio
+                base.
               </div>
             </div>
           </div>
@@ -466,9 +467,9 @@ const columns: QTableColumn[] = [
     sortable: true,
   },
   {
-    name: 'precio_pulsera',
-    label: 'PULSERA',
-    field: 'precio_pulsera',
+    name: 'precio_hora_pulsera',
+    label: 'PULSERA/HORA',
+    field: 'precio_hora_pulsera',
     align: 'left',
     sortable: true,
   },
@@ -501,7 +502,7 @@ const formDialog = ref({
   min_invitados: 1,
   max_invitados: 10,
   precio_base: 0,
-  precio_pulsera: 0,
+  precio_hora_pulsera: 0,
   productos_incluidos: [] as PaqueteProductoItem[],
 })
 
@@ -513,7 +514,7 @@ const abrirCrear = () => {
     min_invitados: 1,
     max_invitados: 10,
     precio_base: 0,
-    precio_pulsera: 0,
+    precio_hora_pulsera: 0,
     productos_incluidos: [],
   }
   productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
@@ -545,7 +546,7 @@ const abrirEditar = async (row: Paquetes) => {
     min_invitados: row.min_invitados,
     max_invitados: row.max_invitados,
     precio_base: Number(row.precio_base),
-    precio_pulsera: Number(row.precio_pulsera),
+    precio_hora_pulsera: Number(row.precio_hora_pulsera),
     productos_incluidos: productosIncluidosCargados,
   }
   productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
@@ -588,7 +589,7 @@ const guardar = async () => {
         min_invitados: formDialog.value.min_invitados,
         max_invitados: formDialog.value.max_invitados,
         precio_base: String(formDialog.value.precio_base),
-        precio_pulsera: String(formDialog.value.precio_pulsera),
+        precio_hora_pulsera: String(formDialog.value.precio_hora_pulsera),
         productos_incluidos: formDialog.value.productos_incluidos,
       })
       $q.notify({ type: 'positive', message: 'Paquete actualizado', position: 'top-right' })
@@ -600,7 +601,7 @@ const guardar = async () => {
         min_invitados: formDialog.value.min_invitados,
         max_invitados: formDialog.value.max_invitados,
         precio_base: String(formDialog.value.precio_base),
-        precio_pulsera: String(formDialog.value.precio_pulsera),
+        precio_hora_pulsera: String(formDialog.value.precio_hora_pulsera),
         productos_incluidos: formDialog.value.productos_incluidos,
         sucursal_id: authStore.currentBranchId,
       })
