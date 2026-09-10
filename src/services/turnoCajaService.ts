@@ -13,6 +13,8 @@ import type {
   FiltrosHistorial,
   HistorialArqueosResponse,
   DetalleArqueo,
+  IngresoEfectivoPayload,
+  IngresoEfectivoResponse,
   RetiroParcialPayload,
   RetiroParcialResponse,
 } from '@/types/turnoCaja'
@@ -83,6 +85,20 @@ export const turnoCajaService = {
       const apiErr = err as ApiError
       if (apiErr.statusCode === 409)
         throw new TransicionInvalidaError('No se pueden registrar retiros en este momento.')
+      throw new Error(toMensajeError(err), { cause: err })
+    }
+  },
+
+  /**
+   * Registra un ingreso de efectivo sobre el turno activo (solo en estado OPERANDO).
+   */
+  async registrarIngreso(payload: IngresoEfectivoPayload): Promise<IngresoEfectivoResponse> {
+    try {
+      return await turnoCajaApi.registrarIngreso(payload)
+    } catch (err) {
+      const apiErr = err as ApiError
+      if (apiErr.statusCode === 409)
+        throw new TransicionInvalidaError('No se pueden registrar ingresos en este momento.')
       throw new Error(toMensajeError(err), { cause: err })
     }
   },

@@ -1088,6 +1088,7 @@ const montoPagado = ref(0)
 const pagosAplicados = ref<AppliedPayment[]>([])
 const anticipoIngresado = ref(0)
 const modalPagoAbierto = ref(false)
+const cambioDevuelto = ref(0)
 
 const esTarjeta = (method: string) => {
   const n = method.trim().toLowerCase()
@@ -1129,9 +1130,16 @@ const abrirModalPago = () => {
   modalPagoAbierto.value = true
 }
 
-const onPagoExitoso = (pagos: AppliedPayment[]) => {
+const onPagoExitoso = (
+  pagos: AppliedPayment[],
+  _celularCliente: string | null,
+  _puntosARedimir: number,
+  _descuentoPuntos: number,
+  cambio: number,
+) => {
   pagosAplicados.value = pagos
-  montoPagado.value = pagos.reduce((suma, p) => suma + p.amount, 0)
+  cambioDevuelto.value = cambio
+  montoPagado.value = pagos.reduce((suma, p) => suma + p.amount, 0) - cambio
   pagoRegistrado.value = true
 }
 
@@ -1319,15 +1327,27 @@ const confirmarReservacion = async () => {
       })
     }
 
-    for (const pago of pagosAplicados.value) {
-      await pagosStore.crearPagosReservacion({
+    if (pagosAplicados.value.length > 0) {
+      const resultadoPago = await pagosStore.completarPagosReservacion({
         reservacion_id: nuevaReservacion.id,
-        metodo_pago_id: mapearMetodoPago(pago.method),
-        monto: String(pago.amount),
-        notas: pago.cardType
-          ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
-          : 'Anticipo registrado al confirmar reservación',
+        pagos: pagosAplicados.value.map((pago) => ({
+          metodo_pago_id: mapearMetodoPago(pago.method),
+          monto: String(pago.amount),
+          notas: pago.cardType
+            ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
+            : 'Anticipo registrado al confirmar reservación',
+        })),
+        ...(cambioDevuelto.value > 0 ? { cambio: String(cambioDevuelto.value) } : {}),
       })
+      if (resultadoPago.advertencia_efectivo) {
+        $q.notify({
+          type: 'warning',
+          message: 'No hay suficiente efectivo en caja',
+          caption: resultadoPago.advertencia_efectivo,
+          position: 'top-right',
+          timeout: 6000,
+        })
+      }
     }
 
     $q.notify({
