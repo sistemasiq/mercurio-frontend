@@ -3,6 +3,7 @@ export interface PulseraAdmin {
   sucursal_id: string
   pulsera_rfid: string
   activo: boolean
+  usada: boolean
   creado?: string | null
   creado_por?: string | null
   modificado?: string | null
