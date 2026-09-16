@@ -951,7 +951,7 @@ import { useReservacionProductosStore } from '@/stores/reservacion_productos'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
 import { horasFacturables } from '@/utils/horario'
-import { descontarCambio, resolverMetodoPagoId, totalPagado } from '@/utils/pagos'
+import { resolverMetodoPagoId } from '@/utils/pagos'
 import { pulserasApi } from '@/api/pulserasApi'
 
 const router = useRouter()
@@ -1577,7 +1577,7 @@ const confirmarReservacion = async () => {
       const resultadoPago = await pagosStore.completarPagosReservacion({
         reservacion_id: nuevaReservacion.id,
         pagos: pagosAplicados.value.map((pago) => ({
-          metodo_pago_id: mapearMetodoPago(pago.method),
+          metodo_pago_id: resolverMetodoPagoId(pago.method, metodosPagoStore.activos),
           monto: String(pago.amount),
           notas: pago.cardType
             ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`

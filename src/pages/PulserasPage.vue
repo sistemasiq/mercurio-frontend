@@ -50,7 +50,7 @@
 
       <!-- Resumen -->
       <div class="row q-col-gutter-md q-mb-lg">
-        <div class="col-12 col-sm-4">
+        <div class="col-12 col-sm-3">
           <div class="stat-card">
             <div>
               <div class="stat-card__label">Total</div>
@@ -61,18 +61,29 @@
             </div>
           </div>
         </div>
-        <div class="col-12 col-sm-4">
+        <div class="col-12 col-sm-3">
           <div class="stat-card">
             <div>
-              <div class="stat-card__label">Activas</div>
-              <div class="stat-card__value">{{ totalActivas }}</div>
+              <div class="stat-card__label">Disponibles</div>
+              <div class="stat-card__value">{{ totalDisponibles }}</div>
             </div>
             <div class="stat-card__icon stat-card__icon--green">
               <q-icon name="check_circle" />
             </div>
           </div>
         </div>
-        <div class="col-12 col-sm-4">
+        <div class="col-12 col-sm-3">
+          <div class="stat-card">
+            <div>
+              <div class="stat-card__label">Usadas</div>
+              <div class="stat-card__value">{{ totalUsadas }}</div>
+            </div>
+            <div class="stat-card__icon stat-card__icon--orange">
+              <q-icon name="person" />
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-3">
           <div class="stat-card">
             <div>
               <div class="stat-card__label">Inactivas</div>
@@ -117,7 +128,8 @@
             style="border: 1px solid var(--border-color); border-radius: 8px"
             :options="[
               { label: 'Todas', value: 'todas' },
-              { label: 'Activas', value: 'activas' },
+              { label: 'Disponibles', value: 'disponibles' },
+              { label: 'Usadas', value: 'usadas' },
               { label: 'Inactivas', value: 'inactivas' },
             ]"
           />
@@ -153,8 +165,8 @@
           <template #body-cell-activo="props">
             <q-td :props="props">
               <EstadoBadge
-                :tono="props.row.activo ? 'verde' : 'rojo'"
-                :label="props.row.activo ? 'Activa' : 'Inactiva'"
+                :tono="!props.row.activo ? 'rojo' : props.row.usada ? 'azul' : 'verde'"
+                :label="!props.row.activo ? 'Inactiva' : props.row.usada ? 'Usada' : 'Disponible'"
               />
             </q-td>
           </template>
@@ -290,17 +302,19 @@ const columns: QTableColumn[] = [
 // ── Resumen y filtros ─────────────────────────────────────────────────────────
 
 const busqueda = ref('')
-const filtroEstado = ref<'todas' | 'activas' | 'inactivas'>('todas')
+const filtroEstado = ref<'todas' | 'disponibles' | 'usadas' | 'inactivas'>('todas')
 const paginaActual = ref(1)
 const porPagina = 10
 
-const totalActivas = computed(() => store.pulseras.filter((p) => p.activo).length)
-const totalInactivas = computed(() => store.pulseras.length - totalActivas.value)
+const totalDisponibles = computed(() => store.pulseras.filter((p) => p.activo && !p.usada).length)
+const totalUsadas = computed(() => store.pulseras.filter((p) => p.activo && p.usada).length)
+const totalInactivas = computed(() => store.pulseras.filter((p) => !p.activo).length)
 
 const pulserasFiltradas = computed(() => {
   const q = busqueda.value?.trim().toLowerCase() ?? ''
   return store.pulseras.filter((p) => {
-    if (filtroEstado.value === 'activas' && !p.activo) return false
+    if (filtroEstado.value === 'disponibles' && (!p.activo || p.usada)) return false
+    if (filtroEstado.value === 'usadas' && (!p.activo || !p.usada)) return false
     if (filtroEstado.value === 'inactivas' && p.activo) return false
     return !q || p.pulsera_rfid.toLowerCase().includes(q)
   })

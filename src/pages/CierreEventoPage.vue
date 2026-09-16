@@ -283,11 +283,6 @@
       :metodos-pago="metodosPagoStore.activos"
       @pago-exitoso="onPagoExitoso"
     />
-
-    <!-- Ticket del pago recién registrado -->
-    <q-dialog v-model="ticketAbierto" persistent>
-      <TicketPagoEvento v-if="ticketData" v-bind="ticketData" @close="ticketAbierto = false" />
-    </q-dialog>
   </q-page>
 </template>
 
@@ -311,12 +306,10 @@ import type { Pagos_reservacion } from '@/types/pagos_reservacion'
 import type { Reservacion_extras } from '@/types/reservacion_extras'
 import type { Reservacion_productos } from '@/types/reservacion_productos'
 import type { AppliedPayment } from '@/types/payments'
-import type { TicketPagoEventoProps } from '@/types/ticketPagoEvento'
 import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
-import TicketPagoEvento from '@/components/eventos/TicketPagoEvento.vue'
 import { horasFacturables } from '@/utils/horario'
-import { descontarCambio, resumenMetodosPago, totalPagado as sumaPagos } from '@/utils/pagos'
+import { descontarCambio } from '@/utils/pagos'
 
 const route = useRoute()
 const router = useRouter()
@@ -512,7 +505,6 @@ const onPagoExitoso = async (
   if (!reservacion.value) return
   // Snapshot antes de que cargarTodo() reemplace reservacion/pagos: el ticket
   // debe mostrar el "antes" y el "después" de ESTA transacción.
-  const res = reservacion.value
   const saldoAntes = saldoPendiente.value
 
   // El modal entrega lo que el cliente ENTREGÓ; descontarCambio() lo ajusta a
