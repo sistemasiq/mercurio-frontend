@@ -189,28 +189,14 @@ async function ejecutarImpresion() {
   if (!orden.value || isPrinting.value) return
   isPrinting.value = true
   try {
-    // Híbrido: intenta silencioso GDI PDF (sin ventana) si la impresora lo soporta; si falla usa HTML literal (diálogo)
-    const res = await printTicketDirecto({
-      tipo: 'ticket',
-      ancho_mm: ticketAncho.value,
-      // @ts-ignore
-      data: { orden: orden.value } as unknown as Record<string, unknown>,
-    })
-    if (!res.fallback) {
-      $q.notify({ type: 'positive', message: `Impreso en ${res.printer} (${res.ancho_mm}mm)` })
-      return
-    }
-    throw new Error((res as unknown as { error?: string }).error || 'GDI no disponible')
-  } catch {
-    try {
-      const html = getTicketHtmlForPrint()
-      if (!html) throw new Error('No se pudo capturar el ticket')
-      await nextTick()
-      printHtmlViaIframe(html)
-      $q.notify({ type: 'positive', message: `Impresión lista (${ticketAncho.value}mm) — revisa el diálogo` })
-    } catch (err: unknown) {
-      $q.notify({ type: 'negative', message: (err as Error).message || 'Error al imprimir' })
-    }
+    // Literal como te gustaba: imprime exactamente el preview general (WOOW KIDS, Importe, 58/80mm)
+    const html = getTicketHtmlForPrint()
+    if (!html) throw new Error('No se pudo capturar el ticket')
+    await nextTick()
+    printHtmlViaIframe(html)
+    $q.notify({ type: 'positive', message: `Impresión lista (${ticketAncho.value}mm) — revisa el diálogo` })
+  } catch (e: unknown) {
+    $q.notify({ type: 'negative', message: (e as Error).message || 'Error al imprimir' })
   } finally {
     isPrinting.value = false
   }
