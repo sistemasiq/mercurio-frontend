@@ -32,8 +32,19 @@ export async function getPrintersMeta(): Promise<{
   printers: PrinterMeta[]
   count: number
   gdi_available: boolean
+  server?: { platform: string; user: string }
+  diagnostico?: Record<string, unknown>
 }> {
   const { data } = await apiClient.get('/printers/meta')
+  return data
+}
+
+export async function getPrintersDiag(): Promise<{
+  server: { platform: string; user: string }
+  gdi_available: boolean
+  diagnostico: Record<string, unknown>
+}> {
+  const { data } = await apiClient.get('/printers/diag')
   return data
 }
 
@@ -51,6 +62,15 @@ export async function saveConfig(payload: {
   override_manual?: boolean
 }): Promise<PrinterConfig> {
   const { data } = await apiClient.put<PrinterConfig>('/config-impresora', payload)
+  return data
+}
+
+export async function saveFormato(payload: {
+  tipo?: 'ticket' | 'etiqueta'
+  ancho_mm: number
+  alto_mm?: number | null
+}): Promise<PrinterConfig> {
+  const { data } = await apiClient.put<PrinterConfig>('/config-formato', payload)
   return data
 }
 
@@ -86,3 +106,5 @@ export async function printTicketDirecto(payload: {
   const { data } = await apiClient.post('/print/ticket', payload)
   return data
 }
+
+

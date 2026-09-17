@@ -11,6 +11,8 @@ export const usePrinterStore = defineStore('printer', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const pdfPreview = ref<string | null>(null)
+  const diagnostico = ref<Record<string, unknown> | null>(null)
+  const serverUser = ref<string | null>(null)
 
   async function cargarPrinters(): Promise<void> {
     loading.value = true
@@ -20,10 +22,13 @@ export const usePrinterStore = defineStore('printer', () => {
       printersMeta.value = meta.printers
       printers.value = meta.printers
       gdiAvailable.value = meta.gdi_available
+      diagnostico.value = (meta as unknown as { diagnostico?: Record<string, unknown> }).diagnostico || null
+      serverUser.value = (meta as unknown as { server?: { user: string } }).server?.user || null
     } catch (e: unknown) {
       error.value = (e as Error).message
       printers.value = []
       printersMeta.value = []
+      diagnostico.value = null
     } finally {
       loading.value = false
     }
@@ -62,6 +67,17 @@ export const usePrinterStore = defineStore('printer', () => {
     else config.value.push(saved)
   }
 
+  async function guardarFormato(
+    ancho_mm: number,
+    tipo: 'ticket' | 'etiqueta' = 'ticket',
+    alto_mm: number | null = null,
+  ): Promise<void> {
+    const saved = await printerApi.saveFormato({ tipo, ancho_mm, alto_mm })
+    const idx = config.value.findIndex((c) => c.tipo === tipo)
+    if (idx >= 0) config.value[idx] = saved
+    else config.value.push(saved)
+  }
+
   async function preview(payload: {
     tipo?: 'ticket' | 'etiqueta'
     ancho_mm?: number
@@ -76,8 +92,10 @@ export const usePrinterStore = defineStore('printer', () => {
   async function imprimirDirecto(payload: {
     tipo?: 'ticket' | 'etiqueta'
     printerName?: string
+    ancho_mm?: number
     lineas?: string[]
     texto?: string
+    data?: Record<string, unknown>
   }): Promise<{ pdfBase64: string; fallback?: boolean; printer: string; ancho_mm: number }> {
     const res = await printerApi.printTicketDirecto(payload)
     pdfPreview.value = res.pdfBase64
@@ -92,10 +110,13 @@ export const usePrinterStore = defineStore('printer', () => {
     loading,
     error,
     pdfPreview,
+    diagnostico,
+    serverUser,
     cargarPrinters,
     cargarConfig,
     configPorTipo,
     guardar,
+    guardarFormato,
     preview,
     imprimirDirecto,
   }

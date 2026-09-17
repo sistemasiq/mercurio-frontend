@@ -27,24 +27,80 @@
 
       <q-banner
         v-if="!store.gdiAvailable && !store.loading"
-        class="bg-amber-2 text-dark q-mb-md"
+        class="bg-positive text-white q-mb-md"
         rounded
       >
-        <template #avatar><q-icon name="info" /></template>
-        No se detectaron impresoras GDI (Docker/Linux). Se usará fallback PDF + window.print() en
-        iframe.
+        <template #avatar><q-icon name="check_circle" /></template>
+        Modo automático activo — se usará el diálogo del navegador (PDF). No es necesario guardar
+        impresora aquí: al imprimir, el sistema mostrará automáticamente el selector de destino del
+        navegador con todas las impresoras instaladas localmente.
+      </q-banner>
+      <q-banner
+        v-if="store.gdiAvailable && store.printers.length === 0 && !store.loading"
+        class="bg-negative text-white q-mb-md"
+        rounded
+      >
+        <template #avatar><q-icon name="warning" /></template>
+        <div class="text-weight-medium">No se detectaron impresoras en el servidor</div>
+        <div class="text-caption q-mt-xs">
+          El servidor es Windows pero la enumeración GDI devolvió 0 resultados. Suele ocurrir cuando el
+          backend se ejecuta con un usuario distinto al que instaló las impresoras (per-usuario) o el
+          servicio de cola de impresión no está disponible.
+        </div>
+        <div class="text-caption q-mt-sm">
+          Diagnóstico del servidor — usuario del backend: <b>{{ store.serverUser || 'desconocido' }}</b
+          ><br />
+          Comandos de verificación en el servidor:
+          <code>Get-CimInstance Win32_Printer | Select Name,DriverName,PortName</code> |
+          <code>Get-Printer | Select Name,DriverName,PortName</code> |
+          <code>[System.Drawing.Printing.PrinterSettings]::InstalledPrinters</code>
+        </div>
+        <div class="text-caption q-mt-xs">
+          Detectadas: {{ store.printers.length }} | GDI disponible: {{ store.gdiAvailable ? 'sí' : 'no' }}
+          | Error: {{ store.error || 'ninguno' }}
+        </div>
+        <q-expansion-item
+          v-if="store.diagnostico"
+          dense
+          class="q-mt-sm bg-white text-dark rounded-borders"
+          label="Ver diagnóstico técnico (universal)"
+          caption="Comparar con lo que ves en PowerShell manual"
+        >
+          <q-card flat bordered>
+            <q-card-section class="q-pa-sm">
+              <pre
+                style="white-space: pre-wrap; word-break: break-all; font-size: 11px; max-height: 320px; overflow: auto"
+                >{{ JSON.stringify(store.diagnostico, null, 2) }}</pre
+              >
+              <q-btn
+                flat
+                dense
+                label="Recargar diagnóstico"
+                icon="refresh"
+                @click="recargarDiag"
+                class="q-mt-sm"
+              />
+            </q-card-section>
+          </q-card>
+        </q-expansion-item>
+        <div v-else class="q-mt-sm">
+          <q-btn flat dense label="Cargar diagnóstico" icon="bug_report" @click="recargarDiag" />
+        </div>
       </q-banner>
 
-      <!-- Tickets -->
+      <!-- Impresora de Tickets - solo impresora -->
       <q-card flat bordered class="q-mb-md">
         <q-card-section>
           <div class="text-subtitle2 q-mb-sm">
             <q-icon name="receipt" size="18px" class="q-mr-xs" /> Impresora de Tickets
           </div>
+          <div class="text-caption text-grey-7 q-mb-sm">
+            Solo la impresora. El ancho del papel se configura aparte en “Formato de Ticket” abajo.
+          </div>
           <q-select
             v-model="ticketPrinter"
             :options="printerOptions"
-            label="Selecciona impresora para tickets"
+            label="Selecciona impresora para tickets (GDI silencioso - opcional)"
             outlined
             dense
             emit-value
@@ -55,7 +111,7 @@
             hide-selected
             input-debounce="0"
             :loading="store.loading"
-            hint="Nombre exacto como aparece en Windows"
+            hint="Opcional. Vacío = se usa el diálogo del navegador con todas las impresoras locales"
           >
             <template #option="scope">
               <q-item v-bind="scope.itemProps">
@@ -72,8 +128,8 @@
               </q-item>
             </template>
             <template #selected>
-              <span v-if="ticketPrinter">{{ ticketPrinter }}</span>
-              <span v-else class="text-grey">— Sin seleccionar —</span>
+              <span v-if="ticketPrinter && ticketPrinter !== '__SIN_ASIGNAR__'">{{ ticketPrinter }}</span>
+              <span v-else class="text-grey">— Sin seleccionar — (usará diálogo automático)</span>
             </template>
           </q-select>
 
@@ -88,26 +144,8 @@
               {{ ticketMeta.PortName || '—' }}</span
             >
           </div>
-
-          <!-- Selector manual si desconocida -->
-          <div v-if="ticketMeta && ticketMeta.tipo_detectado === 'desconocida'" class="q-mt-sm">
-            <div class="text-caption q-mb-xs">Tipo no detectado — selecciona manualmente:</div>
-            <q-btn-toggle
-              v-model="ticketAncho"
-              :options="[
-                { label: '58mm', value: 58 },
-                { label: '80mm', value: 80 },
-                { label: 'Etiqueta 60x40', value: 60 },
-                { label: 'A4', value: 210 },
-              ]"
-              dense
-              toggle-color="primary"
-              color="grey-4"
-              text-color="dark"
-            />
-          </div>
-          <div v-else-if="ticketMeta" class="q-mt-sm text-caption">
-            Ancho sugerido: <b>{{ ticketAncho }}mm</b> (auto según detección)
+          <div v-else-if="ticketPrinter && ticketPrinter !== '__SIN_ASIGNAR__'" class="text-caption text-grey-7 q-mt-sm">
+            Guardada: {{ ticketPrinter }}
           </div>
         </q-card-section>
         <q-card-actions align="right">
@@ -115,16 +153,86 @@
             flat
             label="Eliminar"
             color="negative"
-            :disable="!configTicket"
+            :disable="!configTicket || configTicket.nombre_impresora === '__SIN_ASIGNAR__'"
             @click="eliminar('ticket')"
           />
           <q-btn
             unelevated
-            label="Guardar ticket"
+            label="Guardar impresora"
             color="primary"
-            :disable="!ticketPrinter"
+            :disable="!ticketPrinter || ticketPrinter === '__SIN_ASIGNAR__'"
             :loading="savingTicket"
             @click="guardarTicket"
+          />
+        </q-card-actions>
+      </q-card>
+
+      <!-- Formato de Ticket - desacoplado de impresora -->
+      <q-card flat bordered class="q-mb-md" style="border-left: 4px solid var(--q-primary)">
+        <q-card-section>
+          <div class="text-subtitle2 q-mb-xs">
+            <q-icon name="straighten" size="18px" class="q-mr-xs" /> Formato de Ticket
+          </div>
+          <div class="text-caption text-grey-7 q-mb-sm">
+            Ancho del papel. Independiente de la impresora. Afecta tanto al preview PDF como a la impresión.
+          </div>
+          <div class="q-pa-sm rounded-borders" style="background: #f8fafc; border: 1px solid #e2e8f0">
+            <div class="row items-center q-mb-xs">
+              <span class="text-caption text-weight-medium">Ancho del ticket</span>
+              <q-space />
+              <q-badge outline color="primary" :label="`${ticketAncho}mm`" />
+              <q-badge v-if="configTicket" class="q-ml-sm" color="grey-3" text-color="dark" :label="`Guardado: ${configTicket.ancho_mm}mm`" />
+            </div>
+            <q-btn-toggle
+              v-model="ticketAncho"
+              :options="[
+                { label: '58mm', value: 58 },
+                { label: '80mm', value: 80 },
+                { label: 'A4', value: 210 },
+              ]"
+              dense
+              spread
+              toggle-color="primary"
+              color="white"
+              text-color="dark"
+            />
+            <div class="row items-center q-mt-sm q-gutter-x-sm">
+              <div
+                class="bg-white q-pa-xs rounded-borders"
+                :style="{
+                  width: ticketAncho === 58 ? '58px' : ticketAncho === 80 ? '80px' : '100px',
+                  height: '32px',
+                  border: '1px dashed #94a3b8',
+                  display: 'flex',
+                  'align-items': 'center',
+                  'justify-content': 'center',
+                  'font-size': '8px',
+                  color: '#64748b',
+                }"
+              >
+                {{ ticketAncho }}mm
+              </div>
+              <div class="col text-caption text-grey-7" style="line-height: 1.3">
+                58mm = 32 chars/línea (estrecho) · 80mm = 48 chars (ancho estándar)<br />
+                <span class="text-grey-5" style="font-size: 10px"
+                  >GDI: {{ ticketAncho === 58 ? '228' : ticketAncho === 80 ? '315' : '794' }} dots @100dpi |
+                  PDF: {{ ticketAncho === 58 ? '164.4' : ticketAncho === 80 ? '226.8' : '595' }}pt</span
+                >
+              </div>
+            </div>
+            <div v-if="ticketAncho === 58" class="text-caption text-amber-8 q-mt-xs">
+              <q-icon name="info" size="12px" /> 58mm angosto — si se corta el texto, pasa a 80mm
+            </div>
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Preview con este ancho" icon="visibility" @click="preview('ticket')" :loading="previewing" />
+          <q-btn
+            unelevated
+            label="Guardar formato"
+            color="primary"
+            :loading="savingFormato"
+            @click="guardarFormato"
           />
         </q-card-actions>
       </q-card>
@@ -138,13 +246,14 @@
           <q-select
             v-model="etiquetaPrinter"
             :options="printerOptions"
-            label="Selecciona impresora para etiquetas (opcional)"
+            label="Selecciona impresora para etiquetas (GDI silencioso - opcional)"
             outlined
             dense
             emit-value
             map-options
             clearable
             :loading="store.loading"
+            hint="Opcional. Vacío = usará el diálogo del navegador"
           >
             <template #option="scope">
               <q-item v-bind="scope.itemProps">
@@ -249,7 +358,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterFallback } from '@/composables/usePrinterFallback'
@@ -262,6 +371,7 @@ const ticketPrinter = ref<string | null>(null)
 const etiquetaPrinter = ref<string | null>(null)
 const ticketAncho = ref<number>(58)
 const savingTicket = ref(false)
+const savingFormato = ref(false)
 const savingEtiqueta = ref(false)
 const testing = ref(false)
 const previewing = ref(false)
@@ -306,22 +416,27 @@ function badgeColor(tipo: string): string {
   return 'warning'
 }
 
-watch(ticketMeta, (m) => {
-  if (!m) return
-  if (m.tipo_detectado === 'ticket_80') ticketAncho.value = 80
-  else if (m.tipo_detectado === 'etiqueta_60x40') ticketAncho.value = 60
-  else if (m.tipo_detectado === 'a4') ticketAncho.value = 210
-  else ticketAncho.value = 58
-})
-
 async function recargar(): Promise<void> {
   await store.cargarPrinters()
   await store.cargarConfig()
   if (configTicket.value) {
-    ticketPrinter.value = configTicket.value.nombre_impresora
+    const nombre = configTicket.value.nombre_impresora
+    ticketPrinter.value = nombre === '__SIN_ASIGNAR__' ? null : nombre
     ticketAncho.value = configTicket.value.ancho_mm
   }
   if (configEtiqueta.value) etiquetaPrinter.value = configEtiqueta.value.nombre_impresora
+}
+
+async function recargarDiag(): Promise<void> {
+  try {
+    const { getPrintersDiag } = await import('@/api/printerApi')
+    const diag = await getPrintersDiag()
+    // @ts-ignore
+    store.diagnostico = diag.diagnostico
+    // @ts-ignore
+    store.serverUser = diag.server?.user || null
+  } catch {}
+  await store.cargarPrinters()
 }
 
 onMounted(recargar)
@@ -331,20 +446,14 @@ async function guardarTicket(): Promise<void> {
   savingTicket.value = true
   try {
     const isManual = ticketMeta.value?.tipo_detectado === 'desconocida'
-    const tipoDet =
-      ticketMeta.value?.tipo_detectado ||
-      (ticketAncho.value === 80
-        ? 'ticket_80'
-        : ticketAncho.value === 60
-          ? 'etiqueta_60x40'
-          : ticketAncho.value === 210
-            ? 'a4'
-            : 'ticket_58')
+    const tipoDet = ticketMeta.value?.tipo_detectado || 'desconocida'
+    // Guardar solo impresora — preservar ancho actual del formato
+    const anchoActual = configTicket.value?.ancho_mm ?? ticketAncho.value
     await store.guardar(
       'ticket',
       ticketPrinter.value,
-      ticketAncho.value,
-      ticketAncho.value === 60 ? 40 : null,
+      anchoActual,
+      anchoActual === 60 ? 40 : null,
       tipoDet,
       isManual,
     )
@@ -353,6 +462,20 @@ async function guardarTicket(): Promise<void> {
     $q.notify({ type: 'negative', message: (e as Error).message })
   } finally {
     savingTicket.value = false
+  }
+}
+
+async function guardarFormato(): Promise<void> {
+  savingFormato.value = true
+  try {
+    await store.guardarFormato(ticketAncho.value, 'ticket', ticketAncho.value === 60 ? 40 : null)
+    $q.notify({ type: 'positive', message: `Formato ${ticketAncho.value}mm guardado — preview y impresión usarán este ancho` })
+    // refrescar preview automáticamente
+    await preview('ticket')
+  } catch (e: unknown) {
+    $q.notify({ type: 'negative', message: (e as Error).message })
+  } finally {
+    savingFormato.value = false
   }
 }
 
@@ -394,20 +517,39 @@ async function probar(tipo: 'ticket' | 'etiqueta'): Promise<void> {
   testing.value = true
   try {
     const printerName = tipo === 'ticket' ? ticketPrinter.value : etiquetaPrinter.value
-    const res = await store.imprimirDirecto({ tipo, printerName: printerName || undefined })
-    pdfBase64.value = res.pdfBase64
+    if (tipo === 'etiqueta') {
+      const res = await store.imprimirDirecto({ tipo, printerName: printerName || undefined, ancho_mm: 60, lineas: ['WOOW KIDS - ETIQUETA', '60x40mm', 'Prueba OK', '----------------'] })
+      lastResult.value = { printer: res.printer, fallback: res.fallback, error: (res as unknown as { error?: string }).error }
+      if (res.fallback) $q.notify({ type: 'warning', message: 'Sin GDI — se generó PDF (fallback). Usa "Imprimir (iframe)"' })
+      else $q.notify({ type: 'positive', message: `Prueba enviada a ${res.printer}` })
+      return
+    }
+    // Ticket: usar mismo WYSIWYG que Preview (centrado, negritas, anchos) — no texto plano
+    const demoOrden = {
+      titulo: 'TICK-7027',
+      fecha_hora: '2026-09-08T22:00:00+00:00',
+      creado_por_nombre: 'Diana',
+      nombre_cliente: null,
+      total_final: 120,
+      detalles: [{ producto_nombre: 'Hamburguesa Doble Tocino', cantidad: 1, precio_unitario: 120, importe: 120, notas_especiales: null, nombre_combo_padre: null }],
+      metodos_pago: [{ metodo_pago_nombre: 'EFECTIVO', monto: 120 }],
+    }
+    const res = await store.imprimirDirecto({ tipo, printerName: printerName || undefined, ancho_mm: ticketAncho.value, data: { orden: demoOrden } as unknown as Record<string, unknown> })
     lastResult.value = {
       printer: res.printer,
       fallback: res.fallback,
       error: (res as unknown as { error?: string }).error,
     }
     if (res.fallback) {
+      // Parpadeo = GDI no soporta PDF en esta térmica. Mostrar PDF WYSIWYG correcto y abrir diálogo navegador (mantiene centrado/negritas)
+      pdfBase64.value = res.pdfBase64
+      const errMsg = (res as unknown as { error?: string }).error
       $q.notify({
         type: 'warning',
-        message: 'Sin GDI — se generó PDF (fallback). Usa "Imprimir (iframe)"',
+        message: `GDI no imprimió (${errMsg || 'PDF no soportado'}) — se abrió Preview. Usa "Imprimir (iframe)" para imprimir con formato correcto ${ticketAncho.value}mm`,
       })
     } else {
-      $q.notify({ type: 'positive', message: `Prueba enviada a ${res.printer}` })
+      $q.notify({ type: 'positive', message: `Prueba enviada a ${res.printer} (${res.ancho_mm}mm)` })
     }
   } catch (e: unknown) {
     $q.notify({ type: 'negative', message: (e as Error).message })
