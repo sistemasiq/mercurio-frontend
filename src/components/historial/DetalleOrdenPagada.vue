@@ -52,12 +52,14 @@ onMounted(async () => {
   try { await printerStore.cargarConfig() } catch {}
   try {
     orden.value = await obtenerDetalleOrden(props.tipoOrigen, props.referenciaId || props.comandaId)
-    if (props.autoPrint) {
-      await nextTick()
-      ejecutarImpresion()
-    }
   } finally {
     isLoading.value = false
+  }
+  if (props.autoPrint && orden.value) {
+    // esperar a que el DOM del ticket (v-else-if="orden") se monte con isLoading=false
+    await nextTick()
+    await nextTick()
+    ejecutarImpresion()
   }
 })
 
