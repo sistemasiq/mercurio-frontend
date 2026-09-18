@@ -4,10 +4,7 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
 import { obtenerDetalleOrden } from '@/services/historialService'
 import type { DetalleOrden } from '@/api/historialApi'
-import { printTicketDirecto } from '@/api/printerApi'
-import { usePrinterFallback } from '@/composables/usePrinterFallback'
-import { usePrinterStore } from '@/stores/printer'
-
+import { useTicketPrint } from '@/composables/useTicketPrint'
 const props = withDefaults(
   defineProps<{
     tipoOrigen?: 'comanda' | 'estancia' | 'reservacion'
@@ -21,22 +18,13 @@ const props = withDefaults(
 const emit = defineEmits(['close'])
 
 const $q = useQuasar()
-const { printPdfBase64ViaIframe } = usePrinterFallback()
-const printerStore = usePrinterStore()
+// Unificado: cualquier impresora + respeta config por sección (historial/caja)
+const { ticketAncho, ticketWidthMm, asegurarConfig, printHtmlViaIframe } = useTicketPrint(props.posMode ? 'caja' : 'historial')
 
 const isLoading = ref(true)
 const orden = ref<DetalleOrden | null>(null)
 const isPrinting = ref(false)
 const ticketRef = ref<HTMLElement | null>(null)
-
-// Ancho del ticket desde configuración desacoplada (58/80) — unificado PDF y HTML
-const ticketAncho = computed(() => {
-  const cfg = printerStore.configPorTipo('ticket')
-  const w = cfg?.ancho_mm
-  if (w === 58 || w === 80 || w === 210) return w
-  return 80
-})
-const ticketWidthMm = computed(() => `${ticketAncho.value}mm`)
 
 const onKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') emit('close')
@@ -49,7 +37,7 @@ const onBackdropClick = () => {
 onMounted(async () => {
   window.addEventListener('keydown', onKeydown)
   document.body.style.overflow = 'hidden'
-  try { await printerStore.cargarConfig() } catch {}
+  await asegurarConfig()
   try {
     orden.value = await obtenerDetalleOrden(props.tipoOrigen, props.referenciaId || props.comandaId)
   } finally {
@@ -140,51 +128,6 @@ function getTicketHtmlForPrint(): string {
     <div class="ticket-divider-solid-thick"></div>
     <div class="ticket-footer"><p>*** GRACIAS POR SU COMPRA ***</p><p>ESTE NO ES UN COMPROBANTE FISCAL</p></div>
   </div>`
-}
-
-function printHtmlViaIframe(html: string): void {
-  // WYSIWYG unificado: ancho dinámico 58/80mm — mismo que PDF backend
-  const w = ticketWidthMm.value
-  const iframe = document.createElement('iframe')
-  iframe.style.position = 'fixed'
-  iframe.style.left = '-10000px'
-  iframe.style.top = '0'
-  iframe.style.width = w
-  iframe.style.height = '0'
-  iframe.style.border = '0'
-  document.body.appendChild(iframe)
-  const doc = iframe.contentDocument || iframe.contentWindow?.document
-  if (!doc) {
-    window.print()
-    return
-  }
-  // Clonar estilos del documento actual (incluye scoped de .ticket-receipt)
-  const headStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-    .map((el) => el.outerHTML)
-    .join('\n')
-  doc.open()
-  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8">${headStyles}
-    <style>
-      @page { size: ${w} auto; margin: 0; }
-      html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
-      body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      .ticket-receipt { width: ${w} !important; max-width: ${w} !important; margin: 0 auto !important; padding: 15px !important; box-sizing: border-box !important; }
-    </style>
-  </head><body>${html}</body></html>`)
-  doc.close()
-  const doPrint = () => {
-    try {
-      const body = doc.body
-      if (body) iframe.style.height = `${Math.max(body.scrollHeight, 400) + 20}px`
-      iframe.contentWindow?.focus()
-      iframe.contentWindow?.print()
-    } finally {
-      setTimeout(() => {
-        if (document.body.contains(iframe)) document.body.removeChild(iframe)
-      }, 1500)
-    }
-  }
-  setTimeout(doPrint, 400)
 }
 
 async function ejecutarImpresion() {

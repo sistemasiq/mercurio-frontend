@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
 import { useAuthStore } from '@/stores/auth'
 import QRCode from 'qrcode'
+import { useTicketPrint } from '@/composables/useTicketPrint'
 
 const store = useRegistrationStore()
 const authStore = useAuthStore()
@@ -10,16 +11,25 @@ const qrCodeUrl = ref('')
 
 const branchName = computed(() => authStore.currentBranchName || 'Sucursal')
 
+// Autoconfigure por sección voucher: respeta config ticket (58/80/210), QR escala con ancho, cualquier impresora vía iframe
+const { ticketAncho, ticketWidthMm, qrSize, asegurarConfig, printHtmlViaIframe } = useTicketPrint('voucher')
+
+async function generarQR() {
+  if (!store.registroId) return
+  const url = `${window.location.origin}/padres/access?code=${store.registroId}`
+  qrCodeUrl.value = await QRCode.toDataURL(url, {
+    width: qrSize.value,
+    margin: 1,
+    errorCorrectionLevel: 'L',
+  })
+}
+
 onMounted(async () => {
-  if (store.registroId) {
-    const url = `${window.location.origin}/padres/access?code=${store.registroId}`
-    qrCodeUrl.value = await QRCode.toDataURL(url, {
-      width: 120,
-      margin: 1,
-      errorCorrectionLevel: 'L',
-    })
-  }
+  await asegurarConfig()
+  await generarQR()
 })
+
+watch(qrSize, generarQR)
 
 function formatDate() {
   const now = new Date()
@@ -43,10 +53,17 @@ function scheduledExit() {
 }
 
 function printVoucher() {
-  const originalTitle = document.title
-  document.title = 'Ticket_Registro'
-  window.print()
-  document.title = originalTitle
+  const el = document.getElementById('printable-voucher') as HTMLElement | null
+  const html = el?.outerHTML || document.querySelector('.voucher-wrapper')?.outerHTML || ''
+  if (!html) {
+    const originalTitle = document.title
+    document.title = 'Ticket_Registro'
+    window.print()
+    document.title = originalTitle
+    return
+  }
+  // Cualquier impresora (iframe) + ancho dinámico desde config (58/80/210)
+  printHtmlViaIframe(html)
 }
 
 function getBraceletLabel(braceletId: string) {
@@ -56,8 +73,8 @@ function getBraceletLabel(braceletId: string) {
 </script>
 
 <template>
-  <div class="voucher-wrapper">
-    <div id="printable-voucher" class="voucher">
+  <div class="voucher-wrapper" :style="{ maxWidth: ticketWidthMm }">
+    <div id="printable-voucher" class="voucher" :style="{ width: ticketWidthMm, maxWidth: ticketWidthMm }">
       <!-- Header -->
       <div class="voucher-header text-center q-mb-md">
         <div class="text-h6 text-weight-bold">Woow Kids</div>
@@ -138,9 +155,9 @@ function getBraceletLabel(braceletId: string) {
 
       <q-separator class="q-mb-md" />
 
-      <!-- QR Code -->
+      <!-- QR Code - tamaño autoconfigurado por ancho ticket (58→90, 80→110, 210→140) -->
       <div v-if="qrCodeUrl" class="text-center q-mb-md">
-        <img :src="qrCodeUrl" alt="QR del registro" class="qr-code" />
+        <img :src="qrCodeUrl" alt="QR del registro" class="qr-code" :style="{ width: qrSize + 'px', height: qrSize + 'px' }" />
         <div class="text-caption text-grey-7 q-mt-xs">Escanea para ver detalles del registro</div>
       </div>
 
