@@ -544,7 +544,7 @@ async function ejecutarImpresion() {
 <style>
 @media print {
   @page {
-    size: 80mm auto;
+    size: auto;
     margin: 0;
   }
 
@@ -591,8 +591,7 @@ async function ejecutarImpresion() {
   .ticket-receipt {
     display: block !important;
     visibility: visible !important;
-    width: 80mm !important;
-    max-width: 80mm !important;
+    /* ancho dinámico viene del :style inline (58/80/210mm); no forzar 80mm aquí */
     padding: 15px !important;
     margin: 0 auto !important;
     font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif !important;
@@ -612,28 +611,31 @@ async function ejecutarImpresion() {
   .ticket-header,
   .ticket-info,
   .ticket-table-header,
-  .ticket-products,
-  .ticket-row,
   .ticket-totals,
   .ticket-totals-row,
   .ticket-grand-total,
   .ticket-footer,
-  .ticket-divider,
   .ticket-cancelado {
-    display: flex !important;
     visibility: visible !important;
     overflow: visible !important;
     page-break-inside: avoid !important;
   }
 
   .ticket-header {
+    display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     align-items: center !important;
   }
 
   .ticket-products {
-    flex-direction: column !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .ticket-row {
+    display: flex !important;
+    visibility: visible !important;
   }
 
   .historial-layout-wrapper > * {
