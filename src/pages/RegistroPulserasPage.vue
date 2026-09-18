@@ -68,7 +68,7 @@
                 outlined
                 dense
                 placeholder="Ej. WK-0000001"
-                maxlength="50"
+                maxlength="10"
                 counter
                 :disable="!store.formularioHabilitado || store.enviando"
                 @keydown.enter.prevent="handleScanEnter"
