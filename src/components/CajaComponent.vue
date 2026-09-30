@@ -156,6 +156,15 @@
 
     <!-- MODALES DE PERSONALIZACIÓN -->
     <ProductNoteModal v-model="notasDialog" :item="itemEditando" @guardar="guardarNotasLocal" />
+
+    <!-- MODAL DE INGRESO DE EFECTIVO PREVENTIVO -->
+    <IngresoEfectivoModal
+      v-if="pagosPendientes"
+      v-model="mostrarModalIngreso"
+      :cambio-requerido="pagosPendientes.cambio"
+      @ingreso-exitoso="onIngresoExitoso"
+      @cancelar="onCancelarIngreso"
+    />
   </div>
 </template>
 
@@ -167,6 +176,7 @@ import axios from 'axios'
 import ProductoCard from '@/components/comandas/ProductoCard.vue'
 import TicketPanel from '@/components/comandas/TicketPanel.vue'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
+import IngresoEfectivoModal from '@/components/shared/payments/IngresoEfectivoModal.vue'
 import ProductNoteModal from '@/components/comandas/ProductNoteModal.vue'
 import DetalleOrdenPagada from '@/components/historial/DetalleOrdenPagada.vue'
 import type { ItemTicket } from '@/components/comandas/TicketItem.vue'
@@ -194,6 +204,16 @@ const turno = useTurnoCajaStore()
 const modalPagoAbierto = ref(false)
 const comandaPagadaId = ref<string | null>(null)
 const ticketPostPagoAbierto = ref(false)
+
+interface PagosPendientes {
+  pagos: AppliedPayment[]
+  celularCliente: string | null
+  puntosARedimir: number
+  descuentoPuntos: number
+  cambio: number
+}
+const mostrarModalIngreso = ref(false)
+const pagosPendientes = ref<PagosPendientes | null>(null)
 const abrirModalPago = () => {
   if (itemsTicket.value.length === 0) {
     $q.notify({
@@ -421,8 +441,29 @@ const onPagoExitoso = (
   celularCliente: string | null,
   puntosARedimir: number,
   descuentoPuntos: number,
+  cambio: number,
 ) => {
-  void procesarPago(pagos, celularCliente, puntosARedimir, descuentoPuntos)
+  if (cambio > 0 && cambio > turno.efectivoDisponible) {
+    pagosPendientes.value = { pagos, celularCliente, puntosARedimir, descuentoPuntos, cambio }
+    modalPagoAbierto.value = false
+    mostrarModalIngreso.value = true
+    return
+  }
+  void procesarPago(pagos, celularCliente, puntosARedimir, descuentoPuntos, cambio)
+}
+
+const onIngresoExitoso = () => {
+  if (!pagosPendientes.value) return
+  const p = pagosPendientes.value
+  if (p.cambio > turno.efectivoDisponible) return
+  mostrarModalIngreso.value = false
+  pagosPendientes.value = null
+  void procesarPago(p.pagos, p.celularCliente, p.puntosARedimir, p.descuentoPuntos, p.cambio)
+}
+
+const onCancelarIngreso = () => {
+  mostrarModalIngreso.value = false
+  pagosPendientes.value = null
 }
 
 const mapearMetodoPago = (categoriaSeleccionada: string): string => {
@@ -445,6 +486,7 @@ const procesarPago = async (
   celularCliente: string | null,
   puntosARedimir: number,
   descuentoPuntos: number,
+  cambio: number,
 ) => {
   if (itemsTicket.value.length === 0 || enviando.value) return
 
@@ -478,6 +520,7 @@ const procesarPago = async (
       })),
       ...(celularCliente ? { celular_cliente: celularCliente } : {}),
       ...(puntosARedimir > 0 ? { puntos_a_redimir: puntosARedimir } : {}),
+      ...(cambio > 0 ? { cambio } : {}),
       ...(nombreCliente.value.trim() ? { nombre_cliente: nombreCliente.value.trim() } : {}),
     }
 
@@ -497,6 +540,8 @@ const procesarPago = async (
 
     // Actualización optimista: refrescar comandas de inmediato
     void refrescarComandas()
+    // Mantener efectivoDisponible actualizado con las ventas en efectivo del turno
+    void turno.cargarTurnoActivo()
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.data) {
       console.error(

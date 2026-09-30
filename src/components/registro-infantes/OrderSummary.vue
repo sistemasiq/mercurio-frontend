@@ -14,8 +14,13 @@ const $q = useQuasar()
 const mostrarModalPago = ref(false)
 const metodosPagoDisponibles = ref<MetodosPago[]>([])
 
-function formatCurrency(value: number) {
+const formatCurrency = (value: number) => {
   return `$${value.toFixed(2)}`
+}
+
+const formatPricePerHour = (pricePerChild: number, hours: number) => {
+  if (hours === 0) return formatCurrency(0)
+  return formatCurrency(pricePerChild / hours) + '/hr'
 }
 
 const cargarMetodosPago = async () => {
@@ -61,13 +66,15 @@ const onPagoExitoso = (
   pagos: AppliedPayment[],
   _celularCliente: string | null,
   puntosARedimir: number,
+  _descuentoPuntos: number,
+  cambio: number,
 ) => {
   try {
     const pagosMapeados: OnboardingPago[] = pagos.map((p) => ({
       metodoPagoId: mapearMetodoPago(p.method),
       monto: p.amount,
     }))
-    store.proceedToRFID(pagosMapeados, puntosARedimir)
+    store.proceedToRFID(pagosMapeados, cambio, puntosARedimir)
   } catch (err) {
     console.error('[OrderSummary] onPagoExitoso:', err)
     $q.notify({
@@ -100,7 +107,9 @@ const onPagoExitoso = (
           class="row justify-between items-center q-mb-xs"
         >
           <span class="text-body2 text-grey-8">
-            1× ({{ child.name }}) ({{ store.tutor.estimatedTime }})
+            {{ formatPricePerHour(store.pricePerChild, store.hours) }} ({{ child.name }}) ({{
+              store.tutor.estimatedTime
+            }})
           </span>
           <span class="text-body2">{{ formatCurrency(store.pricePerChild) }}</span>
         </div>
@@ -184,6 +193,16 @@ const onPagoExitoso = (
             <q-icon name="check_circle" color="positive" />
           </template>
           Registro completado correctamente.
+        </q-banner>
+        <q-banner
+          v-if="store.advertenciaEfectivoFromServer"
+          dense
+          rounded
+          class="bg-orange-1 text-orange-9 q-mt-sm"
+          style="font-size: 12px"
+        >
+          <template #avatar><q-icon name="warning" color="warning" /></template>
+          {{ store.advertenciaEfectivoFromServer }}
         </q-banner>
       </template>
     </q-card-section>

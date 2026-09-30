@@ -1,31 +1,31 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
+import { printTicketElement } from '@/utils/ticketPrinting'
 import { useRegistrationStore } from '@/stores/registration'
 import { useAuthStore } from '@/stores/auth'
 import QRCode from 'qrcode'
-import { printTicketElement } from '@/utils/ticketPrinting'
 
 const store = useRegistrationStore()
 const authStore = useAuthStore()
-const $q = useQuasar()
 const qrCodeUrl = ref('')
 const voucherRef = ref<HTMLElement | null>(null)
 const isPrinting = ref(false)
+const $q = useQuasar()
 const issuedAt = new Date()
 
 const branchName = computed(() => authStore.currentBranchName || 'Sucursal')
-
-const qrSize = 110
+const cashierName = computed(() => authStore.currentUser?.name || 'Cajero')
 
 async function generarQR() {
-  if (!store.registroId) return
-  const url = `${window.location.origin}/padres/access?code=${store.registroId}`
-  qrCodeUrl.value = await QRCode.toDataURL(url, {
-    width: qrSize,
-    margin: 1,
-    errorCorrectionLevel: 'L',
-  })
+  if (store.registroId) {
+    const url = `${window.location.origin}/padres/access?code=${store.registroId}`
+    qrCodeUrl.value = await QRCode.toDataURL(url, {
+      width: 100,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+    })
+  }
 }
 
 onMounted(generarQR)
@@ -34,11 +34,11 @@ function formatDate() {
   const now = issuedAt
   return (
     now.toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
     }) +
-    ' | ' +
+    ' ' +
     now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
   )
 }
@@ -58,214 +58,172 @@ async function printVoucher() {
     await generarQR()
     await nextTick()
     await printTicketElement(voucherRef.value)
-  } catch (e: unknown) {
-    $q.notify({
-      type: 'negative',
-      message: (e as Error).message || 'No se pudo preparar el comprobante.',
-    })
+  } catch (error) {
+    $q.notify({ type: 'negative', message: (error as Error).message })
   } finally {
     isPrinting.value = false
   }
-}
-
-function getBraceletLabel(braceletId: string) {
-  const bracelet = store.pulseras.find((p) => p.id === braceletId)
-  return bracelet?.pulseraRfid ?? braceletId
 }
 </script>
 
 <template>
   <div class="voucher-wrapper">
-    <div class="voucher-controls print-hide">
+    <div id="printable-voucher" ref="voucherRef" class="voucher">
+      <!-- Encabezado -->
+      <div class="text-center">
+        <div class="ticket-brand">Woow Kids</div>
+        <div class="ticket-sub">{{ branchName }}</div>
+        <div class="ticket-sub">Cajero: {{ cashierName }}</div>
+      </div>
+
+      <div class="ticket-divider">--------------------------------</div>
+
+      <!-- Fecha y Tutor Compactos -->
+      <div class="ticket-row">
+        <span>Fecha:</span>
+        <span class="text-weight-bold">{{ formatDate() }}</span>
+      </div>
+      <div class="ticket-row">
+        <span>Tutor:</span>
+        <span class="text-ellipsis">{{ store.tutor.fullName }}</span>
+      </div>
+      <div v-if="store.tutor.phone" class="ticket-row">
+        <span>Tel:</span>
+        <span>{{ store.tutor.phone }}</span>
+      </div>
+
+      <div class="ticket-divider">--------------------------------</div>
+
+      <!-- Niños Registrados -->
+      <div class="ticket-section-title">NIÑOS REGISTRADOS</div>
+      <div
+        v-for="child in store.savedChildren"
+        :key="child.id"
+        class="ticket-row items-center q-my-xs"
+      >
+        <span class="text-weight-bold text-ellipsis">{{ child.name }}</span>
+        <span>{{ child.age }} años</span>
+      </div>
+
+      <div class="ticket-divider">--------------------------------</div>
+
+      <!-- Salida y Pago -->
+      <div class="ticket-box q-my-xs text-center">
+        Salida Estimada: <strong>{{ scheduledExit() }}</strong>
+      </div>
+
+      <div class="ticket-row text-weight-bold q-mt-xs" style="font-size: 13px">
+        <span>TOTAL:</span>
+        <span>${{ Number(store.totalFromServer ?? store.total).toFixed(2) }}</span>
+      </div>
+
+      <!-- QR -->
+      <div v-if="qrCodeUrl" class="text-center q-mt-sm">
+        <img :src="qrCodeUrl" alt="QR" class="qr-code" />
+        <div class="ticket-caption">Escanea para ver tu registro</div>
+      </div>
+
+      <div class="text-center ticket-footer q-mt-xs">¡Gracias por visitarnos!</div>
+
+      <!-- Botón de pantalla (oculto al imprimir) -->
       <q-btn
+        unelevated
+        no-caps
         color="primary"
-        label="Imprimir comprobante"
+        label="Imprimir Ticket"
         icon="print"
+        class="full-width print-hide q-mt-md"
         :loading="isPrinting"
         :disable="!qrCodeUrl"
         @click="printVoucher"
       />
     </div>
-    <div id="printable-voucher" ref="voucherRef" class="voucher" style="width: 80mm">
-      <!-- Header -->
-      <div class="voucher-header text-center q-mb-md">
-        <div class="text-h6 text-weight-bold">Woow Kids</div>
-        <div class="text-caption text-grey-7">{{ branchName }}</div>
-      </div>
-
-      <q-separator class="q-mb-sm" />
-
-      <!-- Date -->
-      <div class="row justify-between q-mb-md">
-        <div>
-          <div class="voucher-label">FECHA &amp; HORA</div>
-          <div class="voucher-value">{{ formatDate() }}</div>
-        </div>
-      </div>
-
-      <q-separator class="q-mb-sm" />
-
-      <!-- Tutor Data -->
-      <div class="voucher-section-title q-mb-xs">DATOS DEL TUTOR</div>
-      <div class="row justify-between q-mb-xs">
-        <span class="text-body2">Nombre:</span>
-        <span class="text-body2 text-weight-medium">{{ store.tutor.fullName }}</span>
-      </div>
-      <div class="row justify-between q-mb-md">
-        <span class="text-body2">Teléfono:</span>
-        <span class="text-body2 text-weight-medium">{{ store.tutor.phone }}</span>
-      </div>
-
-      <!-- Second Tutor -->
-      <div v-if="store.tutor.secondaryGuardian" class="q-mb-md">
-        <div class="row justify-between q-mb-xs">
-          <span class="text-body2">Segundo Tutor:</span>
-          <span class="text-body2 text-weight-medium">{{ store.tutor.secondaryGuardian }}</span>
-        </div>
-      </div>
-
-      <q-separator class="q-mb-sm" />
-
-      <!-- Children -->
-      <div class="voucher-section-title q-mb-xs">NIÑOS REGISTRADOS</div>
-      <div class="row text-caption text-grey-7 q-mb-xs">
-        <div class="col">Nombre</div>
-        <div style="width: 50px" class="text-center">Edad</div>
-        <div style="width: 100px" class="text-right">Pulsera</div>
-      </div>
-      <div v-for="child in store.savedChildren" :key="child.id" class="row items-center q-mb-xs">
-        <div class="col text-weight-medium" style="font-size: 14px">{{ child.name }}</div>
-        <div style="width: 50px" class="text-center text-body2">{{ child.age }}</div>
-        <div style="width: 100px" class="text-right">
-          <span class="text-caption text-grey-7 bracelet-code">{{
-            getBraceletLabel(child.rfidBracelet)
-          }}</span>
-        </div>
-      </div>
-
-      <q-separator class="q-my-md" />
-
-      <!-- Stay details -->
-      <div class="stay-box q-pa-sm q-mb-md">
-        <div class="voucher-section-title q-mb-sm">DETALLES DE ESTANCIA</div>
-        <div class="row justify-between q-mb-xs">
-          <span class="text-body2">Tiempo Prepagado:</span>
-          <span class="text-weight-bold">{{ store.tutor.estimatedTime }}</span>
-        </div>
-        <div class="row justify-between">
-          <span class="text-body2">Salida Programada:</span>
-          <q-chip dense color="grey-3" text-color="grey-9" :label="scheduledExit()" size="md" />
-        </div>
-      </div>
-
-      <!-- Payment details -->
-      <div class="voucher-section-title q-mb-sm">DETALLES DE PAGO</div>
-      <div class="row justify-between q-mb-md">
-        <span class="text-subtitle1 text-weight-bold">TOTAL:</span>
-        <span class="text-subtitle1 text-weight-bold"
-          >${{ Number(store.totalFromServer ?? store.total).toFixed(2) }}</span
-        >
-      </div>
-
-      <q-separator class="q-mb-md" />
-
-      <!-- QR del registro -->
-      <div v-if="qrCodeUrl" class="text-center q-mb-md">
-        <img
-          :src="qrCodeUrl"
-          alt="QR del registro"
-          class="qr-code"
-          :style="{ width: qrSize + 'px', height: qrSize + 'px' }"
-        />
-        <div class="text-caption text-grey-7 q-mt-xs">Escanea para ver detalles del registro</div>
-      </div>
-
-      <div class="text-center text-caption text-grey-7 q-mb-md">¡Gracias por visitarnos!</div>
-    </div>
   </div>
 </template>
 
 <style scoped>
+/* Vista en pantalla */
 .voucher-wrapper {
   background: rgba(0, 0, 0, 0.05);
-  padding: 24px;
+  padding: 16px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
+  justify-content: center;
   overflow-x: auto;
-  border-radius: 12px;
 }
 
 .voucher {
   background: #fff;
-  border-radius: 12px;
-  padding: 15px;
+  border-radius: 8px;
+  padding: 14px 10px;
+  width: 80mm;
   max-width: none;
   flex: none;
   box-sizing: border-box;
-  color: #111;
-  width: 100%;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  font-family: 'Courier New', Courier, monospace;
+  color: #000;
+  font-size: 11px;
+  line-height: 1.25;
 }
 
-.voucher-label {
+.ticket-brand {
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.ticket-sub {
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: #555;
-  text-transform: uppercase;
+  color: #444;
 }
 
-.voucher-value {
-  font-size: 13px;
-  color: #111;
+.ticket-divider {
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  letter-spacing: -1px;
+  color: #666;
+  margin: 4px 0;
 }
 
-.voucher-section-title {
+.ticket-section-title {
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: #555;
-  text-transform: uppercase;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 2px;
 }
 
-.stay-box {
-  background: rgba(2, 95, 224, 0.06);
-  border-radius: 8px;
-  border: 1px solid rgba(2, 95, 224, 0.15);
+.ticket-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ticket-box {
+  border: 1px dashed #000;
+  padding: 4px;
+  font-size: 11px;
 }
 
 .qr-code {
-  width: 120px;
-  height: 120px;
-  border-radius: 8px;
+  width: 95px;
+  height: 95px;
+  display: inline-block;
 }
 
-.bracelet-code {
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  background: var(--bg-main);
-  padding: 2px 6px;
-  border-radius: 4px;
+.ticket-caption {
+  font-size: 9px;
+  color: #555;
+  margin-top: 2px;
 }
-.voucher-controls {
-  width: min(100%, 420px);
-}
-.voucher-controls p {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-.voucher .row {
-  gap: 4px;
-  overflow-wrap: anywhere;
-}
-.voucher .row > * {
-  min-width: 0;
-}
-.voucher .row > [style*='100px'] {
-  width: auto !important;
-  max-width: 90px;
+
+.ticket-footer {
+  font-size: 10px;
 }
 </style>

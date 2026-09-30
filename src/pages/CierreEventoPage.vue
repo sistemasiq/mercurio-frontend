@@ -311,6 +311,7 @@ import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import { horasFacturables } from '@/utils/horario'
 import { printTicketElement } from '@/utils/ticketPrinting'
+import { descontarCambio } from '@/utils/pagos'
 
 const route = useRoute()
 const router = useRouter()
@@ -375,7 +376,11 @@ onMounted(() => {
   if (!authStore.currentBranchId) return
   paquetesStore.cargar(authStore.currentBranchId)
   extrasStore.cargar(authStore.currentBranchId)
-  productosStore.cargar(authStore.currentBranchId)
+  // Catálogo de cajero: cerrar un evento solo pide `reservaciones:editar`, que el
+  // Cajero sí tiene, pero /productos/admin exige `inventario:ver`, que no. Con el
+  // 403 la lista quedaba vacía y cada producto del evento se mostraba como
+  // "Producto" genérico por el fallback de nombre.
+  productosStore.cargarCatalogo()
   tiposEventoStore.cargar()
 })
 
@@ -494,21 +499,49 @@ const mapearMetodoPago = (categoriaSeleccionada: string): string => {
   return metodo.id
 }
 
-const onPagoExitoso = async (pagosAplicados: AppliedPayment[]) => {
+const onPagoExitoso = async (
+  pagosAplicados: AppliedPayment[],
+  _celularCliente: string | null,
+  _puntosARedimir: number,
+  _descuentoPuntos: number,
+  cambio: number,
+) => {
   if (!reservacion.value) return
+  // Snapshot antes de que cargarTodo() reemplace reservacion/pagos: el ticket
+  // debe mostrar el "antes" y el "después" de ESTA transacción.
+  const saldoAntes = saldoPendiente.value
+
+  // El modal entrega lo que el cliente ENTREGÓ; descontarCambio() lo ajusta a
+  // lo que de verdad se queda en caja antes de guardarlo, porque el excedente
+  // se le devolvió como cambio y no es ingreso del evento (mismo ajuste que
+  // hace PagosPage.vue — sin él, un pago en efectivo con cambio se guardaba
+  // completo y descuadraba el corte de caja).
+  const aplicados = descontarCambio(pagosAplicados, saldoAntes)
+  if (!aplicados.length) return
+
   procesandoPago.value = true
   try {
-    for (const pago of pagosAplicados) {
-      await pagosReservacionApi.crear({
-        reservacion_id: reservacion.value.id,
+    const resultado = await pagosReservacionApi.completar({
+      reservacion_id: reservacion.value.id,
+      pagos: pagosAplicados.map((pago) => ({
         metodo_pago_id: mapearMetodoPago(pago.method),
         monto: String(pago.amount),
         notas: pago.cardType
           ? `Pago (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
           : 'Pago registrado en cierre de evento',
+      })),
+      ...(cambio > 0 ? { cambio: String(cambio) } : {}),
+    })
+    $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
+    if (resultado.advertencia_efectivo) {
+      $q.notify({
+        type: 'warning',
+        message: 'No hay suficiente efectivo en caja',
+        caption: resultado.advertencia_efectivo,
+        position: 'top-right',
+        timeout: 6000,
       })
     }
-    $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
     await cargarTodo()
   } catch (err: unknown) {
     $q.notify({

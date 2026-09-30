@@ -577,11 +577,29 @@ body {
 }
 
 // ─── Package Cards ───────────────────────────────────────────────────────────
+// Mismo motivo que .services-grid: con `row q-gutter-md` + `.col` de Quasar las
+// tarjetas se reparten SIEMPRE en una sola fila, sin importar cuántas haya ni qué
+// tan angosta sea la pantalla. Al pasar de 2 a 4 paquetes cada una se comprimía
+// hasta encimar el precio, la lista de incluidos y el botón. El grid con
+// auto-fill/minmax deja que salten de renglón solas cuando ya no caben.
+.packages-grid {
+  display: grid;
+  // El min() evita que la columna desborde cuando el contenedor mide menos de
+  // 240px: sin él, minmax() impone ese piso y la tarjeta se sale de la pantalla.
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
 .package-card {
   border: 2px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 20px;
   cursor: pointer;
+  // Empuja el botón al fondo para que tarjetas con distinta cantidad de
+  // "incluidos" queden parejas en el mismo renglón.
+  display: flex;
+  flex-direction: column;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
@@ -640,17 +658,43 @@ body {
     margin: 0 0 16px;
     font-size: 0.8rem;
     color: #546e7a;
+    // Ocupa el espacio sobrante para que el botón quede al fondo aunque un
+    // paquete tenga más "incluidos" que el de al lado.
+    flex: 1;
 
     li {
       display: flex;
-      align-items: center;
+      // Un incluido de varias líneas (descripciones largas) debe alinear su
+      // palomita con la primera línea, no al centro del bloque de texto.
+      align-items: flex-start;
       gap: 6px;
       padding: 3px 0;
+      // Sin esto, un nombre de producto largo sin espacios desborda la tarjeta
+      // y reaparece el encimado que el grid vino a resolver.
+      overflow-wrap: anywhere;
 
       .q-icon {
         color: $positive;
         font-size: 1rem;
+        flex-shrink: 0;
+        margin-top: 1px;
       }
+    }
+  }
+
+  // En pantallas angostas la tarjeta ya ocupa todo el ancho disponible, así que
+  // el aire y el tamaño del precio se reducen para que quepa más contenido útil
+  // sin obligar a hacer scroll por cada paquete.
+  @media (max-width: 599px) {
+    padding: 16px;
+
+    &__price {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+
+    &__capacity {
+      margin-bottom: 8px;
     }
   }
 }

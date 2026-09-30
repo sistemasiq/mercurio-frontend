@@ -115,6 +115,7 @@ export interface TurnoActivoResponse {
   fechaApertura: string // ISO 8601
   totalVentas: number // solo visible para el admin post-BALANCE_REVELADO
   totalRetiros: number
+  totalIngresos: number
   movimientos: MovimientoTurno[]
 }
 
@@ -184,9 +185,10 @@ export type ConceptoRetiro =
   | 'Pago de servicios'
   | 'Gastos administrativos'
   | 'Gastos varios'
+  | 'Devolución'
 
 /** Valores reales del enum tipos_destinatario en BD */
-export type TipoDestinatario = 'Proveedor' | 'Empleado' | 'Administrador'
+export type TipoDestinatario = 'Proveedor' | 'Empleado' | 'Administrador' | 'Cliente'
 
 export interface RetiroParcialPayload {
   turnoId: string
@@ -203,6 +205,18 @@ export interface RetiroParcialResponse {
   tipoDestinatario: string
   monto: number
   observaciones: string | null
+  creado: string
+}
+
+export interface IngresoEfectivoPayload {
+  turnoId: string
+  monto: number
+}
+
+export interface IngresoEfectivoResponse {
+  id: string
+  turnoId: string
+  monto: number
   creado: string
 }
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
-import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import TutorForm from '@/components/registro-infantes/TutorForm.vue'
 import ChildrenSection from '@/components/registro-infantes/ChildrenSection.vue'
 import OrderSummary from '@/components/registro-infantes/OrderSummary.vue'
@@ -11,19 +11,33 @@ import PrintVoucher from '@/components/registro-infantes/PrintVoucher.vue'
 import type { EventoDelDia } from '@/types/reservaciones'
 
 const store = useRegistrationStore()
-const turno = useTurnoCajaStore()
 const router = useRouter()
+const $q = useQuasar()
 
 onMounted(() => {
-  // Se valida al entrar, no hasta el final del registro: si no hay turno
-  // abierto no tiene sentido dejar llenar todo el formulario del tutor/niño
-  // para enterarse hasta el final. Redirige de inmediato, sin bloquear con un panel.
-  if (!turno.estaOperando) {
-    router.push('/pos/cierre')
-    return
-  }
   store.loadProductos()
 })
+
+// Watch para detectar cuando no hay precios disponibles y redirigir
+watch(
+  () => store.noPreciosDisponibles,
+  (noPrecios) => {
+    if (noPrecios) {
+      $q.dialog({
+        title: 'Precios no configurados',
+        message:
+          'No se encontraron los precios de estancias. Por favor, contacta al administrador para solucionarlo.',
+        ok: {
+          label: 'Entendido',
+          color: 'primary',
+        },
+        persistent: true,
+      }).onOk(() => {
+        router.back()
+      })
+    }
+  },
+)
 
 onUnmounted(() => {
   store.reset()

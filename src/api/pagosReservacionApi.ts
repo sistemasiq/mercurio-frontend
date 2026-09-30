@@ -1,6 +1,8 @@
 import { apiClient } from '@/api/axiosClient'
 import type {
   Pagos_reservacion,
+  Pagos_reservacion_completar_request,
+  Pagos_reservacion_completar_response,
   Pagos_reservacion_create,
   Pagos_reservacion_update,
 } from '@/types/pagos_reservacion'
@@ -18,6 +20,11 @@ export const pagosReservacionApi = {
 
   crear: (body: Pagos_reservacion_create) =>
     apiClient.post<Pagos_reservacion>('/pagos-reservacion', body).then((r) => r.data),
+
+  completar: (body: Pagos_reservacion_completar_request) =>
+    apiClient
+      .post<Pagos_reservacion_completar_response>('/pagos-reservacion/completar', body)
+      .then((r) => r.data),
 
   actualizar: (id: string, body: Pagos_reservacion_update) =>
     apiClient.patch<Pagos_reservacion>(`/pagos-reservacion/${id}`, body).then((r) => r.data),

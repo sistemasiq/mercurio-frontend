@@ -43,11 +43,18 @@
                 </p>
               </div>
               <div class="rs-hub-actions">
+                <button type="button" class="rs-hub-card" @click="vistaOperando = 'ingreso'">
+                  <div class="rs-hub-icon rs-hub-icon--ingreso">
+                    <q-icon name="add_card" size="32px" />
+                  </div>
+                  <h2 class="rs-hub-card-title">Ingreso de Efectivo</h2>
+                  <p class="rs-hub-card-sub">Agregar dinero físico a la caja actual.</p>
+                </button>
                 <button type="button" class="rs-hub-card" @click="vistaOperando = 'retiro'">
                   <div class="rs-hub-icon rs-hub-icon--retiro">
                     <q-icon name="payments" size="32px" />
                   </div>
-                  <h2 class="rs-hub-card-title">Registrar Retiro Parcial</h2>
+                  <h2 class="rs-hub-card-title">Retiro Parcial</h2>
                   <p class="rs-hub-card-sub">Extraer fondos para operaciones específicas.</p>
                 </button>
                 <button
@@ -64,6 +71,12 @@
                 </button>
               </div>
             </div>
+
+            <IngresoEfectivoCard
+              v-else-if="vistaOperando === 'ingreso'"
+              @volver="vistaOperando = 'hub'"
+              @ingreso-exitoso="vistaOperando = 'hub'"
+            />
 
             <RetiroParcialCard
               v-else
@@ -92,11 +105,6 @@
                     v-model="turno.totalContadoDeclarado"
                     :total-calculado="totalCalculado"
                   />
-
-                  <q-banner v-if="turno.error" rounded class="bg-negative text-white q-mt-sm">
-                    <template #avatar><q-icon name="error" /></template>
-                    {{ turno.error }}
-                  </q-banner>
 
                   <div class="rs-submit-row row q-gutter-md justify-between items-center q-mt-md">
                     <q-btn
@@ -199,6 +207,7 @@ import ConteoBloqueadoOverlay from '@/components/cierre-caja/ConteoBloqueadoOver
 import AutenticacionAdminForm from '@/components/cierre-caja/AutenticacionAdminForm.vue'
 import AutorizacionCierreModal from '@/components/cierre-caja/AutorizacionCierreModal.vue'
 import RetiroParcialCard from '@/components/cierre-caja/RetiroParcialCard.vue'
+import IngresoEfectivoCard from '@/components/cierre-caja/IngresoEfectivoCard.vue'
 
 import { useAuthStore } from '@/stores/auth'
 
@@ -285,8 +294,9 @@ watch(
   },
 )
 
-// Sub-vista del hub de la fase OPERANDO: 'hub' (elegir operación) o 'retiro' (formulario).
-const vistaOperando = ref<'hub' | 'retiro'>('hub')
+// Sub-vista del hub de la fase OPERANDO: 'hub' (elegir operación), 'retiro' o
+// 'ingreso' (formularios).
+const vistaOperando = ref<'hub' | 'retiro' | 'ingreso'>('hub')
 watch(
   () => turno.turnoId,
   () => {
@@ -469,6 +479,10 @@ watch(
 .rs-hub-icon--retiro {
   background: rgba(2, 95, 224, 0.1);
   color: #025fe0;
+}
+.rs-hub-icon--ingreso {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
 }
 .rs-hub-icon--cierre {
   background: rgba(220, 38, 38, 0.1);
