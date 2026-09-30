@@ -260,12 +260,6 @@ const navGroups = computed<NavGroup[]>(() => [
         permission: 'cajas:crear',
       },
       {
-        label: 'Impresión',
-        icon: 'print',
-        routeName: 'admin-impresion',
-        permission: 'impresion:configurar',
-      },
-      {
         label: 'Reportes',
         icon: 'analytics',
         routeName: 'reportes-dashboard',

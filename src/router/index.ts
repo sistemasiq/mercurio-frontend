@@ -412,12 +412,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/admin/CajasAdminPage.vue'),
         meta: { permissions: ['cajas:crear'], title: 'Cajas' },
       },
-      {
-        path: 'impresion',
-        name: 'admin-impresion',
-        component: () => import('@/pages/admin/PrinterConfigPage.vue'),
-        meta: { permissions: ['impresion:configurar'], title: 'Impresión' },
-      },
     ],
   },
   {

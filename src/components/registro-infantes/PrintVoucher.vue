@@ -1,38 +1,37 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
+import { useQuasar } from 'quasar'
 import { useRegistrationStore } from '@/stores/registration'
 import { useAuthStore } from '@/stores/auth'
 import QRCode from 'qrcode'
-import { useTicketPrint } from '@/composables/useTicketPrint'
+import { printTicketElement } from '@/utils/ticketPrinting'
 
 const store = useRegistrationStore()
 const authStore = useAuthStore()
+const $q = useQuasar()
 const qrCodeUrl = ref('')
+const voucherRef = ref<HTMLElement | null>(null)
+const isPrinting = ref(false)
+const issuedAt = new Date()
 
 const branchName = computed(() => authStore.currentBranchName || 'Sucursal')
 
-// Autoconfigure por sección voucher: respeta config ticket (58/80/210), QR escala con ancho, cualquier impresora vía iframe
-const { ticketAncho, ticketWidthMm, qrSize, asegurarConfig, printHtmlViaIframe } = useTicketPrint('voucher')
+const qrSize = 110
 
 async function generarQR() {
   if (!store.registroId) return
   const url = `${window.location.origin}/padres/access?code=${store.registroId}`
   qrCodeUrl.value = await QRCode.toDataURL(url, {
-    width: qrSize.value,
+    width: qrSize,
     margin: 1,
     errorCorrectionLevel: 'L',
   })
 }
 
-onMounted(async () => {
-  await asegurarConfig()
-  await generarQR()
-})
-
-watch(qrSize, generarQR)
+onMounted(generarQR)
 
 function formatDate() {
-  const now = new Date()
+  const now = issuedAt
   return (
     now.toLocaleDateString('es-MX', {
       year: 'numeric',
@@ -47,23 +46,26 @@ function formatDate() {
 function scheduledExit() {
   const time = store.tutor.estimatedTime
   const hours = parseInt(time) || 8
-  const d = new Date()
+  const d = new Date(issuedAt)
   d.setHours(d.getHours() + hours)
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
 
-function printVoucher() {
-  const el = document.getElementById('printable-voucher') as HTMLElement | null
-  const html = el?.outerHTML || document.querySelector('.voucher-wrapper')?.outerHTML || ''
-  if (!html) {
-    const originalTitle = document.title
-    document.title = 'Ticket_Registro'
-    window.print()
-    document.title = originalTitle
-    return
+async function printVoucher() {
+  if (isPrinting.value) return
+  isPrinting.value = true
+  try {
+    await generarQR()
+    await nextTick()
+    await printTicketElement(voucherRef.value)
+  } catch (e: unknown) {
+    $q.notify({
+      type: 'negative',
+      message: (e as Error).message || 'No se pudo preparar el comprobante.',
+    })
+  } finally {
+    isPrinting.value = false
   }
-  // Cualquier impresora (iframe) + ancho dinámico desde config (58/80/210)
-  printHtmlViaIframe(html)
 }
 
 function getBraceletLabel(braceletId: string) {
@@ -73,8 +75,18 @@ function getBraceletLabel(braceletId: string) {
 </script>
 
 <template>
-  <div class="voucher-wrapper" :style="{ maxWidth: ticketWidthMm }">
-    <div id="printable-voucher" class="voucher" :style="{ width: ticketWidthMm, maxWidth: ticketWidthMm }">
+  <div class="voucher-wrapper">
+    <div class="voucher-controls print-hide">
+      <q-btn
+        color="primary"
+        label="Imprimir comprobante"
+        icon="print"
+        :loading="isPrinting"
+        :disable="!qrCodeUrl"
+        @click="printVoucher"
+      />
+    </div>
+    <div id="printable-voucher" ref="voucherRef" class="voucher" style="width: 80mm">
       <!-- Header -->
       <div class="voucher-header text-center q-mb-md">
         <div class="text-h6 text-weight-bold">Woow Kids</div>
@@ -150,29 +162,25 @@ function getBraceletLabel(braceletId: string) {
       <div class="voucher-section-title q-mb-sm">DETALLES DE PAGO</div>
       <div class="row justify-between q-mb-md">
         <span class="text-subtitle1 text-weight-bold">TOTAL:</span>
-        <span class="text-subtitle1 text-weight-bold">${{ store.total.toFixed(2) }}</span>
+        <span class="text-subtitle1 text-weight-bold"
+          >${{ Number(store.totalFromServer ?? store.total).toFixed(2) }}</span
+        >
       </div>
 
       <q-separator class="q-mb-md" />
 
-      <!-- QR Code - tamaño autoconfigurado por ancho ticket (58→90, 80→110, 210→140) -->
+      <!-- QR del registro -->
       <div v-if="qrCodeUrl" class="text-center q-mb-md">
-        <img :src="qrCodeUrl" alt="QR del registro" class="qr-code" :style="{ width: qrSize + 'px', height: qrSize + 'px' }" />
+        <img
+          :src="qrCodeUrl"
+          alt="QR del registro"
+          class="qr-code"
+          :style="{ width: qrSize + 'px', height: qrSize + 'px' }"
+        />
         <div class="text-caption text-grey-7 q-mt-xs">Escanea para ver detalles del registro</div>
       </div>
 
       <div class="text-center text-caption text-grey-7 q-mb-md">¡Gracias por visitarnos!</div>
-
-      <q-btn
-        unelevated
-        no-caps
-        color="primary"
-        label="Imprimir"
-        icon="print"
-        class="full-width print-hide"
-        style="border-radius: 8px; font-weight: 600"
-        @click="printVoucher"
-      />
     </div>
   </div>
 </template>
@@ -182,15 +190,21 @@ function getBraceletLabel(braceletId: string) {
   background: rgba(0, 0, 0, 0.05);
   padding: 24px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  overflow-x: auto;
   border-radius: 12px;
 }
 
 .voucher {
-  background: var(--bg-card);
+  background: #fff;
   border-radius: 12px;
-  padding: 24px;
-  max-width: 420px;
+  padding: 15px;
+  max-width: none;
+  flex: none;
+  box-sizing: border-box;
+  color: #111;
   width: 100%;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
@@ -199,20 +213,20 @@ function getBraceletLabel(braceletId: string) {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: var(--text-muted);
+  color: #555;
   text-transform: uppercase;
 }
 
 .voucher-value {
   font-size: 13px;
-  color: var(--text-primary);
+  color: #111;
 }
 
 .voucher-section-title {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: var(--text-muted);
+  color: #555;
   text-transform: uppercase;
 }
 
@@ -236,55 +250,22 @@ function getBraceletLabel(braceletId: string) {
   padding: 2px 6px;
   border-radius: 4px;
 }
-</style>
-
-<style>
-@media print {
-  @page {
-    margin: 0;
-  }
-
-  body,
-  #q-app,
-  .q-layout,
-  .q-page-container,
-  .registration-page {
-    background: none !important;
-    background-color: white !important;
-  }
-
-  body * {
-    visibility: hidden !important;
-  }
-
-  .voucher-wrapper,
-  .voucher-wrapper * {
-    visibility: visible !important;
-  }
-
-  .voucher-wrapper {
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    display: flex !important;
-    justify-content: center !important;
-    background: none !important;
-  }
-
-  .voucher {
-    box-shadow: none !important;
-    border: none !important;
-    padding: 24px !important;
-    max-width: 100% !important;
-  }
-
-  .print-hide,
-  button,
-  .q-btn {
-    display: none !important;
-  }
+.voucher-controls {
+  width: min(100%, 420px);
+}
+.voucher-controls p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.voucher .row {
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.voucher .row > * {
+  min-width: 0;
+}
+.voucher .row > [style*='100px'] {
+  width: auto !important;
+  max-width: 90px;
 }
 </style>

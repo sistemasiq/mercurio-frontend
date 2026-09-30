@@ -5,7 +5,7 @@
       VOLVER A OPERACIONES
     </button>
 
-    <div class="rp-card">
+    <div v-if="!comprobante" class="rp-card">
       <div class="rp-header">
         <div class="rp-icon-badge">
           <q-icon name="credit_card" size="24px" color="primary" />
@@ -94,12 +94,44 @@
       </div>
     </div>
 
-    <div class="rp-info-banner">
+    <div v-if="!comprobante" class="rp-info-banner">
       <q-icon name="info" size="18px" color="primary" class="q-mr-sm" />
       <span
         >El retiro parcial afectará inmediatamente el saldo en caja. Asegúrese de imprimir el ticket
         de comprobante y recabar la firma de quien recibe el efectivo.</span
       >
+    </div>
+    <div v-else class="withdrawal-preview">
+      <q-banner class="bg-positive text-white q-mb-md"
+        >Retiro registrado. Puedes imprimir o reimprimir el comprobante.</q-banner
+      >
+      <div class="withdrawal-scroll">
+        <div ref="comprobanteRef" class="withdrawal-receipt" style="width: 80mm">
+          <h2>WOOW KIDS</h2>
+          <p>{{ turno.sucursalNombre }}</p>
+          <h3>COMPROBANTE DE RETIRO PARCIAL</h3>
+          <p><strong>Folio:</strong> {{ comprobante.id }}</p>
+          <p><strong>Fecha:</strong> {{ new Date(comprobante.creado).toLocaleString('es-MX') }}</p>
+          <p><strong>Cajero:</strong> {{ turno.cajeroNombre }}</p>
+          <p><strong>Concepto:</strong> {{ comprobante.concepto }}</p>
+          <p><strong>Recibe:</strong> {{ comprobante.tipoDestinatario }}</p>
+          <p v-if="comprobante.observaciones">
+            <strong>Observaciones:</strong> {{ comprobante.observaciones }}
+          </p>
+          <p class="withdrawal-total">MONTO: ${{ Number(comprobante.monto).toFixed(2) }}</p>
+          <p class="withdrawal-signature">Nombre y firma de quien recibe</p>
+        </div>
+      </div>
+      <div class="row q-gutter-sm">
+        <q-btn
+          color="primary"
+          icon="print"
+          label="Imprimir comprobante"
+          :loading="imprimiendo"
+          @click="imprimirComprobante"
+        />
+        <q-btn outline label="Finalizar" :disable="imprimiendo" @click="emit('retiro-exitoso')" />
+      </div>
     </div>
   </div>
 </template>
@@ -109,7 +141,8 @@ import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { filtrarTeclaDecimal, reglaDecimal } from '@/utils/validacionNumerica'
-import type { ConceptoRetiro, TipoDestinatario } from '@/types/turnoCaja'
+import type { ConceptoRetiro, TipoDestinatario, RetiroParcialResponse } from '@/types/turnoCaja'
+import { printTicketElement } from '@/utils/ticketPrinting'
 
 const emit = defineEmits<{
   (e: 'volver'): void
@@ -118,6 +151,21 @@ const emit = defineEmits<{
 
 const $q = useQuasar()
 const turno = useTurnoCajaStore()
+const comprobante = ref<RetiroParcialResponse | null>(null)
+const comprobanteRef = ref<HTMLElement | null>(null)
+const imprimiendo = ref(false)
+
+async function imprimirComprobante() {
+  if (imprimiendo.value) return
+  imprimiendo.value = true
+  try {
+    await printTicketElement(comprobanteRef.value)
+  } catch (error) {
+    $q.notify({ type: 'negative', message: (error as Error).message })
+  } finally {
+    imprimiendo.value = false
+  }
+}
 
 const monto = ref<number | null>(null)
 const concepto = ref<ConceptoRetiro | null>(null)
@@ -158,12 +206,47 @@ async function registrar() {
       icon: 'check_circle',
       message: `Retiro de $${monto.value.toLocaleString('es-MX')} registrado correctamente.`,
     })
-    emit('retiro-exitoso')
+    comprobante.value = turno.ultimoRetiro
   }
 }
 </script>
 
 <style scoped>
+.withdrawal-scroll {
+  overflow-x: auto;
+  padding: 12px 0;
+}
+.withdrawal-receipt {
+  background: white;
+  color: #111;
+  padding: 15px;
+  box-sizing: border-box;
+  font:
+    12px/1.6 Arial,
+    sans-serif;
+  overflow-wrap: anywhere;
+}
+.withdrawal-receipt h2 {
+  font-size: 22px;
+  text-align: center;
+}
+.withdrawal-receipt h3 {
+  font-size: 13px;
+  border-block: 1px dashed black;
+  padding: 12px 0;
+}
+.withdrawal-total {
+  font-weight: bold;
+  font-size: 16px;
+  border-top: 2px solid black;
+  padding-top: 12px;
+}
+.withdrawal-signature {
+  border-top: 1px solid black;
+  margin-top: 60px;
+  text-align: center;
+  padding-top: 8px;
+}
 .rp-wrap {
   max-width: 620px;
   margin: 0 auto;

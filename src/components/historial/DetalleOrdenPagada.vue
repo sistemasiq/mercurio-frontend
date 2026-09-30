@@ -1,10 +1,11 @@
 <!-- src/components/historial/DetalleOrdenPagada.vue -->
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
 import { obtenerDetalleOrden } from '@/services/historialService'
 import type { DetalleOrden } from '@/api/historialApi'
-import { useTicketPrint } from '@/composables/useTicketPrint'
+import { printTicketElement } from '@/utils/ticketPrinting'
+import TicketReceipt from '@/components/shared/TicketReceipt.vue'
 const props = withDefaults(
   defineProps<{
     tipoOrigen?: 'comanda' | 'estancia' | 'reservacion'
@@ -18,13 +19,12 @@ const props = withDefaults(
 const emit = defineEmits(['close'])
 
 const $q = useQuasar()
-// Unificado: cualquier impresora + respeta config por sección (historial/caja)
-const { ticketAncho, ticketWidthMm, asegurarConfig, printHtmlViaIframe } = useTicketPrint(props.posMode ? 'caja' : 'historial')
+// El comprobante se imprime mediante el diálogo del navegador.
 
 const isLoading = ref(true)
 const orden = ref<DetalleOrden | null>(null)
 const isPrinting = ref(false)
-const ticketRef = ref<HTMLElement | null>(null)
+const ticketRef = ref<InstanceType<typeof TicketReceipt> | null>(null)
 
 const onKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') emit('close')
@@ -37,7 +37,6 @@ const onBackdropClick = () => {
 onMounted(async () => {
   window.addEventListener('keydown', onKeydown)
   document.body.style.overflow = 'hidden'
-  await asegurarConfig()
   try {
     orden.value = await obtenerDetalleOrden(props.tipoOrigen, props.referenciaId || props.comandaId)
   } finally {
@@ -56,92 +55,16 @@ onBeforeUnmount(() => {
   document.body.style.overflow = ''
 })
 
-const esCancelado = computed(() => {
-  const estado = orden.value?.estado_actual
-  if (!estado) return false
-  if (orden.value?.tipo_origen === 'reservacion') return estado === 'cancelada'
-  return estado === 'C'
-})
-
-const detallesAgrupados = computed(() => {
-  if (!orden.value?.detalles) return []
-
-  // Separamos los productos normales/padres de los que son contenido de combo
-  const principales = orden.value.detalles.filter((item) => !item.nombre_combo_padre)
-  const hijos = orden.value.detalles.filter((item) => item.nombre_combo_padre)
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const resultado: any[] = []
-
-  principales.forEach((padre) => {
-    resultado.push(padre) // Metemos el producto principal a la lista final
-
-    // Si este producto es un combo, buscamos sus hijos y los metemos justo debajo
-    const susHijos = hijos.filter((h) => h.nombre_combo_padre === padre.producto_nombre)
-    resultado.push(...susHijos)
-  })
-
-  return resultado
-})
-
-function formatearFecha(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return d.toLocaleDateString('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function getTicketHtmlForPrint(): string {
-  const el = (ticketRef.value as HTMLElement | null) || (document.querySelector('.ticket-receipt') as HTMLElement | null)
-  if (el?.outerHTML) return el.outerHTML
-  if (!orden.value) return ''
-  const o = orden.value
-  const fecha = formatearFecha(o.fecha_hora)
-  const filas = detallesAgrupados.value
-    .map((item) => {
-      if (item.nombre_combo_padre) return `<div class="ticket-row" style="margin-bottom:2px;"><div class="col-cant"></div><div class="col-desc" style="padding-left:12px;"><span style="font-size:10px;color:#333">- ${item.cantidad}x ${item.producto_nombre}</span></div><div class="col-imp"></div></div>`
-      return `<div class="ticket-row"><div class="col-cant">${item.cantidad}</div><div class="col-desc"><strong>${item.producto_nombre}</strong>${item.notas_especiales ? `<div class="ticket-note">* ${item.notas_especiales}</div>` : ''}${item.cantidad > 1 ? `<div class="ticket-note">$${Number(item.precio_unitario).toFixed(2)} c/u</div>` : ''}</div><div class="col-imp">$${Number(item.importe).toFixed(2)}</div></div>`
-    })
-    .join('')
-  const pagosHtml = (o.metodos_pago || []).map((mp) => `<div class="ticket-totals-row"><span>PAGO ${String(mp.metodo_pago_nombre).toUpperCase()}</span><span>$${Number(mp.monto).toFixed(2)}</span></div>`).join('')
-  const canceladoHtml = esCancelado.value ? `<div class="ticket-cancelado">*** TICKET CANCELADO ***<br><small>${o.motivo_cancelacion || ''}</small></div>` : ''
-  return `<div class="ticket-receipt">
-    <div class="ticket-header"><h1>WOOW KIDS</h1><p>Nigromante 391, Peña</p><p>59375 La Piedad de Cabadas, Michoacán.</p></div>
-    <div class="ticket-divider-dashed"></div>
-    <div class="ticket-info"><span><strong>TICKET:</strong> ${o.titulo}</span><span><strong>FECHA:</strong> ${fecha.split(',')[0] || ''}</span></div>
-    <div class="ticket-info"><span><strong>CAJERO:</strong> ${(o.creado_por_nombre || 'N/A').split(' ')[0]}</span><span><strong>HORA:</strong> ${fecha.split(',')[1] || ''}</span></div>
-    ${o.nombre_cliente ? `<div class="ticket-info"><span><strong>CLIENTE:</strong> ${o.nombre_cliente}</span></div>` : ''}
-    ${canceladoHtml}
-    <div class="ticket-divider-dashed"></div>
-    <div class="ticket-table-header"><div class="col-cant">CANT</div><div class="col-desc">DESCRIPCIÓN</div><div class="col-imp">Importe</div></div>
-    <div class="ticket-divider-solid"></div>
-    <div class="ticket-products">${filas}</div>
-    <div class="ticket-divider-dashed-thin"></div>
-    <div class="ticket-totals">${pagosHtml}</div>
-    <div class="ticket-divider-solid-thick"></div>
-    <div class="ticket-grand-total"><span>TOTAL VENTA</span><span>$${Number(o.total_final).toFixed(2)}</span></div>
-    <div class="ticket-divider-solid-thick"></div>
-    <div class="ticket-footer"><p>*** GRACIAS POR SU COMPRA ***</p><p>ESTE NO ES UN COMPROBANTE FISCAL</p></div>
-  </div>`
-}
-
 async function ejecutarImpresion() {
   if (!orden.value || isPrinting.value) return
   isPrinting.value = true
   try {
-    // Literal como te gustaba: imprime exactamente el preview general (WOOW KIDS, Importe, 58/80mm)
-    const html = getTicketHtmlForPrint()
-    if (!html) throw new Error('No se pudo capturar el ticket')
-    await nextTick()
-    printHtmlViaIframe(html)
-    $q.notify({ type: 'positive', message: `Impresión lista (${ticketAncho.value}mm) — revisa el diálogo` })
+    await printTicketElement(ticketRef.value?.$el as HTMLElement | null)
   } catch (e: unknown) {
-    $q.notify({ type: 'negative', message: (e as Error).message || 'Error al imprimir' })
+    $q.notify({
+      type: 'negative',
+      message: (e as Error).message || 'No se pudo preparar el ticket.',
+    })
   } finally {
     isPrinting.value = false
   }
@@ -165,95 +88,16 @@ async function ejecutarImpresion() {
           </div>
 
           <!-- TICKET TÉRMICO — ancho dinámico 58/80mm unificado con PDF -->
-          <div v-else-if="orden" ref="ticketRef" class="ticket-receipt" :style="{ width: ticketWidthMm, maxWidth: ticketWidthMm }">
-            <!-- Encabezado fijo WOOW KIDS -->
-            <div class="ticket-header">
-              <h1>WOOW KIDS</h1>
-              <p>Nigromante 391, Peña</p>
-              <p>59375 La Piedad de Cabadas, Michoacán.</p>
-            </div>
-
-            <div class="ticket-divider-dashed"></div>
-
-            <!-- Sección de Datos (Dos columnas) -->
-            <div class="ticket-info">
-              <span><strong>TICKET:</strong> {{ orden.titulo }}</span>
-              <span><strong>FECHA:</strong> {{ formatearFecha(orden.fecha_hora).split(',')[0] }}</span>
-            </div>
-            <div class="ticket-info">
-              <span><strong>CAJERO:</strong> {{ orden.creado_por_nombre?.split(' ')[0] || 'N/A' }}</span>
-              <span><strong>HORA:</strong> {{ formatearFecha(orden.fecha_hora).split(',')[1] || '' }}</span>
-            </div>
-            <div v-if="orden.nombre_cliente" class="ticket-info">
-              <span><strong>CLIENTE:</strong> {{ orden.nombre_cliente }}</span>
-            </div>
-
-            <div v-if="esCancelado" class="ticket-cancelado">
-              *** TICKET CANCELADO ***<br />
-              <small>{{ orden.motivo_cancelacion }}</small>
-            </div>
-
-            <div class="ticket-divider-dashed"></div>
-
-            <!-- Detalle de Productos -->
-            <div class="ticket-table-header">
-              <div class="col-cant">CANT</div>
-              <div class="col-desc">DESCRIPCIÓN</div>
-              <div class="col-imp">Importe</div>
-            </div>
-            <div class="ticket-divider-solid"></div>
-
-            <div class="ticket-products">
-              <div
-                v-for="(item, idx) in detallesAgrupados"
-                :key="idx"
-                class="ticket-row"
-                :style="item.nombre_combo_padre ? 'margin-bottom: 2px;' : ''"
-              >
-                <div class="col-cant">
-                  <span v-if="!item.nombre_combo_padre">{{ item.cantidad }}</span>
-                </div>
-                <div class="col-desc" :style="item.nombre_combo_padre ? 'padding-left: 12px;' : ''">
-                  <strong v-if="!item.nombre_combo_padre">{{ item.producto_nombre }}</strong>
-                  <span v-else style="font-size: 10px; color: #333">- {{ item.cantidad }}x {{ item.producto_nombre }}</span>
-                  <div v-if="item.notas_especiales" class="ticket-note">* {{ item.notas_especiales }}</div>
-                  <div v-if="item.cantidad > 1 && !item.nombre_combo_padre" class="ticket-note">${{ Number(item.precio_unitario).toFixed(2) }} c/u</div>
-                </div>
-                <div class="col-imp">
-                  <span v-if="!item.nombre_combo_padre">${{ Number(item.importe).toFixed(2) }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="ticket-divider-dashed-thin"></div>
-
-            <!-- Totales y Pagos -->
-            <div class="ticket-totals">
-              <div v-for="(mp, idx) in orden.metodos_pago" :key="idx" class="ticket-totals-row">
-                <span>PAGO {{ String(mp.metodo_pago_nombre).toUpperCase() }}</span>
-                <span>${{ Number(mp.monto).toFixed(2) }}</span>
-              </div>
-            </div>
-
-            <div class="ticket-divider-solid-thick"></div>
-
-            <div class="ticket-grand-total">
-              <span>TOTAL VENTA</span>
-              <span>${{ Number(orden.total_final).toFixed(2) }}</span>
-            </div>
-
-            <div class="ticket-divider-solid-thick"></div>
-
-            <!-- Pie de Página fijo -->
-            <div class="ticket-footer">
-              <p>*** GRACIAS POR SU COMPRA ***</p>
-              <p>ESTE NO ES UN COMPROBANTE FISCAL</p>
-            </div>
-          </div>
+          <TicketReceipt v-else-if="orden" ref="ticketRef" :orden="orden" :ancho-mm="80" />
 
           <!-- Botones de Acción (Ocultos al imprimir) -->
           <div v-if="orden" class="pos-actions print-hide">
-            <button type="button" class="btn-pos-print" :disabled="isPrinting" @click="ejecutarImpresion()">
+            <button
+              type="button"
+              class="btn-pos-print"
+              :disabled="isPrinting"
+              @click="ejecutarImpresion()"
+            >
               <q-icon name="print" size="sm" class="q-mr-xs" />
               {{ isPrinting ? 'Imprimiendo...' : 'Imprimir Ticket' }}
             </button>
@@ -355,241 +199,5 @@ async function ejecutarImpresion() {
   background: #0059bb;
   border: none;
   color: white;
-}
-
-/* ── DISEÑO ESTRICTO DEL TICKET — ancho dinámico 58/80mm — */
-.ticket-receipt {
-  font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-  width: 100%;
-  max-width: 80mm; /* default, sobreescrito por :style inline según config */
-  margin: 0 auto;
-  background: white;
-  color: black;
-  font-size: 12px;
-  line-height: 1.6;
-  padding: 15px;
-  box-sizing: border-box;
-}
-.ticket-header {
-  text-align: center;
-  margin-bottom: 4px;
-} /* Reducido para evitar el doble espacio */
-.ticket-header h1 {
-  font-size: 22px;
-  font-weight: 900;
-  margin: 0 0 4px 0;
-  letter-spacing: 1px;
-}
-.ticket-header p {
-  margin: 3px 0;
-  font-size: 11px;
-}
-.ticket-divider,
-.ticket-divider-dashed {
-  border-bottom: 1px dashed black;
-  margin: 14px 0;
-}
-.ticket-divider-solid {
-  border-bottom: 1px solid black;
-  margin: 0 0 12px 0;
-}
-.ticket-divider-dashed-thin {
-  border-bottom: 1px dashed #888;
-  margin: 12px 0;
-}
-.ticket-divider-solid-thick {
-  border-bottom: 2px solid black;
-  margin: 12px 0;
-}
-.ticket-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  margin-bottom: 8px;
-} /* Aumentado de 4px a 8px */
-.ticket-cancelado {
-  text-align: center;
-  color: red;
-  font-weight: bold;
-  border: 1px solid red;
-  padding: 5px;
-  margin: 12px 0;
-}
-.ticket-table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  font-weight: bold;
-  font-size: 11px;
-  border-bottom: 1px solid black;
-  padding-bottom: 8px;
-  margin-bottom: 12px;
-}
-.ticket-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin-bottom: 14px;
-  font-size: 11px;
-} /* Separación clara entre cada producto */
-.col-cant {
-  flex: 0 0 15%;
-  width: 15%;
-  text-align: left;
-  box-sizing: border-box;
-}
-.col-desc {
-  flex: 1 1 60%;
-  width: 60%;
-  padding-right: 5px;
-  word-wrap: break-word;
-  box-sizing: border-box;
-}
-.col-imp {
-  flex: 0 0 22%;
-  width: 22%;
-  text-align: right;
-  box-sizing: border-box;
-  white-space: nowrap;
-}
-.ticket-note {
-  font-size: 10px;
-  color: #555;
-  margin-top: 4px;
-  font-weight: normal;
-}
-.ticket-totals-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-} /* Más aire entre pagos */
-.ticket-grand-total {
-  display: flex;
-  justify-content: space-between;
-  font-size: 15px;
-  font-weight: bold;
-  margin-top: 14px;
-  border-top: 2px solid black;
-  padding-top: 12px;
-} /* Gran respiro para el total final */
-.ticket-footer {
-  text-align: center;
-  font-size: 10px;
-  font-weight: bold;
-  margin-top: 24px;
-} /* Separado del cobro */
-.ticket-footer p {
-  margin: 4px 0;
-}
-</style>
-
-<style>
-@media print {
-  @page {
-    size: auto;
-    margin: 0;
-  }
-
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  body,
-  html {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-  }
-
-  .print-hide,
-  .pos-header,
-  .pos-actions,
-  .close-styled-btn {
-    display: none !important;
-  }
-
-  .modal-backdrop-blur,
-  .ticket-pos-root,
-  .order-detail-card,
-  .detail-scroll-area,
-  .detail-content {
-    display: block !important;
-    position: static !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    max-height: none !important;
-    min-height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    border: none !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-    flex: none !important;
-  }
-
-  .ticket-receipt {
-    display: block !important;
-    visibility: visible !important;
-    /* ancho dinámico viene del :style inline (58/80/210mm); no forzar 80mm aquí */
-    padding: 15px !important;
-    margin: 0 auto !important;
-    font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif !important;
-    font-size: 12px !important;
-    line-height: 1.6 !important;
-    background: #fff !important;
-    color: #000 !important;
-    overflow: visible !important;
-    height: auto !important;
-    max-height: none !important;
-  }
-
-  .ticket-receipt * {
-    visibility: visible !important;
-  }
-
-  .ticket-header,
-  .ticket-info,
-  .ticket-table-header,
-  .ticket-totals,
-  .ticket-totals-row,
-  .ticket-grand-total,
-  .ticket-footer,
-  .ticket-cancelado {
-    visibility: visible !important;
-    overflow: visible !important;
-    page-break-inside: avoid !important;
-  }
-
-  .ticket-header {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
-  }
-
-  .ticket-products {
-    display: block !important;
-    visibility: visible !important;
-  }
-
-  .ticket-row {
-    display: flex !important;
-    visibility: visible !important;
-  }
-
-  .historial-layout-wrapper > * {
-    display: none !important;
-  }
-  .historial-layout-wrapper > .modal-backdrop-blur {
-    display: block !important;
-    position: static !important;
-    background: none !important;
-  }
 }
 </style>

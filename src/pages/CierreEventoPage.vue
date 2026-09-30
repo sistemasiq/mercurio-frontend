@@ -1,6 +1,6 @@
 <template>
   <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 1200px; margin: 0 auto">
+    <div ref="resumenRef" style="max-width: 1200px; margin: 0 auto">
       <!-- Banner error -->
       <q-banner
         v-if="error"
@@ -49,6 +49,7 @@
             color="primary"
             icon="print"
             label="Imprimir Resumen"
+            :loading="imprimiendoResumen"
             style="border-radius: 8px; font-weight: 600"
             @click="imprimirResumen"
           />
@@ -309,10 +310,13 @@ import type { AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import { horasFacturables } from '@/utils/horario'
+import { printTicketElement } from '@/utils/ticketPrinting'
 
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
+const resumenRef = ref<HTMLElement | null>(null)
+const imprimiendoResumen = ref(false)
 
 const paquetesStore = usePaquetesStore()
 const extrasStore = useExtrasStore()
@@ -537,7 +541,20 @@ const finalizarEvento = async () => {
   }
 }
 
-const imprimirResumen = () => window.print()
+async function imprimirResumen() {
+  if (!resumenRef.value || imprimiendoResumen.value) return
+  imprimiendoResumen.value = true
+  try {
+    await printTicketElement(resumenRef.value, 210)
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: (error as Error).message || 'No se pudo preparar el resumen.',
+    })
+  } finally {
+    imprimiendoResumen.value = false
+  }
+}
 </script>
 
 <style scoped>

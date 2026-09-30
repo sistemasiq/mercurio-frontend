@@ -450,6 +450,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     totalFromServer,
     pagadoFromServer,
     estadoFromServer,
+    pagosFromModal,
     savedChildren,
     hours,
     tramoAplicable,
