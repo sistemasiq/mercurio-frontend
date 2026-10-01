@@ -25,6 +25,7 @@ import type {
   FilaBalance,
   RevisionAdminResponse,
   RetiroParcialPayload,
+  RetiroParcialResponse,
   IngresoEfectivoPayload,
 } from '@/types/turnoCaja'
 
@@ -74,6 +75,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   // ── Estado de carga y errores ─────────────────────────────────────────────
   const cargando = ref(false)
   const error = ref<string | null>(null)
+  const ultimoRetiro = ref<RetiroParcialResponse | null>(null)
 
   // ── Modal de autenticación de administrador ───────────────────────────────
   const mostrarDialogAdmin = ref(false)
@@ -359,7 +361,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     cargando.value = true
     error.value = null
     try {
-      await turnoCajaService.registrarRetiro({
+      ultimoRetiro.value = await turnoCajaService.registrarRetiro({
         turnoId: turnoId.value,
         concepto,
         tipoDestinatario,
@@ -505,6 +507,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     estado,
     cargando,
     error,
+    ultimoRetiro,
     // flags semánticos
     sinTurno,
     estaOperando,

@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
+import { useQuasar } from 'quasar'
+import { printTicketElement } from '@/utils/ticketPrinting'
 import { useRegistrationStore } from '@/stores/registration'
 import { useAuthStore } from '@/stores/auth'
 import QRCode from 'qrcode'
@@ -7,11 +9,15 @@ import QRCode from 'qrcode'
 const store = useRegistrationStore()
 const authStore = useAuthStore()
 const qrCodeUrl = ref('')
+const voucherRef = ref<HTMLElement | null>(null)
+const isPrinting = ref(false)
+const $q = useQuasar()
+const issuedAt = new Date()
 
 const branchName = computed(() => authStore.currentBranchName || 'Sucursal')
 const cashierName = computed(() => authStore.currentUser?.name || 'Cajero')
 
-onMounted(async () => {
+async function generarQR() {
   if (store.registroId) {
     const url = `${window.location.origin}/padres/access?code=${store.registroId}`
     qrCodeUrl.value = await QRCode.toDataURL(url, {
@@ -20,10 +26,12 @@ onMounted(async () => {
       errorCorrectionLevel: 'M',
     })
   }
-})
+}
+
+onMounted(generarQR)
 
 function formatDate() {
-  const now = new Date()
+  const now = issuedAt
   return (
     now.toLocaleDateString('es-MX', {
       day: '2-digit',
@@ -38,22 +46,29 @@ function formatDate() {
 function scheduledExit() {
   const time = store.tutor.estimatedTime
   const hours = parseInt(time) || 8
-  const d = new Date()
+  const d = new Date(issuedAt)
   d.setHours(d.getHours() + hours)
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
 
-function printVoucher() {
-  const originalTitle = document.title
-  document.title = 'Ticket_Registro'
-  window.print()
-  document.title = originalTitle
+async function printVoucher() {
+  if (isPrinting.value) return
+  isPrinting.value = true
+  try {
+    await generarQR()
+    await nextTick()
+    await printTicketElement(voucherRef.value)
+  } catch (error) {
+    $q.notify({ type: 'negative', message: (error as Error).message })
+  } finally {
+    isPrinting.value = false
+  }
 }
 </script>
 
 <template>
   <div class="voucher-wrapper">
-    <div id="printable-voucher" class="voucher">
+    <div id="printable-voucher" ref="voucherRef" class="voucher">
       <!-- Encabezado -->
       <div class="text-center">
         <div class="ticket-brand">Woow Kids</div>
@@ -99,7 +114,7 @@ function printVoucher() {
 
       <div class="ticket-row text-weight-bold q-mt-xs" style="font-size: 13px">
         <span>TOTAL:</span>
-        <span>${{ store.total.toFixed(2) }}</span>
+        <span>${{ Number(store.totalFromServer ?? store.total).toFixed(2) }}</span>
       </div>
 
       <!-- QR -->
@@ -118,6 +133,8 @@ function printVoucher() {
         label="Imprimir Ticket"
         icon="print"
         class="full-width print-hide q-mt-md"
+        :loading="isPrinting"
+        :disable="!qrCodeUrl"
         @click="printVoucher"
       />
     </div>
@@ -131,14 +148,17 @@ function printVoucher() {
   padding: 16px;
   display: flex;
   justify-content: center;
+  overflow-x: auto;
 }
 
 .voucher {
   background: #fff;
   border-radius: 8px;
   padding: 14px 10px;
-  width: 100%;
-  max-width: 260px; /* Tamaño visual cercano a 58mm en pantalla */
+  width: 80mm;
+  max-width: none;
+  flex: none;
+  box-sizing: border-box;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   font-family: 'Courier New', Courier, monospace;
   color: #000;
@@ -205,63 +225,5 @@ function printVoucher() {
 
 .ticket-footer {
   font-size: 10px;
-}
-</style>
-
-<style>
-@media print {
-  @page {
-    /* auto se adapta tanto a rollo térmico como a hojas estándar (A5, Carta) */
-    size: auto;
-    margin: 0;
-  }
-
-  /* 1. Ocultar visualmente todo el árbol de la app */
-  body * {
-    visibility: hidden;
-  }
-
-  /* 2. Colapsar el contenedor principal para que no mida altura y no cree páginas extra */
-  html,
-  body {
-    margin: 0 !important;
-    padding: 0 !important;
-    height: 100% !important;
-    overflow: hidden !important;
-  }
-
-  /* 3. Hacer visible ÚNICAMENTE el ticket y sus descendientes */
-  #printable-voucher,
-  #printable-voucher * {
-    visibility: visible;
-  }
-
-  /* 4. Anclar el ticket como fixed al inicio de la página 1 */
-  #printable-voucher {
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 72mm !important; /* Ancho legible en A5 o térmico */
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 6mm 8mm !important;
-    background: #fff !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    color: #000 !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
-
-  .ticket-sub,
-  .ticket-caption,
-  .ticket-divider {
-    color: #000 !important;
-  }
-
-  /* 5. Asegurar que el botón desaparezca completamente */
-  .print-hide {
-    display: none !important;
-  }
 }
 </style>
