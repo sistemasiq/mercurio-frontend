@@ -421,8 +421,20 @@ export const useRegistrationStore = defineStore('registration', () => {
       estadoFromServer.value = response.estado
       advertenciaEfectivoFromServer.value = response.advertenciaEfectivo ?? null
       step.value = 'complete'
-    } catch (err) {
-      submitError.value = 'No se pudo completar el registro. Intenta de nuevo.'
+    } catch (err: any) {
+      if (err?.statusCode === 409) {
+        const message = err?.message || ''
+        if (message.includes('pulsera no puede asignarse a más de un niño en el mismo registro')) {
+          submitError.value =
+            'No puedes asignar la misma pulsera a más de un niño. Verifica las pulseras asignadas.'
+        } else if (message.includes('ya fue usada o no está disponible')) {
+          submitError.value = 'Una de las pulseras seleccionadas ya fue usada o no está disponible.'
+        } else {
+          submitError.value = message || 'No se pudo completar el registro. Intenta de nuevo.'
+        }
+      } else {
+        submitError.value = 'No se pudo completar el registro. Intenta de nuevo.'
+      }
       console.error(err)
     } finally {
       isSubmitting.value = false
