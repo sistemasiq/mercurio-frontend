@@ -4,6 +4,11 @@ import { decodeToken } from '@/utils/tokenUtils'
 const SESSION_KEY = 'auth_session'
 const VIEWING_BRANCH_KEY = 'auth_viewing_branch'
 
+// TODO backend (Bug QA #32): access/refresh token en localStorage son robables
+// con un solo XSS. El diseño propuesto (refresh token en cookie HttpOnly;
+// Secure; SameSite=Strict, access token solo en memoria y un ticket de un
+// solo uso vía POST /ws-ticket para el WebSocket) necesita soporte del
+// backend; no se cambia el almacenamiento aquí hasta que exista.
 export const sessionStorage = {
   save(token: string, refreshToken: string, user: User): void {
     const payload = decodeToken(token)
