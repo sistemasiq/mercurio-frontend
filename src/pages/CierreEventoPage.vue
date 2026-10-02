@@ -175,6 +175,7 @@
       :subtitulo="tituloEvento"
       :total-to-pay="saldoPendiente"
       :metodos-pago="metodosPagoStore.activos"
+      :permitir-lealtad="false"
       @pago-exitoso="onPagoExitoso"
     />
   </q-page>

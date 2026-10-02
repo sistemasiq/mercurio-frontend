@@ -774,6 +774,7 @@
       v-model="modalPagoAbierto"
       :total-to-pay="anticipoIngresado"
       :metodos-pago="metodosPagoStore.activos"
+      :permitir-lealtad="false"
       @pago-exitoso="onPagoExitoso"
     />
   </q-page>
