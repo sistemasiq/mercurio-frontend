@@ -11,7 +11,7 @@ Implementación del diseño "Refactor UI Woow Kids" (claude.ai/design, proyecto
 - **2 · 01a Operación · Caja**: hecha.
 - **3 · 01b Operación · Estancias e historiales**: hecha.
 - **4 · 02 Eventos**: hecha.
-- **5 · 03 Catálogo**: pendiente.
+- **5 · 03 Catálogo**: hecha.
 - **6 · 04 Inventario**: pendiente.
 - **7 · 05 Lealtad · 06 Administración**: pendiente.
 
@@ -104,6 +104,15 @@ simplifican hasta que exista la fuente.
   mensual.
 - **KPI "Anticipos" y filtros por método / mes** (Pagos): el modelo no
   distingue anticipo de liquidación.
+
+### 03 Catálogo
+
+- **Duración, tipos de evento, anticipo y "destacado" del paquete** (3b.1): el
+  modelo de paquete no tiene esos campos.
+- **Duplicar paquete** (3b): no existe la acción en el backend.
+- **Conteo de paquetes por tipo de evento** (3c): no hay relación expuesta.
+- **Comisión y "solicitar referencia"** (3d.1): el método de pago solo tiene
+  nombre, descripción, tipo y activo.
 
 ## Cambios de comportamiento
 
