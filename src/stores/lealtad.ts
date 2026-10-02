@@ -54,9 +54,13 @@ export const useLealtadStore = defineStore('lealtad', {
       this.configuracion = await actualizarConfiguracionLealtad(sucursalId, body)
       return this.configuracion
     },
-    async cargarSaldo(sucursalId: string, celular: string) {
-      this.saldo = await obtenerSaldoLealtad(sucursalId, celular)
-      return this.saldo
+    /**
+     * Consulta el saldo de un celular y lo devuelve sin escribirlo en
+     * `this.saldo`: ese estado pertenece al kardex y una consulta tardía desde
+     * el modal de pago no debe pisar (ni dejar) el saldo de otro cliente.
+     */
+    async cargarSaldo(sucursalId: string, celular: string): Promise<SaldoPuntos> {
+      return obtenerSaldoLealtad(sucursalId, celular)
     },
     async cargarMovimientos(sucursalId: string, celular: string, desde?: string, hasta?: string) {
       this.loading = true

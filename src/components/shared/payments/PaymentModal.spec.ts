@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import BaseDialog from '@/components/ui/BaseDialog.vue'
@@ -6,6 +6,8 @@ import AppliedPaymentsList from './AppliedPaymentsList.vue'
 import MethodSelector from './MethodSelector.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import PaymentModal from './PaymentModal.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useLealtadStore } from '@/stores/lealtad'
 import type { MetodosPago } from '@/types/metodos_pago'
 
 // Catálogo de prueba con las 4 categorías activas -- "Efectivo" queda primera
@@ -175,5 +177,43 @@ describe('PaymentModal', () => {
     const wrapper = montar(100)
     expect(wrapper.text()).toContain('Lealtad')
     expect(wrapper.text()).toContain('Celular del cliente')
+  })
+
+  it('ignora la respuesta tardia de saldo de otro celular', async () => {
+    const wrapper = montar(100)
+    const auth = useAuthStore()
+    const lealtad = useLealtadStore()
+    auth.user = {
+      id: 'u1',
+      name: 'Cajero',
+      email: 'c@test.com',
+      roles: [],
+      branchId: 'suc-1',
+      branchName: 'Sucursal',
+      permissions: [],
+    }
+    lealtad.configuracion = { valor_punto: 1 } as unknown as typeof lealtad.configuracion
+
+    type Saldo = { sucursal_id: string; celular: string; saldo: number }
+    const pendientes = new Map<string, (s: Saldo) => void>()
+    vi.spyOn(lealtad, 'cargarSaldo').mockImplementation(
+      (_suc, celular) => new Promise<Saldo>((resolve) => pendientes.set(celular, resolve)),
+    )
+    vi.spyOn(lealtad, 'cargarConfiguracion').mockResolvedValue(undefined)
+
+    const input = wrapper.findComponent({ name: 'QInput' })
+    await input.vm.$emit('update:modelValue', '5511111111')
+    await wrapper.vm.$nextTick()
+    await input.vm.$emit('update:modelValue', '5522222222')
+    await wrapper.vm.$nextTick()
+
+    // Primero responde el celular nuevo, luego (tarde) el anterior.
+    pendientes.get('5522222222')?.({ sucursal_id: 'suc-1', celular: '5522222222', saldo: 20 })
+    await flushPromises()
+    pendientes.get('5511111111')?.({ sucursal_id: 'suc-1', celular: '5511111111', saldo: 999 })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('20 pts disponibles')
+    expect(wrapper.text()).not.toContain('999 pts')
   })
 })

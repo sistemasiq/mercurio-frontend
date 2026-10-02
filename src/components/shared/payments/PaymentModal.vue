@@ -162,6 +162,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useQuasar, type QInput } from 'quasar'
+import type { ApiError } from '@/types/auth'
 import type { PaymentProps, AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
@@ -242,6 +243,9 @@ watch(
   () => props.modelValue,
   (visible) => {
     if (visible) {
+      saldoDisponible.value = null
+      valorPunto.value = null
+      puntosARedimir.value = 0
       metodoSeleccionado.value = primeraCategoriaDisponible.value
       if (props.permitirLealtad && props.celularPrellenado) {
         celularCliente.value = props.celularPrellenado
@@ -274,11 +278,30 @@ watch(celularCliente, async (val) => {
     return
   }
   const sucursalId = authStore.currentBranchId
-  const [saldo] = await Promise.all([
-    lealtadStore.cargarSaldo(sucursalId, val),
-    lealtadStore.cargarConfiguracion(sucursalId),
-  ])
-  saldoDisponible.value = saldo.saldo
+  const consultado = val
+  // Mientras se consulta no se muestra el saldo del celular anterior.
+  saldoDisponible.value = null
+  let saldo = 0
+  try {
+    const [respuesta] = await Promise.all([
+      lealtadStore.cargarSaldo(sucursalId, consultado),
+      lealtadStore.cargarConfiguracion(sucursalId),
+    ])
+    saldo = respuesta.saldo
+  } catch (error: unknown) {
+    // 404 = cliente sin cuenta de puntos: saldo 0. Otro error: también 0, con aviso.
+    if ((error as ApiError).statusCode !== 404) {
+      $q.notify({
+        type: 'warning',
+        message: 'No se pudo consultar el saldo de puntos del cliente.',
+        position: 'top',
+        timeout: 3000,
+      })
+    }
+  }
+  // Respuesta tardía: el celular cambió o el modal se cerró mientras esperaba.
+  if (celularCliente.value !== consultado || !props.modelValue) return
+  saldoDisponible.value = saldo
   valorPunto.value = lealtadStore.configuracion?.valor_punto ?? null
 })
 
