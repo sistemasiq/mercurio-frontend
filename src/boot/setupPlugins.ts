@@ -30,10 +30,19 @@ export function setupPlugins(app: App, router: Router): void {
         position: 'top-right',
         timeout: 4000,
         classes: 'wk-toast',
+        multiLine: false,
+        // Quasar concatena estas acciones con las de cada llamada: no repetir
+        // el botón de cerrar al pasar `actions`.
         actions: [{ icon: 'close', round: true, dense: true, flat: true, 'aria-label': 'Cerrar' }],
       },
     },
   })
+
+  // Íconos de cada tono según el catálogo de notificaciones del diseño.
+  Notify.registerType('positive', { color: 'positive', icon: 'check_circle' })
+  Notify.registerType('negative', { color: 'negative', icon: 'error' })
+  Notify.registerType('warning', { color: 'warning', icon: 'warning' })
+  Notify.registerType('info', { color: 'info', icon: 'info' })
 
   const auth = useAuthStore()
 
