@@ -8,6 +8,8 @@ declare module 'vue-router' {
     publicOnly?: boolean
     permissions?: string[]
     title?: string
+    /** Sección de la miga de pan cuando la ruta no está en el menú lateral. */
+    section?: string
   }
 }
 
@@ -321,7 +323,11 @@ const routes: RouteRecordRaw[] = [
         path: 'registro-infantes',
         name: 'estancias-registro-infantes',
         component: () => import('@/pages/RegistrationPage.vue'),
-        meta: { permissions: ['estancias:checkin'], title: 'Registro de Entrada' },
+        meta: {
+          permissions: ['estancias:checkin'],
+          title: 'Registro de Entrada',
+          section: 'Control de Acceso',
+        },
       },
       {
         path: 'control-acceso',
@@ -333,7 +339,11 @@ const routes: RouteRecordRaw[] = [
         path: 'checkout',
         name: 'estancias-checkout',
         component: () => import('@/pages/CheckoutPage.vue'),
-        meta: { permissions: ['estancias:checkout'], title: 'Checkout' },
+        meta: {
+          permissions: ['estancias:checkout'],
+          title: 'Checkout',
+          section: 'Control de Acceso',
+        },
       },
       {
         path: 'pulseras/registro',

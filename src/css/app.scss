@@ -227,9 +227,82 @@ body {
 }
 
 // ─── Quasar: tarjetas ───────────────────────────────────────────────────────
+.q-card {
+  border-radius: var(--radius-md);
+}
+
 .q-card--bordered,
 .q-card--flat {
   border-color: var(--border-color);
+}
+
+.q-card.q-card--flat:not(.q-card--bordered) {
+  box-shadow: none;
+}
+
+// ─── Quasar: tipografía de las páginas existentes ───────────────────────────
+// Muchas pantallas usan las clases de Quasar para títulos; se alinean a la
+// escala del diseño (título de página 26/800 navy, secciones 15–18/800).
+// Las clases de color de Quasar llevan !important, así que no se pisan.
+.text-h4 {
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+
+.text-h5 {
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+
+.text-h6 {
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
+}
+
+.text-subtitle1 {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-strong);
+}
+
+.text-subtitle2 {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.text-caption {
+  font-size: 12.5px;
+  letter-spacing: 0;
+}
+
+// ─── Quasar: avisos ─────────────────────────────────────────────────────────
+.q-banner--rounded {
+  border-radius: 12px;
+}
+
+.q-banner {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+// ─── Quasar: chips y toggles ────────────────────────────────────────────────
+.q-chip {
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.q-btn-group {
+  border-radius: var(--radius-control);
 }
 
 // ─── Notificaciones (toast · 07b Sistema) ───────────────────────────────────

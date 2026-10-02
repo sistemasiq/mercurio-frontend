@@ -18,8 +18,10 @@ const alertasInventario = useAlertasInventarioStore()
 const { sectionFor } = useAppNavigation()
 
 const page = computed(() => route.meta.title ?? '')
-const section = computed(() =>
-  sectionFor(typeof route.name === 'string' ? route.name : null, route.path),
+const section = computed(
+  () =>
+    route.meta.section ??
+    sectionFor(typeof route.name === 'string' ? route.name : null, route.path),
 )
 
 // ── Fecha y hora ────────────────────────────────────────────────────────────

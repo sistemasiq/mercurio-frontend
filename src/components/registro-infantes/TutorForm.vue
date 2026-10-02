@@ -491,20 +491,20 @@ onBeforeUnmount(() => {
 }
 
 .photo-capture-box {
-  border: 2px dashed #025fe0;
-  border-radius: 8px;
+  border: 1px dashed #cbd2de;
+  border-radius: 12px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 90px;
-  background: rgba(2, 95, 224, 0.06);
-  transition: background 0.2s;
+  background: repeating-linear-gradient(135deg, #f5f7fb 0 8px, #eef1f6 8px 16px);
+  transition: border-color 0.2s;
 }
 
 .photo-capture-box:hover:not(.photo-capture-disabled) {
-  background: rgba(2, 95, 224, 0.12);
+  border-color: var(--q-primary);
 }
 
 .photo-capture-disabled {

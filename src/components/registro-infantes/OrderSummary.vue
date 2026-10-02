@@ -1,3 +1,89 @@
+<template>
+  <div class="summary">
+    <div class="summary__body">
+      <h2 class="summary__title">Resumen</h2>
+
+      <p v-if="store.savedChildren.length === 0" class="summary__empty">
+        Guarda un niño para ver el resumen.
+      </p>
+
+      <template v-else>
+        <div v-for="child in store.savedChildren" :key="child.id" class="summary__line">
+          <span>{{ child.name.split(' ')[0] }} · {{ store.tutor.estimatedTime }}</span>
+          <span>{{ formatCurrency(store.pricePerChild) }}</span>
+        </div>
+        <div class="summary__total">
+          <span>Total</span>
+          <span class="summary__total-value">{{ formatCurrency(store.total) }}</span>
+        </div>
+      </template>
+
+      <div v-if="store.step === 'rfid'" class="summary__note">
+        <q-icon name="sensors" size="19px" />
+        Pago registrado. Acerca una pulsera al lector por cada niño para finalizar.
+      </div>
+      <div v-else-if="store.step === 'form' && store.savedChildren.length" class="summary__note">
+        <q-icon name="sensors" size="19px" />
+        Siguiente paso: acercar {{ store.savedChildren.length }}
+        {{ store.savedChildren.length === 1 ? 'pulsera' : 'pulseras' }} al lector.
+      </div>
+
+      <ul
+        v-if="store.step === 'form' && store.motivosPendientes.length > 0"
+        class="summary__pending"
+      >
+        <li v-for="motivo in store.motivosPendientes" :key="motivo">{{ motivo }}</li>
+      </ul>
+
+      <div
+        v-if="store.step === 'rfid' && store.submitError"
+        class="summary__note summary__note--bad"
+      >
+        <q-icon name="error" size="19px" />{{ store.submitError }}
+      </div>
+    </div>
+
+    <footer class="summary__foot">
+      <template v-if="store.step === 'form'">
+        <q-btn
+          unelevated
+          color="primary"
+          class="summary__cta"
+          :label="store.isEventoMode ? 'Continuar a pulseras' : 'Cobrar y asignar pulseras'"
+          icon-right="arrow_forward"
+          :disable="!store.canProceedToRFID"
+          @click="store.isEventoMode ? store.proceedToRFID() : abrirModalPago()"
+        />
+        <PaymentModal
+          v-if="!store.isEventoMode"
+          v-model="mostrarModalPago"
+          titulo="Cobrar registro"
+          :subtitulo="store.tutor.fullName"
+          :total-to-pay="store.total"
+          :celular-prellenado="store.tutor.phone"
+          :metodos-pago="metodosPagoDisponibles"
+          @pago-exitoso="onPagoExitoso"
+        />
+      </template>
+      <template v-if="store.step === 'rfid'">
+        <q-btn
+          unelevated
+          color="primary"
+          class="summary__cta"
+          label="Finalizar registro"
+          icon-right="arrow_forward"
+          :loading="store.isSubmitting"
+          :disable="!store.allChildrenHaveBracelet"
+          @click="store.completeRegistration()"
+        />
+        <span v-if="!store.allChildrenHaveBracelet" class="summary__hint">
+          Asigna una pulsera a cada niño registrado
+        </span>
+      </template>
+    </footer>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
@@ -81,119 +167,114 @@ const onPagoExitoso = (
 }
 </script>
 
-<template>
-  <q-card flat bordered class="summary-card">
-    <q-card-section>
-      <div class="text-subtitle1 text-weight-bold q-mb-md">Resumen</div>
+<style scoped lang="scss">
+.summary {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 
-      <div
-        v-if="store.savedChildren.length === 0"
-        class="text-caption text-grey-6 text-center q-py-md"
-      >
-        Guarda un niño para ver el resumen
-      </div>
+  &__body {
+    flex: 1;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 
-      <template v-else>
-        <div
-          v-for="child in store.savedChildren"
-          :key="child.id"
-          class="row justify-between items-center q-mb-xs"
-        >
-          <span class="text-body2 text-grey-8">
-            1× ({{ child.name }}) ({{ store.tutor.estimatedTime }})
-          </span>
-          <span class="text-body2">{{ formatCurrency(store.pricePerChild) }}</span>
-        </div>
+  &__title {
+    margin: 0 0 4px;
+    font-size: 18px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
 
-        <q-separator class="q-my-sm" />
+  &__empty {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+  }
 
-        <div class="row justify-between items-center q-mb-md">
-          <span class="text-subtitle2 text-weight-bold">Total a Pagar</span>
-          <span class="text-h5 text-primary text-weight-bold">{{
-            formatCurrency(store.total)
-          }}</span>
-        </div>
-      </template>
+  &__line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: var(--text-body);
 
-      <template v-if="store.step === 'form'">
-        <q-btn
-          unelevated
-          color="primary"
-          class="full-width q-mb-xs"
-          :label="store.isEventoMode ? 'Continuar a pulseras' : 'Completar pago'"
-          :icon="store.isEventoMode ? 'nfc' : 'payment'"
-          :disable="!store.canProceedToRFID"
-          @click="store.isEventoMode ? store.proceedToRFID() : abrirModalPago()"
-        />
+    span:last-child {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+  }
 
-        <PaymentModal
-          v-if="!store.isEventoMode"
-          v-model="mostrarModalPago"
-          :total-to-pay="store.total"
-          :celular-prellenado="store.tutor.phone"
-          :metodos-pago="metodosPagoDisponibles"
-          @pago-exitoso="onPagoExitoso"
-        />
-        <ul
-          v-if="store.motivosPendientes.length > 0"
-          class="text-caption text-grey-8 q-mt-xs q-mb-none q-pl-md"
-        >
-          <li v-for="motivo in store.motivosPendientes" :key="motivo">{{ motivo }}</li>
-        </ul>
-      </template>
+  &__total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-top: 14px;
+    margin-top: 4px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
 
-      <template v-if="store.step === 'rfid'">
-        <q-banner dense rounded class="bg-blue-1 text-blue-9 q-mb-md" style="font-size: 12px">
-          <template #avatar>
-            <q-icon name="nfc" color="primary" />
-          </template>
-          Pago registrado. Asigna las pulseras a cada niño para finalizar.
-        </q-banner>
+  &__total-value {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+  }
 
-        <q-btn
-          unelevated
-          color="positive"
-          class="full-width"
-          label="Completar registro e Imprimir Comprobante"
-          icon="print"
-          :loading="store.isSubmitting"
-          :disable="!store.allChildrenHaveBracelet"
-          @click="store.completeRegistration()"
-        />
-        <div
-          v-if="!store.allChildrenHaveBracelet"
-          class="text-caption text-grey-6 text-center q-mt-xs"
-        >
-          Asigna una pulsera a cada niño registrado
-        </div>
-        <q-banner
-          v-if="store.submitError"
-          dense
-          rounded
-          class="bg-red-1 text-red-9 q-mt-sm"
-          style="font-size: 12px"
-        >
-          <template #avatar><q-icon name="error_outline" color="negative" /></template>
-          {{ store.submitError }}
-        </q-banner>
-      </template>
+  &__note {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
 
-      <template v-if="store.step === 'complete'">
-        <q-banner dense rounded class="bg-green-1 text-green-9" style="font-size: 12px">
-          <template #avatar>
-            <q-icon name="check_circle" color="positive" />
-          </template>
-          Registro completado correctamente.
-        </q-banner>
-      </template>
-    </q-card-section>
-  </q-card>
-</template>
+    &--bad {
+      background: var(--tone-bad-bg);
+      color: var(--tone-bad-fg);
+    }
+  }
 
-<style scoped>
-.summary-card {
-  border-radius: 12px;
-  position: sticky;
-  top: 80px;
+  &__pending {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__foot {
+    position: sticky;
+    bottom: 0;
+    padding: 16px 20px 20px;
+    border-top: 1px solid var(--border-color);
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__cta {
+    width: 100%;
+    min-height: 52px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  &__hint {
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
 }
 </style>

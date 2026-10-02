@@ -1,5 +1,82 @@
+<template>
+  <q-page class="registro">
+    <div class="registro__main">
+      <ol class="reg-steps">
+        <li
+          v-for="(paso, idx) in PASOS"
+          :key="paso.key"
+          class="reg-steps__item"
+          :class="{
+            'reg-steps__item--on': idx === pasoIdx,
+            'reg-steps__item--done': idx < pasoIdx || store.step === 'complete',
+          }"
+        >
+          <span class="reg-steps__num">
+            <q-icon v-if="idx < pasoIdx || store.step === 'complete'" name="check" size="16px" />
+            <template v-else>{{ idx + 1 }}</template>
+          </span>
+          {{ paso.label }}
+        </li>
+      </ol>
+
+      <PrintVoucher v-if="store.step === 'complete'" @nuevo="router.back()" />
+
+      <template v-else>
+        <div v-if="store.step === 'form'" class="reg-modes" role="radiogroup">
+          <button
+            v-for="m in MODOS"
+            :key="m.value"
+            type="button"
+            role="radio"
+            class="reg-mode"
+            :class="{ 'reg-mode--on': store.modo === m.value }"
+            :aria-checked="store.modo === m.value"
+            @click="store.cambiarModo(m.value)"
+          >
+            <q-icon :name="m.icon" size="22px" />
+            <span class="reg-mode__text">
+              <span class="reg-mode__label">{{ m.label }}</span>
+              <span class="reg-mode__sub">{{ m.sub }}</span>
+            </span>
+          </button>
+        </div>
+
+        <template v-if="store.step === 'form' && store.modo === 'evento'">
+          <div v-if="store.isLoadingEvento" class="reg-note">
+            <q-spinner color="primary" size="18px" />Buscando el evento próximo…
+          </div>
+          <div v-else-if="store.eventoNoEncontrado" class="reg-note reg-note--warn">
+            <q-icon name="event_busy" size="19px" />
+            No hay ningún evento próximo pagado para esta sucursal. Verifica la reservación o usa
+            "Registro normal".
+          </div>
+          <template v-else-if="store.eventoSeleccionado">
+            <div class="reg-note">
+              <q-icon name="celebration" size="19px" />
+              <span>
+                <strong>{{ nombreEvento(store.eventoSeleccionado) }}</strong> ·
+                {{ formatHora12(store.eventoSeleccionado.hora_inicio) }} –
+                {{ formatHora12(store.eventoSeleccionado.hora_fin) }} · Evento pagado: puedes
+                registrar hasta {{ store.cupoEventoRestante }} niño(s) más sin cobro.
+              </span>
+            </div>
+          </template>
+        </template>
+
+        <TutorForm />
+        <ChildrenSection v-if="store.step === 'form'" />
+        <RfidSection v-if="store.step === 'rfid'" />
+      </template>
+    </div>
+
+    <aside v-if="store.step !== 'complete'" class="registro__aside">
+      <OrderSummary />
+    </aside>
+  </q-page>
+</template>
+
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useRouter } from 'vue-router'
@@ -11,6 +88,23 @@ import PrintVoucher from '@/components/registro-infantes/PrintVoucher.vue'
 import type { EventoDelDia } from '@/types/reservaciones'
 
 const store = useRegistrationStore()
+
+const PASOS = [
+  { key: 'form', label: 'Datos' },
+  { key: 'rfid', label: 'Pulseras' },
+  { key: 'complete', label: 'Listo' },
+] as const
+const pasoIdx = computed(() => PASOS.findIndex((p) => p.key === store.step))
+
+const MODOS = [
+  { value: 'normal', label: 'Registro normal', sub: 'Tiempo de juego por hora', icon: 'schedule' },
+  {
+    value: 'evento',
+    label: 'Evento / Fiesta',
+    sub: 'Invitado de una reservación de hoy',
+    icon: 'celebration',
+  },
+] as const
 const turno = useTurnoCajaStore()
 const router = useRouter()
 
@@ -53,151 +147,166 @@ function formatHora12(horaStr: string): string {
 }
 </script>
 
-<template>
-  <q-page class="registration-page q-pa-lg">
-    <div class="row items-center q-mb-lg">
-      <div class="page-icon-wrap q-mr-md">
-        <q-icon name="how_to_reg" size="26px" color="primary" />
-      </div>
-      <div>
-        <div class="text-h5 text-weight-bold">Registro de Entrada</div>
-        <div class="text-caption text-grey-6">
-          Ingreso de nuevos visitantes y vinculación de pulseras.
-        </div>
-      </div>
+<style scoped lang="scss">
+.registro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  min-height: calc(100vh - var(--header-height));
 
-      <q-space />
-      <div class="row q-gutter-sm items-center">
-        <q-chip
-          :color="store.step === 'form' ? 'primary' : 'grey-3'"
-          :text-color="store.step === 'form' ? 'white' : 'grey-7'"
-          icon="edit_note"
-          label="1. Datos"
-          dense
-        />
-        <q-icon name="chevron_right" color="grey-4" />
-        <q-chip
-          :color="
-            store.step === 'rfid' ? 'primary' : store.step === 'complete' ? 'positive' : 'grey-3'
-          "
-          :text-color="['rfid', 'complete'].includes(store.step) ? 'white' : 'grey-7'"
-          icon="nfc"
-          label="2. Pulseras"
-          dense
-        />
-        <q-icon name="chevron_right" color="grey-4" />
-        <q-chip
-          :color="store.step === 'complete' ? 'positive' : 'grey-3'"
-          :text-color="store.step === 'complete' ? 'white' : 'grey-7'"
-          icon="check_circle"
-          label="3. Listo"
-          dense
-        />
-      </div>
-    </div>
+  @media (max-width: 1000px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-    <div v-if="store.step === 'complete'" class="q-mb-lg">
-      <PrintVoucher />
-      <div class="text-center q-mt-md">
-        <q-btn flat color="primary" icon="add" label="Volver" @click="router.back()" />
-      </div>
-    </div>
+  &__main {
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
 
-    <div v-else class="row q-col-gutter-lg">
-      <div class="col-12 col-md-8">
-        <!-- Selector de modo: el flujo natural es "Registro normal"; solo -->
-        <!-- cambia si el cajero elige explícitamente "Evento / Fiesta". -->
-        <q-card v-if="store.step === 'form'" flat bordered class="registration-card q-mb-md">
-          <q-card-section>
-            <q-btn-toggle
-              :model-value="store.modo"
-              spread
-              no-caps
-              toggle-color="primary"
-              color="grey-2"
-              text-color="grey-8"
-              :options="[
-                { label: 'Registro normal', value: 'normal', icon: 'schedule' },
-                { label: 'Evento / Fiesta', value: 'evento', icon: 'celebration' },
-              ]"
-              @update:model-value="store.cambiarModo($event)"
-            />
+  &__aside {
+    background: #fff;
+    border-left: 1px solid var(--border-color);
+    position: sticky;
+    top: var(--header-height);
+    height: calc(100vh - var(--header-height));
+    overflow-y: auto;
 
-            <template v-if="store.modo === 'evento'">
-              <div v-if="store.isLoadingEvento" class="row items-center q-gutter-sm q-mt-md">
-                <q-spinner color="primary" size="20px" />
-                <span class="text-caption text-grey-7">Buscando el evento próximo…</span>
-              </div>
-
-              <q-banner
-                v-else-if="store.eventoNoEncontrado"
-                dense
-                rounded
-                class="bg-orange-1 text-orange-9 q-mt-md"
-                style="font-size: 13px"
-              >
-                <template #avatar>
-                  <q-icon name="event_busy" color="orange-9" size="18px" />
-                </template>
-                No hay ningún evento próximo pagado para esta sucursal. Verifica la reservación o
-                usa "Registro normal".
-              </q-banner>
-
-              <template v-else-if="store.eventoSeleccionado">
-                <q-banner
-                  dense
-                  rounded
-                  class="bg-blue-1 text-blue-9 q-mt-md"
-                  style="font-size: 13px"
-                >
-                  <template #avatar>
-                    <q-icon name="celebration" color="primary" size="18px" />
-                  </template>
-                  <strong>{{ nombreEvento(store.eventoSeleccionado) }}</strong> ·
-                  {{ formatHora12(store.eventoSeleccionado.hora_inicio) }} -
-                  {{ formatHora12(store.eventoSeleccionado.hora_fin) }}
-                </q-banner>
-
-                <q-banner
-                  dense
-                  rounded
-                  class="bg-negative text-white q-mt-sm"
-                  style="font-size: 13px"
-                >
-                  Evento pagado — puedes registrar hasta
-                  {{ store.cupoEventoRestante }}
-                  niño(s) más. No se pedirá pago en este registro.
-                </q-banner>
-              </template>
-            </template>
-          </q-card-section>
-        </q-card>
-
-        <TutorForm />
-        <ChildrenSection v-if="store.step === 'form'" />
-        <RfidSection v-if="store.step === 'rfid'" />
-      </div>
-
-      <div class="col-12 col-md-4">
-        <OrderSummary />
-      </div>
-    </div>
-  </q-page>
-</template>
-
-<style scoped>
-.registration-page {
-  background: var(--bg-main);
-  min-height: 100vh;
+    @media (max-width: 1000px) {
+      position: static;
+      height: auto;
+      border-left: 0;
+      border-top: 1px solid var(--border-color);
+    }
+  }
 }
 
-.page-icon-wrap {
-  background: rgba(2, 95, 224, 0.1);
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
+.reg-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 12px;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+
+    & + &::before {
+      content: '';
+      width: 48px;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--border-input);
+      margin-right: 2px;
+    }
+
+    &--on {
+      color: var(--text-strong);
+      font-weight: 700;
+
+      .reg-steps__num {
+        background: var(--q-primary);
+        border-color: var(--q-primary);
+        color: #fff;
+      }
+    }
+
+    &--done {
+      color: var(--text-strong);
+
+      &::before {
+        background: var(--tone-ok-dot) !important;
+      }
+
+      .reg-steps__num {
+        background: var(--tone-ok-dot);
+        border-color: var(--tone-ok-dot);
+        color: #fff;
+      }
+    }
+  }
+
+  &__num {
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    border: 1.5px solid var(--border-input);
+    background: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.reg-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.reg-mode {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  &--on {
+    border: 2px solid var(--q-primary);
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+
+    .reg-mode__label {
+      color: var(--q-primary);
+    }
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__label {
+    font-size: 14.5px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__sub {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+}
+
+.reg-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--tone-info-bg);
+  color: var(--tone-info-fg);
+  font-size: 13.5px;
+  font-weight: 600;
+
+  &--warn {
+    background: var(--tone-warn-bg);
+    color: var(--tone-warn-fg);
+  }
 }
 </style>

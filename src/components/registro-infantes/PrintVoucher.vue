@@ -1,8 +1,105 @@
+<template>
+  <div class="reg-done">
+    <div class="reg-done__main">
+      <div class="reg-done__banner">
+        <span class="reg-done__check"><q-icon name="check" size="28px" /></span>
+        <div>
+          <h2 class="reg-done__title">Registro completado</h2>
+          <p class="reg-done__text">
+            {{ nombres }} {{ store.savedChildren.length > 1 ? 'ya pueden' : 'ya puede' }} entrar al
+            área de juegos.
+          </p>
+        </div>
+      </div>
+
+      <div class="reg-done__kids">
+        <div v-for="child in store.savedChildren" :key="child.id" class="reg-kid">
+          <div class="reg-kid__info">
+            <span class="reg-kid__name">{{ child.name }}</span>
+            <span class="reg-kid__meta">
+              {{ store.tutor.estimatedTime }} · salida {{ scheduledExit() }}
+            </span>
+          </div>
+          <span class="reg-kid__band">{{ getBraceletLabel(child.rfidBracelet) }}</span>
+        </div>
+      </div>
+
+      <div v-if="qrCodeUrl" class="reg-done__note">
+        <q-icon name="qr_code_2" size="20px" />
+        El tutor puede escanear el QR del comprobante para ver el tiempo restante desde su teléfono.
+      </div>
+
+      <div class="reg-done__actions">
+        <q-btn
+          outline
+          icon="badge"
+          label="Ir a Control de Acceso"
+          :to="{ name: 'estancias-control-acceso' }"
+        />
+        <q-btn
+          unelevated
+          color="primary"
+          icon="person_add"
+          label="Nuevo registro"
+          @click="$emit('nuevo')"
+        />
+      </div>
+    </div>
+
+    <div class="voucher-wrapper">
+      <div id="printable-voucher" class="voucher">
+        <div class="voucher__brand">
+          <span class="voucher__name">Woow Kids</span>
+          <span class="voucher__branch">{{ branchName }}</span>
+        </div>
+        <div class="voucher__line">
+          <span>FECHA</span><span>{{ formatDate() }}</span>
+        </div>
+
+        <div class="voucher__section">DATOS DEL TUTOR</div>
+        <div class="voucher__line">
+          <span>Nombre</span><span>{{ store.tutor.fullName }}</span>
+        </div>
+        <div class="voucher__line">
+          <span>Teléfono</span><span>{{ store.tutor.phone }}</span>
+        </div>
+        <div v-if="store.tutor.secondaryGuardian" class="voucher__line">
+          <span>Segundo tutor</span><span>{{ store.tutor.secondaryGuardian }}</span>
+        </div>
+
+        <div class="voucher__section">NIÑOS</div>
+        <div v-for="child in store.savedChildren" :key="child.id" class="voucher__line">
+          <span>{{ child.name.split(' ')[0] }} · {{ getBraceletLabel(child.rfidBracelet) }}</span>
+          <span>sale {{ scheduledExit() }}</span>
+        </div>
+
+        <div class="voucher__section voucher__section--total">
+          <span>TOTAL</span><span>${{ store.total.toFixed(2) }}</span>
+        </div>
+
+        <div v-if="qrCodeUrl" class="voucher__qr">
+          <img :src="qrCodeUrl" alt="QR del registro" />
+        </div>
+        <p class="voucher__thanks">¡Gracias por visitarnos!</p>
+      </div>
+      <q-btn
+        outline
+        icon="print"
+        label="Imprimir comprobante"
+        class="voucher__print print-hide"
+        @click="printVoucher"
+      />
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
 import { useAuthStore } from '@/stores/auth'
 import QRCode from 'qrcode'
+
+defineEmits<{ (e: 'nuevo'): void }>()
 
 const store = useRegistrationStore()
 const authStore = useAuthStore()
@@ -42,6 +139,11 @@ function scheduledExit() {
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
 
+const nombres = computed(() => {
+  const n = store.savedChildren.map((c) => c.name.split(' ')[0])
+  return n.length > 1 ? `${n.slice(0, -1).join(', ')} y ${n.at(-1)}` : (n[0] ?? '')
+})
+
 function printVoucher() {
   const originalTitle = document.title
   document.title = 'Ticket_Registro'
@@ -55,169 +157,209 @@ function getBraceletLabel(braceletId: string) {
 }
 </script>
 
-<template>
-  <div class="voucher-wrapper">
-    <div id="printable-voucher" class="voucher">
-      <!-- Header -->
-      <div class="voucher-header text-center q-mb-md">
-        <div class="text-h6 text-weight-bold">Woow Kids</div>
-        <div class="text-caption text-grey-7">{{ branchName }}</div>
-      </div>
+<style scoped lang="scss">
+.reg-done {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 24px;
+  align-items: start;
 
-      <q-separator class="q-mb-sm" />
+  @media (max-width: 1000px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-      <!-- Date -->
-      <div class="row justify-between q-mb-md">
-        <div>
-          <div class="voucher-label">FECHA &amp; HORA</div>
-          <div class="voucher-value">{{ formatDate() }}</div>
-        </div>
-      </div>
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
 
-      <q-separator class="q-mb-sm" />
+  &__banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 22px 24px;
+    border: 1px solid #b9e2b2;
+    border-radius: var(--radius-md);
+    background: var(--tone-ok-bg);
+  }
 
-      <!-- Tutor Data -->
-      <div class="voucher-section-title q-mb-xs">DATOS DEL TUTOR</div>
-      <div class="row justify-between q-mb-xs">
-        <span class="text-body2">Nombre:</span>
-        <span class="text-body2 text-weight-medium">{{ store.tutor.fullName }}</span>
-      </div>
-      <div class="row justify-between q-mb-md">
-        <span class="text-body2">Teléfono:</span>
-        <span class="text-body2 text-weight-medium">{{ store.tutor.phone }}</span>
-      </div>
+  &__check {
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+    background: var(--tone-ok-dot);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
 
-      <!-- Second Tutor -->
-      <div v-if="store.tutor.secondaryGuardian" class="q-mb-md">
-        <div class="row justify-between q-mb-xs">
-          <span class="text-body2">Segundo Tutor:</span>
-          <span class="text-body2 text-weight-medium">{{ store.tutor.secondaryGuardian }}</span>
-        </div>
-      </div>
+  &__title {
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.25;
+    font-weight: 800;
+    color: var(--tone-ok-fg);
+  }
 
-      <q-separator class="q-mb-sm" />
+  &__text {
+    margin: 2px 0 0;
+    font-size: 14.5px;
+    color: #33532f;
+  }
 
-      <!-- Children -->
-      <div class="voucher-section-title q-mb-xs">NIÑOS REGISTRADOS</div>
-      <div class="row text-caption text-grey-7 q-mb-xs">
-        <div class="col">Nombre</div>
-        <div style="width: 50px" class="text-center">Edad</div>
-        <div style="width: 100px" class="text-right">Pulsera</div>
-      </div>
-      <div v-for="child in store.savedChildren" :key="child.id" class="row items-center q-mb-xs">
-        <div class="col text-weight-medium" style="font-size: 14px">{{ child.name }}</div>
-        <div style="width: 50px" class="text-center text-body2">{{ child.age }}</div>
-        <div style="width: 100px" class="text-right">
-          <span class="text-caption text-grey-7 bracelet-code">{{
-            getBraceletLabel(child.rfidBracelet)
-          }}</span>
-        </div>
-      </div>
+  &__kids {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
 
-      <q-separator class="q-my-md" />
+  &__note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13.5px;
+    font-weight: 600;
+  }
 
-      <!-- Stay details -->
-      <div class="stay-box q-pa-sm q-mb-md">
-        <div class="voucher-section-title q-mb-sm">DETALLES DE ESTANCIA</div>
-        <div class="row justify-between q-mb-xs">
-          <span class="text-body2">Tiempo Prepagado:</span>
-          <span class="text-weight-bold">{{ store.tutor.estimatedTime }}</span>
-        </div>
-        <div class="row justify-between">
-          <span class="text-body2">Salida Programada:</span>
-          <q-chip dense color="grey-3" text-color="grey-9" :label="scheduledExit()" size="md" />
-        </div>
-      </div>
+  &__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
 
-      <!-- Payment details -->
-      <div class="voucher-section-title q-mb-sm">DETALLES DE PAGO</div>
-      <div class="row justify-between q-mb-md">
-        <span class="text-subtitle1 text-weight-bold">TOTAL:</span>
-        <span class="text-subtitle1 text-weight-bold">${{ store.total.toFixed(2) }}</span>
-      </div>
+    :deep(.q-btn) {
+      min-height: 48px;
+    }
+  }
+}
 
-      <q-separator class="q-mb-md" />
-
-      <!-- QR Code -->
-      <div v-if="qrCodeUrl" class="text-center q-mb-md">
-        <img :src="qrCodeUrl" alt="QR del registro" class="qr-code" />
-        <div class="text-caption text-grey-7 q-mt-xs">Escanea para ver detalles del registro</div>
-      </div>
-
-      <div class="text-center text-caption text-grey-7 q-mb-md">¡Gracias por visitarnos!</div>
-
-      <q-btn
-        unelevated
-        no-caps
-        color="primary"
-        label="Imprimir"
-        icon="print"
-        class="full-width print-hide"
-        style="border-radius: 8px; font-weight: 600"
-        @click="printVoucher"
-      />
-    </div>
-  </div>
-</template>
-
-<style scoped>
-.voucher-wrapper {
-  background: rgba(0, 0, 0, 0.05);
-  padding: 24px;
+.reg-kid {
   display: flex;
-  justify-content: center;
-  border-radius: 12px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: #fff;
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__meta {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__band {
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #f1f4f9;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-body);
+  }
+}
+
+.voucher-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .voucher {
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 24px;
-  max-width: 420px;
-  width: 100%;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-}
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  color: var(--text-body);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 
-.voucher-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
+  &__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed #cbd2de;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
 
-.voucher-value {
-  font-size: 13px;
-  color: var(--text-primary);
-}
+  &__name {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
 
-.voucher-section-title {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
+  &__branch {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
 
-.stay-box {
-  background: rgba(2, 95, 224, 0.06);
-  border-radius: 8px;
-  border: 1px solid rgba(2, 95, 224, 0.15);
-}
+  &__line {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
 
-.qr-code {
-  width: 120px;
-  height: 120px;
-  border-radius: 8px;
-}
+    span:last-child {
+      text-align: right;
+    }
+  }
 
-.bracelet-code {
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  background: var(--bg-main);
-  padding: 2px 6px;
-  border-radius: 4px;
+  &__section {
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px dashed #cbd2de;
+    font-weight: 800;
+    color: var(--text-primary);
+
+    &--total {
+      display: flex;
+      justify-content: space-between;
+    }
+  }
+
+  &__qr {
+    display: flex;
+    justify-content: center;
+    padding-top: 8px;
+
+    img {
+      width: 120px;
+      height: 120px;
+    }
+  }
+
+  &__thanks {
+    margin: 0;
+    text-align: center;
+    color: var(--text-secondary);
+  }
+
+  &__print {
+    min-height: 48px;
+  }
 }
 </style>
 
@@ -231,7 +373,7 @@ function getBraceletLabel(braceletId: string) {
   #q-app,
   .q-layout,
   .q-page-container,
-  .registration-page {
+  .registro {
     background: none !important;
     background-color: white !important;
   }
