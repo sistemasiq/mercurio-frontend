@@ -13,7 +13,7 @@
 
 import { ref, computed, reactive } from 'vue'
 import { defineStore } from 'pinia'
-import { turnoCajaService } from '@/services/turnoCajaService'
+import { turnoCajaService, TurnoNoEncontradoError } from '@/services/turnoCajaService'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import type {
@@ -24,6 +24,8 @@ import type {
   FilaBalance,
   RevisionAdminResponse,
   RetiroParcialPayload,
+  ResultadoCierre,
+  ResultadoCargaTurno,
 } from '@/types/turnoCaja'
 
 // v-model.number sobre <q-input type="text"> no convierte "" a 0 ni a null: Vue
@@ -36,6 +38,38 @@ function aNumero(valor: number | string | null | undefined): number {
   if (valor === null || valor === undefined || valor === '') return 0
   const n = Number(valor)
   return Number.isFinite(n) ? n : 0
+}
+
+// El email del admin que autenticó la revisión se necesita para validar su PIN en el
+// cierre. Solo vive en memoria, así que se respalda en sessionStorage por turno para
+// sobrevivir a una recarga (tab-scoped). Puede fallar (modo privado, storage bloqueado).
+const CLAVE_ADMIN_EMAIL = 'mercury:turnoCaja:adminEmail'
+
+function guardarAdminEmail(turnoId: string, email: string): void {
+  try {
+    sessionStorage.setItem(CLAVE_ADMIN_EMAIL, JSON.stringify({ turnoId, email }))
+  } catch {
+    // sin persistencia: tras recargar habrá que re-autenticar al admin
+  }
+}
+
+function leerAdminEmail(turnoId: string): string {
+  try {
+    const raw = sessionStorage.getItem(CLAVE_ADMIN_EMAIL)
+    if (!raw) return ''
+    const guardado = JSON.parse(raw) as { turnoId?: string; email?: string }
+    return guardado.turnoId === turnoId ? (guardado.email ?? '') : ''
+  } catch {
+    return ''
+  }
+}
+
+function borrarAdminEmail(): void {
+  try {
+    sessionStorage.removeItem(CLAVE_ADMIN_EMAIL)
+  } catch {
+    // nada que limpiar
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,6 +103,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   const totalEsperado = ref(0)
   const totalDeclarado = ref(0)
   const diferenciaNeta = ref(0)
+  // true si el balance de la revisión está en memoria (se pierde al recargar la página)
+  const revisionAplicada = ref(false)
 
   // ── Formulario del cajero (la página lo llena, el store lo lee al enviar) ─
   const desgloseEfectivo = ref<DesgloseEfectivo>({
@@ -148,18 +184,32 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     }
   }
 
-  /** Carga el turno activo al montar la página. */
-  async function cargarTurnoActivo(sucursalId?: string | null): Promise<void> {
+  /**
+   * Carga el turno activo al montar la página.
+   *
+   * Contrato: nunca lanza; devuelve `ResultadoCargaTurno`.
+   * - Turno encontrado: `{ ok: true, hayTurno: true }`.
+   * - 404 (TurnoNoEncontradoError): pasa a SIN_TURNO y devuelve `{ ok: true, hayTurno: false }`.
+   * - Cualquier otro error (red, 5xx, 403): conserva el estado previo, asigna `error`
+   *   y devuelve `{ ok: false, error }`.
+   */
+  async function cargarTurnoActivo(sucursalId?: string | null): Promise<ResultadoCargaTurno> {
     cargando.value = true
     error.value = null
     try {
       const turno = await turnoCajaService.cargarTurnoActivo(sucursalId)
       _aplicarTurno(turno)
-    } catch {
-      estado.value = 'SIN_TURNO'
-      turnoId.value = null
-      fechaApertura.value = null
-      error.value = null
+      return { ok: true, hayTurno: true }
+    } catch (err) {
+      if (err instanceof TurnoNoEncontradoError) {
+        estado.value = 'SIN_TURNO'
+        turnoId.value = null
+        fechaApertura.value = null
+        return { ok: true, hayTurno: false }
+      }
+      const mensaje = (err as Error).message
+      error.value = mensaje
+      return { ok: false, error: mensaje }
     } finally {
       cargando.value = false
     }
@@ -181,6 +231,9 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalEsperado.value = 0
     totalDeclarado.value = 0
     diferenciaNeta.value = 0
+    adminEmail.value = ''
+    revisionAplicada.value = false
+    borrarAdminEmail()
     metodosPago.value = []
     _resetFormulario()
   }
@@ -244,19 +297,17 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       credencialesAdmin.error = ''
       mostrarDialogAdmin.value = true
     } catch (err) {
-      const apiErr = err as ApiError
+      // El service envuelve el ApiError original en `cause`, así que el código/status
+      // hay que leerlo de ahí (no del error recibido).
+      const causa = (err as Error & { cause?: ApiError }).cause
       // Si el backend dice que el conteo ya estaba enviado (ej. la página se recargó
       // mientras estaba en ESPERANDO_REVISION y por eso mostraba otra vez este
       // formulario), no es un error real para el cajero — el conteo sí se registró,
       // solo falta la revisión del administrador. Se resincroniza el turno real:
       // _aplicarTurno ya abre el modal automáticamente si el estado es ESPERANDO_REVISION.
-      if (apiErr.code === 'TRANSICION_INVALIDA') {
-        try {
-          await cargarTurnoActivo()
-          if (esperandoRevision.value) return
-        } catch {
-          // si la resincronización falla, se maneja como error normal abajo
-        }
+      if (causa?.code === 'TRANSICION_INVALIDA' || causa?.statusCode === 409) {
+        await cargarTurnoActivo()
+        if (esperandoRevision.value) return
       }
       error.value = (err as Error).message
     } finally {
@@ -269,7 +320,9 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
    * Valida credenciales del admin y aplica el balance comparativo.
    */
   async function autenticarAdmin(): Promise<boolean> {
-    if (!turnoId.value || !esperandoRevision.value) return false
+    // BALANCE_REVELADO también se acepta: tras recargar se pierde el balance en memoria
+    // y el admin debe volver a autenticarse para recuperarlo.
+    if (!turnoId.value || !(esperandoRevision.value || balanceRevelado.value)) return false
     if (!credencialesAdmin.email || !credencialesAdmin.password) return false
 
     credencialesAdmin.cargando = true
@@ -282,6 +335,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       })
       _aplicarRevision(resultado)
       adminEmail.value = credencialesAdmin.email
+      guardarAdminEmail(turnoId.value, credencialesAdmin.email)
       mostrarDialogAdmin.value = false
       mostrarDialogAutorizacion.value = true
       estado.value = 'BALANCE_REVELADO'
@@ -353,12 +407,16 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
    * Transición: BALANCE_REVELADO → CERRADO
    * Confirma el cierre definitivo del turno.
    * @param observaciones - Requerido si hayDiferencias === true
+   *
+   * Nunca lanza: devuelve `{ ok: true, pdfUrl, arqueoId }` o `{ ok: false, error }`.
+   * Si falla, el turno NO cambia de estado y `error` queda asignado; el consumidor
+   * no debe reiniciar el ciclo ni redirigir.
    */
   async function confirmarCierre(
     observaciones: string,
     esExtraordinario = false,
-  ): Promise<string | null> {
-    if (!turnoId.value) return null
+  ): Promise<ResultadoCierre> {
+    if (!turnoId.value) return { ok: false, error: 'No hay un turno activo para cerrar.' }
     cargando.value = true
     error.value = null
     try {
@@ -370,10 +428,11 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       estado.value = 'CERRADO'
       mostrarDialogAutorizacion.value = false
       mostrarDialogAdmin.value = false
-      return resp.pdfUrl
+      return { ok: true, pdfUrl: resp.pdfUrl, arqueoId: resp.arqueoId }
     } catch (err) {
-      error.value = resolveErrorMessage(err as ApiError)
-      return null
+      const mensaje = resolveErrorMessage(err as ApiError)
+      error.value = mensaje
+      return { ok: false, error: mensaje }
     } finally {
       cargando.value = false
     }
@@ -452,6 +511,17 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       mostrarDialogAdmin.value = true
     }
 
+    // Si el turno llega en BALANCE_REVELADO (ej. recarga tras autenticar al admin), el
+    // balance en memoria se perdió y no hay endpoint para recuperarlo: se pide que el
+    // admin se re-autentique (la respuesta de la revisión trae el balance). Si el balance
+    // sigue en memoria, se reabre directo el modal de autorización.
+    // TODO backend: incluir adminEmail y el balance en la respuesta del turno
+    if (turno.estado === 'BALANCE_REVELADO') {
+      if (!adminEmail.value) adminEmail.value = leerAdminEmail(turno.id)
+      if (revisionAplicada.value) mostrarDialogAutorizacion.value = true
+      else if (!mostrarDialogAutorizacion.value) mostrarDialogAdmin.value = true
+    }
+
     // Precarga las filas de métodos de pago con los movimientos reales del turno.
     // Se conservan las filas agregadas manualmente por el cajero que no vinieron del sistema.
     // "Efectivo" nunca entra aquí: ya tiene su propio bloque (EfectivoDesgloseForm) —
@@ -459,8 +529,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     const filasManuales = metodosPago.value.filter((f) => f.origen === 'manual')
     const filasSistema = turno.movimientos
       .filter((m) => m.metodo.trim().toLowerCase() !== 'efectivo')
-      .map((m, idx) => ({
-        id: idx + 1,
+      .map((m) => ({
+        id: crypto.randomUUID(),
         metodo: m.metodo,
         monto: null,
         origen: 'sistema' as const,
@@ -474,6 +544,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalEsperado.value = revision.totalEsperado
     totalDeclarado.value = revision.totalDeclarado
     diferenciaNeta.value = revision.diferenciaNeta
+    revisionAplicada.value = true
   }
 
   function _resetFormulario(): void {

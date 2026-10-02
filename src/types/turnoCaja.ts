@@ -68,8 +68,8 @@ export interface DesgloseEfectivo {
 /** Una fila del formulario de declaración de métodos. `metodo` es el nombre real
  *  del catálogo de la BD (metodos_pago.nombre) — no hay claves fijas. */
 export interface FilaMetodoPago {
-  /** ID local (generado en frontend) para key de v-for */
-  id: number
+  /** ID local único (UUID generado en frontend) para key de v-for */
+  id: string
   metodo: string
   monto: number | null
   /** 'sistema': detectado automáticamente por tener movimientos reales en el turno (nombre fijo).
@@ -170,6 +170,18 @@ export interface ConfirmarCierreResponse {
   pdfUrl: string | null
   mensaje: string
 }
+
+/** Resultado de `confirmarCierre` del store: nunca lanza, el consumidor debe revisar `ok`. */
+export type ResultadoCierre =
+  { ok: true; pdfUrl: string | null; arqueoId: string } | { ok: false; error: string }
+
+/**
+ * Resultado de `cargarTurnoActivo` del store. Nunca lanza.
+ * - `{ ok: true, hayTurno: true }`: turno cargado.
+ * - `{ ok: true, hayTurno: false }`: el backend confirmó (404) que no hay turno.
+ * - `{ ok: false, error }`: la carga falló (red, 5xx, 403...); se conserva el estado previo.
+ */
+export type ResultadoCargaTurno = { ok: true; hayTurno: boolean } | { ok: false; error: string }
 
 // ---------------------------------------------------------------------------
 // Retiros parciales (RN-RET)
