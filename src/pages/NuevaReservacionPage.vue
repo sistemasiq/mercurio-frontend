@@ -1,17 +1,7 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="width: 100%; max-width: 1800px; margin: 0 auto">
-      <!-- Page Title -->
-      <div class="q-mb-xl text-left q-px-sm">
-        <h1 style="font-size: 2rem; font-weight: 800; color: var(--text-primary); margin: 0 0 8px">
-          Nueva Reservación
-        </h1>
-        <p style="font-size: 1.1rem; color: var(--text-secondary); margin: 0">
-          Configura los detalles del evento y confirma la disponibilidad.
-        </p>
-      </div>
-
-      <div class="row q-col-gutter-xl">
+  <q-page class="page-content nueva-res">
+    <div>
+      <div class="row q-col-gutter-lg">
         <!-- LEFT COLUMN -->
         <div class="col-12 col-md-8 col-lg-9">
           <q-stepper
@@ -32,11 +22,11 @@
 
                 <div class="row q-gutter-md">
                   <div class="col">
-                    <div class="field-label">NOMBRE COMPLETO</div>
+                    <div class="field-label">Nombre completo</div>
                     <q-input v-model="form.nombre" dense outlined placeholder="Ej. Juan Perez" />
                   </div>
                   <div class="col">
-                    <div class="field-label">TELÉFONO</div>
+                    <div class="field-label">Teléfono</div>
                     <q-input
                       v-model="form.telefono"
                       dense
@@ -47,7 +37,7 @@
                 </div>
 
                 <div class="q-mt-md">
-                  <div class="field-label">CORREO ELECTRÓNICO</div>
+                  <div class="field-label">Correo electrónico</div>
                   <q-input
                     v-model="form.email"
                     dense
@@ -59,11 +49,11 @@
 
                 <div class="row q-gutter-md q-mt-sm">
                   <div class="col-4">
-                    <div class="field-label">NÚMERO DE NIÑOS</div>
+                    <div class="field-label">Número de niños</div>
                     <q-input v-model.number="form.ninos" dense outlined type="number" min="1" />
                   </div>
                   <div class="col">
-                    <div class="field-label">TIPO DE EVENTO</div>
+                    <div class="field-label">Tipo de evento</div>
                     <q-select
                       v-model="form.tipoEvento"
                       dense
@@ -164,29 +154,21 @@
 
                   <div class="col-12 col-md-5 column q-gutter-md">
                     <div>
-                      <div class="field-label">FECHA SELECCIONADA</div>
+                      <div class="field-label">Fecha seleccionada</div>
                       <div class="selected-date-display">
                         <q-icon name="event" size="16px" />
                         {{ selectedDateLabel }}
                       </div>
                     </div>
                     <div>
-                      <div class="field-label">HORARIO DEL EVENTO</div>
+                      <div class="field-label">Horario del evento</div>
                       <div class="row q-gutter-sm">
                         <div class="col">
-                          <div
-                            style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px"
-                          >
-                            HORA DE INICIO
-                          </div>
+                          <div class="field-label">Hora de inicio</div>
                           <q-input v-model="form.horaInicio" dense outlined type="time" />
                         </div>
                         <div class="col">
-                          <div
-                            style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px"
-                          >
-                            HORA DE FIN
-                          </div>
+                          <div class="field-label">Hora de fin</div>
                           <q-input v-model="form.horaFin" dense outlined type="time" />
                         </div>
                       </div>
@@ -199,7 +181,7 @@
                       </div>
                     </div>
                     <div>
-                      <div class="field-label">HORA SELECCIONADA</div>
+                      <div class="field-label">Hora seleccionada</div>
                       <div class="time-slot-display">
                         <q-icon name="access_time" size="16px" />
                         {{ timeSlotLabel }}
@@ -492,10 +474,7 @@
 
               <!-- Formulario de pago (oculto tras registrar) -->
               <template v-if="!pagoRegistrado">
-                <div
-                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-lg"
-                  style="border: 1px solid var(--border-color)"
-                >
+                <div class="res-block">
                   <div class="row justify-between q-mb-xs">
                     <span class="text-grey-7">Total de la reservación</span>
                     <span style="font-weight: 700">{{ totalAmount }}</span>
@@ -509,7 +488,7 @@
                 </div>
 
                 <div class="q-mb-lg">
-                  <div class="field-label">MONTO DEL ANTICIPO</div>
+                  <div class="field-label">Monto del anticipo</div>
                   <q-input
                     v-model.number="anticipoIngresado"
                     dense
@@ -565,10 +544,7 @@
               </p>
 
               <!-- Bloque: Cliente -->
-              <div
-                class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
-                style="border: 1px solid var(--border-color)"
-              >
+              <div class="res-block">
                 <div class="resumen-section-title">Cliente</div>
                 <div class="resumen-row">
                   <span>Nombre</span><span>{{ form.nombre || '—' }}</span>
@@ -582,10 +558,7 @@
               </div>
 
               <!-- Bloque: Evento -->
-              <div
-                class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
-                style="border: 1px solid var(--border-color)"
-              >
+              <div class="res-block">
                 <div class="resumen-section-title">Evento</div>
                 <div class="resumen-row">
                   <span>Tipo</span><span>{{ tipoEventoNombre }}</span>
@@ -602,10 +575,7 @@
               </div>
 
               <!-- Bloque: Paquete y Extras -->
-              <div
-                class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
-                style="border: 1px solid var(--border-color)"
-              >
+              <div class="res-block">
                 <div class="resumen-section-title">Paquete y Extras</div>
                 <div class="resumen-row">
                   <span>Paquete</span><span>{{ selectedPackageName || '—' }}</span>
@@ -638,10 +608,7 @@
               </div>
 
               <!-- Bloque: Pago -->
-              <div
-                class="q-pa-md bg-white rounded-borders shadow-1 q-mb-lg"
-                style="border: 1px solid var(--border-color)"
-              >
+              <div class="res-block">
                 <div class="resumen-section-title">Pago</div>
                 <div class="resumen-row">
                   <span>Total</span><span style="font-weight: 700">{{ totalAmount }}</span>
@@ -660,10 +627,7 @@
               </div>
 
               <!-- Términos -->
-              <div
-                class="q-pa-md bg-white rounded-borders shadow-1 q-mb-lg"
-                style="border: 1px solid var(--border-color)"
-              >
+              <div class="res-block">
                 <q-checkbox v-model="form.termsAccepted" dense style="align-items: flex-start">
                   <span style="font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary)">
                     He revisado los datos del cliente y la disponibilidad de fecha con el reglamento
@@ -1347,32 +1311,47 @@ const confirmarReservacion = async () => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .sticky-payment {
   position: sticky;
   top: 24px;
 }
 
+.res-block {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
 .resumen-section-title {
-  font-size: 0.65rem;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--q-primary);
-  margin-bottom: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
 }
 
 .resumen-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 0;
-  font-size: 0.875rem;
-  border-bottom: 1px solid var(--border-color);
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--border-soft);
   color: var(--text-secondary);
-}
 
-.resumen-row:last-child {
-  border-bottom: none;
+  span:last-child {
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: right;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
 }
 </style>

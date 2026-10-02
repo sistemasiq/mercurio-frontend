@@ -570,469 +570,331 @@ body {
   }
 }
 
-// ─── Mini Calendar ──────────────────────────────────────────────────────────
-.mini-calendar {
-  padding: 16px;
+// ─── Nueva reservación (2b) ─────────────────────────────────────────────────
+// Clases usadas por NuevaReservacionPage: secciones, calendario de reservas,
+// tarjetas de paquete/extra y resumen lateral.
 
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
+.q-stepper--flat {
+  box-shadow: none;
+  background: transparent;
 
-    .month-label {
-      font-size: 0.875rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
+  .q-stepper__header {
+    border: 0;
+    min-height: 0;
+    margin-bottom: 20px;
   }
 
-  &__grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
-    text-align: center;
-  }
-
-  &__dow {
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    padding: 4px 0;
-  }
-
-  &__day {
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    border-radius: 50%;
-    cursor: pointer;
-    margin: 1px auto;
-    transition: all 0.15s;
-    color: #37474f;
-
-    &:hover {
-      background: rgba(2, 95, 224, 0.08); // Woow Kids blue alpha
-    }
-
-    &--today {
-      background: $positive;
-      color: #fff;
-      font-weight: 700;
-    }
-
-    &--pending {
-      background: $secondary;
-      color: #fff;
-      font-weight: 700;
-    }
-
-    &--confirmed {
-      background: $primary;
-      color: #fff;
-      font-weight: 700;
-    }
-
-    &--other-month {
-      color: var(--text-muted);
-    }
-  }
-
-  &__legend {
-    display: flex;
-    gap: 16px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-color);
-    font-size: 0.7rem;
+  .q-stepper__tab {
+    padding: 0 12px 0 0;
+    min-height: 32px;
+    flex: 0 0 auto;
     color: var(--text-secondary);
 
-    .legend-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-      margin-right: 4px;
+    &::after {
+      content: '';
+      width: 48px;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--border-input);
+      margin-left: 12px;
+    }
 
-      &--pending {
-        background: $secondary;
-      }
-      &--confirmed {
-        background: $primary;
-      }
+    &:last-child::after {
+      display: none;
     }
   }
-}
 
-// ─── Upcoming Events ─────────────────────────────────────────────────────────
-.event-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
-  border-left: 3px solid transparent;
-  transition: background 0.15s;
-
-  &:hover {
-    background: #f5f7ff;
+  .q-stepper__tab--done::after {
+    background: var(--tone-ok-dot);
   }
 
-  &__left {
-    flex: 1;
-  }
-
-  &__name {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 2px;
-  }
-
-  &__time {
-    font-size: 0.75rem;
+  .q-stepper__dot {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    margin-right: 10px;
+    font-size: 13px;
+    background: #fff;
+    border: 1.5px solid var(--border-input);
     color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 4px;
+
+    &::before,
+    &::after {
+      display: none;
+    }
   }
 
-  &__badge {
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 20px;
-    background: $primary;
+  .q-stepper__tab--active .q-stepper__dot {
+    background: var(--q-primary);
+    border-color: var(--q-primary);
     color: #fff;
-    white-space: nowrap;
+  }
+
+  .q-stepper__tab--done .q-stepper__dot {
+    background: var(--tone-ok-dot);
+    border-color: var(--tone-ok-dot);
+    color: #fff;
+  }
+
+  .q-stepper__title {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .q-stepper__tab--active .q-stepper__title,
+  .q-stepper__tab--done .q-stepper__title {
+    color: var(--text-strong);
+    font-weight: 700;
+  }
+
+  .q-stepper__step-inner {
+    padding: 0;
+  }
+
+  .q-stepper__nav {
+    padding: 0;
   }
 }
 
-// ─── Animations (SIMPLIFIED) ─────────────────────────────────────────────
-@keyframes fadeSlideUp {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes badgePulse {
-  0%,
-  100% {
-    transform: translateX(-50%) scale(1);
-    box-shadow: 0 0 0 0 rgba(243, 18, 88, 1);
-  }
-  50% {
-    transform: translateX(-50%) scale(1.1);
-    box-shadow: 0 0 0 8px rgba(243, 18, 88, 0);
-  }
-}
-
-@keyframes confirmPulse {
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(63, 168, 52, 1);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 6px rgba(63, 168, 52, 0);
-  }
-}
-
-@keyframes popIn {
-  0% {
-    transform: scale(0.8);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-// ─── Stepper Active Animation ───────────────────────────────────────────────
-.q-stepper__tab--active .q-stepper__icon {
-  animation: popIn 0.8s cubic-bezier(0.68, -0.6, 0.32, 2.5);
-}
-
-.btn-confirm-ready {
-  animation: confirmPulse 1s infinite cubic-bezier(0.68, -0.6, 0.32, 2.5);
-}
-
-// ─── Form styles (Nueva Reservación) ────────────────────────────────────────
 .form-section {
   background: var(--bg-card);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
   padding: 20px;
   margin-bottom: 16px;
-  animation: fadeSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  transition: box-shadow 0.3s ease;
-
-  &:hover {
-    box-shadow: var(--shadow-md);
-  }
 
   &__title {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--text-primary);
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-strong);
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-color);
+
+    .q-icon {
+      display: none;
+    }
   }
 }
 
-// ─── Package Cards ───────────────────────────────────────────────────────────
+// Paquetes
 .package-card {
-  border: 2px solid var(--border-color);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 20px;
+  padding: 18px;
   cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
   position: relative;
   background: var(--bg-card);
+  transition: border-color 0.15s;
 
   &:hover {
-    border-color: $primary;
-    box-shadow: var(--shadow-md);
+    border-color: #cbd2de;
   }
 
-  &--selected {
-    border-color: $primary;
-    background: rgba(2, 95, 224, 0.03);
+  &--selected,
+  &--selected:hover {
+    border: 2px solid var(--q-primary);
+    padding: 17px;
   }
 
   &__badge {
     position: absolute;
-    top: -1px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: $secondary;
+    top: -11px;
+    left: 18px;
+    background: var(--q-secondary);
     color: #fff;
-    font-size: 0.65rem;
+    font-size: 11px;
     font-weight: 800;
-    letter-spacing: 0.5px;
-    padding: 2px 12px;
-    border-radius: 0 0 8px 8px;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 6px;
     text-transform: uppercase;
-    animation: badgePulse 2s infinite;
   }
 
   &__name {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-strong);
     margin-bottom: 2px;
   }
 
   &__capacity {
-    font-size: 0.75rem;
+    font-size: 12.5px;
     color: var(--text-secondary);
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
 
   &__price {
-    font-size: 1.8rem;
-    font-weight: 900;
-    color: var(--text-primary);
-    margin-bottom: 12px;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+    margin-bottom: 10px;
+    font-variant-numeric: tabular-nums;
   }
 
   &__features {
     list-style: none;
     padding: 0;
-    margin: 0 0 16px;
-    font-size: 0.8rem;
-    color: #546e7a;
+    margin: 0 0 14px;
+    font-size: 13px;
+    color: var(--text-body);
 
     li {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       padding: 3px 0;
 
       .q-icon {
-        color: $positive;
-        font-size: 1rem;
+        color: var(--tone-ok-dot);
+        font-size: 17px;
       }
     }
   }
 }
 
-// ─── Service Card ───────────────────────────────────────────────────────────
+// Extras
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
 }
 
 .service-card {
-  // Sin min-width, el .col de Quasar (flex-shrink: 1, sin límite) permite
-  // que todas las tarjetas se compriman indefinidamente para caber en una
-  // sola fila, cortando el texto/precio/botón en vez de saltar de línea.
-  min-width: 170px;
-  max-width: 240px;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   overflow: hidden;
-  cursor: pointer;
   background: var(--bg-card);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-
-  &:hover {
-    border-color: $primary;
-    box-shadow: var(--shadow-md);
-  }
 
   &--selected {
-    border-color: $primary;
-    background: rgba(2, 95, 224, 0.03);
+    border-color: var(--q-primary);
   }
 
   &__img {
-    width: 100%;
-    height: 96px;
+    height: 70px;
     flex-shrink: 0;
-    background: #e8ecf4;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    font-size: 0.8rem;
+    background: repeating-linear-gradient(135deg, #f5f7fb 0 8px, #eef1f6 8px 16px);
   }
 
   &__body {
     display: flex;
     flex-direction: column;
     flex: 1;
-    padding: 12px;
+    padding: 10px 12px 12px;
   }
 
   &__name {
-    font-size: 0.875rem;
+    font-size: 13.5px;
     font-weight: 700;
     line-height: 1.3;
     color: var(--text-primary);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   &__desc {
-    font-size: 0.75rem;
+    font-size: 12px;
     line-height: 1.4;
     color: var(--text-secondary);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
   &__price {
     margin-top: auto;
-    font-size: 1.15rem;
+    font-size: 14px;
     font-weight: 800;
-    color: var(--text-primary);
+    color: var(--text-strong);
   }
 }
 
-// ─── Payment Breakdown ───────────────────────────────────────────────────────
+// Resumen lateral
 .payment-card {
   background: var(--bg-card);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
   border: 1px solid var(--border-color);
   padding: 20px;
   position: sticky;
   top: 16px;
-  animation: fadeSlideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  transition: all 0.3s ease;
-
-  &:hover {
-    box-shadow: var(--shadow-lg);
-  }
 
   &__title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-strong);
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 14px;
+
+    .q-icon {
+      display: none;
+    }
   }
 
   &__row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 0;
-    font-size: 0.85rem;
-    color: #546e7a;
+    gap: 12px;
+    padding: 5px 0;
+    font-size: 13.5px;
+    color: var(--text-body);
 
     &--total {
-      font-size: 1.1rem;
-      font-weight: 800;
+      font-size: 15px;
+      font-weight: 700;
       color: var(--text-primary);
-      border-top: 2px solid var(--border-color);
+      border-top: 1px solid var(--border-soft);
       margin-top: 8px;
-      padding-top: 12px;
+      padding-top: 14px;
     }
 
     .amount {
-      font-weight: 600;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
     }
 
     .total-amount {
-      color: $primary;
-      font-size: 1.4rem;
+      color: var(--text-strong);
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
     }
   }
 
   &__advance {
-    background: rgba(2, 95, 224, 0.05);
-    border-radius: var(--radius-sm);
-    padding: 16px;
+    background: #fdeef3;
+    border-radius: 12px;
+    padding: 14px;
     margin: 12px 0;
 
     .advance-label {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-size: 13px;
       font-weight: 700;
+      color: var(--tone-pink-fg);
     }
 
     .advance-amount {
-      font-size: 1.1rem;
+      font-size: 15px;
       font-weight: 800;
-      color: $secondary;
+      color: var(--tone-pink-fg);
     }
 
     .advance-note {
-      font-size: 0.7rem;
-      color: var(--text-muted);
+      font-size: 12px;
+      color: var(--tone-pink-fg);
       margin-top: 4px;
     }
 
@@ -1042,84 +904,82 @@ body {
   }
 }
 
-// ─── Booking Calendar (IMPROVED) ────────────────────────────────────────────
+// Calendario de reservas
 .booking-calendar {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--bg-card);
-
   &__header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 20px 24px;
-    background: linear-gradient(135deg, rgba(2, 95, 224, 0.05), rgba(101, 184, 11, 0.05));
-    border-bottom: 1px solid var(--border-color);
+    justify-content: flex-end;
+    gap: 4px;
+    margin-bottom: 10px;
 
     .month-title {
-      font-size: 1.2rem;
-      font-weight: 800;
-      color: var(--text-primary);
-      letter-spacing: 0.3px;
+      min-width: 120px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-strong);
     }
   }
 
   &__grid {
-    padding: 24px;
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 12px;
+    gap: 4px;
     text-align: center;
   }
 
   &__dow {
-    font-size: 0.8rem;
+    font-size: 11.5px;
     font-weight: 700;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     text-transform: uppercase;
-    padding: 12px 0;
+    padding: 4px 0 6px;
   }
 
   &__day {
-    height: 64px;
+    position: relative;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #37474f;
+    font-size: 13.5px;
     font-weight: 600;
-    position: relative;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
 
     &:hover:not(&--disabled) {
-      background: $warning;
-      color: white;
-      transform: translateY(-4px);
-      z-index: 100;
-      box-shadow: 0 8px 16px rgba($warning, 0.3);
-    }
-
-    &--selected {
-      background: $primary !important;
-      color: #fff !important;
-      font-weight: 800;
-      box-shadow: 0 8px 20px rgba(2, 95, 224, 0.3);
-      z-index: 8;
+      background: var(--bg-muted);
     }
 
     &--today {
-      background: $positive;
-      color: #fff;
-      font-weight: 700;
+      background: var(--tone-info-bg);
+      color: var(--q-primary);
+      font-weight: 800;
     }
 
-    &--booked {
-      background: $secondary;
-      color: #fff;
-      font-weight: 700;
+    &--booked::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      width: 5px;
+      height: 5px;
+      margin-left: -2.5px;
+      border-radius: 3px;
+      background: var(--q-secondary);
+    }
+
+    &--selected,
+    &--selected:hover {
+      background: var(--q-primary) !important;
+      color: #fff !important;
+      font-weight: 800;
+
+      &::after {
+        background: #fff;
+      }
     }
 
     &--disabled {
@@ -1128,37 +988,26 @@ body {
     }
 
     &--other-month {
-      color: var(--text-muted);
+      color: transparent;
     }
   }
 }
 
-// ─── Selected Date Display ───────────────────────────────────────────────────
-.selected-date-display {
-  background: rgba(2, 95, 224, 0.06);
-  border: 1px solid rgba(2, 95, 224, 0.2);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: $primary;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-// ─── Time slots ──────────────────────────────────────────────────────────────
+.selected-date-display,
 .time-slot-display {
-  background: rgba(2, 95, 224, 0.06);
-  border: 1px solid rgba(2, 95, 224, 0.2);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  font-size: 0.875rem;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+  font-size: 14px;
   font-weight: 600;
-  color: $primary;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 8px;
+
+  .q-icon {
+    color: var(--text-secondary);
+  }
 }
 
 // ─── Page layout ─────────────────────────────────────────────────────────────
@@ -1166,11 +1015,6 @@ body {
   padding: 28px;
   min-height: calc(100vh - var(--header-height));
   background: var(--bg-main);
-}
-
-// ─── Nueva Reservacion button footer ─────────────────────────────────────────
-.nueva-reserva-btn {
-  margin: 16px;
 }
 
 // ─── Páginas de listado (TablePage del diseño) ──────────────────────────────
