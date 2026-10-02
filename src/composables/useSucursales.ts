@@ -83,10 +83,6 @@ export function useSucursales() {
     }
   }
 
-  async function editar(id: string) {
-    await router.push({ name: 'sucursales-editar', params: { id } })
-  }
-
   async function verDetalle(id: string) {
     await router.push({ name: 'sucursales-detalle', params: { id } })
   }
@@ -98,7 +94,6 @@ export function useSucursales() {
     busqueda,
     filtros,
     cargarSucursales,
-    editar,
     verDetalle,
   }
 }
