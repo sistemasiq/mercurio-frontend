@@ -6,7 +6,12 @@ import axios, {
 } from 'axios'
 import type { ApiError } from '@/types/auth'
 import { sessionStorage, viewingBranch } from '@/utils/session'
-import { isNetworkError } from '@/utils/errorHandler'
+import {
+  isNetworkError,
+  isTimeoutError,
+  TIMEOUT_ERROR_CODE,
+  TIMEOUT_ERROR_MESSAGE,
+} from '@/utils/errorHandler'
 
 // Cliente sin interceptores — solo para endpoints de auth (refresh/login)
 // que no deben pasar por el interceptor de 401 para evitar loops.
@@ -75,6 +80,9 @@ function extractDetails(data: BackendErrorBody | undefined): unknown {
  * (ej. "Request failed with status code 401" en vez del mensaje del backend).
  */
 export function normalizeAxiosError(error: unknown): ApiError {
+  if (isTimeoutError(error)) {
+    return buildApiError(0, TIMEOUT_ERROR_CODE, TIMEOUT_ERROR_MESSAGE)
+  }
   if (isNetworkError(error)) {
     return buildApiError(0, 'NETWORK_ERROR', 'Sin conexión a internet. Verifica tu red.')
   }
@@ -146,6 +154,9 @@ function createAxiosClient(): AxiosInstance {
   client.interceptors.response.use(
     (response: AxiosResponse) => response,
     async (error: AxiosError<BackendErrorBody>) => {
+      if (isTimeoutError(error)) {
+        return Promise.reject(buildApiError(0, TIMEOUT_ERROR_CODE, TIMEOUT_ERROR_MESSAGE))
+      }
       if (isNetworkError(error)) {
         return Promise.reject(
           buildApiError(0, 'NETWORK_ERROR', 'Sin conexión a internet. Verifica tu red.'),
