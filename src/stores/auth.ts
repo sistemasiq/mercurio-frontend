@@ -5,6 +5,7 @@ import { refreshAccessToken } from '@/api/axiosClient'
 import { authService } from '@/services/authService'
 import { sessionStorage, viewingBranch } from '@/utils/session'
 import { resolveErrorMessage } from '@/utils/errorHandler'
+import { resetAllStores } from '@/utils/piniaReset'
 import { inactivityTimer } from '@/utils/inactivityTimer'
 import { isTokenExpired } from '@/utils/tokenUtils'
 import type { ApiError } from '@/types/auth'
@@ -158,6 +159,9 @@ export const useAuthStore = defineStore('auth', () => {
     viewingBranchId.value = null
     sessionStorage.clear()
     inactivityTimer.stop()
+    // Los demás stores conservan datos del usuario anterior (comandas, cajas,
+    // reservaciones...); en una terminal compartida pasarían al siguiente.
+    resetAllStores(['auth'])
   }
 
   return {

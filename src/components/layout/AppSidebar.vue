@@ -109,7 +109,9 @@ const userColor = computed(() => getAvatarColor(userName.value))
 
 async function handleLogout(): Promise<void> {
   await auth.logout()
-  router.push({ name: 'login' })
+  // Recarga completa (no router.push): descarta toda la memoria de la app, de
+  // modo que nada del usuario saliente llegue al siguiente en esta terminal.
+  window.location.assign(router.resolve({ name: 'login' }).href)
 }
 </script>
 
