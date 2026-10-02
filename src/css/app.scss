@@ -1133,3 +1133,35 @@ body {
 .q-table tbody td .cell-muted {
   color: var(--text-secondary);
 }
+
+// Bloques del cuerpo de diálogos convertidos desde q-card-section.
+.dlg-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  &:empty {
+    display: none;
+  }
+}
+
+// Selector segmentado (q-btn-toggle) con el estilo de chips del diseño.
+.q-btn-toggle.q-btn-group {
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-control);
+  box-shadow: none;
+  background: #fff;
+
+  > .q-btn-item {
+    border-radius: 8px !important;
+    min-height: 34px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  > .q-btn-item.bg-primary {
+    background: var(--text-strong) !important;
+  }
+}

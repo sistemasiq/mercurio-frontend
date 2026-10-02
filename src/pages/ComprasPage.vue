@@ -190,7 +190,7 @@
             />
           </div>
           <div>
-            <div class="field-label">NOTAS (opcional)</div>
+            <div class="field-label">Notas (opcional)</div>
             <q-input
               v-model="formCompra.notas"
               dense

@@ -151,7 +151,7 @@
             />
           </div>
           <div>
-            <div class="field-label">DESCRIPCIÓN (opcional)</div>
+            <div class="field-label">Descripción (opcional)</div>
             <q-input
               v-model="formDialog.descripcion"
               dense
