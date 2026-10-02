@@ -1,11 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import {
-  postOnboarding,
-  fetchMetodoPagoPorDefecto,
-  type OnboardingDetalle,
-  type OnboardingPago,
-} from '@/api/onboardingClient'
+import { postOnboarding, type OnboardingDetalle, type OnboardingPago } from '@/api/onboardingClient'
 import { productosApi } from '@/api/productosApi'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessControlStore } from '@/stores/accessControl'
@@ -13,6 +8,7 @@ import { reservacionesApi } from '@/api/reservacionesApi'
 import { horasFacturables } from '@/utils/horario'
 import type { EventoDelDia } from '@/types/reservaciones'
 import type { PrecioEstancia, TramoEstancia } from '@/types/producto'
+import { redondear2, TOLERANCIA_MONTO } from '@/utils/dinero'
 
 export interface Child {
   id: string
@@ -74,9 +70,9 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   const productoBase = ref<PrecioEstancia | null>(null)
   const pulseras = computed(() => accessControlStore.pulserasDisponibles)
-  const metodoPagoId = ref<string | null>(null)
   const pagosFromModal = ref<OnboardingPago[]>([])
   const puntosARedimirValue = ref(0)
+  const descuentoPuntosValue = ref(0)
   const isLoadingCatalog = ref(false)
   const isSubmitting = ref(false)
   const submitError = ref<string | null>(null)
@@ -133,15 +129,6 @@ export const useRegistrationStore = defineStore('registration', () => {
       console.error(err)
     } finally {
       isLoadingCatalog.value = false
-    }
-  }
-
-  async function loadMetodoPago() {
-    try {
-      metodoPagoId.value = await fetchMetodoPagoPorDefecto()
-    } catch (err) {
-      submitError.value = 'No se pudo cargar el método de pago.'
-      console.error(err)
     }
   }
 
@@ -321,12 +308,19 @@ export const useRegistrationStore = defineStore('registration', () => {
     return motivos
   })
 
-  async function proceedToRFID(pagos?: OnboardingPago[], puntosARedimir?: number) {
+  async function proceedToRFID(
+    pagos?: OnboardingPago[],
+    puntosARedimir?: number,
+    descuentoPuntos?: number,
+  ) {
     if (pagos) {
       pagosFromModal.value = pagos
     }
     if (puntosARedimir) {
       puntosARedimirValue.value = puntosARedimir
+    }
+    if (descuentoPuntos) {
+      descuentoPuntosValue.value = descuentoPuntos
     }
     step.value = 'rfid'
   }
@@ -351,13 +345,23 @@ export const useRegistrationStore = defineStore('registration', () => {
       return
     }
 
-    if (!esEvento && !metodoPagoId.value) {
-      metodoPagoId.value = 'b827363b-6453-40e4-9536-f7a004711f91'
-    }
-
     if (!authStore.currentBranchId) {
       submitError.value = 'No hay una sucursal activa en la sesión.'
       return
+    }
+
+    if (!esEvento) {
+      // Los pagos (puede venir vacío si los puntos cubren todo) más el
+      // descuento por puntos deben cuadrar exactamente con el total: si no,
+      // no se envía nada al backend (evita cobros fantasma o dobles).
+      const sumaPagos = pagosFromModal.value.reduce((acc, p) => acc + p.monto, 0)
+      const cuadra =
+        Math.abs(redondear2(sumaPagos + descuentoPuntosValue.value) - redondear2(total.value)) <=
+        TOLERANCIA_MONTO
+      if (!cuadra) {
+        submitError.value = 'Los pagos capturados no cubren el total del registro. Vuelve a cobrar.'
+        return
+      }
     }
 
     isSubmitting.value = true
@@ -379,11 +383,7 @@ export const useRegistrationStore = defineStore('registration', () => {
       nombreSegundoTutor: tutor.value.secondaryGuardian || null,
       parentesco: tutor.value.relationship,
       detalles,
-      pagos: esEvento
-        ? []
-        : pagosFromModal.value.length > 0
-          ? pagosFromModal.value
-          : [{ metodoPagoId: metodoPagoId.value!, monto: total.value }],
+      pagos: esEvento ? [] : pagosFromModal.value,
       reservacionId: esEvento ? eventoSeleccionado.value!.id : null,
       puntosARedimir: puntosARedimirValue.value,
     }
@@ -415,6 +415,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     eventoNoEncontrado.value = false
     pagosFromModal.value = []
     puntosARedimirValue.value = 0
+    descuentoPuntosValue.value = 0
     tutor.value = {
       fullName: '',
       relationship: 'Padre / Madre',
@@ -472,7 +473,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     completeRegistration,
     reset,
     loadProductos,
-    loadMetodoPago,
     cargarEventoProximo,
     cambiarModo,
     seleccionarEvento,
