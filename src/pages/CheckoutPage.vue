@@ -115,6 +115,7 @@
       :subtitulo="child.nino"
       :total-to-pay="cotizacion?.totalExtra ?? 0"
       :metodos-pago="metodosPagoDisponibles"
+      :permitir-lealtad="false"
       @pago-exitoso="onPagoExtraExitoso"
     />
   </q-page>
