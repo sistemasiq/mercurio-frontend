@@ -304,10 +304,15 @@ function etiquetaComanda(c: Comanda): string {
   return [folio && `#${folio}`, destino].filter(Boolean).join(' ')
 }
 
+// TODO: usar utils/dinero tras WP-03
+const r2 = (n: number): number => Math.round(n * 100) / 100
+
 const totalTicket = computed(() => {
-  return itemsTicket.value.reduce(
-    (suma, item) => suma + item.producto.precio_unitario * item.cantidad,
-    0,
+  return r2(
+    itemsTicket.value.reduce(
+      (suma, item) => suma + r2(item.producto.precio_unitario * item.cantidad),
+      0,
+    ),
   )
 })
 
@@ -454,8 +459,8 @@ const procesarPago = async (
 
     const totalBruto = itemsTicket.value
       .filter((i) => !i.es_hijo_combo)
-      .reduce((s, i) => s + i.producto.precio_unitario * i.cantidad, 0)
-    const totalFinal = totalBruto - descuentoPuntos
+      .reduce((s, i) => s + r2(i.producto.precio_unitario * i.cantidad), 0)
+    const totalFinal = r2(totalBruto - descuentoPuntos)
 
     const payload: PagoCompletoRequest = {
       // TODO backend: folio secuencial por sucursal
