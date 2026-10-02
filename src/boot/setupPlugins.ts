@@ -53,11 +53,11 @@ export function setupPlugins(app: App, router: Router): void {
 
   inactivityTimer.init(() => {
     auth.logout().then(() => {
-      Notify.create({
-        type: 'warning',
-        message: 'Sesión cerrada por inactividad.',
-        icon: 'timer_off',
-      })
+      try {
+        window.sessionStorage.setItem('mercury:logout-motivo', 'inactividad')
+      } catch {
+        // sin sessionStorage solo se pierde el aviso
+      }
       // Recarga completa (no router.push): descarta toda la memoria de la
       // app, incluidos estados que ningún store sabe resetear.
       window.location.assign(router.resolve({ name: 'login' }).href)
