@@ -8,7 +8,10 @@ export interface PaymentProps {
 export interface AppliedPayment {
   id: string
   method: string
+  /** Monto aplicado al cargo. En efectivo, ya descontado el cambio. */
   amount: number
+  /** Solo efectivo, al emitir: lo que entregó el cliente (>= amount), para ticket y cambio. */
+  recibido?: number
   timestamp: Date
   cardType?: 'DEBITO' | 'CREDITO'
   authCode?: string
