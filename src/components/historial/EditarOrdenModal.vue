@@ -142,22 +142,9 @@ const itemsVisibles = computed<DisplayItem[]>(() => {
 
   for (const comboName of comboNames) {
     const hijos = detalles.filter((d) => d.nombre_combo_padre === comboName)
-    const padre = detalles.find((d) => d.producto_nombre === comboName && !d.nombre_combo_padre)
+    const padres = detalles.filter((d) => d.producto_nombre === comboName && !d.nombre_combo_padre)
 
-    if (padre) {
-      usedParentIds.add(padre.id)
-      result.push({
-        key: `combo-${padre.id}`,
-        tipo: 'combo',
-        producto_nombre: comboName,
-        cantidad: padre.cantidad,
-        precio_unitario: padre.precio_unitario,
-        importe: padre.importe,
-        ids: [padre.id, ...hijos.map((h) => h.id)],
-        notas_especiales: padre.notas_especiales,
-        hijos,
-      })
-    } else {
+    if (padres.length === 0) {
       for (const h of hijos) {
         result.push({
           key: `suelto-${h.id}`,
@@ -170,7 +157,58 @@ const itemsVisibles = computed<DisplayItem[]>(() => {
           notas_especiales: h.notas_especiales,
         })
       }
+      continue
     }
+
+    for (const p of padres) usedParentIds.add(p.id)
+
+    // Agrupa los hijos por instancia (id_combo_padre) y reparte los grupos
+    // entre las líneas padre en orden, según su cantidad. Así quitar un padre
+    // no arrastra los hijos de otras instancias del mismo combo.
+    const porInstancia = new Map<string, DetalleProducto[]>()
+    for (const h of hijos) {
+      if (!h.id_combo_padre) break
+      porInstancia.set(h.id_combo_padre, [...(porInstancia.get(h.id_combo_padre) ?? []), h])
+    }
+    const agrupablePorId =
+      padres.length > 1 && porInstancia.size > 0 && hijos.every((h) => h.id_combo_padre)
+
+    if (!agrupablePorId) {
+      // Un solo padre, o orden vieja sin id_combo_padre: un único bloque con
+      // todos los padres y los hijos del combo (no editable por grupo).
+      result.push({
+        key: `combo-${padres[0]!.id}`,
+        tipo: 'combo',
+        producto_nombre: comboName,
+        cantidad: padres.reduce((sum, p) => sum + p.cantidad, 0),
+        precio_unitario: padres[0]!.precio_unitario,
+        importe: padres.reduce((sum, p) => sum + p.importe, 0),
+        ids: [...padres.map((p) => p.id), ...hijos.map((h) => h.id)],
+        notas_especiales: padres[0]!.notas_especiales,
+        hijos,
+      })
+      continue
+    }
+
+    const grupos = [...porInstancia.values()]
+    let cursor = 0
+    padres.forEach((padre, idx) => {
+      const esUltimo = idx === padres.length - 1
+      const asignados = grupos.slice(cursor, esUltimo ? undefined : cursor + padre.cantidad)
+      cursor += padre.cantidad
+      const hijosPadre = asignados.flat()
+      result.push({
+        key: `combo-${padre.id}`,
+        tipo: 'combo',
+        producto_nombre: comboName,
+        cantidad: padre.cantidad,
+        precio_unitario: padre.precio_unitario,
+        importe: padre.importe,
+        ids: [padre.id, ...hijosPadre.map((h) => h.id)],
+        notas_especiales: padre.notas_especiales,
+        hijos: hijosPadre,
+      })
+    })
   }
 
   for (const d of detalles) {

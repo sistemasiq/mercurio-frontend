@@ -28,6 +28,9 @@ export function useTicketComanda() {
   const comboInstances = new Map<string, Set<string>>()
   // Snapshot de cantidades de padres para detectar cambios
   const prevParentQty = new Map<string, number>()
+  // Combos (por producto.id) o instancias (por TicketItem.id) cuya expansión o
+  // split está en curso: los clics concurrentes se ignoran para no duplicar.
+  const combosEnExpansion = new Set<string>()
 
   // ── Helpers internos ──────────────────────────────────────────────
 
@@ -83,7 +86,14 @@ export function useTicketComanda() {
       return true
     }
 
-    return expandirCombo(producto)
+    // Un clic previo ya está expandiendo este combo: ignorar el duplicado.
+    if (combosEnExpansion.has(producto.id)) return true
+    combosEnExpansion.add(producto.id)
+    try {
+      return await expandirCombo(producto)
+    } finally {
+      combosEnExpansion.delete(producto.id)
+    }
   }
 
   async function expandirCombo(
@@ -134,9 +144,25 @@ export function useTicketComanda() {
 
   async function splitCombo(item: ItemTicket): Promise<ItemTicket | null> {
     if (item.cantidad <= 1 || item.es_hijo_combo || !item.producto.es_combo) return null
+    if (combosEnExpansion.has(item.id)) return null
 
-    item.cantidad--
+    combosEnExpansion.add(item.id)
+    try {
+      // Pedir los hijos primero: si falla, el ticket queda intacto y el error
+      // se propaga al llamador para que lo notifique.
+      const hijos = await obtenerComboHijos(item.producto.id)
+      if (item.cantidad <= 1) return null
+      item.cantidad--
+      return construirSplit(item, hijos)
+    } finally {
+      combosEnExpansion.delete(item.id)
+    }
+  }
 
+  function construirSplit(
+    item: ItemTicket,
+    hijos: { producto_id: string; nombre: string; cantidad: number }[],
+  ): ItemTicket | null {
     const notasHijos = new Map<string, string>()
     const childIds = comboInstances.get(item.id)
     if (childIds) {
@@ -149,8 +175,6 @@ export function useTicketComanda() {
 
     const newParentId = crypto.randomUUID()
     const newChildIds = new Set<string>()
-
-    const hijos = await obtenerComboHijos(item.producto.id)
 
     itemsTicket.value.push({
       id: newParentId,

@@ -219,6 +219,8 @@ import StateBlock from '@/components/ui/StateBlock.vue'
 import TablePager from '@/components/ui/TablePager.vue'
 import type { FilterChip, UiTone } from '@/types/ui'
 import { formatMXN } from '@/utils/formatoMoneda'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { ApiError } from '@/types/auth'
 import { comandasApi } from '@/api/comandasApi'
 import { obtenerHistorial, obtenerEstadisticas } from '@/services/historialService'
 import type { ITransaccion } from '@/types/transaccion'
@@ -254,14 +256,25 @@ function cargarDatos() {
   const fi = fechaInicio.value || undefined
   const ff = fechaFin.value || undefined
   Promise.all([
-    obtenerHistorial(filtroTiempo.value, filtroEstado.value, undefined, fi, ff),
-    obtenerEstadisticas(filtroTiempo.value, undefined, fi, ff),
+    obtenerHistorial(filtroTiempo.value, filtroEstado.value, signal, fi, ff),
+    obtenerEstadisticas(filtroTiempo.value, signal, fi, ff),
   ])
     .then(([txs, stats]) => {
       if (!signal.aborted) {
         transacciones.value = txs
         estadisticas.value = stats
       }
+    })
+    .catch((err: unknown) => {
+      if (signal.aborted) return
+      console.error('[HistorialView] cargarDatos:', err)
+      $q.notify({
+        type: 'negative',
+        message: 'No se pudo cargar el historial.',
+        caption: resolveErrorMessage(err as ApiError),
+        position: 'top',
+        timeout: 4000,
+      })
     })
     .finally(() => {
       if (!signal.aborted) isLoading.value = false

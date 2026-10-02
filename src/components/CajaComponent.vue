@@ -187,6 +187,9 @@ const authStore = useAuthStore()
 const turno = useTurnoCajaStore()
 
 const modalPagoAbierto = ref(false)
+// Clave de idempotencia del ticket en curso: se genera al abrir el cobro y se
+// reutiliza en cada reintento; solo se regenera al iniciar un ticket nuevo.
+let idempotencyKey: string | null = null
 const comandaPagadaId = ref<string | null>(null)
 const ticketPostPagoAbierto = ref(false)
 const abrirModalPago = () => {
@@ -214,6 +217,7 @@ const abrirModalPago = () => {
     })
     return
   }
+  idempotencyKey ??= crypto.randomUUID()
   modalPagoAbierto.value = true
 }
 const props = defineProps<{ searchTerm?: string }>()
@@ -300,10 +304,15 @@ function etiquetaComanda(c: Comanda): string {
   return [folio && `#${folio}`, destino].filter(Boolean).join(' ')
 }
 
+// TODO: usar utils/dinero tras WP-03
+const r2 = (n: number): number => Math.round(n * 100) / 100
+
 const totalTicket = computed(() => {
-  return itemsTicket.value.reduce(
-    (suma, item) => suma + item.producto.precio_unitario * item.cantidad,
-    0,
+  return r2(
+    itemsTicket.value.reduce(
+      (suma, item) => suma + r2(item.producto.precio_unitario * item.cantidad),
+      0,
+    ),
   )
 })
 
@@ -347,6 +356,7 @@ const agregarAlTicket = async (producto: ReturnType<typeof Object> & { id: strin
 }
 
 const cancelarTicket = () => {
+  idempotencyKey = null
   cancelarOrden()
   ticketAbierto.value = false
   nombreCliente.value = ''
@@ -362,8 +372,22 @@ const onCerrarTicket = () => {
   cancelarTicket()
 }
 
+const notificarErrorSplit = (err: unknown) => {
+  console.error('[CajaComponent] splitCombo:', err)
+  $q.notify({
+    type: 'negative',
+    message: 'No se pudo separar el combo.',
+    caption: resolveErrorMessage(err as ApiError),
+    position: 'top-right',
+  })
+}
+
 const handleSplitCombo = async (item: ItemTicket) => {
-  await splitCombo(item)
+  try {
+    await splitCombo(item)
+  } catch (err) {
+    notificarErrorSplit(err)
+  }
 }
 
 const splitDialog = ref(false)
@@ -378,7 +402,13 @@ async function confirmarSplit() {
   const item = splitItem.value
   splitDialog.value = false
   if (!item) return
-  const nuevo = await splitCombo(item)
+  let nuevo: ItemTicket | null
+  try {
+    nuevo = await splitCombo(item)
+  } catch (err) {
+    notificarErrorSplit(err)
+    return
+  }
   if (nuevo) {
     itemEditando.value = nuevo
     notasDialog.value = true
@@ -449,11 +479,12 @@ const procesarPago = async (
 
     const totalBruto = itemsTicket.value
       .filter((i) => !i.es_hijo_combo)
-      .reduce((s, i) => s + i.producto.precio_unitario * i.cantidad, 0)
-    const totalFinal = totalBruto - descuentoPuntos
+      .reduce((s, i) => s + r2(i.producto.precio_unitario * i.cantidad), 0)
+    const totalFinal = r2(totalBruto - descuentoPuntos)
 
     const payload: PagoCompletoRequest = {
-      ticket_numero: `TICK-${String(Date.now() % 10000).padStart(4, '0')}`,
+      // TODO backend: folio secuencial por sucursal
+      ticket_numero: `TICK-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
       total_final: totalFinal,
       detalles_comanda: detalles,
       pagos: pagos.map((p) => ({
@@ -466,7 +497,7 @@ const procesarPago = async (
       ...(nombreCliente.value.trim() ? { nombre_cliente: nombreCliente.value.trim() } : {}),
     }
 
-    const comanda = await pagosApi.completarPago(payload)
+    const comanda = await pagosApi.completarPago(payload, undefined, idempotencyKey ?? undefined)
 
     $q.notify({
       type: 'positive',
@@ -489,10 +520,15 @@ const procesarPago = async (
         err.response.data.detail ?? err.response.data,
       )
     }
+    // TODO: usar isTimeoutError de utils/errorHandler tras WP-01
+    const apiErr = err as Partial<ApiError> | null
+    const esTimeout = apiErr?.code === 'ECONNABORTED' || apiErr?.code === 'TIMEOUT'
     $q.notify({
       type: 'negative',
       message: 'Error al procesar el pago',
-      caption: resolveErrorMessage(err as ApiError),
+      caption: esTimeout
+        ? 'No se confirmó el cobro. Verifica en el historial antes de reintentar.'
+        : resolveErrorMessage(err as ApiError),
       position: 'top-right',
       timeout: 4000,
     })
