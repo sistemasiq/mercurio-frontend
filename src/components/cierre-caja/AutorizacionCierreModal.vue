@@ -82,7 +82,8 @@
               outlined
               type="textarea"
               rows="2"
-              placeholder="Opcional"
+              :placeholder="turno.hayDiferencias ? 'Obligatorio' : 'Opcional'"
+              :hint="turno.hayDiferencias ? 'Obligatorio cuando hay diferencias' : undefined"
             />
           </label>
         </div>
@@ -169,7 +170,7 @@
           label="Autorizar cierre y descargar PDF"
           class="arqueo__confirm"
           :loading="cargandoProceso"
-          :disable="!pinCajeroConfirmado || !pinAdminConfirmado"
+          :disable="!pinCajeroConfirmado || !pinAdminConfirmado || faltanObservaciones"
           @click="ejecutarAutorizacionCierre"
         />
       </footer>
@@ -205,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
@@ -224,6 +225,9 @@ const pinAdminConfirmado = ref(false)
 const cargandoPinCajero = ref(false)
 const cargandoPinAdmin = ref(false)
 const cargandoProceso = ref(false)
+
+// Con diferencias en el arqueo las observaciones son obligatorias (auditoría).
+const faltanObservaciones = computed(() => turno.hayDiferencias && !observacionesModal.value.trim())
 
 // El modal nunca se desmonta mientras se esté en CierreCajaPage, así que su estado
 // local sobrevive entre cierres: se reinicia cada vez que se abre.
@@ -400,6 +404,16 @@ async function ejecutarAutorizacionCierre() {
       icon: 'warning',
       message:
         'Es obligatorio que tanto el Cajero como el Administrador confirmen sus PINs contra la BD.',
+    })
+    return
+  }
+
+  if (faltanObservaciones.value) {
+    $q.notify({
+      type: 'warning',
+      position: 'top',
+      icon: 'warning',
+      message: 'Las observaciones son obligatorias cuando el arqueo tiene diferencias.',
     })
     return
   }
