@@ -173,6 +173,9 @@ simplifican hasta que exista la fuente.
   administrador.
 - Visor de cocina: tablero por columnas y botón de pantalla completa del
   navegador.
+- Detalle de comanda en pantalla completa: usa los nombres, tonos y acciones
+  del tablero ("Iniciar preparación", "Marcar lista", "Entregada") y marca el
+  retraso a los 10 min, igual que la tarjeta (antes, a los 45 min).
 - Calendario: la semana empieza en lunes y el panel lateral muestra hoy por
   defecto.
 - Etiquetas de campo en formato de oración (antes en MAYÚSCULAS).
