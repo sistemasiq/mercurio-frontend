@@ -1,50 +1,28 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div class="row items-center q-mb-lg">
-      <div>
-        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Reservaciones</div>
-        <div class="text-body2" style="color: var(--text-secondary)">
-          Reservaciones de eventos de la sucursal.
-        </div>
-      </div>
-      <q-space />
-      <q-btn
-        color="primary"
-        icon="add"
-        label="Nueva Reservación"
-        unelevated
-        no-caps
-        style="border-radius: 8px; font-weight: 600"
-        @click="irANuevaReservacion"
-      />
+  <q-page class="page-content list-page">
+    <PageHeader title="Reservaciones" subtitle="Todas las reservaciones de la sucursal.">
+      <template #actions>
+        <q-btn
+          unelevated
+          color="primary"
+          icon="add"
+          label="Nueva Reservación"
+          @click="irANuevaReservacion"
+        />
+      </template>
+    </PageHeader>
+
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
-    <!-- Sin sucursal activa -->
-    <q-banner
-      v-if="!authStore.currentBranchId"
-      dense
-      rounded
-      class="bg-orange-1 text-orange-9 q-mb-md"
-      style="border-radius: 10px"
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtro"
+      search-placeholder="Buscar cliente o festejado"
+      :filters="FILTROS"
+      :count="`${reservacionesFiltradas.length} reservaciones`"
     >
-      <template #avatar><q-icon name="info" color="orange-9" /></template>
-      No hay una sucursal activa en la sesión.
-    </q-banner>
-
-    <q-card flat bordered style="border-radius: 12px; overflow: hidden">
-      <div class="row items-center q-pa-md">
-        <q-select
-          v-model="filtroEstado"
-          :options="opcionesEstado"
-          emit-value
-          map-options
-          dense
-          outlined
-          label="Estado"
-          style="min-width: 220px"
-        />
-      </div>
-      <q-separator />
       <q-table
         :rows="reservacionesFiltradas"
         :columns="columns"
@@ -52,34 +30,80 @@
         flat
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
-        no-data-label="No hay reservaciones registradas"
-        class="fec-table"
       >
+        <template #body-cell-cliente="props">
+          <q-td :props="props">
+            <span class="text-weight-bold">
+              {{ props.row.nombre_cliente }} {{ props.row.apellidos_cliente ?? '' }}
+            </span>
+            <span v-if="props.row.nombre_festejado" class="cell-sub">
+              {{ props.row.nombre_festejado
+              }}<template v-if="props.row.edad_festejado">
+                · cumple {{ props.row.edad_festejado }}</template
+              >
+            </span>
+          </q-td>
+        </template>
+        <template #body-cell-fecha_evento="props">
+          <q-td :props="props">
+            <span class="text-weight-bold">{{ etiquetaFecha(props.row.fecha_evento) }}</span>
+            <span class="cell-sub">
+              {{ props.row.hora_inicio.slice(0, 5) }} – {{ props.row.hora_fin.slice(0, 5) }}
+            </span>
+          </q-td>
+        </template>
+        <template #body-cell-paquete="props">
+          <q-td :props="props">{{ nombrePaquete(props.row.paquete_id) }}</q-td>
+        </template>
+        <template #body-cell-precio_total="props">
+          <q-td :props="props" class="text-weight-bold">
+            {{ formatMXN(Number(props.row.precio_total)) }}
+          </q-td>
+        </template>
+        <template #body-cell-saldo_pendiente="props">
+          <q-td
+            :props="props"
+            class="text-weight-bold"
+            :class="{ 'saldo--due': Number(props.row.saldo_pendiente) > 0 }"
+          >
+            {{ formatMXN(Number(props.row.saldo_pendiente)) }}
+          </q-td>
+        </template>
         <template #body-cell-estado="props">
           <q-td :props="props">
-            <q-badge
-              :color="estadoColor(props.row.estado)"
-              :label="estadoLabel(props.row.estado)"
+            <StatusBadge
+              :tone="estadoTonoReservacion(props.row.estado)"
+              :label="estadoLabelReservacion(props.row.estado)"
             />
           </q-td>
         </template>
         <template #body-cell-actions="props">
-          <q-td :props="props" auto-width>
+          <q-td :props="props">
             <q-btn
               flat
+              round
               dense
-              no-caps
-              color="primary"
               icon="point_of_sale"
-              label="Cerrar evento"
+              class="action-btn"
+              aria-label="Cerrar evento"
               @click="
                 router.push({ name: 'eventos-reservaciones-cierre', params: { id: props.row.id } })
               "
-            />
+            >
+              <q-tooltip>Cerrar evento</q-tooltip>
+            </q-btn>
           </q-td>
         </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="busqueda || filtro !== 'todas' ? 'no-results' : 'empty'"
+            :title="busqueda || filtro !== 'todas' ? undefined : 'No hay reservaciones registradas'"
+            :body="busqueda || filtro !== 'todas' ? undefined : 'Crea la primera reservación.'"
+          />
+        </template>
       </q-table>
-    </q-card>
+    </DataTableCard>
   </q-page>
 </template>
 
@@ -88,16 +112,28 @@ import { onMounted, ref, computed } from 'vue'
 import type { QTableColumn } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useReservacionesStore } from '@/stores/reservaciones'
+import { usePaquetesStore } from '@/stores/paquetes'
 import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
-import { estadoColorReservacion, estadoLabelReservacion } from '@/utils/estadoReservacion'
+import { estadoLabelReservacion, estadoTonoReservacion } from '@/utils/estadoReservacion'
+import { formatMXN } from '@/utils/formatoMoneda'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import type { FilterChip } from '@/types/ui'
+import type { Reservaciones } from '@/types/reservaciones'
 
 const router = useRouter()
 const store = useReservacionesStore()
+const paquetesStore = usePaquetesStore()
 const authStore = useAuthStore()
 const turno = useTurnoCajaStore()
+
 onMounted(() => {
-  if (authStore.currentBranchId) store.cargar(authStore.currentBranchId)
+  if (!authStore.currentBranchId) return
+  store.cargar(authStore.currentBranchId)
+  if (!paquetesStore.paquetes.length) paquetesStore.cargar(authStore.currentBranchId)
 })
 
 function irANuevaReservacion() {
@@ -108,36 +144,92 @@ function irANuevaReservacion() {
   router.push({ name: 'eventos-reservaciones-crear' })
 }
 
-const opcionesEstado = [
-  { label: 'Todos', value: 'todos' },
-  { label: 'Pendiente', value: 'pendiente' },
-  { label: 'Confirmada', value: 'confirmada' },
-  { label: 'En curso', value: 'en_curso' },
-  { label: 'Completada', value: 'completada' },
-  { label: 'Cancelada', value: 'cancelada' },
+type Filtro = 'proximas' | 'pendientes' | 'confirmadas' | 'cerradas' | 'canceladas' | 'todas'
+const FILTROS: FilterChip<Filtro>[] = [
+  { label: 'Próximas', value: 'proximas' },
+  { label: 'Pendientes de pago', value: 'pendientes' },
+  { label: 'Confirmadas', value: 'confirmadas' },
+  { label: 'Cerradas', value: 'cerradas' },
+  { label: 'Canceladas', value: 'canceladas' },
+  { label: 'Todas', value: 'todas' },
 ]
+const filtro = ref<Filtro | null>('proximas')
+const busqueda = ref('')
 
-const filtroEstado = ref('todos')
+const hoyISO = new Date().toLocaleDateString('en-CA')
 
-const reservacionesFiltradas = computed(() =>
-  filtroEstado.value === 'todos'
-    ? store.reservaciones
-    : store.reservaciones.filter((r) => r.estado === filtroEstado.value),
-)
+function cumpleFiltro(r: Reservaciones): boolean {
+  switch (filtro.value) {
+    case 'proximas':
+      return r.fecha_evento.slice(0, 10) >= hoyISO && r.estado !== 'cancelada'
+    case 'pendientes':
+      return Number(r.saldo_pendiente) > 0 && r.estado !== 'cancelada'
+    case 'confirmadas':
+      return r.estado === 'confirmada'
+    case 'cerradas':
+      return r.estado === 'completada'
+    case 'canceladas':
+      return r.estado === 'cancelada'
+    default:
+      return true
+  }
+}
 
-const estadoLabel = estadoLabelReservacion
-const estadoColor = estadoColorReservacion
+const reservacionesFiltradas = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  return store.reservaciones
+    .filter(cumpleFiltro)
+    .filter(
+      (r) =>
+        !q ||
+        `${r.nombre_cliente} ${r.apellidos_cliente ?? ''} ${r.nombre_festejado ?? ''}`
+          .toLowerCase()
+          .includes(q),
+    )
+    .sort((a, b) =>
+      `${a.fecha_evento}${a.hora_inicio}`.localeCompare(`${b.fecha_evento}${b.hora_inicio}`),
+    )
+})
+
+function nombrePaquete(id: string): string {
+  return paquetesStore.paquetes.find((p) => p.id === id)?.nombre ?? '—'
+}
+
+function etiquetaFecha(fecha: string): string {
+  const [y, m, d] = fecha.slice(0, 10).split('-').map(Number)
+  const dia = new Date(y!, m! - 1, d)
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const diff = Math.round((dia.getTime() - hoy.getTime()) / 86400000)
+  if (diff === 0) return 'Hoy'
+  if (diff === 1) return 'Mañana'
+  const texto = dia.toLocaleDateString('es-MX', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+  return texto.charAt(0).toUpperCase() + texto.slice(1).replace('.', '')
+}
 
 const columns: QTableColumn[] = [
   {
-    name: 'nombre_cliente',
-    label: 'CLIENTE',
+    name: 'cliente',
+    label: 'Cliente / festejado',
     field: 'nombre_cliente',
     align: 'left',
     sortable: true,
   },
-  { name: 'fecha_evento', label: 'FECHA', field: 'fecha_evento', align: 'left', sortable: true },
-  { name: 'estado', label: 'ESTADO', field: 'estado', align: 'left', sortable: true },
-  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+  { name: 'fecha_evento', label: 'Fecha', field: 'fecha_evento', align: 'left', sortable: true },
+  { name: 'paquete', label: 'Paquete', field: 'paquete_id', align: 'left' },
+  { name: 'precio_total', label: 'Total', field: 'precio_total', align: 'right' },
+  { name: 'saldo_pendiente', label: 'Saldo', field: 'saldo_pendiente', align: 'right' },
+  { name: 'estado', label: 'Estado', field: 'estado', align: 'left', sortable: true },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 </script>
+
+<style scoped lang="scss">
+.saldo--due {
+  color: var(--tone-bad-fg);
+}
+</style>

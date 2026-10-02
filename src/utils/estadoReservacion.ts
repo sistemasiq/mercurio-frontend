@@ -23,6 +23,21 @@ export function estadoColorReservacion(estado: string): string {
   return COLORES[estado] ?? 'grey'
 }
 
+// Tono del badge del diseño (StatusBadge) por estado de reservación.
+const TONOS: Record<string, 'ok' | 'warn' | 'bad' | 'info' | 'off' | 'pink'> = {
+  pendiente: 'warn',
+  confirmada: 'ok',
+  en_curso: 'info',
+  completada: 'off',
+  cancelada: 'bad',
+}
+
+export function estadoTonoReservacion(
+  estado: string,
+): 'ok' | 'warn' | 'bad' | 'info' | 'off' | 'pink' {
+  return TONOS[estado] ?? 'off'
+}
+
 export function estadoLabelReservacion(estado: string): string {
   return LABELS[estado] ?? estado
 }
