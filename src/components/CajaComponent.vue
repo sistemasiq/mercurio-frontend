@@ -372,8 +372,22 @@ const onCerrarTicket = () => {
   cancelarTicket()
 }
 
+const notificarErrorSplit = (err: unknown) => {
+  console.error('[CajaComponent] splitCombo:', err)
+  $q.notify({
+    type: 'negative',
+    message: 'No se pudo separar el combo.',
+    caption: resolveErrorMessage(err as ApiError),
+    position: 'top-right',
+  })
+}
+
 const handleSplitCombo = async (item: ItemTicket) => {
-  await splitCombo(item)
+  try {
+    await splitCombo(item)
+  } catch (err) {
+    notificarErrorSplit(err)
+  }
 }
 
 const splitDialog = ref(false)
@@ -388,7 +402,13 @@ async function confirmarSplit() {
   const item = splitItem.value
   splitDialog.value = false
   if (!item) return
-  const nuevo = await splitCombo(item)
+  let nuevo: ItemTicket | null
+  try {
+    nuevo = await splitCombo(item)
+  } catch (err) {
+    notificarErrorSplit(err)
+    return
+  }
   if (nuevo) {
     itemEditando.value = nuevo
     notasDialog.value = true
