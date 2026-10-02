@@ -31,20 +31,28 @@ function liberarUrls(): void {
   llegadaUrls.value = []
 }
 
+// Contador de solicitud: invalida cargas que resuelvan tras cerrar o cambiar de registro.
+let solicitudActual = 0
+
 watch(open, async (visible) => {
+  const solicitud = ++solicitudActual
   if (!visible) {
     liberarUrls()
     return
   }
+  const id = props.registroId
+  liberarUrls()
   pestana.value = 'ine'
   seleccion.value = 0
   ineError.value = false
   llegadaError.value = false
   cargando.value = true
-  const [ine, llegada] = await Promise.allSettled([
-    fetchFotoIneUrl(props.registroId),
-    fetchFotosLlegadaUrls(props.registroId),
-  ])
+  const [ine, llegada] = await Promise.allSettled([fetchFotoIneUrl(id), fetchFotosLlegadaUrls(id)])
+  if (solicitud !== solicitudActual || !open.value || id !== props.registroId) {
+    if (ine.status === 'fulfilled') URL.revokeObjectURL(ine.value)
+    if (llegada.status === 'fulfilled') llegada.value.forEach((u) => URL.revokeObjectURL(u))
+    return
+  }
   if (ine.status === 'fulfilled') ineUrl.value = ine.value
   else ineError.value = true
   if (llegada.status === 'fulfilled') llegadaUrls.value = llegada.value

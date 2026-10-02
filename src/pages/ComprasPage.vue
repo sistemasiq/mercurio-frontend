@@ -330,6 +330,7 @@
                 :max="l.pendiente"
                 step="0.001"
                 :disable="l.pendiente <= 0"
+                :rules="[(v: number) => !(v > l.pendiente) || `Máximo ${l.pendiente}`]"
               />
             </q-item-section>
           </q-item>
@@ -540,7 +541,7 @@ const unidadesCombinadas = computed(() => {
         .map((u) => ({ label: `${u.nombre} (${u.codigo})`, value: `u:${u.id}` }))
     : []
   const opcionesPresentacion = presentacionesStore.items
-    .filter((p) => p.activo)
+    .filter((p) => p.activo && p.insumo_id === lineaTemporal.value.insumo_id)
     .map((p) => ({ label: p.nombre, value: `p:${p.id}` }))
   return [...opcionesUnidad, ...opcionesPresentacion]
 })
@@ -782,8 +783,10 @@ const dialogRecibir = ref(false)
 const compraRecibir = ref<Compra | null>(null)
 const lineasRecepcion = ref<LineaRecepcionUI[]>([])
 
-const hayAlgoQueRecibir = computed(() =>
-  lineasRecepcion.value.some((l) => l.ahora > 0 && l.ahora <= l.pendiente),
+const lineaExcedida = (l: LineaRecepcionUI) => l.ahora > l.pendiente
+const hayAlgoQueRecibir = computed(
+  () =>
+    lineasRecepcion.value.some((l) => l.ahora > 0) && !lineasRecepcion.value.some(lineaExcedida),
 )
 
 const abrirRecibir = async (row: Compra) => {
@@ -808,6 +811,15 @@ const abrirRecibir = async (row: Compra) => {
 
 const ejecutarRecibir = async () => {
   if (!compraRecibir.value) return
+  const excedida = lineasRecepcion.value.find(lineaExcedida)
+  if (excedida) {
+    $q.notify({
+      type: 'negative',
+      message: `La cantidad a recibir de "${excedida.insumo_nombre}" (${excedida.ahora}) excede lo pendiente (${excedida.pendiente}).`,
+      position: 'top-right',
+    })
+    return
+  }
   ejecutando.value = true
   try {
     const actualizada = await store.recibir(compraRecibir.value.id, {
