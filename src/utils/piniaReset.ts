@@ -51,7 +51,9 @@ export function resetPlugin({ store }: PiniaPluginContext): void {
     try {
       store.$reset()
     } catch {
-      // Setup store sin forma de resetearse: se deja intacto.
+      // Setup store sin forma de resetearse: se deja intacto, pero se avisa
+      // para que un store con datos personales no pase desapercibido.
+      console.warn('[piniaReset] no se pudo reiniciar el store', store.$id)
     }
   })
 }
