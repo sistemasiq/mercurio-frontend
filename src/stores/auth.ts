@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AuthState, BranchOption, LoginRequest, User, UserRole } from '@/types/auth'
+import { refreshAccessToken } from '@/api/axiosClient'
 import { authService } from '@/services/authService'
 import { sessionStorage, viewingBranch } from '@/utils/session'
 import { resolveErrorMessage } from '@/utils/errorHandler'
@@ -130,10 +131,10 @@ export const useAuthStore = defineStore('auth', () => {
     if (!session?.refreshToken) return false
 
     try {
-      const response = await authService.refresh(session.refreshToken)
-      token.value = response.token
-      user.value = response.user
-      sessionStorage.save(response.token, response.refreshToken, response.user)
+      // Mismo refresh compartido que usa el interceptor de axios.
+      const newToken = await refreshAccessToken()
+      token.value = newToken
+      user.value = sessionStorage.load()?.user ?? user.value
       return true
     } catch {
       sessionStorage.clear()

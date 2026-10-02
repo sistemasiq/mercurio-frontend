@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { AxiosError } from 'axios'
-import { apiClient, rawApiClient } from '@/api/axiosClient'
+import { apiClient, rawApiClient, refreshAccessToken } from '@/api/axiosClient'
 
 function makeResponse(config: InternalAxiosRequestConfig, status: number, data: unknown) {
   return { data, status, statusText: '', headers: {}, config } as AxiosResponse
@@ -63,5 +63,55 @@ describe('axiosClient interceptor', () => {
     expect(refreshCalls).toBe(1)
     expect(onUnauthorized).toHaveBeenCalledTimes(1)
     window.removeEventListener('auth:unauthorized', onUnauthorized)
+  })
+
+  it('tres peticiones 401 en paralelo hacen un solo refresh', async () => {
+    apiClient.defaults.adapter = ((config: InternalAxiosRequestConfig) => {
+      if (config.headers.Authorization === 'Bearer new') {
+        return Promise.resolve(makeResponse(config, 200, { ok: true }))
+      }
+      return fail(config, 401, { detail: 'expirado' })
+    }) as AxiosAdapter
+    setRefresh(
+      (config) =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve(makeResponse(config, 200, REFRESH_BODY)), 10),
+        ),
+    )
+
+    const results = await Promise.all([
+      apiClient.get('/a'),
+      apiClient.get('/b'),
+      apiClient.get('/c'),
+    ])
+
+    expect(results.map((r) => r.status)).toEqual([200, 200, 200])
+    expect(refreshCalls).toBe(1)
+  })
+
+  it('si el refresh falla, todas las peticiones en espera rechazan', async () => {
+    apiClient.defaults.adapter = ((config: InternalAxiosRequestConfig) =>
+      fail(config, 401, { detail: 'expirado' })) as AxiosAdapter
+    setRefresh((config) => fail(config, 401, { detail: 'refresh inválido' }))
+
+    const results = await Promise.allSettled([
+      apiClient.get('/a'),
+      apiClient.get('/b'),
+      apiClient.get('/c'),
+    ])
+
+    expect(results.every((r) => r.status === 'rejected')).toBe(true)
+    expect(refreshCalls).toBe(1)
+    expect(localStorage.getItem('auth_session')).toBeNull()
+  })
+
+  it('refreshAccessToken comparte la promesa entre llamadas simultáneas', async () => {
+    setRefresh((config) => Promise.resolve(makeResponse(config, 200, REFRESH_BODY)))
+
+    const [a, b] = await Promise.all([refreshAccessToken(), refreshAccessToken()])
+
+    expect(a).toBe('new')
+    expect(b).toBe('new')
+    expect(refreshCalls).toBe(1)
   })
 })

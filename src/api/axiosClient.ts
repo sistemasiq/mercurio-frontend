@@ -24,6 +24,32 @@ interface BackendRefreshResponse {
   user: { id: string; full_name: string; email: string; role: string; branch_id: string | null }
 }
 
+let refreshPromise: Promise<string> | null = null
+
+/**
+ * Renueva el access token con el refresh token guardado. Es la única vía de
+ * refresh de la app (interceptor y guard del router): comparten una sola
+ * promesa en vuelo, así nunca se usan dos veces refresh tokens rotados.
+ */
+export function refreshAccessToken(): Promise<string> {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    const session = sessionStorage.load()
+    if (!session?.refreshToken) throw buildApiError(401, 'NO_REFRESH_TOKEN', '')
+    const { data } = await rawApiClient.post<BackendRefreshResponse>('/auth/refresh', {
+      refreshToken: session.refreshToken,
+    })
+    sessionStorage.save(data.token, data.refresh_token, session.user)
+    window.dispatchEvent(new CustomEvent('auth:refreshed', { detail: { token: data.token } }))
+    return data.token
+  })().finally(() => {
+    refreshPromise = null
+  })
+
+  return refreshPromise
+}
+
 function buildApiError(statusCode: number, code: string, message: string): ApiError {
   return { statusCode, code, message }
 }
@@ -77,9 +103,6 @@ function extractCodeAndMessage(data: BackendErrorBody | undefined): {
 }
 
 function createAxiosClient(): AxiosInstance {
-  let isRefreshing = false
-  const refreshQueue: Array<(token: string) => void> = []
-
   const client = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL,
     timeout: 15000,
@@ -147,39 +170,15 @@ function createAxiosClient(): AxiosInstance {
           return Promise.reject(buildApiError(status, code, message))
         }
 
-        // Si ya hay un refresh en curso, encolar esta request
-        if (isRefreshing) {
-          return new Promise<AxiosResponse>((resolve, reject) => {
-            refreshQueue.push((newToken) => {
-              const config = error.config as RetriableConfig
-              config._retry = true
-              config.headers.Authorization = `Bearer ${newToken}`
-              resolve(client(config))
-            })
-            void reject // satisface el tipo; resolve siempre se llama
-          })
-        }
-
-        isRefreshing = true
         try {
-          const { data } = await rawApiClient.post<BackendRefreshResponse>('/auth/refresh', {
-            refreshToken: session.refreshToken,
-          })
-
-          sessionStorage.save(data.token, data.refresh_token, session.user)
-          window.dispatchEvent(new CustomEvent('auth:refreshed', { detail: { token: data.token } }))
-
-          refreshQueue.forEach((cb) => cb(data.token))
-          refreshQueue.length = 0
-          isRefreshing = false
-
+          // Todas las peticiones que reciben 401 esperan la misma promesa: si
+          // el refresh falla, todas rechazan; si funciona, todas reintentan.
+          const newToken = await refreshAccessToken()
           const config = error.config as RetriableConfig
           config._retry = true
-          config.headers.Authorization = `Bearer ${data.token}`
+          config.headers.Authorization = `Bearer ${newToken}`
           return client(config)
         } catch {
-          isRefreshing = false
-          refreshQueue.length = 0
           sessionStorage.clear()
           window.dispatchEvent(new CustomEvent('auth:unauthorized'))
           return Promise.reject(buildApiError(status, code, message))
