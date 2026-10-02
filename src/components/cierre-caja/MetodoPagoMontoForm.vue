@@ -114,15 +114,13 @@ const opcionesDisponibles = computed(() => {
   return disponibles
 })
 
-let nextId = 1
-
 function agregarFila(metodoId: string | null) {
   if (!metodoId) return
   const metodo = metodosPagoStore.activos.find((m) => m.id === metodoId)
   if (!metodo) return
 
   modelValue.value.push({
-    id: nextId++,
+    id: crypto.randomUUID(),
     metodo: metodo.nombre,
     monto: null,
     origen: 'manual',

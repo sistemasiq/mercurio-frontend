@@ -129,13 +129,6 @@
         <p class="cierre-done__text">El turno ha sido cerrado correctamente.</p>
         <div class="cierre-done__actions">
           <q-btn
-            v-if="pdfUrl"
-            outline
-            icon="download"
-            label="Descargar comprobante PDF"
-            @click="descargarPdf"
-          />
-          <q-btn
             unelevated
             color="primary"
             icon="lock_open"
@@ -165,8 +158,12 @@
     </BaseDialog>
 
     <ConteoBloqueadoOverlay
-      :visible="turno.esperandoRevision && !turno.mostrarDialogAdmin"
-      :permitir-cancelar="true"
+      :visible="
+        (turno.esperandoRevision || turno.balanceRevelado) &&
+        !turno.mostrarDialogAdmin &&
+        !turno.mostrarDialogAutorizacion
+      "
+      :permitir-cancelar="turno.esperandoRevision"
       :cajero="cajeroNombreMostrar"
       @cancelar="turno.cancelarConteo()"
       @autenticar="turno.mostrarDialogAdmin = true"
@@ -181,7 +178,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
-import { turnoCajaService } from '@/services/turnoCajaService'
 
 import AperturaCajaCard from '@/components/cierre-caja/AperturaCajaCard.vue'
 import EfectivoDesgloseForm from '@/components/cierre-caja/EfectivoDesgloseForm.vue'
@@ -200,8 +196,6 @@ import { useAuthStore } from '@/stores/auth'
 const $q = useQuasar()
 const turno = useTurnoCajaStore()
 const authStore = useAuthStore()
-
-const pdfUrl = ref<string | null>(null)
 
 // ── Computed ──────────────────────────────────────────────────────────────
 
@@ -275,18 +269,6 @@ async function confirmarCancelarConteo() {
     icon: 'undo',
     message: 'El conteo ha sido cancelado. El turno regresa al estado activo.',
   })
-}
-
-async function descargarPdf() {
-  if (!turno.turnoId) return
-  try {
-    await turnoCajaService.descargarPdfArqueo(
-      turno.turnoId,
-      `arqueo_${turno.turnoId.slice(-8)}.pdf`,
-    )
-  } catch (err) {
-    $q.notify({ type: 'negative', message: (err as Error).message })
-  }
 }
 
 onMounted(() => {
