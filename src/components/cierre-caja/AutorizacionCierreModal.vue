@@ -297,19 +297,45 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
   try {
     const obsText = observacionesModal.value.trim()
 
-    await turno.confirmarCierre(obsText, esExtraordinario)
+    const resultado = await turno.confirmarCierre(obsText, esExtraordinario)
+    if (!resultado.ok) {
+      // El backend rechazó el cierre: el turno sigue abierto, así que se conserva el
+      // diálogo y no se reinicia el ciclo ni se redirige.
+      $q.notify({ type: 'negative', position: 'top', icon: 'error', message: resultado.error })
+      return
+    }
     turno.mostrarDialogAutorizacion = false
 
-    // Intentar descarga automática de PDF del arqueo
-    if (turno.turnoId) {
-      try {
-        await turnoCajaService.descargarPdfArqueo(
-          turno.turnoId,
-          `arqueo_${turno.turnoId.slice(-8)}.pdf`,
-        )
-      } catch (err) {
-        console.warn('No se pudo descargar el PDF automáticamente:', err)
-      }
+    // Intentar descarga automática del PDF con el id del arqueo (no el del turno).
+    const descargarComprobante = () =>
+      turnoCajaService.descargarPdfArqueo(
+        resultado.arqueoId,
+        `arqueo_${resultado.arqueoId.slice(-8)}.pdf`,
+      )
+    let descargado = true
+    try {
+      await descargarComprobante()
+    } catch (err) {
+      descargado = false
+      $q.notify({
+        type: 'warning',
+        position: 'top',
+        icon: 'warning',
+        timeout: 0,
+        message: `No se pudo descargar el comprobante automáticamente: ${(err as Error).message}`,
+        actions: [
+          {
+            label: 'Descargar comprobante',
+            color: 'white',
+            handler: () => {
+              descargarComprobante().catch((e: Error) =>
+                $q.notify({ type: 'negative', position: 'top', message: e.message }),
+              )
+            },
+          },
+          { label: 'Cerrar', color: 'white' },
+        ],
+      })
     }
 
     $q.notify({
@@ -318,7 +344,9 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
       icon: 'check_circle',
       message: esExtraordinario
         ? 'Cierre extraordinario registrado con éxito en la base de datos. Redirigiendo a apertura de caja...'
-        : 'Cierre de caja autorizado correctamente. Se ha descargado el comprobante PDF.',
+        : descargado
+          ? 'Cierre de caja autorizado correctamente. Se ha descargado el comprobante PDF.'
+          : 'Cierre de caja autorizado correctamente.',
     })
 
     // Tras confirmar (normal o extraordinario), se limpia el turno y se regresa

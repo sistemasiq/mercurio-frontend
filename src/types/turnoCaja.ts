@@ -171,6 +171,10 @@ export interface ConfirmarCierreResponse {
   mensaje: string
 }
 
+/** Resultado de `confirmarCierre` del store: nunca lanza, el consumidor debe revisar `ok`. */
+export type ResultadoCierre =
+  { ok: true; pdfUrl: string | null; arqueoId: string } | { ok: false; error: string }
+
 // ---------------------------------------------------------------------------
 // Retiros parciales (RN-RET)
 // ---------------------------------------------------------------------------

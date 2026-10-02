@@ -24,6 +24,7 @@ import type {
   FilaBalance,
   RevisionAdminResponse,
   RetiroParcialPayload,
+  ResultadoCierre,
 } from '@/types/turnoCaja'
 
 // v-model.number sobre <q-input type="text"> no convierte "" a 0 ni a null: Vue
@@ -353,12 +354,16 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
    * Transición: BALANCE_REVELADO → CERRADO
    * Confirma el cierre definitivo del turno.
    * @param observaciones - Requerido si hayDiferencias === true
+   *
+   * Nunca lanza: devuelve `{ ok: true, pdfUrl, arqueoId }` o `{ ok: false, error }`.
+   * Si falla, el turno NO cambia de estado y `error` queda asignado; el consumidor
+   * no debe reiniciar el ciclo ni redirigir.
    */
   async function confirmarCierre(
     observaciones: string,
     esExtraordinario = false,
-  ): Promise<string | null> {
-    if (!turnoId.value) return null
+  ): Promise<ResultadoCierre> {
+    if (!turnoId.value) return { ok: false, error: 'No hay un turno activo para cerrar.' }
     cargando.value = true
     error.value = null
     try {
@@ -370,10 +375,11 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       estado.value = 'CERRADO'
       mostrarDialogAutorizacion.value = false
       mostrarDialogAdmin.value = false
-      return resp.pdfUrl
+      return { ok: true, pdfUrl: resp.pdfUrl, arqueoId: resp.arqueoId }
     } catch (err) {
-      error.value = resolveErrorMessage(err as ApiError)
-      return null
+      const mensaje = resolveErrorMessage(err as ApiError)
+      error.value = mensaje
+      return { ok: false, error: mensaje }
     } finally {
       cargando.value = false
     }
