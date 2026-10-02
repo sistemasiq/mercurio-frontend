@@ -68,8 +68,8 @@ export interface DesgloseEfectivo {
 /** Una fila del formulario de declaración de métodos. `metodo` es el nombre real
  *  del catálogo de la BD (metodos_pago.nombre) — no hay claves fijas. */
 export interface FilaMetodoPago {
-  /** ID local (generado en frontend) para key de v-for */
-  id: number
+  /** ID local único (UUID generado en frontend) para key de v-for */
+  id: string
   metodo: string
   monto: number | null
   /** 'sistema': detectado automáticamente por tener movimientos reales en el turno (nombre fijo).

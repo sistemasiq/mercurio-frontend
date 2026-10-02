@@ -196,3 +196,31 @@ describe('turno en BALANCE_REVELADO tras recargar', () => {
     expect(store.adminEmail).toBe('admin@x.com')
   })
 })
+
+describe('filas de metodos de pago', () => {
+  it('usan ids unicos entre filas de sistema y manuales', async () => {
+    const store = useTurnoCajaStore()
+    servicio.cargarTurnoActivo.mockResolvedValue(
+      turnoEn('OPERANDO', {
+        movimientos: [
+          { metodo: 'Tarjeta', totalVentas: 100 },
+          { metodo: 'Transferencia', totalVentas: 50 },
+        ],
+      }),
+    )
+    await store.cargarTurnoActivo()
+    store.metodosPago.push({
+      id: crypto.randomUUID(),
+      metodo: 'Vales',
+      monto: null,
+      origen: 'manual',
+    })
+    // una recarga conserva la fila manual y regenera las de sistema
+    await store.cargarTurnoActivo()
+
+    const ids = store.metodosPago.map((f) => f.id)
+    expect(ids).toHaveLength(3)
+    expect(new Set(ids).size).toBe(3)
+    expect(ids.every((id) => typeof id === 'string')).toBe(true)
+  })
+})

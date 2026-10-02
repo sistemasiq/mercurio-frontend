@@ -529,8 +529,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     const filasManuales = metodosPago.value.filter((f) => f.origen === 'manual')
     const filasSistema = turno.movimientos
       .filter((m) => m.metodo.trim().toLowerCase() !== 'efectivo')
-      .map((m, idx) => ({
-        id: idx + 1,
+      .map((m) => ({
+        id: crypto.randomUUID(),
         metodo: m.metodo,
         monto: null,
         origen: 'sistema' as const,
