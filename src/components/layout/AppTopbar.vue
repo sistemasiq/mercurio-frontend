@@ -98,6 +98,7 @@ const totalAlertas = computed(() => alertasInventario.totalAlertas)
     align-items: center;
     justify-content: center;
     color: #475569;
+    text-decoration: none;
 
     &:hover {
       background: var(--bg-muted);

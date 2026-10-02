@@ -1,49 +1,28 @@
 <template>
   <div class="ticket-item" :class="{ 'ticket-item--hijo': esHijoCombo }">
-    <div class="ticket-item__top">
-      <div class="ticket-item__info">
-        <h4 class="ticket-item__nombre">{{ item.producto.nombre }}</h4>
-        <p v-if="esHijoCombo" class="ticket-item__incluido">
-          <q-icon name="check_circle" size="12px" class="q-mr-xs" />Incluido en combo
-        </p>
-        <p v-else class="ticket-item__precio">${{ lineTotal.toFixed(2) }}</p>
-      </div>
-      <div v-if="!esHijoCombo" class="ticket-item__qty">
-        <q-btn
-          flat
-          dense
-          icon="remove"
-          size="xs"
-          color="grey-7"
-          @click="$emit('cambiar-cantidad', item, -1)"
-        />
-        <span class="ticket-item__qty-val">{{ item.cantidad }}</span>
-        <q-btn
-          flat
-          dense
-          icon="add"
-          size="xs"
-          color="grey-7"
-          @click="$emit('cambiar-cantidad', item, 1)"
-        />
-      </div>
+    <div class="ticket-item__info">
+      <span class="ticket-item__nombre">{{ item.producto.nombre }}</span>
+      <button
+        type="button"
+        class="ticket-item__nota"
+        :class="{ 'ticket-item__nota--on': item.notas }"
+        @click="$emit('editar-notas', item)"
+      >
+        {{ item.notas || (esHijoCombo ? 'Incluido en combo · agregar nota' : 'Agregar nota') }}
+      </button>
     </div>
-
-    <q-btn
-      v-if="!item.notas"
-      flat
-      dense
-      no-caps
-      color="grey-7"
-      size="sm"
-      class="q-mt-xs"
-      @click="$emit('editar-notas', item)"
-    >
-      <q-icon name="edit_note" class="q-mr-xs" /> Agregar notas
-    </q-btn>
-    <div v-else class="ticket-item__notas cursor-pointer" @click="$emit('editar-notas', item)">
-      "{{ item.notas }}"
-    </div>
+    <template v-if="!esHijoCombo">
+      <div class="qty-stepper">
+        <button type="button" aria-label="Quitar uno" @click="$emit('cambiar-cantidad', item, -1)">
+          <q-icon name="remove" size="16px" />
+        </button>
+        <span>{{ item.cantidad }}</span>
+        <button type="button" aria-label="Agregar uno" @click="$emit('cambiar-cantidad', item, 1)">
+          <q-icon name="add" size="16px" />
+        </button>
+      </div>
+      <span class="ticket-item__precio">${{ lineTotal.toFixed(2) }}</span>
+    </template>
   </div>
 </template>
 
@@ -80,81 +59,103 @@ const lineTotal = computed(() =>
 )
 </script>
 
-<style>
+<style lang="scss">
 .ticket-item {
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 10px 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  box-sizing: border-box;
-  margin-bottom: 8px;
-}
-.ticket-item--hijo {
-  border-left: 3px solid #025fe0;
-  background: rgba(2, 95, 224, 0.03);
-  box-shadow: none;
-}
-.ticket-item__top {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  gap: 8px;
-  box-sizing: border-box;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f1f3f7;
+
+  &--hijo {
+    padding: 8px 20px 8px 36px;
+    border-bottom: 0;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__nombre {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text-primary);
+  }
+
+  &--hijo &__nombre {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-body);
+  }
+
+  &__nota {
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 12.5px;
+    text-align: left;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--q-primary);
+    }
+
+    &--on {
+      color: #c2410c;
+    }
+  }
+
+  &__precio {
+    min-width: 72px;
+    text-align: right;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+    padding-top: 6px;
+  }
 }
-.ticket-item__info {
-  flex: 1;
-  min-width: 0;
-}
-.ticket-item__nombre {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 2px 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.ticket-item__precio {
-  font-size: 14px;
-  font-weight: 700;
-  color: #025fe0;
-  margin: 0;
-}
-.ticket-item__incluido {
-  font-size: 11px;
-  font-weight: 600;
-  color: #025fe0;
-  margin: 0;
+
+.qty-stepper {
   display: flex;
   align-items: center;
-  opacity: 0.8;
-}
-.ticket-item__qty {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background-color: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  height: 32px;
+  border: 1px solid var(--border-input);
   border-radius: 8px;
-  padding: 2px 4px;
+  overflow: hidden;
   flex-shrink: 0;
-}
-.ticket-item__qty-val {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1e293b;
-  min-width: 20px;
-  text-align: center;
-}
-.ticket-item__notas {
-  margin-top: 6px;
-  padding: 5px 8px;
-  background-color: rgba(2, 95, 224, 0.05);
-  border: 1px solid rgba(2, 95, 224, 0.15);
-  border-radius: 6px;
-  font-size: 11px;
-  font-style: italic;
-  color: #475569;
+
+  button {
+    width: 28px;
+    height: 100%;
+    border: 0;
+    background: #fff;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bg-muted);
+      color: var(--text-primary);
+    }
+  }
+
+  span {
+    min-width: 22px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
 }
 </style>
