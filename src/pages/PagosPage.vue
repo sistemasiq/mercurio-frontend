@@ -143,7 +143,20 @@
         </label>
         <label class="pago-form__field">
           <span class="field-label">Monto</span>
-          <q-input v-model="form.monto" dense outlined type="number" prefix="$" min="1" />
+          <q-input
+            v-model="form.monto"
+            dense
+            outlined
+            type="number"
+            prefix="$"
+            min="0.01"
+            :rules="[
+              (val: number) => Number(val) > 0 || 'El monto debe ser mayor a $0',
+              (val: number) =>
+                Number(val) <= redondear2(restanteSeleccionado) + TOLERANCIA_MONTO ||
+                'El monto no puede superar el saldo pendiente',
+            ]"
+          />
         </label>
         <label class="pago-form__field">
           <span class="field-label">Método de pago</span>
@@ -207,6 +220,7 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import StateBlock from '@/components/ui/StateBlock.vue'
 import BaseDialog from '@/components/ui/BaseDialog.vue'
 import type { FilterChip } from '@/types/ui'
+import { redondear2, TOLERANCIA_MONTO } from '@/utils/dinero'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -298,6 +312,16 @@ const resumenDialog = computed(() => {
   return { total, pagado, restante: Math.max(0, total - pagado - monto) }
 })
 
+// Saldo pendiente de la reservación elegida SIN restar el monto capturado:
+// es el tope contra el que se valida el pago (no se puede cobrar de más).
+const restanteSeleccionado = computed(() => {
+  const res = resStore.reservaciones.find((r) => r.id === form.value.reservacion_id)
+  if (!res) return 0
+  const total = parseFloat(res.precio_total ?? '0')
+  const pagado = pagosPorReservacion.value.get(res.id) ?? 0
+  return Math.max(0, redondear2(total) - redondear2(pagado))
+})
+
 // Total pagado por reservacion (suma de todos los pagos registrados)
 const pagosPorReservacion = computed(() => {
   const map = new Map<string, number>()
@@ -380,12 +404,21 @@ const abrirDialog = () => {
 
 const guardar = async () => {
   if (!form.value.reservacion_id || !form.value.metodo_pago_id || !form.value.monto) return
+  const monto = Number(form.value.monto)
+  if (!(monto > 0) || monto > redondear2(restanteSeleccionado.value) + TOLERANCIA_MONTO) {
+    $q.notify({
+      type: 'warning',
+      message: 'El monto debe ser mayor a $0 y no superar el saldo pendiente.',
+      position: 'top-right',
+    })
+    return
+  }
   guardando.value = true
   try {
     await pagosStore.crearPagosReservacion({
       reservacion_id: form.value.reservacion_id,
       metodo_pago_id: form.value.metodo_pago_id,
-      monto: String(form.value.monto),
+      monto: String(monto),
       notas: form.value.notas || null,
     })
     $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
