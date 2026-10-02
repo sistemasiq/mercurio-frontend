@@ -392,9 +392,11 @@ const mapearMetodoPago = (categoriaSeleccionada: string): string => {
 const onPagoExitoso = async (pagosAplicados: AppliedPayment[]) => {
   if (!reservacion.value) return
   procesandoPago.value = true
+  const registrados: Pagos_reservacion[] = []
   try {
+    // TODO backend: alta de pagos en una sola transacción
     for (const pago of pagosAplicados) {
-      await pagosReservacionApi.crear({
+      const creado = await pagosReservacionApi.crear({
         reservacion_id: reservacion.value.id,
         metodo_pago_id: mapearMetodoPago(pago.method),
         monto: String(pago.amount),
@@ -402,16 +404,28 @@ const onPagoExitoso = async (pagosAplicados: AppliedPayment[]) => {
           ? `Pago (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
           : 'Pago registrado en cierre de evento',
       })
+      registrados.push(creado)
     }
     $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
-    await cargarTodo()
   } catch (err: unknown) {
-    $q.notify({
-      type: 'negative',
-      message: (err as Error).message || 'Error al registrar el pago',
-      position: 'top-right',
-    })
+    if (registrados.length > 0) {
+      const totalAplicado = pagosAplicados.reduce((sum, p) => sum + p.amount, 0)
+      const registrado = registrados.reduce((sum, p) => sum + parseFloat(p.monto), 0)
+      $q.notify({
+        type: 'warning',
+        message: `Se registraron ${registrados.length} de ${pagosAplicados.length} pagos (${fmt(registrado)}). Falta registrar ${fmt(redondear2(totalAplicado - registrado))}.`,
+        position: 'top-right',
+      })
+    } else {
+      $q.notify({
+        type: 'negative',
+        message: (err as Error).message || 'Error al registrar el pago',
+        position: 'top-right',
+      })
+    }
   } finally {
+    // Recarga siempre para que el saldo refleje los pagos ya guardados
+    await cargarTodo()
     procesandoPago.value = false
   }
 }
