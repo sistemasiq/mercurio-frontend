@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSucursalesStore } from '@/stores/sucursales'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
@@ -9,6 +10,7 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppTopbar from '@/components/layout/AppTopbar.vue'
 
 const $q = useQuasar()
+const route = useRoute()
 const auth = useAuthStore()
 const turno = useTurnoCajaStore()
 const sucursalesStore = useSucursalesStore()
@@ -16,8 +18,16 @@ const alertasInventario = useAlertasInventarioStore()
 
 // Debajo de este ancho el sidebar pasa a overlay y se abre desde el Topbar.
 const DRAWER_BREAKPOINT = 1024
-const drawerOpen = ref(true)
+const drawerOpen = ref(window.innerWidth >= DRAWER_BREAKPOINT)
 const isOverlay = computed(() => $q.screen.width < DRAWER_BREAKPOINT)
+
+// En modo overlay, cerrar el menú al navegar.
+watch(
+  () => route.fullPath,
+  () => {
+    if (isOverlay.value) drawerOpen.value = false
+  },
+)
 
 const INTERVALO_ALERTAS_MS = 3 * 60 * 1000
 let alertasIntervalId: ReturnType<typeof setInterval> | undefined
