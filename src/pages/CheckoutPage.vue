@@ -133,6 +133,7 @@ import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import { metodosPagoApi } from '@/api/metodosPagoApi'
 import type { MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment } from '@/types/payments'
+import { resolverMetodoPagoId } from '@/utils/metodosPago'
 
 const store = useAccessControlStore()
 const turno = useTurnoCajaStore()
@@ -181,25 +182,8 @@ const cargarMetodosPago = async () => {
   }
 }
 
-const mapearMetodoPago = (nombreMetodo: string): string => {
-  if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
-    throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
-  }
-
-  const metodo = metodosPagoDisponibles.value.find(
-    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
-  )
-
-  if (!metodo) {
-    const disponibles = metodosPagoDisponibles.value
-      .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
-      .join(', ')
-    throw new Error(
-      `El método de pago "${nombreMetodo}" no está configurado o no está activo. Métodos disponibles: [${disponibles}]`,
-    )
-  }
-  return metodo.id
-}
+const mapearMetodoPago = (categoriaSeleccionada: string): string =>
+  resolverMetodoPagoId(categoriaSeleccionada, metodosPagoDisponibles.value)
 
 const isLoading = ref(false)
 
