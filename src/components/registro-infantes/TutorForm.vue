@@ -29,6 +29,8 @@ const cameraActive = ref(false)
 const videoRef = ref<HTMLVideoElement | null>(null)
 let streamInstance: MediaStream | null = null
 let currentPhotoTarget: 'ine' | 'arrival' | null = null
+// Token de intento: invalida los getUserMedia que resuelvan tras stopCamera/desmontaje.
+let intento = 0
 
 const currentArrivalOriginalIndex = computed(() => {
   const total = store.tutor.arrivalPhotos.length
@@ -44,27 +46,36 @@ const currentArrivalPhotoUrl = computed(() => {
 async function startCamera(target: 'ine' | 'arrival') {
   if (store.isLocked) return
 
+  // Libera cualquier stream previo e invalida intentos pendientes.
+  stopCamera()
+  const intentoActual = ++intento
   currentPhotoTarget = target
   cameraActive.value = true
 
   setTimeout(async () => {
+    if (intentoActual !== intento) return
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 1280, height: 720, facingMode: target === 'ine' ? 'environment' : 'user' },
         audio: false,
       })
+      if (!cameraActive.value || intentoActual !== intento) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
       streamInstance = stream
       if (videoRef.value) {
         videoRef.value.srcObject = stream
       }
     } catch (err) {
       console.error('Error al acceder a la cámara web:', err)
-      cameraActive.value = false
+      if (intentoActual === intento) cameraActive.value = false
     }
   }, 100)
 }
 
 function stopCamera() {
+  intento++
   if (streamInstance) {
     streamInstance.getTracks().forEach((track) => track.stop())
     streamInstance = null
