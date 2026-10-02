@@ -1172,3 +1172,56 @@ body {
 .nueva-reserva-btn {
   margin: 16px;
 }
+
+// ─── Páginas de listado (TablePage del diseño) ──────────────────────────────
+.list-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  &__note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13.5px;
+    font-weight: 600;
+
+    &--warn {
+      background: var(--tone-warn-bg);
+      color: var(--tone-warn-fg);
+    }
+
+    &--bad {
+      background: var(--tone-bad-bg);
+      color: var(--tone-bad-fg);
+    }
+  }
+}
+
+// Código corto en celdas (pulseras, SKU, folios).
+.code-chip {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f1f4f9;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-body);
+  white-space: nowrap;
+}
+
+// Texto secundario en celdas de tabla.
+.cell-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cell-muted {
+  color: var(--text-secondary);
+}
