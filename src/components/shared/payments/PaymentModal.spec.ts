@@ -81,7 +81,7 @@ describe('PaymentModal', () => {
     await capturarMonto(wrapper, 5000)
     const finalizar = wrapper
       .findAllComponents({ name: 'QBtn' })
-      .find((b) => b.props('label') === 'Finalizar Transacción')
+      .find((b) => b.props('label') === 'Confirmar pago')
     expect(finalizar, 'no se encontró el botón de finalizar').toBeTruthy()
     await finalizar!.trigger('click')
 

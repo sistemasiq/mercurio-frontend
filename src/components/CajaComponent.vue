@@ -110,6 +110,8 @@
 
     <PaymentModal
       v-model="modalPagoAbierto"
+      titulo="Cobrar pedido"
+      :subtitulo="nombreCliente"
       :total-to-pay="totalTicket"
       :metodos-pago="metodosPagoDisponibles"
       @pago-exitoso="onPagoExitoso"
