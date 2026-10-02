@@ -84,7 +84,7 @@
 
         <q-card-section class="q-gutter-md q-pt-md">
           <div>
-            <div class="field-label">NOMBRE</div>
+            <div class="field-label">Nombre</div>
             <q-input
               ref="nombreRef"
               v-model="formDialog.nombre"

@@ -25,11 +25,11 @@
 
       <div class="row q-col-gutter-sm items-end q-mb-md">
         <div class="col-6 col-sm-3">
-          <div class="field-label">DESDE</div>
+          <div class="field-label">Desde</div>
           <q-input v-model="desde" dense outlined type="date" />
         </div>
         <div class="col-6 col-sm-3">
-          <div class="field-label">HASTA</div>
+          <div class="field-label">Hasta</div>
           <q-input v-model="hasta" dense outlined type="date" />
         </div>
         <div class="col-auto">

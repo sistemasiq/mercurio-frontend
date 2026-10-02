@@ -163,7 +163,7 @@
 
         <q-card-section class="q-gutter-md q-pt-md">
           <div>
-            <div class="field-label">NOMBRE</div>
+            <div class="field-label">Nombre</div>
             <q-input
               ref="nombreRef"
               v-model="form.nombre"
@@ -177,7 +177,7 @@
           </div>
           <div class="row q-gutter-md">
             <div class="col">
-              <div class="field-label">HORA INICIO</div>
+              <div class="field-label">Hora inicio</div>
               <q-input
                 ref="horaInicioRef"
                 v-model="form.horaInicio"
@@ -189,7 +189,7 @@
               />
             </div>
             <div class="col">
-              <div class="field-label">HORA FIN</div>
+              <div class="field-label">Hora fin</div>
               <q-input
                 ref="horaFinRef"
                 v-model="form.horaFin"
@@ -262,21 +262,21 @@
 
         <q-card-section v-if="filaDetalle" class="q-gutter-md q-pt-md">
           <div>
-            <div class="field-label">NOMBRE</div>
+            <div class="field-label">Nombre</div>
             <div class="text-body1">{{ filaDetalle.nombre }}</div>
           </div>
           <div class="row q-gutter-md">
             <div class="col">
-              <div class="field-label">HORA INICIO</div>
+              <div class="field-label">Hora inicio</div>
               <div class="text-body1">{{ filaDetalle.horaInicio }}</div>
             </div>
             <div class="col">
-              <div class="field-label">HORA FIN</div>
+              <div class="field-label">Hora fin</div>
               <div class="text-body1">{{ filaDetalle.horaFin }}</div>
             </div>
           </div>
           <div>
-            <div class="field-label">ESTADO</div>
+            <div class="field-label">Estado</div>
             <EstadoBadge
               :tono="filaDetalle.activo ? 'verde' : 'gris'"
               :label="filaDetalle.activo ? 'Activo' : 'Inactivo'"

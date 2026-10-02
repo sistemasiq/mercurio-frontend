@@ -145,7 +145,7 @@
 
         <q-card-section class="q-gutter-lg q-pa-lg">
           <div>
-            <div class="field-label">NOMBRE</div>
+            <div class="field-label">Nombre</div>
             <q-input
               ref="nombreRef"
               v-model="formDialog.nombre"
@@ -158,7 +158,7 @@
           </div>
           <div class="row q-col-gutter-md">
             <div class="col-6">
-              <div class="field-label">PRECIO BASE</div>
+              <div class="field-label">Precio base</div>
               <q-input
                 v-model.number="formDialog.precio_base"
                 dense
@@ -171,7 +171,7 @@
               />
             </div>
             <div class="col-6">
-              <div class="field-label">PRECIO DE LA PULSERA</div>
+              <div class="field-label">Precio de la pulsera</div>
               <q-input
                 v-model.number="formDialog.precio_pulsera"
                 dense
@@ -188,7 +188,7 @@
           </div>
           <div class="row q-col-gutter-md">
             <div class="col-6">
-              <div class="field-label">MÍN. DE INVITADOS</div>
+              <div class="field-label">Mín. de invitados</div>
               <q-input
                 v-model.number="formDialog.min_invitados"
                 dense
@@ -199,7 +199,7 @@
               />
             </div>
             <div class="col-6">
-              <div class="field-label">MÁX. DE INVITADOS</div>
+              <div class="field-label">Máx. de invitados</div>
               <q-input
                 v-model.number="formDialog.max_invitados"
                 dense

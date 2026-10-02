@@ -132,7 +132,7 @@
 
         <q-card-section class="q-gutter-md q-pt-md">
           <div>
-            <div class="field-label">NOMBRE</div>
+            <div class="field-label">Nombre</div>
             <q-input
               ref="nombreRef"
               v-model="formDialog.nombre"
@@ -144,7 +144,7 @@
             />
           </div>
           <div>
-            <div class="field-label">PRECIO</div>
+            <div class="field-label">Precio</div>
             <q-input
               v-model.number="formDialog.precio"
               dense
@@ -157,7 +157,7 @@
             />
           </div>
           <div>
-            <div class="field-label">UNIDAD</div>
+            <div class="field-label">Unidad</div>
             <q-select
               v-model="formDialog.unidad"
               dense

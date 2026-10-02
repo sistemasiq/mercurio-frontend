@@ -65,11 +65,11 @@
                 </div>
                 <div class="row q-col-gutter-md">
                   <div class="col-6">
-                    <div class="field-label">FECHA</div>
+                    <div class="field-label">Fecha</div>
                     <div class="text-body1 text-weight-medium">{{ fmtFechaEvento }}</div>
                   </div>
                   <div class="col-6">
-                    <div class="field-label">DURACIÓN</div>
+                    <div class="field-label">Duración</div>
                     <div class="text-body1 text-weight-medium">{{ duracionEvento }}</div>
                   </div>
                 </div>

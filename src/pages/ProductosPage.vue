@@ -561,7 +561,7 @@
         <q-card-section class="q-gutter-md">
           <div class="row q-col-gutter-sm items-start">
             <div class="col-7">
-              <div class="field-label">INSUMO</div>
+              <div class="field-label">Insumo</div>
               <q-select
                 v-model="formReceta.insumo_id"
                 dense

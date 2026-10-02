@@ -27,13 +27,13 @@
       <q-card v-if="insumo" flat bordered class="q-pa-md q-mb-lg" style="border-radius: 12px">
         <div class="row q-col-gutter-md">
           <div class="col">
-            <div class="field-label">STOCK ACTUAL</div>
+            <div class="field-label">Stock actual</div>
             <div class="text-h6 text-weight-bold">
               {{ Number(insumo.stock_actual) }} {{ codigoUnidad(insumo.unidad_base_id) }}
             </div>
           </div>
           <div class="col">
-            <div class="field-label">STOCK MÍNIMO</div>
+            <div class="field-label">Stock mínimo</div>
             <div class="text-h6 text-weight-bold">
               {{ Number(insumo.stock_minimo) }} {{ codigoUnidad(insumo.unidad_base_id) }}
             </div>
@@ -44,11 +44,11 @@
       <!-- Filtro de fechas -->
       <div class="row q-col-gutter-sm items-end q-mb-md">
         <div class="col-3">
-          <div class="field-label">DESDE</div>
+          <div class="field-label">Desde</div>
           <q-input v-model="desde" dense outlined type="date" />
         </div>
         <div class="col-3">
-          <div class="field-label">HASTA</div>
+          <div class="field-label">Hasta</div>
           <q-input v-model="hasta" dense outlined type="date" />
         </div>
         <div class="col-auto">

@@ -178,7 +178,7 @@
 
         <q-card-section class="q-gutter-md q-pt-md">
           <div>
-            <div class="field-label">PROVEEDOR</div>
+            <div class="field-label">Proveedor</div>
             <q-select
               v-model="formCompra.proveedor_id"
               dense

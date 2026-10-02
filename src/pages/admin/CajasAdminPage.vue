@@ -155,7 +155,7 @@
 
         <q-card-section class="q-gutter-md q-pt-md">
           <div>
-            <div class="field-label">NOMBRE</div>
+            <div class="field-label">Nombre</div>
             <q-input
               ref="nombreRef"
               v-model="form.nombre"
@@ -168,7 +168,7 @@
             />
           </div>
           <div>
-            <div class="field-label">NÚMERO</div>
+            <div class="field-label">Número</div>
             <q-input
               ref="numeroRef"
               v-model.number="form.numero"
@@ -239,15 +239,15 @@
 
         <q-card-section v-if="filaDetalle" class="q-gutter-md q-pt-md">
           <div>
-            <div class="field-label">NOMBRE</div>
+            <div class="field-label">Nombre</div>
             <div class="text-body1">{{ filaDetalle.nombre }}</div>
           </div>
           <div>
-            <div class="field-label">NÚMERO</div>
+            <div class="field-label">Número</div>
             <div class="text-body1">{{ filaDetalle.numero }}</div>
           </div>
           <div>
-            <div class="field-label">ESTADO</div>
+            <div class="field-label">Estado</div>
             <EstadoBadge
               :tono="filaDetalle.activo ? 'verde' : 'gris'"
               :label="filaDetalle.activo ? 'Activo' : 'Inactivo'"

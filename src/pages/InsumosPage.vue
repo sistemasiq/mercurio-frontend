@@ -202,7 +202,7 @@
 
         <q-card-section class="q-gutter-md q-pt-md">
           <div>
-            <div class="field-label">NOMBRE</div>
+            <div class="field-label">Nombre</div>
             <q-input
               ref="nombreRef"
               v-model="formDialog.nombre"
@@ -233,7 +233,7 @@
               />
             </div>
             <div class="col">
-              <div class="field-label">UNIDAD DE COMPRA</div>
+              <div class="field-label">Unidad de compra</div>
               <q-select
                 v-model="formDialog.unidad_compra_id"
                 dense
@@ -251,7 +251,7 @@
           </div>
 
           <div v-if="!editando">
-            <div class="field-label">STOCK INICIAL</div>
+            <div class="field-label">Stock inicial</div>
             <q-input
               v-model.number="formDialog.stock_inicial"
               dense
@@ -264,7 +264,7 @@
 
           <div class="row q-col-gutter-md">
             <div class="col">
-              <div class="field-label">STOCK MÍNIMO</div>
+              <div class="field-label">Stock mínimo</div>
               <q-input
                 v-model.number="formDialog.stock_minimo"
                 dense
@@ -399,7 +399,7 @@
 
           <template v-if="modoAjuste === 'manual'">
             <div>
-              <div class="field-label">TIPO DE AJUSTE</div>
+              <div class="field-label">Tipo de ajuste</div>
               <q-select
                 v-model="formAjuste.tipo"
                 dense
@@ -410,7 +410,7 @@
               />
             </div>
             <div>
-              <div class="field-label">CANTIDAD</div>
+              <div class="field-label">Cantidad</div>
               <q-input
                 v-model.number="formAjuste.cantidad"
                 dense
@@ -555,7 +555,7 @@
         <q-card-section class="q-gutter-md">
           <div class="row q-col-gutter-sm items-start">
             <div class="col-7">
-              <div class="field-label">NOMBRE</div>
+              <div class="field-label">Nombre</div>
               <q-input
                 v-model="formPresentacion.nombre"
                 dense
@@ -564,7 +564,7 @@
               />
             </div>
             <div class="col-5">
-              <div class="field-label">EQUIVALENCIA</div>
+              <div class="field-label">Equivalencia</div>
               <q-input
                 v-model.number="formPresentacion.equivalencia_base"
                 dense

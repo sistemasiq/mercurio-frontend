@@ -44,7 +44,7 @@
       <q-card flat bordered class="q-pa-lg" style="border-radius: 12px">
         <div class="row q-col-gutter-md">
           <div class="col-12 col-sm-6">
-            <div class="field-label">% DE RETORNO</div>
+            <div class="field-label">% de retorno</div>
             <q-input
               v-model.number="form.porcentaje_retorno"
               dense
@@ -58,7 +58,7 @@
             />
           </div>
           <div class="col-12 col-sm-6">
-            <div class="field-label">DÍAS DE CADUCIDAD</div>
+            <div class="field-label">Días de caducidad</div>
             <q-input
               v-model.number="form.dias_caducidad"
               dense
@@ -70,7 +70,7 @@
             />
           </div>
           <div class="col-12 col-sm-6">
-            <div class="field-label">VALOR DEL PUNTO</div>
+            <div class="field-label">Valor del punto</div>
             <q-input
               v-model.number="form.valor_punto"
               dense

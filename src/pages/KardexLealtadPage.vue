@@ -16,7 +16,7 @@
       <!-- Buscador -->
       <div class="row q-col-gutter-sm items-end q-mb-md">
         <div class="col-4">
-          <div class="field-label">CELULAR DEL CLIENTE</div>
+          <div class="field-label">Celular del cliente</div>
           <q-input
             v-model="celular"
             dense
@@ -65,7 +65,7 @@
 
       <!-- Saldo -->
       <q-card v-if="store.saldo" flat bordered class="q-pa-md q-mb-lg" style="border-radius: 12px">
-        <div class="field-label">SALDO DISPONIBLE</div>
+        <div class="field-label">Saldo disponible</div>
         <div class="text-h6 text-weight-bold">{{ store.saldo.saldo }} puntos</div>
       </q-card>
 

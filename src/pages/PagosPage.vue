@@ -115,7 +115,7 @@
 
         <q-card-section class="q-gutter-md q-pt-md">
           <div>
-            <div class="field-label">RESERVACIÓN</div>
+            <div class="field-label">Reservación</div>
             <q-select
               v-model="form.reservacion_id"
               dense
@@ -131,7 +131,7 @@
             />
           </div>
           <div>
-            <div class="field-label">MÉTODO DE PAGO</div>
+            <div class="field-label">Método de pago</div>
             <q-select
               v-model="form.metodo_pago_id"
               dense
@@ -144,7 +144,7 @@
             />
           </div>
           <div>
-            <div class="field-label">MONTO</div>
+            <div class="field-label">Monto</div>
             <q-input v-model="form.monto" dense outlined type="number" prefix="$" min="1" />
           </div>
           <div>
