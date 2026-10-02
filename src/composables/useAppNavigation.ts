@@ -20,8 +20,8 @@ export function useAppNavigation(): AppNavigation {
   const alertasInventario = useAlertasInventarioStore()
   const router = useRouter()
 
-  // El Administrador de sucursal no opera la caja directamente (apertura/cierre/venta) —
-  // solo el AdministradorSistema y el Cajero. Su única vista de este módulo es el historial.
+  // El Administrador de sucursal no vende en mostrador (Caja POS), pero sí abre y cierra
+  // su propio turno: lo necesita para cobrar reservaciones y eventos.
   const esAdminDeSucursal = computed(
     () => auth.hasRole('Administrador') && !auth.hasRole('AdministradorSistema'),
   )
@@ -43,13 +43,13 @@ export function useAppNavigation(): AppNavigation {
                 routeName: 'pos-caja',
                 permission: 'pos:acceder',
               },
-              {
-                label: 'Apertura y Cierre',
-                icon: 'key',
-                routeName: 'pos-cierre',
-                permission: 'pos:acceder',
-              },
             ]),
+        {
+          label: 'Apertura y Cierre',
+          icon: 'key',
+          routeName: 'pos-cierre',
+          permission: 'pos:acceder',
+        },
         {
           label: 'Cocina',
           icon: 'restaurant',

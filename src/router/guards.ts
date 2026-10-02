@@ -46,10 +46,11 @@ export function setupRouterGuards(router: Router): void {
       // la página debe mostrar turno.error en vez de expulsar sin motivo.
     }
 
-    // El Administrador de sucursal no opera la caja directamente (apertura/cierre/venta):
-    // su única vista de este módulo es el historial de arqueos. AdministradorSistema sí puede.
+    // El Administrador de sucursal no vende en mostrador (pos-caja), pero sí abre y
+    // cierra su propio turno en pos-cierre: lo necesita para cobrar reservaciones y
+    // eventos (#13). AdministradorSistema puede ambas.
     const esAdminDeSucursal = auth.hasRole('Administrador') && !auth.hasRole('AdministradorSistema')
-    if (esAdminDeSucursal && (to.name === 'pos-cierre' || to.name === 'pos-caja')) {
+    if (esAdminDeSucursal && to.name === 'pos-caja') {
       return { name: 'pos-historial-arqueos' }
     }
 
