@@ -13,26 +13,41 @@ import type {
 
 interface PresentacionesInsumoState {
   items: PresentacionInsumo[]
+  /** Insumo al que pertenece `items` (ultima carga aplicada). */
+  insumoIdCargado: string | null
   loading: boolean
   error: string | null
 }
 
+// Id de la ultima solicitud de carga; permite descartar respuestas obsoletas.
+let ultimaSolicitud = 0
+
 export const usePresentacionesInsumoStore = defineStore('presentacionesInsumo', {
   state: (): PresentacionesInsumoState => ({
     items: [],
+    insumoIdCargado: null,
     loading: false,
     error: null,
   }),
   actions: {
     async cargarPorInsumo(insumoId: string) {
+      const solicitud = ++ultimaSolicitud
       this.loading = true
       this.error = null
+      if (this.insumoIdCargado !== insumoId) {
+        this.items = []
+        this.insumoIdCargado = insumoId
+      }
       try {
-        this.items = await listarPresentacionesPorInsumo(insumoId)
+        const items = await listarPresentacionesPorInsumo(insumoId)
+        if (solicitud !== ultimaSolicitud) return
+        this.items = items
       } catch (error: unknown) {
+        if (solicitud !== ultimaSolicitud) return
+        this.items = []
         this.error = (error as Error).message ?? 'Error al cargar las presentaciones'
       } finally {
-        this.loading = false
+        if (solicitud === ultimaSolicitud) this.loading = false
       }
     },
     async crear(insumoId: string, body: PresentacionInsumoCreate) {
