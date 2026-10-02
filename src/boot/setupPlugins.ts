@@ -9,6 +9,8 @@ import '@quasar/extras/material-symbols-outlined/material-symbols-outlined.css'
 import 'quasar/src/css/index.sass'
 import '@/css/app.scss'
 import { createPinia } from 'pinia'
+import { configurarRefresh } from '@/api/axiosClient'
+import { authService } from '@/services/authService'
 import { useAuthStore } from '@/stores/auth'
 import { setupRouterGuards } from '@/router/guards'
 import { resetPlugin } from '@/utils/piniaReset'
@@ -17,6 +19,7 @@ import { inactivityTimer } from '@/utils/inactivityTimer'
 const INACTIVITY_MS = 15 * 60 * 1000
 
 export function setupPlugins(app: App, router: Router): void {
+  configurarRefresh((refreshToken) => authService.refresh(refreshToken))
   const pinia = createPinia()
   pinia.use(resetPlugin)
 

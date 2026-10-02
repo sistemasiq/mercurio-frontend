@@ -4,7 +4,7 @@ import axios, {
   type InternalAxiosRequestConfig,
   AxiosError,
 } from 'axios'
-import type { ApiError } from '@/types/auth'
+import type { ApiError, User } from '@/types/auth'
 import { sessionStorage, viewingBranch } from '@/utils/session'
 import {
   isNetworkError,
@@ -29,6 +29,22 @@ interface BackendRefreshResponse {
   user: { id: string; full_name: string; email: string; role: string; branch_id: string | null }
 }
 
+export interface RefreshResult {
+  token: string
+  refreshToken: string
+  user: User
+}
+
+type Refresher = (refreshToken: string) => Promise<RefreshResult>
+
+// El mapeo de la respuesta (authService) se inyecta desde el arranque para que
+// api/ no importe services/ (authService -> authApi -> axiosClient sería un ciclo).
+let refresher: Refresher | null = null
+
+export function configurarRefresh(fn: Refresher | null): void {
+  refresher = fn
+}
+
 let refreshPromise: Promise<string> | null = null
 
 /**
@@ -42,12 +58,19 @@ export function refreshAccessToken(): Promise<string> {
   refreshPromise = (async () => {
     const session = sessionStorage.load()
     if (!session?.refreshToken) throw buildApiError(401, 'NO_REFRESH_TOKEN', '')
-    const { data } = await rawApiClient.post<BackendRefreshResponse>('/auth/refresh', {
-      refreshToken: session.refreshToken,
-    })
-    sessionStorage.save(data.token, data.refresh_token, session.user)
-    window.dispatchEvent(new CustomEvent('auth:refreshed', { detail: { token: data.token } }))
-    return data.token
+    let result: RefreshResult
+    if (refresher) {
+      result = await refresher(session.refreshToken)
+    } else {
+      // Fallback sin refresher registrado (tests o arranque temprano): se conserva el usuario.
+      const { data } = await rawApiClient.post<BackendRefreshResponse>('/auth/refresh', {
+        refreshToken: session.refreshToken,
+      })
+      result = { token: data.token, refreshToken: data.refresh_token, user: session.user }
+    }
+    sessionStorage.save(result.token, result.refreshToken, result.user)
+    window.dispatchEvent(new CustomEvent('auth:refreshed', { detail: { token: result.token } }))
+    return result.token
   })().finally(() => {
     refreshPromise = null
   })
