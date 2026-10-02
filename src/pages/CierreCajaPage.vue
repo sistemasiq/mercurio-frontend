@@ -167,7 +167,9 @@
     <ConteoBloqueadoOverlay
       :visible="turno.esperandoRevision && !turno.mostrarDialogAdmin"
       :permitir-cancelar="true"
+      :cajero="cajeroNombreMostrar"
       @cancelar="turno.cancelarConteo()"
+      @autenticar="turno.mostrarDialogAdmin = true"
     />
 
     <AutenticacionAdminForm />
