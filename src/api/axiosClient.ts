@@ -50,8 +50,22 @@ export function refreshAccessToken(): Promise<string> {
   return refreshPromise
 }
 
-function buildApiError(statusCode: number, code: string, message: string): ApiError {
-  return { statusCode, code, message }
+function buildApiError(
+  statusCode: number,
+  code: string,
+  message: string,
+  details?: unknown,
+): ApiError {
+  return details === undefined
+    ? { statusCode, code, message }
+    : { statusCode, code, message, details }
+}
+
+// Solo se conserva `detail` cuando es un objeto (ej. { totalExtra, horasExtra }
+// en un 409); los strings y arrays de validación ya viajan en `message`.
+function extractDetails(data: BackendErrorBody | undefined): unknown {
+  const detail = data?.detail
+  return detail && typeof detail === 'object' && !Array.isArray(detail) ? detail : undefined
 }
 
 /**
@@ -67,7 +81,12 @@ export function normalizeAxiosError(error: unknown): ApiError {
   if (error instanceof AxiosError) {
     const status = error.response?.status ?? 0
     const { code, message } = extractCodeAndMessage(error.response?.data as BackendErrorBody)
-    return buildApiError(status, code, message)
+    return buildApiError(
+      status,
+      code,
+      message,
+      extractDetails(error.response?.data as BackendErrorBody),
+    )
   }
   return buildApiError(0, 'UNKNOWN_ERROR', 'Ocurrió un error inesperado.')
 }
@@ -185,7 +204,9 @@ function createAxiosClient(): AxiosInstance {
         }
       }
 
-      return Promise.reject(buildApiError(status, code, message))
+      return Promise.reject(
+        buildApiError(status, code, message, extractDetails(error.response?.data)),
+      )
     },
   )
 

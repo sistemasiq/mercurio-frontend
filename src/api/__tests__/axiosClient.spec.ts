@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { AxiosError } from 'axios'
+import type { ApiError } from '@/types/auth'
 import { apiClient, rawApiClient, refreshAccessToken } from '@/api/axiosClient'
 
 function makeResponse(config: InternalAxiosRequestConfig, status: number, data: unknown) {
@@ -113,5 +114,29 @@ describe('axiosClient interceptor', () => {
     expect(a).toBe('new')
     expect(b).toBe('new')
     expect(refreshCalls).toBe(1)
+  })
+
+  it('propaga el detail del backend en details', async () => {
+    apiClient.defaults.adapter = ((config: InternalAxiosRequestConfig) =>
+      fail(config, 409, {
+        detail: { code: 'MONTO_CAMBIO', message: 'cambió', totalExtra: 50, horasExtra: 2 },
+      })) as AxiosAdapter
+
+    const err = (await apiClient.get('/x').catch((e: ApiError) => e)) as ApiError
+
+    expect(err.statusCode).toBe(409)
+    expect(err.code).toBe('MONTO_CAMBIO')
+    expect(err.message).toBe('cambió')
+    expect(err.details).toMatchObject({ totalExtra: 50, horasExtra: 2 })
+  })
+
+  it('no agrega details cuando detail es un string', async () => {
+    apiClient.defaults.adapter = ((config: InternalAxiosRequestConfig) =>
+      fail(config, 400, { detail: 'dato inválido' })) as AxiosAdapter
+
+    const err = (await apiClient.get('/x').catch((e: ApiError) => e)) as ApiError
+
+    expect(err.message).toBe('dato inválido')
+    expect(err.details).toBeUndefined()
   })
 })
