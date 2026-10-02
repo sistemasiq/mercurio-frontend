@@ -66,5 +66,6 @@ export interface ApiError {
   message: string
   code: string
   statusCode: number
-  details?: Record<string, string[]>
+  /** `detail` del backend cuando es un objeto (ej. { totalExtra } en un 409). */
+  details?: unknown
 }

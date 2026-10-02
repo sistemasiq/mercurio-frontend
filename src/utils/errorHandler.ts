@@ -5,7 +5,7 @@ const HTTP_ERROR_MESSAGES: Record<number, string> = {
   401: 'Credenciales incorrectas. Verifica tu usuario y contraseña.',
   403: 'Tu cuenta no tiene permisos para acceder.',
   404: 'El recurso solicitado no existe.',
-  409: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+  409: 'La operación entra en conflicto con el estado actual. Actualiza e intenta de nuevo.',
   422: 'Los datos enviados no son válidos.',
   423: 'Tu cuenta ha sido bloqueada. Contacta al administrador.',
   429: 'Demasiados intentos. Espera un momento antes de volver a intentar.',
@@ -14,10 +14,15 @@ const HTTP_ERROR_MESSAGES: Record<number, string> = {
   503: 'El servicio se encuentra en mantenimiento.',
 }
 
+export const TIMEOUT_ERROR_CODE = 'TIMEOUT'
+export const TIMEOUT_ERROR_MESSAGE =
+  'El servidor no respondió a tiempo. Verifica en el historial si la operación se registró antes de reintentar.'
+
 const API_ERROR_CODE_MESSAGES: Record<string, string> = {
   INVALID_CREDENTIALS: 'Usuario o contraseña incorrectos.',
   ACCOUNT_LOCKED: 'Cuenta bloqueada. Contacta al administrador.',
   ACCOUNT_DISABLED: 'Cuenta desactivada. Contacta al administrador.',
+  [TIMEOUT_ERROR_CODE]: TIMEOUT_ERROR_MESSAGE,
   TOKEN_EXPIRED: 'Tu sesión expiró. Inicia sesión nuevamente.',
   TOKEN_INVALID: 'Sesión inválida. Inicia sesión nuevamente.',
   EMAIL_NOT_VERIFIED: 'Verifica tu correo electrónico antes de continuar.',
@@ -43,9 +48,14 @@ export function resolveErrorMessage(error: ApiError | null): string {
   return 'Ocurrió un error inesperado. Intenta nuevamente.'
 }
 
+/** Timeout de axios: la petición pudo haber llegado al servidor y registrarse. */
+export function isTimeoutError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const code = (error as Error & { code?: string }).code
+  return code === 'ECONNABORTED' || code === 'ETIMEDOUT' || error.message.includes('timeout')
+}
+
+/** Falta de red real; un timeout se distingue con `isTimeoutError`. */
 export function isNetworkError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.message === 'Network Error' || error.message.includes('timeout'))
-  )
+  return error instanceof Error && !isTimeoutError(error) && error.message === 'Network Error'
 }
