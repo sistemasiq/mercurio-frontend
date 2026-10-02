@@ -1,118 +1,83 @@
 <template>
-  <div class="rp-wrap">
-    <button type="button" class="rp-volver" @click="$emit('volver')">
-      <q-icon name="arrow_back" size="18px" />
-      VOLVER A OPERACIONES
-    </button>
-
-    <div class="rp-card">
-      <div class="rp-header">
-        <div class="rp-icon-badge">
-          <q-icon name="credit_card" size="24px" color="primary" />
-        </div>
-        <div>
-          <h2 class="rp-title">Registrar Retiro Parcial</h2>
-          <p class="rp-subtitle">Extraer fondos de la caja actual para operaciones específicas.</p>
-        </div>
-      </div>
-
-      <div class="rp-body">
-        <div class="form-group q-mb-md">
-          <label class="field-label">Monto a retirar *</label>
-          <q-input
-            v-model.number="monto"
-            type="text"
-            inputmode="decimal"
-            outlined
-            dense
-            prefix="$"
-            placeholder="0.00"
-            input-class="text-right text-h6"
-            :rules="[reglaDecimal]"
-            @keydown="filtrarTeclaDecimal"
-          />
-        </div>
-
-        <div class="row q-col-gutter-md q-mb-md">
-          <div class="col-12 col-sm-6">
-            <label class="field-label">Concepto / Tipo de retiro *</label>
-            <q-select
-              v-model="concepto"
-              outlined
-              dense
-              :options="opcionesConcepto"
-              emit-value
-              map-options
-              placeholder="Seleccione concepto"
-            />
-          </div>
-          <div class="col-12 col-sm-6">
-            <label class="field-label">Persona que recibe *</label>
-            <q-select
-              v-model="tipoDestinatario"
-              outlined
-              dense
-              :options="opcionesDestinatario"
-              emit-value
-              map-options
-              placeholder="Seleccione rol"
-            />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="field-label">Observaciones</label>
-          <q-input
-            v-model="observaciones"
-            outlined
-            dense
-            type="textarea"
-            rows="3"
-            placeholder="Detalles adicionales sobre este retiro..."
-          />
-        </div>
-
-        <q-banner v-if="turno.error" rounded class="bg-negative text-white q-mt-md">
-          <template #avatar><q-icon name="error" /></template>
-          {{ turno.error }}
-        </q-banner>
-      </div>
-
-      <div class="rp-footer">
-        <q-btn
-          unelevated
-          no-caps
-          color="primary"
-          size="lg"
-          class="rp-btn-registrar"
-          icon="save"
-          label="Registrar retiro"
-          :loading="turno.cargando"
-          :disable="!puedeRegistrar"
-          @click="registrar"
+  <BaseDialog
+    v-model="open"
+    title="Retiro parcial"
+    subtitle="Extrae efectivo de la caja del turno actual"
+    icon="savings"
+    tone="amber"
+    :width="480"
+    primary-label="Registrar retiro"
+    :loading="turno.cargando"
+    :primary-disabled="!puedeRegistrar"
+    @confirm="registrar"
+  >
+    <div class="retiro-form">
+      <div class="retiro-form__field retiro-form__field--full">
+        <span class="field-label">Monto a retirar</span>
+        <q-input
+          v-model.number="monto"
+          type="text"
+          inputmode="decimal"
+          outlined
+          dense
+          prefix="$"
+          placeholder="0.00"
+          autofocus
+          :rules="[reglaDecimal]"
+          hide-bottom-space
+          @keydown="filtrarTeclaDecimal"
         />
       </div>
+      <div class="retiro-form__field">
+        <span class="field-label">Motivo</span>
+        <q-select
+          v-model="concepto"
+          outlined
+          dense
+          :options="opcionesConcepto"
+          emit-value
+          map-options
+          placeholder="Selecciona"
+        />
+      </div>
+      <div class="retiro-form__field">
+        <span class="field-label">Recibe</span>
+        <q-select
+          v-model="tipoDestinatario"
+          outlined
+          dense
+          :options="opcionesDestinatario"
+          emit-value
+          map-options
+          placeholder="Selecciona"
+        />
+      </div>
+      <div class="retiro-form__field retiro-form__field--full">
+        <span class="field-label">Observaciones</span>
+        <q-input v-model="observaciones" outlined type="textarea" rows="2" placeholder="Opcional" />
+      </div>
     </div>
-
-    <div class="rp-info-banner">
-      <q-icon name="info" size="18px" color="primary" class="q-mr-sm" />
-      <span
-        >El retiro parcial afectará inmediatamente el saldo en caja. Asegúrese de imprimir el ticket
-        de comprobante y recabar la firma de quien recibe el efectivo.</span
-      >
+    <div v-if="turno.error" class="retiro-form__callout retiro-form__callout--bad">
+      <q-icon name="error" size="19px" />{{ turno.error }}
     </div>
-  </div>
+    <div class="retiro-form__callout">
+      <q-icon name="info" size="19px" />
+      El retiro afecta de inmediato el saldo en caja. Recaba la firma de quien recibe el efectivo.
+    </div>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { filtrarTeclaDecimal, reglaDecimal } from '@/utils/validacionNumerica'
 import type { ConceptoRetiro, TipoDestinatario } from '@/types/turnoCaja'
 
+const open = defineModel<boolean>({ required: true })
+
 const emit = defineEmits<{
-  (e: 'volver'): void
   (e: 'retiro-exitoso'): void
 }>()
 
@@ -140,6 +105,15 @@ const opcionesDestinatario: { label: string; value: TipoDestinatario }[] = [
   { label: 'Administrador', value: 'Administrador' },
 ]
 
+// Cada apertura del diálogo empieza en blanco.
+watch(open, (visible) => {
+  if (!visible) return
+  monto.value = null
+  concepto.value = null
+  tipoDestinatario.value = null
+  observaciones.value = ''
+})
+
 const puedeRegistrar = computed(
   () => (monto.value ?? 0) > 0 && !!concepto.value && !!tipoDestinatario.value,
 )
@@ -159,101 +133,42 @@ async function registrar() {
       message: `Retiro de $${monto.value.toLocaleString('es-MX')} registrado correctamente.`,
     })
     emit('retiro-exitoso')
+    open.value = false
   }
 }
 </script>
 
-<style scoped>
-.rp-wrap {
-  max-width: 620px;
-  margin: 0 auto;
-}
+<style scoped lang="scss">
+.retiro-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 
-.rp-volver {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 8px 0;
-  margin-bottom: 16px;
-}
-.rp-volver:hover {
-  color: #025fe0;
-}
+  &__field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 
-.rp-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
-}
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
 
-.rp-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 28px;
-  border-bottom: 1px solid var(--bg-main);
-}
+  &__callout {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tone-warn-bg);
+    color: var(--tone-warn-fg);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
 
-.rp-icon-badge {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: rgba(2, 95, 224, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.rp-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px 0;
-}
-
-.rp-subtitle {
-  font-size: 13.5px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.rp-body {
-  padding: 28px;
-}
-
-.rp-footer {
-  padding: 20px 28px;
-  border-top: 1px solid var(--bg-main);
-  background: var(--bg-main);
-}
-
-.rp-btn-registrar {
-  width: 100%;
-  border-radius: 8px;
-  font-weight: 700;
-}
-
-.rp-info-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  margin-top: 16px;
-  padding: 14px 18px;
-  background: rgba(2, 95, 224, 0.06);
-  border: 1px solid rgba(2, 95, 224, 0.2);
-  border-radius: 12px;
-  font-size: 13px;
-  color: var(--text-secondary);
+    &--bad {
+      background: var(--tone-bad-bg);
+      color: var(--tone-bad-fg);
+    }
+  }
 }
 </style>

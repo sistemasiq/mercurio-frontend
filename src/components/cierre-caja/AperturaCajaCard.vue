@@ -1,21 +1,21 @@
 <template>
-  <div class="apertura-caja-card">
-    <div class="apertura-header">
-      <div class="apertura-icon-badge">
-        <q-icon name="point_of_sale" size="28px" color="primary" />
+  <section class="apertura" aria-labelledby="apertura-title">
+    <header class="apertura__head">
+      <span class="apertura__icon"><q-icon name="lock_open" size="22px" /></span>
+      <div class="apertura__titles">
+        <h2 id="apertura-title" class="apertura__title">Apertura de caja</h2>
+        <span class="apertura__subtitle">{{ cajeroNombre }} · {{ fechaHoy }}</span>
       </div>
-      <div>
-        <h2 class="apertura-title">Apertura de Caja</h2>
-        <p class="apertura-subtitle">
-          Ingresa el fondo inicial asignado para comenzar el turno de venta.
-        </p>
-      </div>
-    </div>
+    </header>
 
-    <div class="apertura-body">
-      <!-- Formulario de fondo inicial -->
-      <div class="form-group q-mb-md">
-        <label class="field-label">Fondo Inicial ($ MXN)</label>
+    <div class="apertura__body">
+      <div class="apertura__field">
+        <span class="field-label">Cajero</span>
+        <q-input :model-value="cajeroNombre" outlined dense readonly />
+      </div>
+
+      <div class="apertura__field">
+        <span class="field-label">Fondo inicial en efectivo</span>
         <q-input
           v-model.number="fondoInicial"
           type="text"
@@ -24,146 +24,107 @@
           dense
           prefix="$"
           placeholder="0.00"
-          class="fondo-input"
           :rules="[
             (val) => (val !== null && val !== '') || 'El fondo inicial es requerido',
             (val) => Number(val) >= 0 || 'El monto debe ser mayor o igual a 0',
             reglaDecimal,
           ]"
+          hide-bottom-space
           @keydown="filtrarTeclaDecimal"
-        >
-          <template #prepend>
-            <q-icon name="payments" color="primary" />
-          </template>
-        </q-input>
-
-        <!-- Accesos rápidos para el fondo -->
-        <div class="quick-amounts-row q-mt-xs">
-          <span class="quick-label">Montos sugeridos:</span>
-          <div class="quick-buttons">
-            <q-btn
-              v-for="monto in montosSugeridos"
-              :key="monto"
-              flat
-              dense
-              no-caps
-              size="sm"
-              class="quick-btn"
-              :class="{ 'quick-btn--active': fondoInicial === monto }"
-              @click="fondoInicial = monto"
-            >
-              ${{ monto.toLocaleString('es-MX') }}
-            </q-btn>
-          </div>
+        />
+        <div class="apertura__quick">
+          <button
+            v-for="monto in montosSugeridos"
+            :key="monto"
+            type="button"
+            class="apertura__chip"
+            :class="{ 'apertura__chip--on': fondoInicial === monto }"
+            @click="fondoInicial = monto"
+          >
+            ${{ monto.toLocaleString('es-MX') }}
+          </button>
         </div>
       </div>
 
-      <!-- Selección de Turno (Base de datos) -->
-      <div class="form-group q-mb-md">
-        <label class="field-label">Turno de Trabajo (BD)</label>
-        <q-select
-          v-model="turnoSeleccionado"
-          outlined
-          dense
-          :options="opcionesTurnos"
-          option-value="value"
-          option-label="label"
-          emit-value
-          map-options
-          placeholder="Selecciona el turno de trabajo"
-          class="turno-select"
-          :loading="cargandoTurnos"
-        >
-          <template #prepend>
-            <q-icon name="schedule" color="primary" />
-          </template>
-        </q-select>
+      <div class="apertura__row">
+        <div class="apertura__field">
+          <span class="field-label">Turno de trabajo</span>
+          <q-select
+            v-model="turnoSeleccionado"
+            outlined
+            dense
+            :options="opcionesTurnos"
+            option-value="value"
+            option-label="label"
+            emit-value
+            map-options
+            placeholder="Selecciona el turno"
+            :loading="cargandoTurnos"
+          />
+        </div>
+        <div class="apertura__field">
+          <span class="field-label">Terminal / estación</span>
+          <q-select
+            v-model="cajaSeleccionada"
+            outlined
+            dense
+            :options="opcionesCajas"
+            option-value="value"
+            option-label="label"
+            emit-value
+            map-options
+            :placeholder="
+              esAdminSistema && !sucursalSeleccionada
+                ? 'Primero selecciona una sucursal'
+                : 'Selecciona la caja'
+            "
+            :loading="cargandoCajas"
+            :disable="esAdminSistema && !sucursalSeleccionada"
+          />
+        </div>
       </div>
-
-      <!-- Aviso para AdministradorSistema si no ha elegido sucursal en el selector
-           global del encabezado (no se duplica el picker aquí, ver authStore.currentBranchId) -->
-      <q-banner
-        v-if="esAdminSistema && !sucursalSeleccionada"
-        rounded
-        class="bg-warning text-dark q-mb-md"
+      <p
+        v-if="
+          !cargandoCajas && opcionesCajas.length === 0 && (!esAdminSistema || sucursalSeleccionada)
+        "
+        class="apertura__hint"
       >
-        <template #avatar><q-icon name="storefront" /></template>
-        Selecciona una sucursal en el menú superior antes de abrir caja.
-      </q-banner>
+        No hay cajas registradas para esta sucursal todavía. Se creará una nueva automáticamente.
+      </p>
 
-      <!-- Selección de Terminal / Estación (Cajas BD, filtradas por sucursal) -->
-      <div class="form-group q-mb-md">
-        <label class="field-label">Terminal / Estación (Caja BD)</label>
-        <q-select
-          v-model="cajaSeleccionada"
-          outlined
-          dense
-          :options="opcionesCajas"
-          option-value="value"
-          option-label="label"
-          emit-value
-          map-options
-          :placeholder="
-            esAdminSistema && !sucursalSeleccionada
-              ? 'Primero selecciona una sucursal'
-              : 'Selecciona la caja o estación'
-          "
-          class="caja-select"
-          :loading="cargandoCajas"
-          :disable="esAdminSistema && !sucursalSeleccionada"
-        >
-          <template #prepend>
-            <q-icon name="desktop_windows" color="primary" />
-          </template>
-        </q-select>
-        <p
-          v-if="
-            !cargandoCajas &&
-            opcionesCajas.length === 0 &&
-            (!esAdminSistema || sucursalSeleccionada)
-          "
-          class="field-hint field-hint--warning"
-        >
-          No hay cajas registradas para esta sucursal todavía. Se creará una nueva automáticamente.
-        </p>
+      <div class="apertura__field">
+        <span class="field-label">Notas</span>
+        <q-input v-model="observaciones" outlined type="textarea" rows="2" placeholder="Opcional" />
       </div>
 
-      <!-- Observaciones de apertura (opcional) -->
-      <div class="form-group q-mb-md">
-        <label class="field-label">Notas u Observaciones de Apertura (opcional)</label>
-        <q-input
-          v-model="observaciones"
-          outlined
-          dense
-          type="textarea"
-          rows="2"
-          placeholder="Notas iniciales, condición física de caja, etc."
-        />
+      <div
+        v-if="esAdminSistema && !sucursalSeleccionada"
+        class="apertura__callout apertura__callout--warn"
+      >
+        <q-icon name="storefront" size="19px" />
+        Selecciona una sucursal en el menú lateral antes de abrir caja.
       </div>
-
-      <!-- Banner de error si existe -->
-      <q-banner v-if="turno.error" rounded class="bg-negative text-white q-mb-md">
-        <template #avatar><q-icon name="error" /></template>
-        {{ turno.error }}
-      </q-banner>
-
-      <!-- Acciones de confirmación -->
-      <div class="apertura-actions">
-        <q-btn
-          unelevated
-          no-caps
-          color="primary"
-          size="lg"
-          class="btn-abrir-caja"
-          icon="key"
-          label="Abrir Caja e Iniciar Turno"
-          :loading="turno.cargando"
-          :disable="!puedeAbrirCaja"
-          @click="realizarApertura"
-        />
+      <div v-if="turno.error" class="apertura__callout apertura__callout--bad">
+        <q-icon name="error" size="19px" />{{ turno.error }}
+      </div>
+      <div class="apertura__callout">
+        <q-icon name="info" size="19px" />
+        Sin caja abierta no se puede cobrar en POS, registrar niños ni recibir pagos de eventos.
       </div>
     </div>
-  </div>
+
+    <footer class="apertura__foot">
+      <q-btn
+        unelevated
+        color="primary"
+        label="Abrir caja"
+        class="apertura__submit"
+        :loading="turno.cargando"
+        :disable="!puedeAbrirCaja"
+        @click="realizarApertura"
+      />
+    </footer>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -204,6 +165,15 @@ const opcionesCajas = ref<OptionItem[]>([])
 const cargandoCajas = ref(false)
 
 const montosSugeridos = [500, 1000, 1500, 2000, 3000, 5000]
+
+const cajeroNombre = computed(
+  () => authStore.currentUser?.name ?? authStore.currentUser?.email ?? '—',
+)
+const fechaHoy = new Date().toLocaleDateString('es-MX', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+})
 
 // Campos obligatorios en BD (apertura_caja: fondo_inicial, caja_id) más la regla de
 // negocio de que AdministradorSistema debe elegir explícitamente la sucursal.
@@ -318,96 +288,140 @@ async function realizarApertura() {
 }
 </script>
 
-<style scoped>
-.apertura-caja-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-  padding: 28px;
-  max-width: 620px;
-  margin: 0 auto;
-}
-
-.apertura-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--bg-main);
-}
-
-.apertura-icon-badge {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: rgba(2, 95, 224, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #025fe0;
-  flex-shrink: 0;
-}
-
-.apertura-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px 0;
-}
-
-.apertura-subtitle {
-  font-size: 13.5px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.field-hint {
-  font-size: 12px;
-  margin: 6px 0 0;
-}
-.field-hint--warning {
-  color: #b45309;
-}
-
-.quick-amounts-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.quick-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.quick-buttons {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.quick-btn {
-  border-radius: 6px;
-  font-size: 12px;
-  color: #025fe0;
-  background: rgba(2, 95, 224, 0.06);
-}
-
-.quick-btn--active {
-  background: #025fe0;
-  color: var(--bg-card);
-}
-
-.apertura-actions {
-  margin-top: 24px;
-}
-
-.btn-abrir-caja {
+<style scoped lang="scss">
+.apertura {
   width: 100%;
-  border-radius: 8px;
-  font-weight: 600;
+  max-width: 560px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 22px 24px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  &__chip {
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-input);
+    background: #fff;
+    color: var(--text-body);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+
+    &--on {
+      background: var(--tone-info-bg);
+      border-color: var(--q-primary);
+      color: var(--q-primary);
+    }
+  }
+
+  &__hint {
+    margin: -8px 0 0;
+    font-size: 12px;
+    color: var(--tone-warn-fg);
+  }
+
+  &__callout {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+
+    &--warn {
+      background: var(--tone-warn-bg);
+      color: var(--tone-warn-fg);
+    }
+
+    &--bad {
+      background: var(--tone-bad-bg);
+      color: var(--tone-bad-fg);
+    }
+  }
+
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-subtle);
+  }
+
+  &__submit {
+    min-height: 42px;
+    padding: 0 18px;
+    font-weight: 800;
+  }
 }
 </style>
