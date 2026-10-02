@@ -13,7 +13,7 @@ Implementación del diseño "Refactor UI Woow Kids" (claude.ai/design, proyecto
 - **4 · 02 Eventos**: hecha.
 - **5 · 03 Catálogo**: hecha.
 - **6 · 04 Inventario**: hecha.
-- **7 · 05 Lealtad · 06 Administración**: pendiente.
+- **7 · 05 Lealtad · 06 Administración**: hecha.
 
 ## Base disponible (fase 0)
 
@@ -128,6 +128,35 @@ simplifican hasta que exista la fuente.
 - **KPIs de ventas, margen y merma** (4f): el reporte solo regresa costo por
   insumo.
 
+### 05 Lealtad
+
+- **"Mínimo para canjear"** (configuración): la configuración no tiene ese
+  campo.
+- **Ajuste manual de puntos** (kardex): no hay endpoint de ajuste.
+- **Búsqueda por nombre del cliente** (kardex): el saldo se consulta solo por
+  celular.
+- **KPI "Por vencer"** (kardex): los movimientos no traen la caducidad por lote.
+- **Top de clientes, periodo y Exportar** (reporte): el reporte solo regresa
+  totales de la sucursal.
+
+### 06 Administración
+
+- **Ventas, niños atendidos, eventos y cajas por sucursal** (detalle de
+  sucursal y Reportes): no hay endpoints de indicadores por sucursal; se
+  muestran estado, usuarios asignados y administrador.
+- **Último acceso del usuario** y pestañas Cajas / Horarios en el detalle de
+  sucursal: sin dato.
+- **Ciudad, estado, código postal y zona horaria** (sucursal): el modelo solo
+  tiene una dirección libre.
+- **Apellidos, teléfono y PIN de caja** (usuario): el usuario solo tiene nombre
+  completo, email, rol y sucursal.
+- **"Cuenta activa"** al editar un usuario: la edición no acepta el estado.
+- **Conteo de usuarios por rol** (Roles): el rol no trae usuarios asignados.
+- **Días de la semana** (Horarios): el horario solo tiene hora de inicio y fin.
+- **Turno actual e impresora de tickets** (Cajas): la caja solo tiene nombre,
+  número y estado.
+- **Filtro de periodo y Exportar** (Reportes): sin endpoint.
+
 ## Cambios de comportamiento
 
 - Se quitó el modo "mini" del sidebar; debajo de 1024 px pasa a overlay con
@@ -147,3 +176,13 @@ simplifican hasta que exista la fuente.
 - Calendario: la semana empieza en lunes y el panel lateral muestra hoy por
   defecto.
 - Etiquetas de campo en formato de oración (antes en MAYÚSCULAS).
+- Sucursales y Usuarios: el alta y la edición son diálogos del listado; las
+  rutas `/sucursales/nueva`, `/sucursales/:id/editar`, `/usuarios/nuevo` y
+  `/usuarios/:id/editar` redirigen al listado y abren el diálogo.
+- Desactivar una sucursal pide escribir su nombre para confirmar.
+- Roles: los permisos se editan en su propio diálogo (acción "Permisos"),
+  separados del nombre y la descripción.
+- El tablero del AdministradorSistema (`/reportes/dashboard`) pasó al formato
+  de Reportes y ya no tiene accesos rápidos de alta (están en cada listado).
+- El sidebar marca el ítem padre en pantallas fuera del menú (detalle de
+  sucursal, kardex de insumo, etc.).
