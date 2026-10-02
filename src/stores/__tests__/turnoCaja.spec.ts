@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
-import { turnoCajaService } from '@/services/turnoCajaService'
+import { turnoCajaService, TurnoNoEncontradoError } from '@/services/turnoCajaService'
 import type { TurnoActivoResponse } from '@/types/turnoCaja'
 
 vi.mock('@/services/turnoCajaService', () => {
@@ -85,5 +85,35 @@ describe('confirmarCierre', () => {
 
     expect(resultado).toEqual({ ok: true, pdfUrl: '/x.pdf', arqueoId: 'arq-9' })
     expect(store.estado).toBe('CERRADO')
+  })
+})
+
+describe('cargarTurnoActivo', () => {
+  it('con 404 pasa a SIN_TURNO y reporta que no hay turno', async () => {
+    const store = useTurnoCajaStore()
+    servicio.cargarTurnoActivo.mockResolvedValueOnce(turnoEn('OPERANDO'))
+    await store.cargarTurnoActivo()
+    servicio.cargarTurnoActivo.mockRejectedValueOnce(new TurnoNoEncontradoError())
+
+    const resultado = await store.cargarTurnoActivo()
+
+    expect(resultado).toEqual({ ok: true, hayTurno: false })
+    expect(store.estado).toBe('SIN_TURNO')
+    expect(store.turnoId).toBeNull()
+    expect(store.error).toBeNull()
+  })
+
+  it('con un error 500 conserva el turno, asigna error y reporta el fallo', async () => {
+    const store = useTurnoCajaStore()
+    servicio.cargarTurnoActivo.mockResolvedValueOnce(turnoEn('OPERANDO'))
+    await store.cargarTurnoActivo()
+    servicio.cargarTurnoActivo.mockRejectedValueOnce(new Error('Error interno del servidor.'))
+
+    const resultado = await store.cargarTurnoActivo()
+
+    expect(resultado).toEqual({ ok: false, error: 'Error interno del servidor.' })
+    expect(store.estado).toBe('OPERANDO')
+    expect(store.turnoId).toBe('turno-1')
+    expect(store.error).toBe('Error interno del servidor.')
   })
 })

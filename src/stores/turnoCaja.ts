@@ -13,7 +13,7 @@
 
 import { ref, computed, reactive } from 'vue'
 import { defineStore } from 'pinia'
-import { turnoCajaService } from '@/services/turnoCajaService'
+import { turnoCajaService, TurnoNoEncontradoError } from '@/services/turnoCajaService'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import type {
@@ -25,6 +25,7 @@ import type {
   RevisionAdminResponse,
   RetiroParcialPayload,
   ResultadoCierre,
+  ResultadoCargaTurno,
 } from '@/types/turnoCaja'
 
 // v-model.number sobre <q-input type="text"> no convierte "" a 0 ni a null: Vue
@@ -149,18 +150,32 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     }
   }
 
-  /** Carga el turno activo al montar la página. */
-  async function cargarTurnoActivo(sucursalId?: string | null): Promise<void> {
+  /**
+   * Carga el turno activo al montar la página.
+   *
+   * Contrato: nunca lanza; devuelve `ResultadoCargaTurno`.
+   * - Turno encontrado: `{ ok: true, hayTurno: true }`.
+   * - 404 (TurnoNoEncontradoError): pasa a SIN_TURNO y devuelve `{ ok: true, hayTurno: false }`.
+   * - Cualquier otro error (red, 5xx, 403): conserva el estado previo, asigna `error`
+   *   y devuelve `{ ok: false, error }`.
+   */
+  async function cargarTurnoActivo(sucursalId?: string | null): Promise<ResultadoCargaTurno> {
     cargando.value = true
     error.value = null
     try {
       const turno = await turnoCajaService.cargarTurnoActivo(sucursalId)
       _aplicarTurno(turno)
-    } catch {
-      estado.value = 'SIN_TURNO'
-      turnoId.value = null
-      fechaApertura.value = null
-      error.value = null
+      return { ok: true, hayTurno: true }
+    } catch (err) {
+      if (err instanceof TurnoNoEncontradoError) {
+        estado.value = 'SIN_TURNO'
+        turnoId.value = null
+        fechaApertura.value = null
+        return { ok: true, hayTurno: false }
+      }
+      const mensaje = (err as Error).message
+      error.value = mensaje
+      return { ok: false, error: mensaje }
     } finally {
       cargando.value = false
     }

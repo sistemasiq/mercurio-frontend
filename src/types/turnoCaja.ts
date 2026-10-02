@@ -175,6 +175,14 @@ export interface ConfirmarCierreResponse {
 export type ResultadoCierre =
   { ok: true; pdfUrl: string | null; arqueoId: string } | { ok: false; error: string }
 
+/**
+ * Resultado de `cargarTurnoActivo` del store. Nunca lanza.
+ * - `{ ok: true, hayTurno: true }`: turno cargado.
+ * - `{ ok: true, hayTurno: false }`: el backend confirmó (404) que no hay turno.
+ * - `{ ok: false, error }`: la carga falló (red, 5xx, 403...); se conserva el estado previo.
+ */
+export type ResultadoCargaTurno = { ok: true; hayTurno: boolean } | { ok: false; error: string }
+
 // ---------------------------------------------------------------------------
 // Retiros parciales (RN-RET)
 // ---------------------------------------------------------------------------
