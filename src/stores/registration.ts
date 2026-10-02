@@ -10,6 +10,7 @@ import { productosApi } from '@/api/productosApi'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { reservacionesApi } from '@/api/reservacionesApi'
+import { horasFacturables } from '@/utils/horario'
 import type { EventoDelDia } from '@/types/reservaciones'
 import type { PrecioEstancia, TramoEstancia } from '@/types/producto'
 
@@ -228,16 +229,15 @@ export const useRegistrationStore = defineStore('registration', () => {
     return eventoSeleccionado.value.numero_personas - savedChildren.value.length
   })
 
+  // Regla: horas facturables (hora iniciada cuenta completa, cruza medianoche),
+  // acotadas al rango del selector de tiempo (1 a 5 hr).
   const horasEvento = computed(() => {
     if (!eventoSeleccionado.value) return '1 hr'
-    const inicio = eventoSeleccionado.value.hora_inicio
-    const fin = eventoSeleccionado.value.hora_fin
-    const [hInicio] = inicio.split(':').map(Number)
-    const [hFin] = fin.split(':').map(Number)
-    const diff = hFin - hInicio
-    if (diff <= 0) return '1 hr'
-    if (diff > 5) return '5 hr'
-    return `${diff} hr`
+    const horas = horasFacturables(
+      eventoSeleccionado.value.hora_inicio,
+      eventoSeleccionado.value.hora_fin,
+    )
+    return `${Math.min(5, horas)} hr`
   })
 
   const maxChildrenAllowed = computed(() => {
