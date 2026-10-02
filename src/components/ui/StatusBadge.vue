@@ -32,7 +32,7 @@ withDefaults(defineProps<{ tone?: UiTone; label: string; dot?: boolean }>(), {
     flex-shrink: 0;
   }
 
-  @each $tone in ok, warn, bad, info, off, pink {
+  @each $tone in 'ok', 'warn', 'bad', 'info', 'off', 'pink' {
     &--#{$tone} {
       background: var(--tone-#{$tone}-bg);
       color: var(--tone-#{$tone}-fg);

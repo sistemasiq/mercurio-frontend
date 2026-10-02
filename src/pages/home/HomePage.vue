@@ -489,7 +489,7 @@ const sinModulos = computed(
     align-items: center;
     justify-content: center;
 
-    @each $tone in ok, warn, bad, info {
+    @each $tone in 'ok', 'warn', 'bad', 'info' {
       &--#{$tone} {
         background: var(--tone-#{$tone}-bg);
         color: var(--tone-#{$tone}-fg);
