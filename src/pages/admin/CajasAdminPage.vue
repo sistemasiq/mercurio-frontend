@@ -1,265 +1,209 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div>
-      <!-- Encabezado -->
-      <div class="row items-center q-mb-lg">
-        <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
-            Gestión de Cajas
-          </div>
-          <div class="text-body2" style="color: var(--text-secondary)">
-            Administra las cajas físicas disponibles en la sucursal.
-          </div>
-        </div>
-        <q-space />
+  <q-page class="page-content list-page">
+    <PageHeader title="Cajas" subtitle="Terminales de cobro de la sucursal.">
+      <template #actions>
         <q-btn
           v-if="puedeCrear"
+          unelevated
           color="primary"
           icon="add"
           label="Nueva caja"
-          unelevated
-          no-caps
-          style="border-radius: 8px; font-weight: 600"
           @click="abrirCrear"
         />
-      </div>
+      </template>
+    </PageHeader>
 
-      <!-- Filtros -->
-      <div class="row items-center q-mb-md q-gutter-sm">
-        <q-input
-          v-model="busqueda"
-          dense
-          outlined
-          clearable
-          placeholder="Buscar caja..."
-          style="min-width: 260px"
-        >
-          <template #prepend><q-icon name="search" size="18px" color="grey-6" /></template>
-        </q-input>
-        <q-space />
-        <q-select
-          v-model="filtroEstado"
-          :options="opcionesEstado"
-          dense
-          outlined
-          emit-value
-          map-options
-          style="min-width: 140px"
-          label="Estado"
-        />
-      </div>
-
-      <!-- Error -->
-      <q-banner
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtroEstado"
+      :filters="FILTROS"
+      search-placeholder="Buscar caja"
+      :count="`${filasFiltradas.length} cajas`"
+    >
+      <StateBlock
         v-if="error"
-        dense
-        rounded
-        class="bg-red-1 text-red-8 q-mb-md"
-        style="border-radius: 10px"
+        variant="error"
+        :body="error"
+        action-label="Reintentar"
+        @action="cargar"
+      />
+      <q-table
+        v-else
+        :rows="filasFiltradas"
+        :columns="columns"
+        row-key="id"
+        flat
+        :loading="cargando"
+        :rows-per-page-options="[10, 25, 50]"
       >
-        <template #avatar><q-icon name="error_outline" color="negative" /></template>
-        {{ error }}
-        <template #action>
-          <q-btn flat dense no-caps label="Reintentar" @click="cargar" />
+        <template #body-cell-nombre="props">
+          <q-td :props="props" class="text-weight-bold">{{ props.row.nombre }}</q-td>
         </template>
-      </q-banner>
-
-      <!-- Tabla -->
-      <q-card flat bordered style="border-radius: 12px; overflow-x: auto; overflow-y: hidden">
-        <q-table
-          :rows="filasFiltradas"
-          :columns="columns"
-          row-key="id"
-          flat
-          :loading="cargando"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="No hay cajas registradas"
-          class="fec-table"
-        >
-          <template #body-cell-activo="props">
-            <q-td :props="props">
-              <EstadoBadge
-                :tono="props.row.activo ? 'verde' : 'gris'"
-                :label="props.row.activo ? 'Activo' : 'Inactivo'"
-              />
-            </q-td>
-          </template>
-
-          <template #body-cell-actions="props">
-            <q-td :props="props" class="text-right">
-              <q-btn
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
-                @click="abrirDetalle(props.row)"
-              >
-                <span class="material-symbols-outlined">visibility</span>
-                <q-tooltip>Ver detalle</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-if="puedeEditar"
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
-                @click="abrirEditar(props.row)"
-              >
-                <span class="material-symbols-outlined">edit</span>
-                <q-tooltip>Editar</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-if="puedeEliminar && props.row.activo"
-                flat
-                dense
-                color="negative"
-                size="sm"
-                class="action-btn"
-                @click="confirmarEliminar(props.row)"
-              >
-                <span class="material-symbols-outlined">delete</span>
-                <q-tooltip>Desactivar</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-else-if="puedeEliminar"
-                flat
-                dense
-                color="positive"
-                size="sm"
-                class="action-btn"
-                @click="reactivar(props.row)"
-              >
-                <span class="material-symbols-outlined">restore</span>
-                <q-tooltip>Reactivar</q-tooltip>
-              </q-btn>
-            </q-td>
-          </template>
-        </q-table>
-      </q-card>
-    </div>
-
-    <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
-    <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 420px; border-radius: 12px">
-        <q-card-section class="row items-center q-pb-sm">
-          <div class="text-h6 text-weight-bold">
-            {{ editando ? 'Editar caja' : 'Nueva caja' }}
-          </div>
-          <q-space />
-          <q-btn flat round dense icon="close" color="grey-7" @click="cerrarDialog" />
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">Nombre</div>
-            <q-input
-              ref="nombreRef"
-              v-model="form.nombre"
+        <template #body-cell-numero="props">
+          <q-td :props="props">
+            <span class="code-chip">#{{ numeroCaja(props.row.numero) }}</span>
+          </q-td>
+        </template>
+        <template #body-cell-activo="props">
+          <q-td :props="props">
+            <StatusBadge
+              :tone="props.row.activo ? 'ok' : 'off'"
+              :label="props.row.activo ? 'Activa' : 'Inactiva'"
+            />
+          </q-td>
+        </template>
+        <template #body-cell-actions="props">
+          <q-td :props="props">
+            <q-btn
+              flat
+              round
               dense
-              outlined
-              autofocus
-              placeholder="Ej. Caja principal"
-              :rules="[(v: string) => !!v.trim() || 'El nombre es requerido']"
-              lazy-rules
+              icon="visibility"
+              class="action-btn"
+              aria-label="Ver detalle"
+              @click="abrirDetalle(props.row)"
             />
-          </div>
-          <div>
-            <div class="field-label">Número</div>
-            <q-input
-              ref="numeroRef"
-              v-model.number="form.numero"
+            <q-btn
+              v-if="puedeEditar"
+              flat
+              round
               dense
-              outlined
-              type="number"
-              min="1"
-              placeholder="Ej. 1"
-              :rules="[
-                (v: number | null) => (v !== null && v !== undefined) || 'El número es requerido',
-                (v: number) => v > 0 || 'Debe ser mayor a 0',
-              ]"
-              lazy-rules
+              icon="edit"
+              class="action-btn"
+              aria-label="Editar"
+              @click="abrirEditar(props.row)"
             />
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            :label="editando ? 'Guardar cambios' : 'Crear caja'"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            @click="guardar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ── Dialog Confirmar Eliminar ────────────────────────────────────────── -->
-    <q-dialog v-model="dialogEliminar">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">Desactivar caja</div>
-          <div class="q-mt-sm text-body2 text-grey-8">
-            ¿Deseas desactivar <strong>{{ filaEliminar?.nombre }}</strong
-            >? Dejará de estar disponible para los cajeros, pero podrás reactivarla después.
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="negative"
-            label="Desactivar"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="eliminando"
-            @click="ejecutarEliminar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ── Dialog Ver Detalle ──────────────────────────────────────────────── -->
-    <q-dialog v-model="dialogDetalle">
-      <q-card style="min-width: 420px; border-radius: 12px">
-        <q-card-section class="row items-center q-pb-sm">
-          <div class="text-h6 text-weight-bold">Detalle de la caja</div>
-          <q-space />
-          <q-btn v-close-popup flat round dense icon="close" color="grey-7" />
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section v-if="filaDetalle" class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">Nombre</div>
-            <div class="text-body1">{{ filaDetalle.nombre }}</div>
-          </div>
-          <div>
-            <div class="field-label">Número</div>
-            <div class="text-body1">{{ filaDetalle.numero }}</div>
-          </div>
-          <div>
-            <div class="field-label">Estado</div>
-            <EstadoBadge
-              :tono="filaDetalle.activo ? 'verde' : 'gris'"
-              :label="filaDetalle.activo ? 'Activo' : 'Inactivo'"
+            <q-btn
+              v-if="puedeEliminar && props.row.activo"
+              flat
+              round
+              dense
+              icon="block"
+              class="action-btn"
+              aria-label="Desactivar"
+              @click="confirmarEliminar(props.row)"
             />
-          </div>
-        </q-card-section>
+            <q-btn
+              v-else-if="puedeEliminar"
+              flat
+              round
+              dense
+              icon="restart_alt"
+              class="action-btn"
+              aria-label="Reactivar"
+              @click="reactivar(props.row)"
+            />
+          </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="filtrando ? 'no-results' : 'empty'"
+            :title="filtrando ? undefined : 'No hay cajas registradas'"
+            :action-label="filtrando ? 'Limpiar filtros' : puedeCrear ? 'Nueva caja' : undefined"
+            @action="filtrando ? ((busqueda = ''), (filtroEstado = 'todos')) : abrirCrear()"
+          />
+        </template>
+      </q-table>
+    </DataTableCard>
 
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <!-- ── Crear / editar ──────────────────────────────────────────────────── -->
+    <BaseDialog
+      v-model="dialogOpen"
+      :title="editando ? 'Editar caja' : 'Nueva caja'"
+      :subtitle="editando ? editando.nombre : 'Terminal de cobro de la sucursal.'"
+      icon="point_of_sale"
+      :width="480"
+      persistent
+      :primary-label="editando ? 'Guardar cambios' : 'Crear caja'"
+      :loading="guardando"
+      @cancel="cerrarDialog"
+      @confirm="guardar"
+    >
+      <div class="form-grid">
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Nombre</span>
+          <q-input
+            ref="nombreRef"
+            v-model="form.nombre"
+            dense
+            outlined
+            autofocus
+            placeholder="Ej. Recepción eventos"
+            hide-bottom-space
+            lazy-rules
+            :rules="[(v: string) => !!v.trim() || 'El nombre es requerido']"
+          />
+        </label>
+        <label class="form-grid__field">
+          <span class="field-label">Número</span>
+          <q-input
+            ref="numeroRef"
+            v-model.number="form.numero"
+            dense
+            outlined
+            type="number"
+            min="1"
+            placeholder="Ej. 3"
+            hide-bottom-space
+            lazy-rules
+            :rules="[
+              (v: number | null) => (v !== null && v !== undefined) || 'El número es requerido',
+              (v: number) => v > 0 || 'Debe ser mayor a 0',
+            ]"
+          />
+        </label>
+      </div>
+    </BaseDialog>
+
+    <!-- ── Detalle ─────────────────────────────────────────────────────────── -->
+    <BaseDialog
+      v-model="dialogDetalle"
+      title="Detalle de la caja"
+      :subtitle="filaDetalle ? `${filaDetalle.nombre} #${numeroCaja(filaDetalle.numero)}` : ''"
+      icon="point_of_sale"
+      :width="460"
+      secondary-label="Cerrar"
+      primary-label="Editar"
+      :primary-disabled="!puedeEditar"
+      @confirm="filaDetalle && ((dialogDetalle = false), abrirEditar(filaDetalle))"
+    >
+      <dl v-if="filaDetalle" class="detail-grid">
+        <div class="detail-grid__item detail-grid__item--full">
+          <dt>Nombre</dt>
+          <dd>{{ filaDetalle.nombre }}</dd>
+        </div>
+        <div class="detail-grid__item">
+          <dt>Número</dt>
+          <dd>{{ numeroCaja(filaDetalle.numero) }}</dd>
+        </div>
+        <div class="detail-grid__item">
+          <dt>Estado</dt>
+          <dd>
+            <StatusBadge
+              :tone="filaDetalle.activo ? 'ok' : 'off'"
+              :label="filaDetalle.activo ? 'Activa' : 'Inactiva'"
+            />
+          </dd>
+        </div>
+      </dl>
+    </BaseDialog>
+
+    <!-- ── Desactivar ──────────────────────────────────────────────────────── -->
+    <BaseDialog
+      v-model="dialogEliminar"
+      title="Desactivar caja"
+      :subtitle="filaEliminar ? `${filaEliminar.nombre} #${numeroCaja(filaEliminar.numero)}` : ''"
+      icon="block"
+      tone="red"
+      danger
+      :width="460"
+      primary-label="Desactivar"
+      :loading="eliminando"
+      @confirm="ejecutarEliminar"
+    >
+      <p class="dlg-text">No podrá usarse para aperturas de turno hasta reactivarla.</p>
+    </BaseDialog>
   </q-page>
 </template>
 
@@ -272,7 +216,12 @@ import { cajaAdminService } from '@/services/cajaAdminService'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import type { CajaAdmin } from '@/types/caja-admin'
-import EstadoBadge from '@/components/shared/EstadoBadge.vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
 
 const $q = useQuasar()
 const auth = useAuthStore()
@@ -287,17 +236,19 @@ const cajas = ref<CajaAdmin[]>([])
 const cargando = ref(false)
 const error = ref<string | null>(null)
 const busqueda = ref('')
-const filtroEstado = ref<'todos' | 'activo' | 'inactivo'>('todos')
-
-const opcionesEstado = [
-  { label: 'Todos', value: 'todos' },
-  { label: 'Activo', value: 'activo' },
-  { label: 'Inactivo', value: 'inactivo' },
+type Filtro = 'todos' | 'activo' | 'inactivo'
+const filtroEstado = ref<Filtro | null>('todos')
+const FILTROS: FilterChip<Filtro>[] = [
+  { label: 'Todas', value: 'todos' },
+  { label: 'Activas', value: 'activo' },
+  { label: 'Inactivas', value: 'inactivo' },
 ]
+const filtrando = computed(() => !!busqueda.value || filtroEstado.value !== 'todos')
+const numeroCaja = (n: number): string => String(n).padStart(2, '0')
 
 const filasFiltradas = computed(() => {
   let result = cajas.value
-  if (busqueda.value.trim()) {
+  if (busqueda.value?.trim()) {
     const q = busqueda.value.trim().toLowerCase()
     result = result.filter(
       (c) => c.nombre.toLowerCase().includes(q) || String(c.numero).includes(q),
@@ -309,10 +260,10 @@ const filasFiltradas = computed(() => {
 })
 
 const columns: QTableColumn[] = [
-  { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
-  { name: 'numero', label: 'NÚMERO', field: 'numero', align: 'left', sortable: true },
-  { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
-  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+  { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
+  { name: 'numero', label: 'Número', field: 'numero', align: 'left', sortable: true },
+  { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 
 const cargar = async () => {
@@ -336,12 +287,11 @@ const reactivar = async (row: CajaAdmin) => {
     const actualizada = await cajaAdminService.updateCaja(row.id, { activo: true })
     const idx = cajas.value.findIndex((c) => c.id === row.id)
     if (idx !== -1) cajas.value[idx] = actualizada
-    $q.notify({ type: 'positive', message: 'Caja activada', position: 'top-right' })
+    $q.notify({ type: 'positive', message: 'Caja activada' })
   } catch (err) {
     $q.notify({
       type: 'negative',
       message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
     })
   }
 }
@@ -398,21 +348,20 @@ const guardar = async () => {
       })
       const idx = cajas.value.findIndex((c) => c.id === editando.value!.id)
       if (idx !== -1) cajas.value[idx] = actualizada
-      $q.notify({ type: 'positive', message: 'Caja actualizada', position: 'top-right' })
+      $q.notify({ type: 'positive', message: 'Caja actualizada' })
     } else {
       const nueva = await cajaAdminService.createCaja({
         nombre: form.value.nombre.trim(),
         numero: form.value.numero,
       })
       cajas.value.push(nueva)
-      $q.notify({ type: 'positive', message: 'Caja creada', position: 'top-right' })
+      $q.notify({ type: 'positive', message: 'Caja creada' })
     }
     cerrarDialog()
   } catch (err) {
     $q.notify({
       type: 'negative',
       message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
     })
   } finally {
     guardando.value = false
@@ -437,16 +386,51 @@ const ejecutarEliminar = async () => {
     await cajaAdminService.deleteCaja(filaEliminar.value.id)
     const idx = cajas.value.findIndex((c) => c.id === filaEliminar.value!.id)
     if (idx !== -1) cajas.value[idx] = { ...cajas.value[idx], activo: false }
-    $q.notify({ type: 'positive', message: 'Caja desactivada', position: 'top-right' })
+    $q.notify({ type: 'positive', message: 'Caja desactivada' })
     dialogEliminar.value = false
   } catch (err) {
     $q.notify({
       type: 'negative',
       message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
     })
   } finally {
     eliminando.value = false
   }
 }
 </script>
+
+<style scoped lang="scss">
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+
+  &__item {
+    dt {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    dd {
+      margin: 0;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-strong);
+    }
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+.dlg-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+</style>
