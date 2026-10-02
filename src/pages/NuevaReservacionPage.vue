@@ -1193,8 +1193,23 @@ const remainingAmount = computed(() => fmt(remainingNum.value))
 // ── Confirmar reservación ─────────────────────────────────────────────────────
 
 const confirmando = ref(false)
+// Id de la reservación ya creada en un intento previo de confirmar: evita que
+// un reintento tras un fallo parcial cree una reservación duplicada.
+const reservacionCreadaId = ref<string | null>(null)
 
 const confirmarReservacion = async () => {
+  if (confirmando.value) return
+
+  if (reservacionCreadaId.value) {
+    $q.notify({
+      type: 'warning',
+      message: 'La reservación ya se creó. Completa los registros pendientes desde su cierre.',
+      position: 'top-right',
+    })
+    router.push({ name: 'eventos-reservaciones-cierre', params: { id: reservacionCreadaId.value } })
+    return
+  }
+
   const sucursalId = authStore.currentBranchId
   if (!sucursalId) {
     $q.notify({
@@ -1237,6 +1252,35 @@ const confirmarReservacion = async () => {
   const telefonoLimpio = form.value.telefono.replace(/\D/g, '').slice(-10)
 
   confirmando.value = true
+
+  // Se resuelve y valida todo lo que dependa del catálogo ANTES de crear la
+  // reservación: si algo falla aquí no se crea nada.
+  let metodosPagoIds: string[]
+  try {
+    metodosPagoIds = pagosAplicados.value.map((pago) => mapearMetodoPago(pago.method))
+    for (const extraId of selectedExtraIds.value) {
+      if (!extrasStore.activos.some((e) => e.id === extraId)) {
+        throw new Error('Un extra seleccionado ya no está disponible.')
+      }
+    }
+    for (const item of productosAdicionales.value) {
+      if (!productosStore.productos.some((p) => p.id === item.producto_id)) {
+        throw new Error('Un producto adicional seleccionado ya no está disponible.')
+      }
+    }
+  } catch (err: unknown) {
+    $q.notify({
+      type: 'negative',
+      message: (err as Error).message || 'No se pudo validar la reservación',
+      position: 'top-right',
+      timeout: 6000,
+    })
+    confirmando.value = false
+    return
+  }
+
+  // TODO backend: POST /reservaciones/completa transaccional
+  let faltante = 'la reservación'
   try {
     const nuevaReservacion = await resStore.crearReservacion({
       sucursal_id: sucursalId,
@@ -1262,6 +1306,8 @@ const confirmarReservacion = async () => {
       anticipo: String(montoPagado.value),
       estado: 'confirmada',
     })
+    reservacionCreadaId.value = nuevaReservacion.id
+    faltante = 'extras, productos adicionales y anticipo'
 
     for (const extraId of selectedExtraIds.value) {
       const extra = extrasStore.activos.find((e) => e.id === extraId)
@@ -1284,10 +1330,11 @@ const confirmarReservacion = async () => {
       })
     }
 
-    for (const pago of pagosAplicados.value) {
+    faltante = 'el anticipo'
+    for (const [i, pago] of pagosAplicados.value.entries()) {
       await pagosStore.crearPagosReservacion({
         reservacion_id: nuevaReservacion.id,
-        metodo_pago_id: mapearMetodoPago(pago.method),
+        metodo_pago_id: metodosPagoIds[i]!,
         monto: String(pago.amount),
         notas: pago.cardType
           ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
@@ -1304,8 +1351,21 @@ const confirmarReservacion = async () => {
   } catch (err: unknown) {
     const apiErr = err as { message?: string; statusCode?: number }
     const msg = apiErr?.message || 'Error al guardar la reservación'
-    $q.notify({ type: 'negative', message: msg, position: 'top-right', timeout: 6000 })
     console.error('[confirmarReservacion]', err)
+    if (reservacionCreadaId.value) {
+      $q.notify({
+        type: 'warning',
+        message: `La reservación se creó pero faltó registrar: ${faltante}. ${msg}`,
+        position: 'top-right',
+        timeout: 8000,
+      })
+      router.push({
+        name: 'eventos-reservaciones-cierre',
+        params: { id: reservacionCreadaId.value },
+      })
+    } else {
+      $q.notify({ type: 'negative', message: msg, position: 'top-right', timeout: 6000 })
+    }
   } finally {
     confirmando.value = false
   }
