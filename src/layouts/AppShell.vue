@@ -39,9 +39,14 @@ const refrescarAlertasInventario = (avisar = true) => {
 }
 
 onMounted(() => {
-  // El estado de caja del sidebar solo aplica al Cajero (RN-CIE-001).
-  if (auth.hasRole('Cajero')) {
-    turno.cargarTurnoActivo()
+  // Hipótesis de roles (Bug QA #13): el turno aplica a cualquier usuario que
+  // pueda cobrar, no solo al Cajero — un Administrador con
+  // "reservaciones:gestionar_pagos" también necesita saber si hay turno
+  // abierto antes de registrar un pago. Se usa el memo del store
+  // (`asegurarTurnoCargado`) en vez de `cargarTurnoActivo` directo para
+  // compartir la misma carga con el guard de ruta.
+  if (auth.hasPermission('pos:acceder') || auth.hasPermission('reservaciones:gestionar_pagos')) {
+    void turno.asegurarTurnoCargado()
   }
   if (auth.isSistema) {
     sucursalesStore.cargar()

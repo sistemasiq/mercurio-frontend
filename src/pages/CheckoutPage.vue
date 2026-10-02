@@ -127,7 +127,6 @@ import PageHeader from '@/components/ui/PageHeader.vue'
 import FotosRegistroDialog from '@/components/control-acceso/FotosRegistroDialog.vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
-import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { checkout, cotizarCheckout, type CotizacionCheckoutResponse } from '@/api/onboardingClient'
 import { Notify } from 'quasar'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
@@ -139,17 +138,10 @@ import { resolverMetodoPagoId } from '@/utils/metodosPago'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 
 const store = useAccessControlStore()
-const turno = useTurnoCajaStore()
 const router = useRouter()
 
-onMounted(() => {
-  // Se valida al entrar, no hasta el final del checkout: si no hay turno
-  // abierto no tiene sentido dejar revisar todo el checkout para enterarse
-  // hasta el final. Redirige de inmediato, sin bloquear con un panel.
-  if (!turno.estaOperando) {
-    router.push('/pos/cierre')
-  }
-})
+// La validación de turno (y la espera de su carga async) ya la hace el guard
+// de ruta (`requiresTurno`, ver router/guards.ts) antes de entrar aquí.
 
 const child = computed(() => store.checkoutChild)
 

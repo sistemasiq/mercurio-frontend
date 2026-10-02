@@ -7,6 +7,8 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     publicOnly?: boolean
     permissions?: string[]
+    /** La ruta exige un turno de caja abierto; el guard espera a que se cargue antes de validar. */
+    requiresTurno?: boolean
     title?: string
     /** Sección de la miga de pan cuando la ruta no está en el menú lateral. */
     section?: string
@@ -236,7 +238,11 @@ const routes: RouteRecordRaw[] = [
         path: 'reservaciones/nueva',
         name: 'eventos-reservaciones-crear',
         component: () => import('@/pages/NuevaReservacionPage.vue'),
-        meta: { permissions: ['reservaciones:crear'], title: 'Nueva Reservación' },
+        meta: {
+          permissions: ['reservaciones:crear'],
+          requiresTurno: true,
+          title: 'Nueva Reservación',
+        },
       },
       {
         path: 'calendario',
@@ -323,6 +329,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/RegistrationPage.vue'),
         meta: {
           permissions: ['estancias:checkin'],
+          requiresTurno: true,
           title: 'Registro de Entrada',
           section: 'Control de Acceso',
         },
@@ -339,6 +346,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/CheckoutPage.vue'),
         meta: {
           permissions: ['estancias:checkout'],
+          requiresTurno: true,
           title: 'Checkout',
           section: 'Control de Acceso',
         },

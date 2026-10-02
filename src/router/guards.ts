@@ -1,6 +1,8 @@
 import type { Router } from 'vue-router'
+import { Notify } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessControlStore } from '@/stores/accessControl'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 
 export function setupRouterGuards(router: Router): void {
   router.beforeEach(async (to) => {
@@ -22,6 +24,26 @@ export function setupRouterGuards(router: Router): void {
       if (!allowed) {
         return { name: 'home' }
       }
+    }
+
+    if (to.meta.requiresTurno) {
+      const turno = useTurnoCajaStore()
+      // `asegurarTurnoCargado` nunca lanza: distingue "turno cargado" (resultado.ok)
+      // de "no se pudo cargar" (red/5xx/403), que no debe expulsar a nadie (#13, #17).
+      const resultado = await turno.asegurarTurnoCargado()
+      if (resultado.ok && !turno.estaOperando) {
+        if (auth.hasPermission('pos:acceder')) {
+          return { name: 'pos-cierre' }
+        }
+        Notify.create({
+          type: 'warning',
+          message: 'Se requiere un turno de caja abierto para continuar.',
+          position: 'top-right',
+        })
+        return false
+      }
+      // resultado.ok === false: la carga falló por red/5xx/403. Se deja pasar;
+      // la página debe mostrar turno.error en vez de expulsar sin motivo.
     }
 
     // El Administrador de sucursal no opera la caja directamente (apertura/cierre/venta):

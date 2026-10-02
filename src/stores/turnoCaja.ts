@@ -15,6 +15,7 @@ import { ref, computed, reactive } from 'vue'
 import { defineStore } from 'pinia'
 import { turnoCajaService, TurnoNoEncontradoError } from '@/services/turnoCajaService'
 import { resolveErrorMessage } from '@/utils/errorHandler'
+import { useAuthStore } from '@/stores/auth'
 import type { ApiError } from '@/types/auth'
 import type {
   EstadoTurno,
@@ -91,6 +92,11 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   // ── Estado de carga y errores ─────────────────────────────────────────────
   const cargando = ref(false)
   const error = ref<string | null>(null)
+  // Sucursal para la que ya se cargó el turno con éxito (memo de
+  // `asegurarTurnoCargado`). Vive en el estado para que `resetAllStores` (logout)
+  // lo invalide junto con el resto del store.
+  const cargadoParaSucursal = ref<string | null>(null)
+  let cargaEnVuelo: { clave: string; promesa: Promise<ResultadoCargaTurno> } | null = null
 
   // ── Modal de autenticación de administrador ───────────────────────────────
   const mostrarDialogAdmin = ref(false)
@@ -213,6 +219,35 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     } finally {
       cargando.value = false
     }
+  }
+
+  /**
+   * Garantiza que el turno ya se pidió al backend antes de validarlo. Memoizado:
+   * llamadas concurrentes comparten una sola petición y, si ya se cargó para la
+   * sucursal vigente, resuelve de inmediato. Una carga fallida no se memoiza (se
+   * reintenta en la siguiente llamada). Nunca lanza.
+   */
+  function asegurarTurnoCargado(): Promise<ResultadoCargaTurno> {
+    const auth = useAuthStore()
+    // Solo AdministradorSistema necesita indicar la sucursal; el resto usa la suya.
+    const sucursalId = auth.isSistema ? auth.currentBranchId : null
+    const clave = sucursalId ?? 'propia'
+
+    if (cargadoParaSucursal.value === clave) {
+      return Promise.resolve({ ok: true, hayTurno: turnoId.value !== null })
+    }
+    if (cargaEnVuelo?.clave === clave) return cargaEnVuelo.promesa
+
+    const promesa = cargarTurnoActivo(sucursalId)
+      .then((resultado) => {
+        if (resultado.ok) cargadoParaSucursal.value = clave
+        return resultado
+      })
+      .finally(() => {
+        if (cargaEnVuelo?.promesa === promesa) cargaEnVuelo = null
+      })
+    cargaEnVuelo = { clave, promesa }
+    return promesa
   }
 
   /** Reinicia el estado local para permitir abrir un nuevo turno tras cerrar el previo */
@@ -573,6 +608,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     estado,
     cargando,
     error,
+    cargadoParaSucursal,
     // flags semánticos
     sinTurno,
     estaOperando,
@@ -599,6 +635,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     // acciones
     abrirTurno,
     cargarTurnoActivo,
+    asegurarTurnoCargado,
     reiniciarCicloTurno,
     iniciarConteo,
     enviarConteo,

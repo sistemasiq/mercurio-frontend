@@ -119,6 +119,50 @@ describe('cargarTurnoActivo', () => {
   })
 })
 
+describe('asegurarTurnoCargado', () => {
+  it('comparte una sola peticion entre llamadas concurrentes', async () => {
+    const store = useTurnoCajaStore()
+    let resolver!: (v: TurnoActivoResponse) => void
+    servicio.cargarTurnoActivo.mockReturnValue(
+      new Promise((resolve) => {
+        resolver = resolve
+      }),
+    )
+
+    const p1 = store.asegurarTurnoCargado()
+    const p2 = store.asegurarTurnoCargado()
+    resolver(turnoEn('OPERANDO'))
+    const [r1, r2] = await Promise.all([p1, p2])
+
+    expect(servicio.cargarTurnoActivo).toHaveBeenCalledTimes(1)
+    expect(r1).toEqual({ ok: true, hayTurno: true })
+    expect(r2).toEqual({ ok: true, hayTurno: true })
+  })
+
+  it('no vuelve a pedir el turno si ya se cargo para la sucursal vigente', async () => {
+    const store = useTurnoCajaStore()
+    servicio.cargarTurnoActivo.mockResolvedValue(turnoEn('OPERANDO'))
+
+    await store.asegurarTurnoCargado()
+    await store.asegurarTurnoCargado()
+
+    expect(servicio.cargarTurnoActivo).toHaveBeenCalledTimes(1)
+  })
+
+  it('no memoiza una carga fallida: la siguiente llamada reintenta', async () => {
+    const store = useTurnoCajaStore()
+    servicio.cargarTurnoActivo.mockRejectedValueOnce(new Error('Error interno del servidor.'))
+    servicio.cargarTurnoActivo.mockResolvedValueOnce(turnoEn('OPERANDO'))
+
+    const primero = await store.asegurarTurnoCargado()
+    const segundo = await store.asegurarTurnoCargado()
+
+    expect(primero).toEqual({ ok: false, error: 'Error interno del servidor.' })
+    expect(segundo).toEqual({ ok: true, hayTurno: true })
+    expect(servicio.cargarTurnoActivo).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('enviarConteo', () => {
   async function storeEnConteo() {
     const store = useTurnoCajaStore()

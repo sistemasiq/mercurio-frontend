@@ -7,6 +7,10 @@ interface AlertasInventarioState {
   criticos: Insumo[]
   porReordenar: Insumo[]
   cargado: boolean
+  // Sucursal de la última llamada a `refrescar`. Permite descartar una
+  // respuesta que llega después de que el usuario ya cambió de sucursal
+  // otra vez (Bug QA #44).
+  sucursalVigente: string | null
 }
 
 /**
@@ -19,6 +23,7 @@ export const useAlertasInventarioStore = defineStore('alertasInventario', {
     criticos: [],
     porReordenar: [],
     cargado: false,
+    sucursalVigente: null,
   }),
   getters: {
     totalAlertas: (s): number => s.criticos.length + s.porReordenar.length,
@@ -26,9 +31,15 @@ export const useAlertasInventarioStore = defineStore('alertasInventario', {
   },
   actions: {
     async refrescar(sucursalId: string, avisar = true) {
+      this.sucursalVigente = sucursalId
       try {
         const idsPrevios = this.idsConAlerta
         const data = await listarAlertas(sucursalId)
+        // La sucursal activa pudo cambiar mientras esta petición estaba en
+        // vuelo (p. ej. dos cambios de sucursal en menos de 1 s): una
+        // respuesta que ya no corresponde a la sucursal vigente se descarta
+        // para no mostrar el badge ni tocar el timbre con datos ajenos (#44).
+        if (this.sucursalVigente !== sucursalId) return
         this.criticos = data.criticos
         this.porReordenar = data.por_reordenar
         // Timbre solo para insumos que ACABAN de entrar en alerta, y nunca en la
@@ -48,6 +59,7 @@ export const useAlertasInventarioStore = defineStore('alertasInventario', {
       this.criticos = []
       this.porReordenar = []
       this.cargado = false
+      this.sucursalVigente = null
     },
   },
 })

@@ -238,7 +238,7 @@ onMounted(() => {
 
   if (!authStore.currentBranchId) return
   pagosStore.cargar()
-  if (!resStore.reservaciones.length) resStore.cargar(authStore.currentBranchId)
+  resStore.cargar(authStore.currentBranchId)
   tiposEventoStore.cargar()
 })
 
