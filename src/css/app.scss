@@ -1225,3 +1225,9 @@ body {
 .cell-muted {
   color: var(--text-secondary);
 }
+
+// Botón de filtro activo (outline).
+.q-btn.btn--on {
+  background: var(--tone-info-bg);
+  color: var(--q-primary) !important;
+}
