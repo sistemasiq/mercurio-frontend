@@ -12,7 +12,7 @@ Implementación del diseño "Refactor UI Woow Kids" (claude.ai/design, proyecto
 - **3 · 01b Operación · Estancias e historiales**: hecha.
 - **4 · 02 Eventos**: hecha.
 - **5 · 03 Catálogo**: hecha.
-- **6 · 04 Inventario**: pendiente.
+- **6 · 04 Inventario**: hecha.
 - **7 · 05 Lealtad · 06 Administración**: pendiente.
 
 ## Base disponible (fase 0)
@@ -113,6 +113,20 @@ simplifican hasta que exista la fuente.
 - **Conteo de paquetes por tipo de evento** (3c): no hay relación expuesta.
 - **Comisión y "solicitar referencia"** (3d.1): el método de pago solo tiene
   nombre, descripción, tipo y activo.
+
+### 04 Inventario
+
+- **Costo de receta y margen por producto** (4a): no hay costo de receta en el
+  listado; se ve dentro del diálogo de receta solo como insumos y cantidades.
+- **Imagen 1:1 y código del producto** (4a.1): se conserva el selector de imagen
+  existente; el producto no tiene código.
+- **Presentaciones dentro del diálogo de insumo** (4b.1): se gestionan en su
+  propio diálogo.
+- **RFC y días de entrega del proveedor** (4c.1): el modelo no los tiene.
+- **IVA y folio OC en compras** (4d): las compras solo tienen total y estado.
+- **Exportar** (kardex, stock, costo de ventas): sin endpoint.
+- **KPIs de ventas, margen y merma** (4f): el reporte solo regresa costo por
+  insumo.
 
 ## Cambios de comportamiento
 
