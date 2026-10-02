@@ -51,6 +51,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   const fondoInicial = ref(0)
   const totalRetiros = ref(0)
   const totalVentas = ref(0)
+  const fechaApertura = ref<string | null>(null)
   const estado = ref<EstadoTurno>('SIN_TURNO')
 
   // ── Estado de carga y errores ─────────────────────────────────────────────
@@ -157,6 +158,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     } catch {
       estado.value = 'SIN_TURNO'
       turnoId.value = null
+      fechaApertura.value = null
       error.value = null
     } finally {
       cargando.value = false
@@ -171,6 +173,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     sucursalNombre.value = ''
     fondoInicial.value = 0
     totalRetiros.value = 0
+    fechaApertura.value = null
     estado.value = 'SIN_TURNO'
     error.value = null
     adminNombre.value = ''
@@ -439,6 +442,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     fondoInicial.value = turno.fondoInicial
     totalRetiros.value = turno.totalRetiros
     totalVentas.value = turno.totalVentas ?? 0
+    fechaApertura.value = turno.fechaApertura ?? null
     estado.value = turno.estado
 
     // Si el turno ya llega en ESPERANDO_REVISION (ej. el cajero recargó la página
@@ -494,6 +498,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     fondoInicial,
     totalRetiros,
     totalVentas,
+    fechaApertura,
     estado,
     cargando,
     error,
