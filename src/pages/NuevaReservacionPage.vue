@@ -138,11 +138,12 @@
                           class="booking-calendar__day"
                           :class="{
                             'booking-calendar__day--selected':
-                              day.day === form.selectedDay && !day.isOtherMonth,
+                              day.date === form.selectedDate && !day.isOtherMonth,
                             'booking-calendar__day--today': day.isToday,
                             'booking-calendar__day--booked': day.isBooked,
                             'booking-calendar__day--other-month': day.isOtherMonth,
-                            'booking-calendar__day--disabled': day.isOtherMonth || day.day === '',
+                            'booking-calendar__day--disabled':
+                              day.isOtherMonth || day.day === '' || day.isPast,
                           }"
                           @click="handleDayClick(day)"
                         >
@@ -783,6 +784,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { format as formatDate, parseISO, startOfDay, isBefore } from 'date-fns'
 import { useQuasar } from 'quasar'
 import { usePaquetesStore } from '@/stores/paquetes'
 import type { Paquetes } from '@/types/paquetes'
@@ -839,6 +841,9 @@ interface BookingCalendarDay {
   isToday: boolean
   isBooked: boolean
   isOtherMonth: boolean
+  isPast: boolean
+  /** Fecha completa 'YYYY-MM-DD' del día; vacío cuando es relleno de otro mes. */
+  date: string
 }
 
 const step = ref(1)
@@ -849,7 +854,7 @@ const form = ref({
   email: '',
   ninos: 20,
   tipoEvento: null as string | null,
-  selectedDay: null as number | null,
+  selectedDate: null as string | null,
   horaInicio: '15:00',
   horaFin: '18:00',
   selectedPackage: null as string | null,
@@ -878,7 +883,7 @@ const paso1Valido = computed(
     form.value.nombre.trim().length > 0 &&
     form.value.telefono.trim().length > 0 &&
     !!form.value.tipoEvento &&
-    form.value.selectedDay !== null &&
+    form.value.selectedDate !== null &&
     horarioValido.value,
 )
 
@@ -908,15 +913,25 @@ const bookedDays = computed(() => {
 
 const daysOfWeek = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 
+const inicioHoy = startOfDay(today)
+
 const bookingCalendarDays = computed((): BookingCalendarDay[] => {
   const days: BookingCalendarDay[] = []
   const firstDay = new Date(currentYear.value, currentMonth.value, 1).getDay()
   const daysInMonth = new Date(currentYear.value, currentMonth.value + 1, 0).getDate()
 
   for (let i = 0; i < firstDay; i++) {
-    days.push({ day: '', isToday: false, isBooked: false, isOtherMonth: true })
+    days.push({
+      day: '',
+      isToday: false,
+      isBooked: false,
+      isOtherMonth: true,
+      isPast: false,
+      date: '',
+    })
   }
   for (let d = 1; d <= daysInMonth; d++) {
+    const fecha = new Date(currentYear.value, currentMonth.value, d)
     days.push({
       day: d,
       isToday:
@@ -925,6 +940,8 @@ const bookingCalendarDays = computed((): BookingCalendarDay[] => {
         currentYear.value === today.getFullYear(),
       isBooked: bookedDays.value.includes(d),
       isOtherMonth: false,
+      isPast: isBefore(fecha, inicioHoy),
+      date: formatDate(fecha, 'yyyy-MM-dd'),
     })
   }
   return days
@@ -948,15 +965,16 @@ const nextMonth = () => {
 }
 
 const handleDayClick = (day: BookingCalendarDay) => {
-  if (!day.isOtherMonth && day.day !== '') form.value.selectedDay = day.day as number
+  if (!day.isOtherMonth && day.day !== '' && !day.isPast) form.value.selectedDate = day.date
 }
 
 const selectedDateLabel = computed(() => {
-  if (!form.value.selectedDay) return 'Sin seleccionar'
-  return new Date(currentYear.value, currentMonth.value, form.value.selectedDay).toLocaleDateString(
-    'es-MX',
-    { day: 'numeric', month: 'long', year: 'numeric' },
-  )
+  if (!form.value.selectedDate) return 'Sin seleccionar'
+  return parseISO(form.value.selectedDate).toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
 })
 
 const timeSlotLabel = computed(() => {
@@ -1220,10 +1238,7 @@ const confirmarReservacion = async () => {
     return
   }
 
-  const d = form.value.selectedDay
-  const fecha = d
-    ? `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    : null
+  const fecha = form.value.selectedDate
 
   if (
     !form.value.nombre.trim() ||
