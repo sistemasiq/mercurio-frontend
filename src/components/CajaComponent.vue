@@ -187,6 +187,9 @@ const authStore = useAuthStore()
 const turno = useTurnoCajaStore()
 
 const modalPagoAbierto = ref(false)
+// Clave de idempotencia del ticket en curso: se genera al abrir el cobro y se
+// reutiliza en cada reintento; solo se regenera al iniciar un ticket nuevo.
+let idempotencyKey: string | null = null
 const comandaPagadaId = ref<string | null>(null)
 const ticketPostPagoAbierto = ref(false)
 const abrirModalPago = () => {
@@ -214,6 +217,7 @@ const abrirModalPago = () => {
     })
     return
   }
+  idempotencyKey ??= crypto.randomUUID()
   modalPagoAbierto.value = true
 }
 const props = defineProps<{ searchTerm?: string }>()
@@ -347,6 +351,7 @@ const agregarAlTicket = async (producto: ReturnType<typeof Object> & { id: strin
 }
 
 const cancelarTicket = () => {
+  idempotencyKey = null
   cancelarOrden()
   ticketAbierto.value = false
   nombreCliente.value = ''
@@ -467,7 +472,7 @@ const procesarPago = async (
       ...(nombreCliente.value.trim() ? { nombre_cliente: nombreCliente.value.trim() } : {}),
     }
 
-    const comanda = await pagosApi.completarPago(payload)
+    const comanda = await pagosApi.completarPago(payload, undefined, idempotencyKey ?? undefined)
 
     $q.notify({
       type: 'positive',
@@ -490,10 +495,15 @@ const procesarPago = async (
         err.response.data.detail ?? err.response.data,
       )
     }
+    // TODO: usar isTimeoutError de utils/errorHandler tras WP-01
+    const apiErr = err as Partial<ApiError> | null
+    const esTimeout = apiErr?.code === 'ECONNABORTED' || apiErr?.code === 'TIMEOUT'
     $q.notify({
       type: 'negative',
       message: 'Error al procesar el pago',
-      caption: resolveErrorMessage(err as ApiError),
+      caption: esTimeout
+        ? 'No se confirmó el cobro. Verifica en el historial antes de reintentar.'
+        : resolveErrorMessage(err as ApiError),
       position: 'top-right',
       timeout: 4000,
     })
