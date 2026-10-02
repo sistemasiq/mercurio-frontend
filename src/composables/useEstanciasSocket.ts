@@ -5,6 +5,10 @@ import type { EstanciaWsMessage } from '@/types/estancia'
 export type EstadoSocket = 'conectando' | 'conectado' | 'reconectando' | 'caido'
 
 const MAX_INTENTOS_ANTES_DE_FALLBACK = 5
+// Tope total de reintentos (mismo criterio que useComandasSocket).
+const MAX_INTENTOS_TOTALES = 20
+// Cierres por autenticacion/politica: reintentar con el mismo token no sirve.
+const CODIGOS_SIN_REINTENTO = [1008, 4401]
 const BACKOFF_INICIAL_MS = 1000
 const BACKOFF_MAX_MS = 30000
 
@@ -46,6 +50,10 @@ export function useEstanciasSocket(onMessage: (msg: EstanciaWsMessage) => void) 
 
   function programarReconexion() {
     intentos++
+    if (intentos > MAX_INTENTOS_TOTALES) {
+      estado.value = 'caido'
+      return
+    }
     estado.value = intentos > MAX_INTENTOS_ANTES_DE_FALLBACK ? 'caido' : 'reconectando'
     const espera = Math.min(BACKOFF_INICIAL_MS * 2 ** Math.min(intentos - 1, 10), BACKOFF_MAX_MS)
     limpiarTimeout()
@@ -77,8 +85,13 @@ export function useEstanciasSocket(onMessage: (msg: EstanciaWsMessage) => void) 
       }
     }
 
-    socket.onclose = () => {
-      if (!cerradoManualmente) programarReconexion()
+    socket.onclose = (event: CloseEvent) => {
+      if (cerradoManualmente) return
+      if (CODIGOS_SIN_REINTENTO.includes(event.code)) {
+        estado.value = 'caido'
+        return
+      }
+      programarReconexion()
     }
 
     socket.onerror = () => {
