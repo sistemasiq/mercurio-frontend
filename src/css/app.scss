@@ -1075,3 +1075,56 @@ body {
   background: var(--tone-info-bg);
   color: var(--q-primary) !important;
 }
+
+// Formulario en dos columnas dentro de diálogos (Dialog del diseño).
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__section {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  &__toggle {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-control);
+    font-size: 13.5px;
+    color: var(--text-body);
+  }
+
+  @media (max-width: 520px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+// Celda de texto largo truncada con "…" (descripciones, direcciones).
+.cell-ellipsis {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
