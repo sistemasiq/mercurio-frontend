@@ -453,7 +453,8 @@ const procesarPago = async (
     const totalFinal = totalBruto - descuentoPuntos
 
     const payload: PagoCompletoRequest = {
-      ticket_numero: `TICK-${String(Date.now() % 10000).padStart(4, '0')}`,
+      // TODO backend: folio secuencial por sucursal
+      ticket_numero: `TICK-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
       total_final: totalFinal,
       detalles_comanda: detalles,
       pagos: pagos.map((p) => ({
