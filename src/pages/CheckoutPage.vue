@@ -1,5 +1,129 @@
+<template>
+  <q-page v-if="child" class="page-content checkout">
+    <PageHeader
+      :title="`Checkout · ${child.nino}`"
+      :subtitle="`Pulsera ${child.pulsera} · ${child.tutor} (${child.parentesco}) · ${child.telefono}`"
+      back-label="Control de Acceso"
+      :back-to="{ name: 'estancias-control-acceso' }"
+    />
+
+    <div class="checkout__grid">
+      <div class="checkout__main">
+        <section class="time-card" :class="`time-card--${tono}`">
+          <div class="time-card__stats">
+            <div>
+              <span class="time-card__label">Entrada</span>
+              <span class="time-card__value">{{ horaEntrada }}</span>
+            </div>
+            <div>
+              <span class="time-card__label">Tiempo contratado</span>
+              <span class="time-card__value">{{ horasContratadas }}</span>
+            </div>
+            <div>
+              <span class="time-card__label time-card__label--tone">{{ etiquetaTiempo }}</span>
+              <span class="time-card__value time-card__value--tone">{{ valorTiempo }}</span>
+            </div>
+          </div>
+          <div class="time-card__bar">
+            <div class="time-card__fill" :style="{ width: `${child.progressPercent}%` }" />
+          </div>
+        </section>
+
+        <section class="verify">
+          <h2 class="verify__title">Verificación de salida</h2>
+          <div class="verify__grid">
+            <div class="verify__item">
+              <span class="field-label">Tutor</span>
+              <span class="verify__value">{{ child.tutor }} · {{ child.parentesco }}</span>
+            </div>
+            <div class="verify__item">
+              <span class="field-label">Segundo tutor</span>
+              <span class="verify__value">{{
+                child.nombreSegundoTutor || 'Sin segundo tutor'
+              }}</span>
+            </div>
+            <div class="verify__item">
+              <span class="field-label">Edad</span>
+              <span class="verify__value">{{ child.edad }} años</span>
+            </div>
+            <div class="verify__item">
+              <span class="field-label">Teléfono</span>
+              <span class="verify__value">{{ child.telefono }}</span>
+            </div>
+          </div>
+          <button type="button" class="verify__photos" @click="showFotos = true">
+            <q-icon name="photo_library" size="24px" />
+            Comparar con la foto de llegada e INE del tutor
+          </button>
+        </section>
+      </div>
+
+      <aside class="charges">
+        <h2 class="charges__title">Cargos pendientes</h2>
+        <template v-if="cotizacion && cotizacion.totalExtra > 0">
+          <div class="charges__line">
+            <span>Tiempo excedente · {{ cotizacion.horasExtra }} h</span>
+            <span>${{ cotizacion.totalExtra.toFixed(2) }}</span>
+          </div>
+          <div class="charges__total">
+            <span>Por cobrar</span>
+            <span class="charges__total-value">${{ cotizacion.totalExtra.toFixed(2) }}</span>
+          </div>
+          <p class="charges__hint">
+            El monto puede cambiar si pasa más tiempo antes de confirmar la salida.
+          </p>
+        </template>
+        <div v-else class="charges__note">
+          <q-icon name="info" size="19px" />
+          El monto final se calcula al confirmar la salida, considerando recargos por tiempo
+          excedente.
+        </div>
+        <p v-if="mostrarModalPagoExtra" class="charges__hint">
+          El niño ya realizó checkout. Falta cobrar el cargo extra para cerrar la operación.
+        </p>
+
+        <footer class="charges__actions">
+          <q-btn
+            outline
+            label="Cancelar"
+            :disable="isLoading || mostrarModalPagoExtra"
+            @click="cancelar"
+          />
+          <q-btn
+            unelevated
+            color="primary"
+            label="Confirmar salida"
+            class="charges__confirm"
+            :loading="isLoading"
+            :disable="mostrarModalPagoExtra"
+            @click="confirmarSalida"
+          />
+        </footer>
+      </aside>
+    </div>
+
+    <FotosRegistroDialog
+      v-model="showFotos"
+      :registro-id="child.registroId"
+      :titulo="child.nino"
+      :subtitulo="`Registro ${horaEntrada} · ${child.tutor} (${child.parentesco})`"
+    />
+
+    <PaymentModal
+      v-model="mostrarModalPagoExtra"
+      titulo="Cobrar tiempo excedente"
+      :subtitulo="child.nino"
+      :total-to-pay="cotizacion?.totalExtra ?? 0"
+      :metodos-pago="metodosPagoDisponibles"
+      @pago-exitoso="onPagoExtraExitoso"
+    />
+  </q-page>
+</template>
+
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import FotosRegistroDialog from '@/components/control-acceso/FotosRegistroDialog.vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
@@ -79,39 +203,37 @@ const mapearMetodoPago = (nombreMetodo: string): string => {
 
 const isLoading = ref(false)
 
-const statusColor = computed(() => {
-  switch (child.value?.status) {
-    case 'activo':
-      return 'positive'
-    case 'por_expirar':
-      return 'orange'
-    case 'excedido':
-      return 'negative'
-    default:
-      return 'grey'
-  }
-})
+const tono = computed(() =>
+  child.value?.status === 'excedido'
+    ? 'bad'
+    : child.value?.status === 'por_expirar'
+      ? 'warn'
+      : 'ok',
+)
 
-const tiempoRestanteLabel = computed(() => {
+const etiquetaTiempo = computed(() =>
+  child.value?.status === 'excedido' ? 'Excedente' : 'Tiempo restante',
+)
+
+const valorTiempo = computed(() => {
   if (!child.value) return '—'
-  if (child.value.status === 'excedido') {
-    return `${child.value.minutosRestantes} min`
-  }
-  return `0 min`
+  const m = Math.abs(child.value.minutosRestantes)
+  return child.value.status === 'excedido' ? `+${m} min` : `${m} min`
 })
 
-const tiempoRestanteColor = computed(() => {
-  switch (child.value?.status) {
-    case 'activo':
-      return 'positive'
-    case 'por_expirar':
-      return 'orange-9'
-    case 'excedido':
-      return 'negative'
-    default:
-      return 'grey-7'
-  }
+const horasContratadas = computed(() => {
+  if (!child.value) return '—'
+  const h = child.value.minutosPagados / 60
+  return Number.isInteger(h) ? `${h} h` : `${child.value.minutosPagados} min`
 })
+
+const horaEntrada = computed(() => {
+  if (!child.value) return '—'
+  const d = new Date(Date.now() - child.value.minutosTranscurridos * 60000)
+  return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+})
+
+const showFotos = ref(false)
 
 async function confirmarSalida() {
   if (!child.value) return
@@ -228,250 +350,237 @@ function cancelar() {
 }
 </script>
 
-<template>
-  <q-page v-if="child" class="checkout-page q-pa-lg">
-    <!-- Header -->
-    <div class="row items-center q-mb-lg">
-      <div>
-        <div class="text-h5 text-weight-bold">Checkout de estancia</div>
-        <div class="text-caption text-grey-6">Revisión final antes de procesar la salida.</div>
-      </div>
-    </div>
-
-    <div class="row q-col-gutter-lg">
-      <!-- Panel izquierdo: info del niño -->
-      <div class="col-12 col-md-8">
-        <q-card flat bordered class="checkout-card">
-          <q-card-section>
-            <!-- Nombre, edad, pulsera, estado -->
-            <div class="row justify-between items-start q-mb-md">
-              <div>
-                <div class="text-h5 text-weight-bold">{{ child.nino }}</div>
-                <div class="row q-gutter-md q-mt-md">
-                  <q-chip
-                    dense
-                    color="grey-3"
-                    text-color="grey-9"
-                    icon="cake"
-                    :label="`${child.edad} años`"
-                    size="md"
-                  />
-                  <q-chip
-                    dense
-                    color="blue-1"
-                    text-color="blue-9"
-                    icon="badge"
-                    :label="child.pulsera"
-                    size="md"
-                  />
-                </div>
-              </div>
-              <div class="text-right">
-                <div class="info-label q-mb-xs">ESTADO DE TIEMPO</div>
-                <q-icon name="circle" size="28px" :color="statusColor" />
-              </div>
-            </div>
-
-            <q-separator class="q-mb-md" />
-
-            <!-- Tutor -->
-            <div class="row items-center q-mb-lg">
-              <q-avatar color="orange-2" text-color="orange-9" size="38px" class="q-mr-md">
-                <q-icon name="person" />
-              </q-avatar>
-              <div class="col">
-                <div class="row q-col-gutter-lg">
-                  <div>
-                    <div class="info-label">TUTOR</div>
-                    <div class="text-subtitle2 text-weight-bold">{{ child.tutor }}</div>
-                    <div class="text-caption text-grey-6">Parentesco: {{ child.parentesco }}</div>
-                  </div>
-                  <div>
-                    <div class="info-label">SEGUNDO TUTOR</div>
-                    <div v-if="child.nombreSegundoTutor" class="text-subtitle2 text-weight-bold">
-                      {{ child.nombreSegundoTutor }}
-                    </div>
-                    <div v-else class="text-subtitle2 text-weight-bold">No hay segundo tutor</div>
-                  </div>
-                  <div>
-                    <div class="info-label">NÚMERO DE TELEFONO DEL TUTOR</div>
-                    <div class="text-subtitle2 text-weight-bold">{{ child.telefono }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <q-separator class="q-mb-lg" />
-
-            <!-- Tiempos -->
-            <div class="row q-col-gutter-md q-mb-lg">
-              <div class="col-4">
-                <q-card flat class="tiempo-card text-center">
-                  <q-card-section>
-                    <div class="info-label q-mb-sm">TIEMPO PREPAGADO</div>
-                    <div class="text-h6 text-weight-bold text-grey-8">
-                      {{ child.minutosPagados / 60 }} hr
-                    </div>
-                  </q-card-section>
-                </q-card>
-              </div>
-              <div class="col-4">
-                <q-card flat class="tiempo-card text-center">
-                  <q-card-section>
-                    <div class="info-label q-mb-sm">TIEMPO TRANSCURRIDO</div>
-                    <div class="text-h6 text-weight-bold" :class="`text-${statusColor}`">
-                      {{ child.minutosTranscurridos }} min
-                    </div>
-                  </q-card-section>
-                </q-card>
-              </div>
-              <div class="col-4">
-                <q-card flat class="tiempo-card text-center">
-                  <q-card-section>
-                    <div class="info-label q-mb-sm">TIEMPO EXCEDIDO</div>
-                    <div class="text-h6 text-weight-bold" :class="`text-${tiempoRestanteColor}`">
-                      {{ tiempoRestanteLabel }}
-                    </div>
-                  </q-card-section>
-                </q-card>
-              </div>
-            </div>
-
-            <!-- Leyenda de estados -->
-            <q-separator class="q-mb-md" />
-            <div class="row justify-center q-gutter-md">
-              <div class="info-label q-mr-sm self-center">REFERENCIA DE ESTADOS DEL SISTEMA</div>
-              <div class="row items-center q-gutter-xs">
-                <q-icon name="circle" color="positive" size="12px" />
-                <span class="text-caption text-grey-7">Verde: Dentro de tiempo</span>
-              </div>
-              <div class="row items-center q-gutter-xs">
-                <q-icon name="circle" color="warning" size="12px" />
-                <span class="text-caption text-grey-7">Naranja: Cerca del límite</span>
-              </div>
-              <div class="row items-center q-gutter-xs">
-                <q-icon name="circle" color="negative" size="12px" />
-                <span class="text-caption text-grey-7">Rojo: Tiempo excedido</span>
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
-
-      <!-- Panel derecho: aviso + acciones -->
-      <div class="col-12 col-md-4">
-        <q-card flat bordered class="checkout-card q-mb-md">
-          <q-card-section>
-            <div v-if="cotizacion && cotizacion.totalExtra > 0" class="row items-start">
-              <q-icon name="payments" color="negative" size="20px" class="q-mr-sm q-mt-xs" />
-              <div class="col text-caption text-grey-8" style="line-height: 1.6">
-                Se deben cobrar <strong>${{ cotizacion.totalExtra }}</strong> por
-                {{ cotizacion.horasExtra }} hora(s) extra. Este monto puede cambiar si pasa más
-                tiempo antes de confirmar la salida.
-              </div>
-            </div>
-            <div v-else class="row items-start">
-              <q-icon name="info" color="orange-9" size="20px" class="q-mr-sm q-mt-xs" />
-              <div class="col text-caption text-grey-8" style="line-height: 1.6">
-                Los detalles mostrados son informativos. El monto final se calculará al confirmar la
-                salida considerando recargos por tiempo excedente.
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-
-        <q-btn
-          unelevated
-          color="primary"
-          label="Confirmar salida"
-          class="full-width q-mb-sm"
-          size="md"
-          no-caps
-          style="border-radius: 8px; font-weight: 600"
-          :loading="isLoading"
-          :disable="mostrarModalPagoExtra"
-          @click="confirmarSalida"
-        />
-        <q-btn
-          flat
-          color="grey-8"
-          label="Cancelar"
-          class="full-width"
-          size="md"
-          no-caps
-          :disable="isLoading || mostrarModalPagoExtra"
-          @click="cancelar"
-        />
-
-        <div v-if="mostrarModalPagoExtra" class="text-caption text-grey-6 text-center q-mt-sm">
-          El niño ya realizó checkout. Falta cobrar el cargo extra para cerrar la operación.
-        </div>
-      </div>
-    </div>
-
-    <PaymentModal
-      v-model="mostrarModalPagoExtra"
-      :total-to-pay="cotizacion?.totalExtra ?? 0"
-      :metodos-pago="metodosPagoDisponibles"
-      @pago-exitoso="onPagoExtraExitoso"
-    />
-  </q-page>
-</template>
-
-<style scoped>
-.checkout-page {
-  background: var(--bg-main);
-  min-height: 100vh;
-}
-
-.checkout-card {
-  border-radius: 12px;
-}
-
-.page-icon-wrap {
-  background: rgba(2, 95, 224, 0.1);
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
+<style scoped lang="scss">
+.checkout {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 18px;
+
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 466px;
+    gap: 18px;
+    align-items: stretch;
+
+    @media (max-width: 1100px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
 }
 
-.info-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.tiempo-card {
+.time-card {
+  background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  background: var(--bg-main);
-}
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 
-.hidden-scan-input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
+  --fg: var(--tone-ok-fg);
+  --bar: var(--tone-ok-dot);
 
-@keyframes pulse-opacity {
-  0%,
-  100% {
-    opacity: 1;
+  &--warn {
+    border-color: #fbe2b0;
+    --fg: var(--tone-warn-fg);
+    --bar: var(--tone-warn-dot);
   }
-  50% {
-    opacity: 0.5;
+
+  &--bad {
+    border-color: #f5c2c2;
+    --fg: var(--tone-bad-fg);
+    --bar: var(--tone-bad-dot);
+  }
+
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+
+    div {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+  }
+
+  &__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+
+    &--tone {
+      color: var(--fg);
+    }
+  }
+
+  &__value {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+
+    &--tone {
+      color: var(--fg);
+    }
+  }
+
+  &__bar {
+    height: 8px;
+    border-radius: 4px;
+    background: #eef1f5;
+    overflow: hidden;
+  }
+
+  &__fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--bar);
   }
 }
 
-.scanning-pulse {
-  animation: pulse-opacity 1.2s ease-in-out infinite;
+.verify {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  &__title {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 18px;
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__photos {
+    height: 120px;
+    border: 1px dashed #cbd2de;
+    border-radius: 12px;
+    background: repeating-linear-gradient(135deg, #f5f7fb 0 8px, #eef1f6 8px 16px);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--q-primary);
+      color: var(--q-primary);
+    }
+  }
+}
+
+.charges {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &__title {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: var(--text-primary);
+
+    span:last-child {
+      font-weight: 700;
+    }
+  }
+
+  &__total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  &__total-value {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+  }
+
+  &__note {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__actions {
+    margin-top: auto;
+    padding-top: 12px;
+    display: flex;
+    gap: 10px;
+
+    :deep(.q-btn) {
+      min-height: 52px;
+    }
+  }
+
+  &__confirm {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 800;
+  }
 }
 </style>
