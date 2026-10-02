@@ -1,8 +1,7 @@
 <template>
-  <article class="kds-card" :class="cardClass">
-    <div
-      class="kds-card-header"
-      :class="headerClass"
+  <article class="kds-card" :class="{ 'kds-card--late': retrasada }">
+    <header
+      class="kds-card__head"
       role="button"
       tabindex="0"
       aria-label="Ver detalle de la comanda"
@@ -10,32 +9,15 @@
       @keydown.enter.prevent="onVerDetalle"
       @keydown.space.prevent="onVerDetalle"
     >
-      <div>
-        <p v-if="comanda.nombre_cliente" class="kds-ticket-number">{{ comanda.nombre_cliente }}</p>
-        <h3 class="kds-client-name">#{{ comanda.ticket_numero ?? comanda.id }}</h3>
-      </div>
-      <div class="kds-time-container">
-        <div class="kds-time" :class="esEnProceso ? 'text-alerta' : 'text-normal'">
-          <q-icon name="schedule" size="28px" />
-          <span>{{ tiempoDesde(comanda.fecha_hora) }}</span>
-        </div>
-        <div class="kds-header-actions">
-          <span class="kds-order-type">{{ tipoEntrega }}</span>
-          <button
-            type="button"
-            class="kds-expand-btn"
-            title="Ver a pantalla completa"
-            aria-label="Ver a pantalla completa"
-            @click.stop="onVerDetalle"
-          >
-            <q-icon name="fullscreen" size="24px" />
-          </button>
-        </div>
-      </div>
-    </div>
+      <span class="kds-card__folio">#{{ comanda.ticket_numero ?? comanda.id }}</span>
+      <span class="kds-card__dest">{{ tipoEntrega }}</span>
+      <span class="kds-card__time" :class="{ 'kds-card__time--late': retrasada }">
+        {{ etiquetaTiempo }}
+      </span>
+    </header>
 
     <div
-      class="kds-card-body"
+      class="kds-card__body"
       role="button"
       tabindex="0"
       aria-label="Ver detalle de la comanda"
@@ -44,63 +26,55 @@
       @keydown.space.prevent="onVerDetalle"
     >
       <template v-for="el in ticketsAgrupados" :key="el.key">
-        <!-- Grupo combo -->
-        <div v-if="el.tipo === 'combo'" class="kds-combo-group">
-          <div class="kds-combo-header">
-            <q-icon name="restaurant" size="14px" />
-            {{ el.nombre }}
-          </div>
-          <div class="kds-combo-items">
-            <div v-for="hijo in el.items" :key="hijo.id" class="kds-item kds-item--hijo">
-              <div class="kds-qty">{{ hijo.cantidad }}</div>
-              <div class="kds-item-details">
-                <p class="kds-item-name">{{ hijo.nombre }}</p>
-                <p v-if="hijo.notas_especiales" class="kds-item-warning">
-                  <q-icon name="warning" size="18px" />
-                  {{ hijo.notas_especiales }}
-                </p>
-              </div>
-            </div>
+        <div v-if="el.tipo === 'combo'" class="kds-combo">
+          <span class="kds-combo__name">{{ el.nombre }}</span>
+          <div v-for="hijo in el.items" :key="hijo.id" class="kds-item kds-item--child">
+            <span class="kds-item__line">
+              <b class="kds-item__qty">{{ hijo.cantidad }}×</b> {{ hijo.nombre }}
+            </span>
+            <span v-if="hijo.notas_especiales" class="kds-item__note">
+              {{ hijo.notas_especiales }}
+            </span>
           </div>
         </div>
-        <!-- Item suelto -->
         <div v-else class="kds-item">
-          <div class="kds-qty">{{ el.item.cantidad }}</div>
-          <div class="kds-item-details">
-            <p class="kds-item-name">{{ el.item.nombre }}</p>
-            <p v-if="el.item.notas_especiales" class="kds-item-warning">
-              <q-icon name="warning" size="18px" />
-              {{ el.item.notas_especiales }}
-            </p>
-          </div>
+          <span class="kds-item__line">
+            <b class="kds-item__qty">{{ el.item.cantidad }}×</b> {{ el.item.nombre }}
+          </span>
+          <span v-if="el.item.notas_especiales" class="kds-item__note">
+            {{ el.item.notas_especiales }}
+          </span>
         </div>
       </template>
     </div>
 
-    <div class="kds-card-footer" @click.stop>
+    <footer class="kds-card__foot" @click.stop>
       <button
         v-if="esPendiente"
-        class="kds-btn btn-pendiente"
+        type="button"
+        class="kds-btn kds-btn--start"
         @click="emit('cambiar-estado', comanda.id, 'E')"
       >
-        <q-icon name="play_arrow" size="24px" /> Comenzar Preparación
+        Iniciar
       </button>
       <button
         v-else-if="esEnProceso"
-        class="kds-btn btn-accion"
+        type="button"
+        class="kds-btn kds-btn--ready"
         @click="emit('cambiar-estado', comanda.id, 'L')"
       >
-        <q-icon name="check_circle" size="24px" /> Listo para Entregar
+        Marcar lista
       </button>
       <button
         v-else-if="esListo"
-        class="kds-btn btn-entregar"
-        :class="{ 'card-entregando': isDelivering }"
+        type="button"
+        class="kds-btn kds-btn--deliver"
+        :disabled="isDelivering"
         @click="onEntregar"
       >
-        <q-icon name="done_all" size="24px" /> Entregar Pedido
+        Entregada
       </button>
-    </div>
+    </footer>
   </article>
 </template>
 
@@ -123,15 +97,6 @@ const onVerDetalle = () => {
 const onEntregar = () => {
   isDelivering.value = true
   emit('cambiar-estado', comanda.id, 'T')
-}
-
-// Si la fecha no está disponible o la orden acaba de entrar, muestra '--'
-// para no generar presión visual prematura.
-const tiempoDesde = (fechaISO: string | null | undefined): string => {
-  if (!fechaISO) return '--'
-  const diff = Math.floor((Date.now() - new Date(fechaISO).getTime()) / 60000)
-  if (diff < 1) return '--'
-  return diff === 1 ? '1 min' : `${diff} min`
 }
 
 interface ComboGroup {
@@ -194,296 +159,159 @@ const esPendiente = computed(() => comanda.estado_actual === 'P')
 const esEnProceso = computed(() => comanda.estado_actual === 'E')
 const esListo = computed(() => comanda.estado_actual === 'L')
 
-const cardClass = computed(() => ({
-  'card-proceso': esEnProceso.value,
-  'card-pendiente': esPendiente.value,
-  'card-listo': esListo.value,
-}))
+const tipoEntrega = computed(() =>
+  comanda.mesa ? `Mesa ${comanda.mesa}` : (comanda.nombre_cliente ?? 'Mostrador'),
+)
 
-const headerClass = computed(() => ({
-  'header-bg-proceso': esEnProceso.value,
-  'header-bg-pendiente': esPendiente.value,
-  'header-bg-listo': esListo.value,
-}))
-
-const tipoEntrega = computed(() => comanda.mesa ?? 'MOSTRADOR')
+// Minutos desde que entró la orden (o desde que quedó lista).
+const UMBRAL_RETRASO_MIN = 10
+const minutos = computed(() => {
+  const ref = esListo.value ? (comanda.updated_at ?? comanda.fecha_hora) : comanda.fecha_hora
+  if (!ref) return null
+  return Math.max(0, Math.floor((Date.now() - new Date(ref).getTime()) / 60000))
+})
+const retrasada = computed(
+  () => !esListo.value && minutos.value !== null && minutos.value >= UMBRAL_RETRASO_MIN,
+)
+const etiquetaTiempo = computed(() => {
+  if (minutos.value === null) return '--'
+  return esListo.value ? `lista ${minutos.value} min` : `${minutos.value} min`
+})
 </script>
 
-<style lang="scss" scoped>
+<style scoped lang="scss">
 .kds-card {
-  background-color: var(--bg-card);
-  border-radius: 12px;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  transition:
-    border-color 0.3s,
-    background-color 0.3s,
-    box-shadow 0.3s;
-}
-.card-proceso {
-  border-left: 12px solid #ffc107;
-}
-.card-pendiente {
-  border-left: 12px solid var(--border-color);
-  opacity: 0.9;
-}
-.card-listo {
-  border-left: 12px solid #3fa834;
+
+  &--late {
+    border-color: #f5c2c2;
+  }
+
+  &__head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border-soft);
+    cursor: pointer;
+  }
+
+  &__folio {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__dest {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__time {
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--bg-muted);
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-body);
+    white-space: nowrap;
+
+    &--late {
+      background: var(--tone-bad-bg);
+      color: var(--tone-bad-fg);
+    }
+  }
+
+  &__body {
+    padding: 12px 16px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  &__foot {
+    padding: 8px 16px 16px;
+  }
 }
 
-.kds-card-header {
-  padding: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  border-bottom: 1px solid var(--border-color);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.kds-card-header:hover {
-  background-color: var(--border-color);
-}
-.header-bg-proceso {
-  background-color: rgba(255, 193, 7, 0.16);
-}
-.header-bg-pendiente {
-  background-color: var(--bg-main);
-}
-.header-bg-listo {
-  background-color: rgba(63, 168, 52, 0.16);
-}
-
-.kds-status-label {
-  font-size: 14px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  display: block;
-}
-.text-proceso {
-  color: #b45309;
-}
-.text-pendiente {
-  color: var(--text-secondary);
-}
-.text-listo {
-  color: #3fa834;
-}
-
-.kds-ticket-number {
-  font-size: 32px;
-  font-weight: 700;
-  margin: 4px 0 0 0;
-}
-.kds-client-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 4px 0 0 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.kds-time-container {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-.kds-time {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 24px;
-  font-weight: 600;
-}
-.text-alerta {
-  color: #dc2626;
-}
-.text-normal {
-  color: var(--text-primary);
-}
-
-.kds-order-type {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.kds-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 6px;
-}
-
-.kds-expand-btn {
-  width: 40px;
-  height: 40px;
-  border: none;
-  border-radius: 10px;
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    background-color 0.2s,
-    color 0.2s;
-}
-.kds-expand-btn:hover {
-  background-color: #025fe0;
-  color: #fff;
-}
-
-.kds-card-body {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  cursor: pointer;
-}
-.kds-card-body:hover {
-  background-color: var(--bg-main);
-}
-.kds-item {
-  display: flex;
-  gap: 16px;
-  padding: 12px;
-  border-radius: 8px;
-  align-items: flex-start;
-}
-.kds-combo-group {
-  border: 1px solid rgba(255, 193, 7, 0.4);
-  border-radius: 10px;
-  background-color: rgba(255, 193, 7, 0.08);
-  padding: 8px;
-  margin-bottom: 4px;
-}
-.kds-combo-header {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 9999px;
-  background-color: rgba(255, 193, 7, 0.35);
-  color: #b45309;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 6px;
-}
-.kds-combo-items {
+.kds-combo {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-.kds-item--hijo {
-  background-color: rgba(255, 255, 255, 0.6);
-}
-.kds-qty {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  background-color: var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-.kds-item-details {
-  flex: 1;
-}
-.kds-item-name {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
-.kds-item-warning {
-  font-size: 16px;
-  color: #dc2626;
-  background-color: rgba(220, 38, 38, 0.1);
-  padding: 8px;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 4px 0 0 0;
+
+  &__name {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
 }
 
-.kds-card-footer {
-  padding: 16px;
-  background-color: var(--bg-card);
-  border-top: 1px solid var(--border-color);
+.kds-item {
+  display: flex;
+  flex-direction: column;
+
+  &--child {
+    padding-left: 10px;
+  }
+
+  &__line {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__qty {
+    color: var(--q-primary);
+    font-weight: 800;
+  }
+
+  &__note {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #c2410c;
+  }
 }
+
 .kds-btn {
   width: 100%;
-  min-height: 64px;
-  border-radius: 12px;
-  font-size: 20px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
   cursor: pointer;
-  transition:
-    background-color 0.2s,
-    transform 0.1s;
-  border: none;
-}
-.kds-btn:active {
-  transform: scale(0.95);
-}
-.btn-accion {
-  background-color: #025fe0;
-  color: #fff;
-}
-.btn-accion:hover {
-  background-color: #0350c4;
-}
-.btn-pendiente {
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-  border: 2px solid var(--border-color);
-}
-.btn-pendiente:hover {
-  background-color: var(--border-color);
-}
-.btn-entregar {
-  background-color: #3fa834;
-  color: #fff;
-}
-.btn-entregar:hover {
-  background-color: #359c2c;
-}
 
-.card-entregando {
-  animation: flash-verde 0.4s ease-out;
-}
+  &--start {
+    background: var(--q-primary);
+    color: #fff;
+  }
 
-@keyframes flash-verde {
-  0% {
-    box-shadow: 0 0 0 0 rgba(63, 168, 52, 0.5);
-    background-color: #3fa834;
+  &--ready {
+    background: var(--q-positive);
+    color: #fff;
   }
-  50% {
-    box-shadow: 0 0 24px 4px rgba(63, 168, 52, 0.3);
+
+  &--deliver {
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
   }
-  100% {
-    box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: progress;
   }
 }
 </style>
