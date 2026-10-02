@@ -40,6 +40,38 @@ function aNumero(valor: number | string | null | undefined): number {
   return Number.isFinite(n) ? n : 0
 }
 
+// El email del admin que autenticó la revisión se necesita para validar su PIN en el
+// cierre. Solo vive en memoria, así que se respalda en sessionStorage por turno para
+// sobrevivir a una recarga (tab-scoped). Puede fallar (modo privado, storage bloqueado).
+const CLAVE_ADMIN_EMAIL = 'mercury:turnoCaja:adminEmail'
+
+function guardarAdminEmail(turnoId: string, email: string): void {
+  try {
+    sessionStorage.setItem(CLAVE_ADMIN_EMAIL, JSON.stringify({ turnoId, email }))
+  } catch {
+    // sin persistencia: tras recargar habrá que re-autenticar al admin
+  }
+}
+
+function leerAdminEmail(turnoId: string): string {
+  try {
+    const raw = sessionStorage.getItem(CLAVE_ADMIN_EMAIL)
+    if (!raw) return ''
+    const guardado = JSON.parse(raw) as { turnoId?: string; email?: string }
+    return guardado.turnoId === turnoId ? (guardado.email ?? '') : ''
+  } catch {
+    return ''
+  }
+}
+
+function borrarAdminEmail(): void {
+  try {
+    sessionStorage.removeItem(CLAVE_ADMIN_EMAIL)
+  } catch {
+    // nada que limpiar
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Store
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,6 +103,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   const totalEsperado = ref(0)
   const totalDeclarado = ref(0)
   const diferenciaNeta = ref(0)
+  // true si el balance de la revisión está en memoria (se pierde al recargar la página)
+  const revisionAplicada = ref(false)
 
   // ── Formulario del cajero (la página lo llena, el store lo lee al enviar) ─
   const desgloseEfectivo = ref<DesgloseEfectivo>({
@@ -197,6 +231,9 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalEsperado.value = 0
     totalDeclarado.value = 0
     diferenciaNeta.value = 0
+    adminEmail.value = ''
+    revisionAplicada.value = false
+    borrarAdminEmail()
     metodosPago.value = []
     _resetFormulario()
   }
@@ -283,7 +320,9 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
    * Valida credenciales del admin y aplica el balance comparativo.
    */
   async function autenticarAdmin(): Promise<boolean> {
-    if (!turnoId.value || !esperandoRevision.value) return false
+    // BALANCE_REVELADO también se acepta: tras recargar se pierde el balance en memoria
+    // y el admin debe volver a autenticarse para recuperarlo.
+    if (!turnoId.value || !(esperandoRevision.value || balanceRevelado.value)) return false
     if (!credencialesAdmin.email || !credencialesAdmin.password) return false
 
     credencialesAdmin.cargando = true
@@ -296,6 +335,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       })
       _aplicarRevision(resultado)
       adminEmail.value = credencialesAdmin.email
+      guardarAdminEmail(turnoId.value, credencialesAdmin.email)
       mostrarDialogAdmin.value = false
       mostrarDialogAutorizacion.value = true
       estado.value = 'BALANCE_REVELADO'
@@ -471,6 +511,17 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       mostrarDialogAdmin.value = true
     }
 
+    // Si el turno llega en BALANCE_REVELADO (ej. recarga tras autenticar al admin), el
+    // balance en memoria se perdió y no hay endpoint para recuperarlo: se pide que el
+    // admin se re-autentique (la respuesta de la revisión trae el balance). Si el balance
+    // sigue en memoria, se reabre directo el modal de autorización.
+    // TODO backend: incluir adminEmail y el balance en la respuesta del turno
+    if (turno.estado === 'BALANCE_REVELADO') {
+      if (!adminEmail.value) adminEmail.value = leerAdminEmail(turno.id)
+      if (revisionAplicada.value) mostrarDialogAutorizacion.value = true
+      else if (!mostrarDialogAutorizacion.value) mostrarDialogAdmin.value = true
+    }
+
     // Precarga las filas de métodos de pago con los movimientos reales del turno.
     // Se conservan las filas agregadas manualmente por el cajero que no vinieron del sistema.
     // "Efectivo" nunca entra aquí: ya tiene su propio bloque (EfectivoDesgloseForm) —
@@ -493,6 +544,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalEsperado.value = revision.totalEsperado
     totalDeclarado.value = revision.totalDeclarado
     diferenciaNeta.value = revision.diferenciaNeta
+    revisionAplicada.value = true
   }
 
   function _resetFormulario(): void {

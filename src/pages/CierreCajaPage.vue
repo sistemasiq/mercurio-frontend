@@ -158,8 +158,12 @@
     </BaseDialog>
 
     <ConteoBloqueadoOverlay
-      :visible="turno.esperandoRevision && !turno.mostrarDialogAdmin"
-      :permitir-cancelar="true"
+      :visible="
+        (turno.esperandoRevision || turno.balanceRevelado) &&
+        !turno.mostrarDialogAdmin &&
+        !turno.mostrarDialogAutorizacion
+      "
+      :permitir-cancelar="turno.esperandoRevision"
       :cajero="cajeroNombreMostrar"
       @cancelar="turno.cancelarConteo()"
       @autenticar="turno.mostrarDialogAdmin = true"

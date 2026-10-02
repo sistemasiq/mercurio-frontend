@@ -51,6 +51,7 @@ function turnoEn(
 }
 
 beforeEach(() => {
+  sessionStorage.clear()
   setActivePinia(createPinia())
   vi.resetAllMocks()
 })
@@ -154,5 +155,44 @@ describe('enviarConteo', () => {
 
     expect(servicio.cargarTurnoActivo).not.toHaveBeenCalled()
     expect(store.error).toBe('boom')
+  })
+})
+
+describe('turno en BALANCE_REVELADO tras recargar', () => {
+  it('abre la re-autenticacion del admin y recupera su email desde sessionStorage', async () => {
+    sessionStorage.setItem(
+      'mercury:turnoCaja:adminEmail',
+      JSON.stringify({ turnoId: 'turno-1', email: 'admin@x.com' }),
+    )
+    const store = useTurnoCajaStore()
+    servicio.cargarTurnoActivo.mockResolvedValue(turnoEn('BALANCE_REVELADO'))
+
+    await store.cargarTurnoActivo()
+
+    expect(store.balanceRevelado).toBe(true)
+    expect(store.mostrarDialogAdmin).toBe(true)
+    expect(store.adminEmail).toBe('admin@x.com')
+  })
+
+  it('tras re-autenticar al admin abre la autorizacion con el balance', async () => {
+    const store = useTurnoCajaStore()
+    servicio.cargarTurnoActivo.mockResolvedValue(turnoEn('BALANCE_REVELADO'))
+    await store.cargarTurnoActivo()
+    servicio.autenticarAdmin.mockResolvedValue({
+      autorizado: true,
+      adminNombre: 'Admin',
+      totalEsperado: 100,
+      totalDeclarado: 90,
+      diferenciaNeta: -10,
+      balancePorMetodo: [],
+    })
+    store.credencialesAdmin.email = 'admin@x.com'
+    store.credencialesAdmin.password = 'pw'
+
+    expect(await store.autenticarAdmin()).toBe(true)
+
+    expect(store.mostrarDialogAdmin).toBe(false)
+    expect(store.mostrarDialogAutorizacion).toBe(true)
+    expect(store.adminEmail).toBe('admin@x.com')
   })
 })
