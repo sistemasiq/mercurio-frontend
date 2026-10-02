@@ -1,455 +1,406 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div>
-      <!-- Encabezado -->
-      <div class="row items-center q-mb-lg">
-        <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Compras</div>
-          <div class="text-body2" style="color: var(--text-secondary)">
-            Órdenes de compra a proveedor de la sucursal.
-          </div>
-        </div>
-        <q-space />
+  <q-page class="page-content list-page">
+    <PageHeader title="Compras" subtitle="Órdenes de compra y recepción de mercancía.">
+      <template #actions>
         <q-btn
+          unelevated
           color="primary"
           icon="add"
           label="Nueva compra"
-          unelevated
-          no-caps
           :disable="!authStore.currentBranchId"
-          style="border-radius: 8px; font-weight: 600"
           @click="abrirCrear"
         />
-      </div>
+      </template>
+    </PageHeader>
 
-      <!-- Sin sucursal activa -->
-      <q-banner
-        v-if="!authStore.currentBranchId"
-        dense
-        rounded
-        class="bg-orange-1 text-orange-9 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="info" color="orange-9" /></template>
-        No hay una sucursal activa en la sesión.
-      </q-banner>
-
-      <!-- Error -->
-      <q-banner
-        v-if="store.error"
-        dense
-        rounded
-        class="bg-red-1 text-red-8 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="error_outline" color="negative" /></template>
-        {{ store.error }}
-        <template #action>
-          <q-btn flat dense no-caps label="Reintentar" @click="cargar" />
-        </template>
-      </q-banner>
-
-      <!-- Filtros -->
-      <div class="row q-col-gutter-sm items-center q-mb-md">
-        <div class="col-12 col-sm-4">
-          <q-input
-            v-model="busqueda"
-            dense
-            outlined
-            clearable
-            placeholder="Buscar por proveedor..."
-          >
-            <template #prepend><q-icon name="search" /></template>
-          </q-input>
-        </div>
-        <div class="col-auto">
-          <q-btn-toggle
-            v-model="filtroEstado"
-            no-caps
-            dense
-            unelevated
-            toggle-color="primary"
-            :options="[
-              { label: 'Todas', value: 'todas' },
-              { label: 'Pendientes', value: 'P' },
-              { label: 'Parciales', value: 'PARCIAL' },
-              { label: 'Recibidas', value: 'R' },
-              { label: 'Canceladas', value: 'C' },
-            ]"
-          />
-        </div>
-      </div>
-
-      <!-- Tabla -->
-      <q-card flat bordered style="border-radius: 12px; overflow: hidden">
-        <q-table
-          :rows="comprasFiltradas"
-          :columns="columns"
-          row-key="id"
-          flat
-          :loading="store.loading"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="No hay compras registradas"
-          class="fec-table"
-        >
-          <template #body-cell-proveedor_nombre="props">
-            <q-td :props="props">{{ props.row.proveedor_nombre }}</q-td>
-          </template>
-
-          <template #body-cell-estado="props">
-            <q-td :props="props">
-              <EstadoBadge
-                :tono="ESTADO_TONO[props.row.estado as EstadoCompra]"
-                :label="ESTADO_LABEL[props.row.estado as EstadoCompra]"
-              />
-            </q-td>
-          </template>
-
-          <template #body-cell-total="props">
-            <q-td :props="props">${{ Number(props.row.total).toFixed(2) }}</q-td>
-          </template>
-
-          <template #body-cell-fecha_pedido="props">
-            <q-td :props="props">{{ formatearFecha(props.row.fecha_pedido) }}</q-td>
-          </template>
-
-          <template #body-cell-actions="props">
-            <q-td :props="props" class="text-right">
-              <q-btn
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
-                @click="abrirDetalle(props.row)"
-              >
-                <span class="material-symbols-outlined">receipt_long</span>
-                <q-tooltip>Ver detalle</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-if="props.row.estado === 'P'"
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
-                @click="abrirEditar(props.row)"
-              >
-                <span class="material-symbols-outlined">edit</span>
-                <q-tooltip>Editar</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-if="props.row.estado === 'P' || props.row.estado === 'PARCIAL'"
-                flat
-                dense
-                color="positive"
-                size="sm"
-                class="q-mr-xs"
-                no-caps
-                label="Recibir"
-                @click="abrirRecibir(props.row)"
-              />
-              <q-btn
-                v-if="props.row.estado === 'P'"
-                flat
-                dense
-                color="negative"
-                size="sm"
-                no-caps
-                label="Cancelar"
-                @click="confirmarAccion(props.row, 'cancelar')"
-              />
-            </q-td>
-          </template>
-        </q-table>
-      </q-card>
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
-    <!-- ── Dialog Nueva / Editar Compra ───────────────────────────────────── -->
-    <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 560px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">
-            {{ compraEditando ? 'Editar compra' : 'Nueva compra' }}
-          </div>
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">Proveedor</div>
-            <q-select
-              v-model="formCompra.proveedor_id"
-              dense
-              outlined
-              emit-value
-              map-options
-              :options="proveedorOptions"
-              placeholder="Selecciona un proveedor"
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtro"
+      :filters="FILTROS"
+      search-placeholder="Buscar proveedor"
+      :count="`${comprasFiltradas.length} compras`"
+    >
+      <StateBlock
+        v-if="store.error"
+        variant="error"
+        :body="store.error"
+        action-label="Reintentar"
+        @action="cargar"
+      />
+      <q-table
+        v-else
+        :rows="comprasFiltradas"
+        :columns="columns"
+        row-key="id"
+        flat
+        :loading="store.loading"
+        :rows-per-page-options="[10, 25, 50]"
+      >
+        <template #body-cell-proveedor_nombre="props">
+          <q-td :props="props" class="text-weight-bold">{{ props.row.proveedor_nombre }}</q-td>
+        </template>
+        <template #body-cell-estado="props">
+          <q-td :props="props">
+            <StatusBadge
+              :tone="ESTADO_TONO[props.row.estado as EstadoCompra]"
+              :label="ESTADO_LABEL[props.row.estado as EstadoCompra]"
             />
-          </div>
-          <div>
-            <div class="field-label">Notas (opcional)</div>
-            <q-input
-              v-model="formCompra.notas"
+          </q-td>
+        </template>
+        <template #body-cell-total="props">
+          <q-td :props="props" class="text-weight-bold">{{
+            formatMXN(Number(props.row.total))
+          }}</q-td>
+        </template>
+        <template #body-cell-fecha_pedido="props">
+          <q-td :props="props">{{ formatearFecha(props.row.fecha_pedido) }}</q-td>
+        </template>
+        <template #body-cell-actions="props">
+          <q-td :props="props">
+            <q-btn
+              v-if="props.row.estado === 'P' || props.row.estado === 'PARCIAL'"
+              flat
+              round
               dense
-              outlined
-              placeholder="Referencia, factura..."
-            />
+              icon="inventory"
+              class="action-btn"
+              aria-label="Recibir"
+              @click="abrirRecibir(props.row)"
+            >
+              <q-tooltip>Recibir</q-tooltip>
+            </q-btn>
+            <q-btn
+              flat
+              round
+              dense
+              icon="receipt_long"
+              class="action-btn"
+              aria-label="Ver detalle"
+              @click="abrirDetalle(props.row)"
+            >
+              <q-tooltip>Ver detalle</q-tooltip>
+            </q-btn>
+            <q-btn
+              v-if="props.row.estado === 'P'"
+              flat
+              round
+              dense
+              icon="more_vert"
+              class="action-btn"
+              aria-label="Más acciones"
+            >
+              <q-menu anchor="bottom right" self="top right">
+                <q-list dense style="min-width: 170px">
+                  <q-item v-close-popup clickable @click="abrirEditar(props.row)">
+                    <q-item-section avatar><q-icon name="edit" size="19px" /></q-item-section>
+                    <q-item-section>Editar</q-item-section>
+                  </q-item>
+                  <q-item
+                    v-close-popup
+                    clickable
+                    class="text-negative"
+                    @click="confirmarAccion(props.row, 'cancelar')"
+                  >
+                    <q-item-section avatar><q-icon name="block" size="19px" /></q-item-section>
+                    <q-item-section>Cancelar compra</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
+          </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="filtrando ? 'no-results' : 'empty'"
+            :title="filtrando ? undefined : 'No hay compras registradas'"
+            :body="filtrando ? undefined : 'Crea una orden de compra a un proveedor.'"
+            :action-label="filtrando ? 'Limpiar filtros' : 'Nueva compra'"
+            @action="filtrando ? ((busqueda = ''), (filtro = 'todas')) : abrirCrear()"
+          />
+        </template>
+      </q-table>
+    </DataTableCard>
+
+    <BaseDialog
+      v-model="dialogOpen"
+      :title="compraEditando ? 'Editar compra' : 'Nueva compra'"
+      :subtitle="authStore.currentBranchName ?? undefined"
+      icon="shopping_cart"
+      tone="blue"
+      :width="680"
+      persistent
+    >
+      <div class="dlg-stack">
+        <div>
+          <div class="field-label">Proveedor</div>
+          <q-select
+            v-model="formCompra.proveedor_id"
+            dense
+            outlined
+            emit-value
+            map-options
+            :options="proveedorOptions"
+            placeholder="Selecciona un proveedor"
+          />
+        </div>
+        <div>
+          <div class="field-label">Notas (opcional)</div>
+          <q-input v-model="formCompra.notas" dense outlined placeholder="Referencia, factura..." />
+        </div>
+
+        <div
+          class="q-p-sm bg-grey-1 rounded-borders"
+          style="border: 1px dashed #ccc; border-radius: 8px; padding: 12px"
+        >
+          <div class="text-subtitle2 text-weight-bold q-mb-sm text-primary">
+            LÍNEAS DE LA COMPRA
           </div>
 
-          <div
-            class="q-p-sm bg-grey-1 rounded-borders"
-            style="border: 1px dashed #ccc; border-radius: 8px; padding: 12px"
-          >
-            <div class="text-subtitle2 text-weight-bold q-mb-sm text-primary">
-              LÍNEAS DE LA COMPRA
-            </div>
-
-            <div class="row q-col-gutter-sm items-end">
-              <div class="col-4">
-                <div class="field-label">Insumo</div>
-                <q-select
-                  v-model="lineaTemporal.insumo_id"
-                  dense
-                  outlined
-                  emit-value
-                  map-options
-                  :options="insumoOptions"
-                  placeholder="Elige un insumo"
-                  @update:model-value="onCambiarInsumoLinea"
-                />
-              </div>
-              <div class="col-3">
-                <div class="field-label">Unidad</div>
-                <q-select
-                  v-model="lineaTemporal.unidad_seleccion"
-                  dense
-                  outlined
-                  emit-value
-                  map-options
-                  :options="unidadesCombinadas"
-                  :disable="!lineaTemporal.insumo_id"
-                  placeholder="Unidad"
-                />
-              </div>
-              <div class="col-2">
-                <div class="field-label">Cant.</div>
-                <q-input
-                  v-model.number="lineaTemporal.cantidad"
-                  dense
-                  outlined
-                  type="number"
-                  min="0"
-                  step="0.001"
-                />
-              </div>
-              <div class="col-2">
-                <div class="field-label">Costo unit.</div>
-                <q-input
-                  v-model.number="lineaTemporal.costo_unitario"
-                  dense
-                  outlined
-                  type="number"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              <div class="col-1 flex flex-center">
-                <q-btn
-                  color="primary"
-                  icon="add"
-                  unelevated
-                  style="height: 40px; border-radius: 8px"
-                  :disable="!lineaCompleta"
-                  @click="agregarLinea"
-                >
-                  <q-tooltip>Agregar línea</q-tooltip>
-                </q-btn>
-              </div>
-            </div>
-
-            <div class="q-mt-md">
-              <div v-if="lineas.length === 0" class="text-caption text-grey-6 text-center q-py-sm">
-                No has agregado líneas todavía.
-              </div>
-
-              <q-list
-                v-else
-                separator
+          <div class="row q-col-gutter-sm items-end">
+            <div class="col-4">
+              <div class="field-label">Insumo</div>
+              <q-select
+                v-model="lineaTemporal.insumo_id"
                 dense
-                class="bg-white rounded-borders"
-                style="border: 1px solid #e2e8f0"
+                outlined
+                emit-value
+                map-options
+                :options="insumoOptions"
+                placeholder="Elige un insumo"
+                @update:model-value="onCambiarInsumoLinea"
+              />
+            </div>
+            <div class="col-3">
+              <div class="field-label">Unidad</div>
+              <q-select
+                v-model="lineaTemporal.unidad_seleccion"
+                dense
+                outlined
+                emit-value
+                map-options
+                :options="unidadesCombinadas"
+                :disable="!lineaTemporal.insumo_id"
+                placeholder="Unidad"
+              />
+            </div>
+            <div class="col-2">
+              <div class="field-label">Cant.</div>
+              <q-input
+                v-model.number="lineaTemporal.cantidad"
+                dense
+                outlined
+                type="number"
+                min="0"
+                step="0.001"
+              />
+            </div>
+            <div class="col-2">
+              <div class="field-label">Costo unit.</div>
+              <q-input
+                v-model.number="lineaTemporal.costo_unitario"
+                dense
+                outlined
+                type="number"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div class="col-1 flex flex-center">
+              <q-btn
+                color="primary"
+                icon="add"
+                unelevated
+                style="height: 40px; border-radius: 8px"
+                :disable="!lineaCompleta"
+                @click="agregarLinea"
               >
-                <q-item v-for="(linea, index) in lineas" :key="index" class="q-py-sm">
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{
-                      linea.insumo_nombre
-                    }}</q-item-label>
-                    <q-item-label caption>
-                      {{ linea.cantidad }} {{ linea.unidad_label }} × ${{
-                        linea.costo_unitario.toFixed(2)
-                      }}
-                      = ${{ (linea.cantidad * linea.costo_unitario).toFixed(2) }}
-                    </q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-btn flat round dense color="grey-8" size="sm" @click="quitarLinea(index)">
-                      <span class="material-symbols-outlined">delete</span>
-                    </q-btn>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-
-              <div class="row justify-end q-mt-sm text-subtitle2 text-weight-bold">
-                Total: ${{ totalCompra.toFixed(2) }}
-              </div>
+                <q-tooltip>Agregar línea</q-tooltip>
+              </q-btn>
             </div>
           </div>
-        </q-card-section>
 
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            :label="compraEditando ? 'Guardar cambios' : 'Crear compra'"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            :disable="!formCompra.proveedor_id || lineas.length === 0"
-            @click="guardarCompra"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+          <div class="q-mt-md">
+            <div v-if="lineas.length === 0" class="text-caption text-grey-6 text-center q-py-sm">
+              No has agregado líneas todavía.
+            </div>
 
-    <!-- ── Dialog Confirmar Cancelar ────────────────────────────────────────── -->
-    <q-dialog v-model="dialogConfirmar">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">Cancelar compra</div>
-          <div class="q-mt-sm text-body2 text-grey-8">
-            ¿Deseas cancelar la compra a
-            <strong>{{ compraConfirmar?.proveedor_nombre }}</strong
-            >? Esta acción no se puede deshacer.
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="negative"
-            label="Cancelar compra"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="ejecutando"
-            @click="ejecutarAccion"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+            <q-list
+              v-else
+              separator
+              dense
+              class="bg-white rounded-borders"
+              style="border: 1px solid #e2e8f0"
+            >
+              <q-item v-for="(linea, index) in lineas" :key="index" class="q-py-sm">
+                <q-item-section>
+                  <q-item-label class="text-weight-medium">{{ linea.insumo_nombre }}</q-item-label>
+                  <q-item-label caption>
+                    {{ linea.cantidad }} {{ linea.unidad_label }} × ${{
+                      linea.costo_unitario.toFixed(2)
+                    }}
+                    = ${{ (linea.cantidad * linea.costo_unitario).toFixed(2) }}
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-btn flat round dense color="grey-8" size="sm" @click="quitarLinea(index)">
+                    <span class="material-symbols-outlined">delete</span>
+                  </q-btn>
+                </q-item-section>
+              </q-item>
+            </q-list>
 
-    <!-- ── Dialog Recibir (parcial) ─────────────────────────────────────────── -->
-    <q-dialog v-model="dialogRecibir">
-      <q-card style="min-width: 520px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Recibir mercancía</div>
-          <div class="text-body2 text-grey-7">
-            {{ compraRecibir?.proveedor_nombre }} · captura cuánto llegó de cada línea.
+            <div class="row justify-end q-mt-sm text-subtitle2 text-weight-bold">
+              Total: ${{ totalCompra.toFixed(2) }}
+            </div>
           </div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section>
-          <q-list separator>
-            <q-item v-for="l in lineasRecepcion" :key="l.detalle_id">
-              <q-item-section>
-                <q-item-label>{{ l.insumo_nombre }}</q-item-label>
-                <q-item-label caption>
-                  Pedido {{ l.pedido }} {{ l.unidad }} · recibido {{ l.recibido }} · pendiente
-                  {{ l.pendiente }}
-                </q-item-label>
-              </q-item-section>
-              <q-item-section side style="width: 120px">
-                <q-input
-                  v-model.number="l.ahora"
-                  dense
-                  outlined
-                  type="number"
-                  min="0"
-                  :max="l.pendiente"
-                  step="0.001"
-                  :disable="l.pendiente <= 0"
-                />
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="positive"
-            label="Recibir"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="ejecutando"
-            :disable="!hayAlgoQueRecibir"
-            @click="ejecutarRecibir"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+        </div>
+      </div>
 
-    <!-- ── Dialog Detalle de compra ────────────────────────────────────────── -->
-    <q-dialog v-model="dialogDetalle">
-      <q-card style="min-width: 520px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Detalle de compra</div>
-          <div class="text-body2 text-grey-7">
-            {{ detalleCompra?.proveedor_nombre }} ·
-            {{ detalleCompra ? formatearFecha(detalleCompra.fecha_pedido) : '' }}
-          </div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section>
-          <div v-if="cargandoDetalle" class="text-center q-py-md">
-            <q-spinner size="24px" color="primary" />
-          </div>
-          <q-list v-else-if="detalleCompra?.detalles.length" separator>
-            <q-item v-for="l in detalleCompra.detalles" :key="l.id">
-              <q-item-section>
-                <q-item-label>{{ l.insumo_nombre }}</q-item-label>
-                <q-item-label caption>
-                  {{ Number(l.cantidad) }}
-                  {{ l.presentacion_nombre ?? l.unidad_medida_codigo ?? '' }} × ${{
-                    Number(l.costo_unitario).toFixed(2)
-                  }}
-                </q-item-label>
-              </q-item-section>
-              <q-item-section side class="text-weight-medium">
-                ${{ Number(l.subtotal).toFixed(2) }}
-              </q-item-section>
-            </q-item>
-          </q-list>
-          <div v-else class="text-body2 text-grey-7 q-py-sm">Sin líneas.</div>
-          <div v-if="detalleCompra" class="row justify-end q-mt-sm text-subtitle2 text-weight-bold">
-            Total: ${{ Number(detalleCompra.total).toFixed(2) }}
-          </div>
-          <div v-if="detalleCompra?.notas" class="text-caption text-grey-7 q-mt-sm">
-            Notas: {{ detalleCompra.notas }}
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+      <template #footer>
+        <q-btn outline label="Cancelar" @click="cerrarDialog" />
+        <q-btn
+          unelevated
+          no-caps
+          color="primary"
+          :label="compraEditando ? 'Guardar cambios' : 'Crear compra'"
+          :loading="guardando"
+          :disable="!formCompra.proveedor_id || lineas.length === 0"
+          @click="guardarCompra"
+        />
+      </template>
+    </BaseDialog>
+
+    <BaseDialog
+      v-model="dialogConfirmar"
+      :title="'Cancelar compra'"
+      icon="block"
+      tone="red"
+      :width="480"
+    >
+      <div class="dlg-stack">
+        <div class="q-mt-sm text-body2 text-grey-8">
+          ¿Deseas cancelar la compra a
+          <strong>{{ compraConfirmar?.proveedor_nombre }}</strong
+          >? Esta acción no se puede deshacer.
+        </div>
+      </div>
+
+      <template #footer>
+        <q-btn v-close-popup outline no-caps label="Cerrar" />
+        <q-btn
+          unelevated
+          no-caps
+          color="negative"
+          label="Cancelar compra"
+          :loading="ejecutando"
+          @click="ejecutarAccion"
+        />
+      </template>
+    </BaseDialog>
+
+    <BaseDialog
+      v-model="dialogRecibir"
+      :title="'Recibir compra'"
+      icon="inventory"
+      tone="green"
+      :width="600"
+    >
+      <div class="dlg-stack">
+        <q-list separator>
+          <q-item v-for="l in lineasRecepcion" :key="l.detalle_id">
+            <q-item-section>
+              <q-item-label>{{ l.insumo_nombre }}</q-item-label>
+              <q-item-label caption>
+                Pedido {{ l.pedido }} {{ l.unidad }} · recibido {{ l.recibido }} · pendiente
+                {{ l.pendiente }}
+              </q-item-label>
+            </q-item-section>
+            <q-item-section side style="width: 120px">
+              <q-input
+                v-model.number="l.ahora"
+                dense
+                outlined
+                type="number"
+                min="0"
+                :max="l.pendiente"
+                step="0.001"
+                :disable="l.pendiente <= 0"
+              />
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </div>
+
+      <template #footer>
+        <q-btn v-close-popup outline no-caps label="Cerrar" />
+        <q-btn
+          unelevated
+          no-caps
+          color="positive"
+          label="Recibir"
+          :loading="ejecutando"
+          :disable="!hayAlgoQueRecibir"
+          @click="ejecutarRecibir"
+        />
+      </template>
+    </BaseDialog>
+
+    <BaseDialog
+      v-model="dialogDetalle"
+      :title="'Detalle de compra'"
+      icon="receipt_long"
+      tone="green"
+      :width="600"
+    >
+      <div class="dlg-stack">
+        <div v-if="cargandoDetalle" class="text-center q-py-md">
+          <q-spinner size="24px" color="primary" />
+        </div>
+        <q-list v-else-if="detalleCompra?.detalles.length" separator>
+          <q-item v-for="l in detalleCompra.detalles" :key="l.id">
+            <q-item-section>
+              <q-item-label>{{ l.insumo_nombre }}</q-item-label>
+              <q-item-label caption>
+                {{ Number(l.cantidad) }}
+                {{ l.presentacion_nombre ?? l.unidad_medida_codigo ?? '' }} × ${{
+                  Number(l.costo_unitario).toFixed(2)
+                }}
+              </q-item-label>
+            </q-item-section>
+            <q-item-section side class="text-weight-medium">
+              ${{ Number(l.subtotal).toFixed(2) }}
+            </q-item-section>
+          </q-item>
+        </q-list>
+        <div v-else class="text-body2 text-grey-7 q-py-sm">Sin líneas.</div>
+        <div v-if="detalleCompra" class="row justify-end q-mt-sm text-subtitle2 text-weight-bold">
+          Total: ${{ Number(detalleCompra.total).toFixed(2) }}
+        </div>
+        <div v-if="detalleCompra?.notas" class="text-caption text-grey-7 q-mt-sm">
+          Notas: {{ detalleCompra.notas }}
+        </div>
+      </div>
+
+      <template #footer>
+        <q-btn v-close-popup outline no-caps label="Cerrar" />
+      </template>
+    </BaseDialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/ui/PageHeader.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
+import { formatMXN } from '@/utils/formatoMoneda'
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
@@ -462,7 +413,6 @@ import { useInsumosStore } from '@/stores/insumos'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { usePresentacionesInsumoStore } from '@/stores/presentacionesInsumo'
 import { comprasApi } from '@/api/comprasApi'
-import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 import type { Compra, EstadoCompra } from '@/types/compra'
 
 const $q = useQuasar()
@@ -494,18 +444,27 @@ const ESTADO_LABEL: Record<EstadoCompra, string> = {
   R: 'Recibida',
   C: 'Cancelada',
 }
-const ESTADO_TONO: Record<EstadoCompra, 'naranja' | 'azul' | 'verde' | 'gris'> = {
-  P: 'naranja',
-  PARCIAL: 'azul',
-  R: 'verde',
-  C: 'gris',
+const ESTADO_TONO: Record<EstadoCompra, 'warn' | 'info' | 'ok' | 'off'> = {
+  P: 'warn',
+  PARCIAL: 'info',
+  R: 'ok',
+  C: 'off',
 }
 
 const formatearFecha = (iso: string): string => new Date(iso).toLocaleDateString('es-MX')
 
 // ── Filtros ────────────────────────────────────────────────────────────────
 const busqueda = ref('')
-const filtroEstado = ref<'todas' | EstadoCompra>('todas')
+const filtroEstado = ref<'todas' | EstadoCompra | null>('todas')
+const filtro = filtroEstado
+const FILTROS: FilterChip<'todas' | EstadoCompra>[] = [
+  { label: 'Todas', value: 'todas' },
+  { label: 'Pendientes', value: 'P' },
+  { label: 'Parciales', value: 'PARCIAL' },
+  { label: 'Recibidas', value: 'R' },
+  { label: 'Canceladas', value: 'C' },
+]
+const filtrando = computed(() => !!busqueda.value || filtroEstado.value !== 'todas')
 
 const comprasFiltradas = computed(() => {
   const t = (busqueda.value ?? '').trim().toLowerCase()
@@ -541,15 +500,15 @@ const abrirDetalle = async (row: Compra) => {
 const columns: QTableColumn[] = [
   {
     name: 'proveedor_nombre',
-    label: 'PROVEEDOR',
+    label: 'Proveedor',
     field: 'proveedor_nombre',
     align: 'left',
     sortable: true,
   },
-  { name: 'estado', label: 'ESTADO', field: 'estado', align: 'left' },
-  { name: 'total', label: 'TOTAL', field: 'total', align: 'left', sortable: true },
-  { name: 'fecha_pedido', label: 'FECHA', field: 'fecha_pedido', align: 'left', sortable: true },
-  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+  { name: 'estado', label: 'Estado', field: 'estado', align: 'left' },
+  { name: 'total', label: 'Total', field: 'total', align: 'right', sortable: true },
+  { name: 'fecha_pedido', label: 'Fecha', field: 'fecha_pedido', align: 'left', sortable: true },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 
 // ── Dialog Nueva Compra ────────────────────────────────────────────────────
@@ -877,5 +836,3 @@ const ejecutarRecibir = async () => {
   }
 }
 </script>
-
-<style scoped></style>
