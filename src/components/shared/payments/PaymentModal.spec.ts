@@ -111,6 +111,42 @@ describe('PaymentModal', () => {
     expect(new Set(pagos.map((p) => p.id)).size).toBe(2)
   })
 
+  const confirmar = async (wrapper: ReturnType<typeof montar>) => {
+    const btn = wrapper
+      .findAllComponents({ name: 'QBtn' })
+      .find((b) => b.props('label') === 'Confirmar pago')
+    await btn!.trigger('click')
+    return wrapper.emitted('pago-exitoso')?.[0]?.[0] as {
+      method: string
+      amount: number
+      recibido?: number
+    }[]
+  }
+
+  it('emite el monto aplicado y el efectivo recibido por separado', async () => {
+    const wrapper = montar(300)
+    await capturarMonto(wrapper, 500)
+
+    const pagos = await confirmar(wrapper)
+    expect(pagos).toHaveLength(1)
+    expect(pagos[0]?.amount).toBe(300)
+    expect(pagos[0]?.recibido).toBe(500)
+  })
+
+  it('en pago mixto el efectivo cubre solo lo que falta tras la tarjeta', async () => {
+    const wrapper = montar(300)
+    await seleccionarMetodo(wrapper, 'Cupones')
+    await capturarMonto(wrapper, 100)
+    await seleccionarMetodo(wrapper, 'Efectivo')
+    await capturarMonto(wrapper, 500)
+
+    const pagos = await confirmar(wrapper)
+    const total = pagos.reduce((s, p) => s + p.amount, 0)
+    expect(total).toBe(300)
+    expect(pagos.find((p) => p.method === 'Efectivo')).toMatchObject({ amount: 200, recibido: 500 })
+    expect(pagos.find((p) => p.method === 'Cupones')?.recibido).toBeUndefined()
+  })
+
   it('acepta un pago con tarjeta exacto aunque el total tenga residuo flotante (3 × 33.30)', async () => {
     const wrapper = montar(3 * 33.3)
     await seleccionarMetodo(wrapper, 'Tarjeta')
