@@ -16,6 +16,10 @@ describe('horasFacturables', () => {
     expect(horasFacturables('10:00:00', '13:00:00')).toBe(3)
   })
 
+  it('inicio igual a fin cuenta como el minimo de 1 hora', () => {
+    expect(horasFacturables('10:00', '10:00')).toBe(1)
+  })
+
   it('cruza la medianoche', () => {
     expect(horasFacturables('22:00', '01:00')).toBe(3)
   })
