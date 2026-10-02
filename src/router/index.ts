@@ -21,6 +21,18 @@ const routes: RouteRecordRaw[] = [
           component: () => import('@/pages/DevMenuPage.vue'),
           meta: { title: '⚗ Dev Menu' },
         },
+        {
+          path: '/dev/ui',
+          component: () => import('@/layouts/AppShell.vue'),
+          children: [
+            {
+              path: '',
+              name: 'dev-ui-kit',
+              component: () => import('@/pages/DevUiKitPage.vue'),
+              meta: { requiresAuth: true, title: 'Kit de UI' },
+            },
+          ],
+        },
       ] as RouteRecordRaw[])
     : []),
   {
