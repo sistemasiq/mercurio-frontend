@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 import AppliedPaymentsList from './AppliedPaymentsList.vue'
 import MethodSelector from './MethodSelector.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
@@ -108,5 +109,14 @@ describe('PaymentModal', () => {
     expect(pagos).toHaveLength(2)
     // Con ids repetidos, eliminarPago() borraría los dos renglones a la vez.
     expect(new Set(pagos.map((p) => p.id)).size).toBe(2)
+  })
+
+  it('acepta un pago con tarjeta exacto aunque el total tenga residuo flotante (3 × 33.30)', async () => {
+    const wrapper = montar(3 * 33.3)
+    await seleccionarMetodo(wrapper, 'Tarjeta')
+    await capturarMonto(wrapper, 99.9)
+
+    // Se abre el formulario de tarjeta en vez de rechazar el monto por exceder el saldo.
+    expect(wrapper.findComponent(BaseDialog).props('modelValue')).toBe(true)
   })
 })

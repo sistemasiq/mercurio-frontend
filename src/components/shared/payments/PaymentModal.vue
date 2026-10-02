@@ -103,7 +103,7 @@
           color="primary"
           label="Confirmar pago"
           class="pay__confirm"
-          :disable="saldoPendiente > 0"
+          :disable="saldoPendiente > TOLERANCIA_MONTO"
           @click="finalizarPago"
         />
       </footer>
@@ -166,6 +166,7 @@ import type { PaymentProps, AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { useLealtadStore } from '@/stores/lealtad'
+import { TOLERANCIA_MONTO, redondear2 } from '@/utils/dinero'
 
 import MethodSelector from './MethodSelector.vue'
 import BaseDialog from '@/components/ui/BaseDialog.vue'
@@ -271,20 +272,20 @@ const maxPuntosRedimibles = computed(() => {
 const descuentoPuntos = computed(() => {
   if (!valorPunto.value) return 0
   const puntos = Math.min(puntosARedimir.value, maxPuntosRedimibles.value)
-  return puntos * valorPunto.value
+  return redondear2(puntos * valorPunto.value)
 })
 
-const totalNeto = computed(() => props.totalToPay - descuentoPuntos.value)
+const totalNeto = computed(() => redondear2(props.totalToPay - descuentoPuntos.value))
 
 watch(totalNeto, (nuevoTotal) => {
   let excedente = 0
   for (const pago of pagosAplicados.value) {
     if (!esEfectivo(pago.method)) {
-      const maxPermitido = Math.max(0, nuevoTotal - excedente)
+      const maxPermitido = Math.max(0, redondear2(nuevoTotal - excedente))
       if (pago.amount > maxPermitido) {
         pago.amount = maxPermitido
       }
-      excedente += pago.amount
+      excedente = redondear2(excedente + pago.amount)
     }
   }
 })
@@ -310,28 +311,29 @@ const esTarjeta = (nombre: string) => {
 }
 
 const totalPagado = computed(() => {
-  return pagosAplicados.value.reduce((suma, pago) => suma + pago.amount, 0)
+  return redondear2(pagosAplicados.value.reduce((suma, pago) => suma + pago.amount, 0))
 })
 
 const saldoPendiente = computed(() => {
-  const restante = totalNeto.value - totalPagado.value
-  return restante > 0 ? restante : 0
+  const restante = redondear2(totalNeto.value - totalPagado.value)
+  return restante > TOLERANCIA_MONTO ? restante : 0
 })
 
 const cambioADevolver = computed(() => {
-  const excedente = totalPagado.value - totalNeto.value
-  return excedente > 0 ? excedente : 0
+  const excedente = redondear2(totalPagado.value - totalNeto.value)
+  return excedente > TOLERANCIA_MONTO ? excedente : 0
 })
 
 const iniciarAbono = (monto: number) => {
-  if (monto <= 0 || !metodoSeleccionado.value) return
+  monto = redondear2(monto)
+  if (monto <= TOLERANCIA_MONTO || !metodoSeleccionado.value) return
 
   if (esLealtad(metodoSeleccionado.value)) {
     aplicarRedencionLealtad(monto)
     return
   }
 
-  if (!esEfectivo(metodoSeleccionado.value) && monto > saldoPendiente.value) {
+  if (!esEfectivo(metodoSeleccionado.value) && monto > saldoPendiente.value + TOLERANCIA_MONTO) {
     $q.notify({
       type: 'warning',
       message: `No se puede dar cambio en ${metodoSeleccionado.value}. El máximo es $${saldoPendiente.value.toFixed(2)}`,
@@ -405,7 +407,7 @@ const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: 
   if (esEfectivo(metodoSeleccionado.value)) {
     const existente = pagosAplicados.value.find((p) => esEfectivo(p.method))
     if (existente) {
-      existente.amount += monto
+      existente.amount = redondear2(existente.amount + monto)
       existente.timestamp = new Date()
       return
     }
