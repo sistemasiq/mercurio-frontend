@@ -29,9 +29,11 @@ onMounted(async () => {
     typeof rawCode === 'string' ? rawCode : Array.isArray(rawCode) ? rawCode[0] : undefined
 
   if (codeFromQuery) {
+    // Igual que en AccessPadrePage: el código es una credencial y debe salir
+    // de la URL antes de esperar la respuesta del backend, no después.
+    await router.replace({ query: {} })
     try {
       await store.loginConCode(codeFromQuery)
-      await router.replace({ query: {} })
     } catch {
       await router.replace('/padres/access')
     }

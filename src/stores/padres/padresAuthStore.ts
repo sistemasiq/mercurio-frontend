@@ -1,9 +1,18 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { ApiError } from '@/types/auth'
 import type { Tutor, NinoActivo, PadresAuthState } from '@/types/padres'
 import { padresApi } from '@/api/padresApi'
+import { mensajeDeError } from '@/utils/errorHandler'
 
-const STORAGE_KEY = 'padres_registro_id'
+// El código de acceso equivale a una credencial (ver Bug QA #31): el backend
+// solo ofrece `/padres/auth` recibiéndolo de nuevo (no hay un endpoint que
+// acepte el `token` de la respuesta), así que mientras no exista esa mejora
+// en el backend el código no se persiste en sessionStorage ni localStorage —
+// vive únicamente en esta variable de módulo, por lo que un refresh de
+// página cierra la sesión (ver "Pendientes de backend" en el reporte de WP-09).
+let codigoSesion: string | null = null
+let codigoSesionTs: number | null = null
 
 export const usePadresAuthStore = defineStore('padresAuth', () => {
   const token = ref<PadresAuthState['token']>(null)
@@ -21,9 +30,8 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
 
   function _isTokenExpired(): boolean {
     if (!expiresIn.value) return false
-    const savedAt = sessionStorage.getItem(`${STORAGE_KEY}_ts`)
-    if (!savedAt) return false
-    const elapsed = (Date.now() - Number(savedAt)) / 1000
+    if (!codigoSesionTs) return false
+    const elapsed = (Date.now() - codigoSesionTs) / 1000
     return elapsed > expiresIn.value
   }
 
@@ -40,17 +48,17 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
   const allChildren = computed<NinoActivo[]>(() => ninosActivos.value)
 
   function _persistKey(newKey: string): void {
-    sessionStorage.setItem(STORAGE_KEY, newKey)
-    sessionStorage.setItem(`${STORAGE_KEY}_ts`, String(Date.now()))
+    codigoSesion = newKey
+    codigoSesionTs = Date.now()
   }
 
   function _clearPersistedKey(): void {
-    sessionStorage.removeItem(STORAGE_KEY)
-    sessionStorage.removeItem(`${STORAGE_KEY}_ts`)
+    codigoSesion = null
+    codigoSesionTs = null
   }
 
   function _loadPersistedKey(): string | null {
-    return sessionStorage.getItem(STORAGE_KEY)
+    return codigoSesion
   }
 
   async function loginConCode(rawCode: string): Promise<void> {
@@ -68,8 +76,7 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
 
       _persistKey(rawCode)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al iniciar sesión'
-      error.value = message
+      error.value = mensajeDeError(err, 'Error al iniciar sesión')
       throw err
     } finally {
       loading.value = false
@@ -104,8 +111,14 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
       const data = await padresApi.loginConCode(savedCode)
       ninosActivos.value = data.ninosActivos
       tutor.value = data.tutor
-    } catch {
-      // Si falla, no hacemos logout automáticamente — el polling lo manejará
+    } catch (err) {
+      const statusCode = (err as Partial<ApiError> | null)?.statusCode
+      // El código se revocó o expiró en el backend: no hay nada que el
+      // polling pueda reintentar, así que se propaga para que quien llama
+      // (refrescarSesion en el dashboard) cierre la sesión.
+      if (statusCode === 401 || statusCode === 403) throw err
+      // Cualquier otro error (red, 5xx) es transitorio — el próximo tick
+      // del polling reintenta solo.
     }
   }
 
