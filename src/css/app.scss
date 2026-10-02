@@ -1128,3 +1128,8 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.q-table tbody td.cell-muted,
+.q-table tbody td .cell-muted {
+  color: var(--text-secondary);
+}
