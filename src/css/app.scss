@@ -125,6 +125,15 @@ body {
   border-radius: var(--radius-control);
 }
 
+.q-btn:not(.q-btn--round) .q-icon.on-left,
+.q-btn:not(.q-btn--round) .q-icon.on-right {
+  font-size: 1.4em;
+}
+
+.q-btn .q-icon.on-left {
+  margin-right: 6px;
+}
+
 .q-btn--outline:before {
   border-color: var(--border-input);
 }

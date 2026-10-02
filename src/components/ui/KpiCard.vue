@@ -4,19 +4,23 @@ import type { UiTone } from '@/types/ui'
 withDefaults(
   defineProps<{
     label: string
+    /** Ícono junto a la etiqueta (opcional). */
+    icon?: string
     value: string | number
     note?: string
     noteTone?: UiTone
     /** Color del valor (por defecto navy). */
     valueColor?: string
   }>(),
-  { note: undefined, noteTone: undefined, valueColor: undefined },
+  { icon: undefined, note: undefined, noteTone: undefined, valueColor: undefined },
 )
 </script>
 
 <template>
   <div class="kpi-card">
-    <span class="kpi-card__label">{{ label }}</span>
+    <span class="kpi-card__label">
+      <q-icon v-if="icon" :name="icon" size="18px" class="kpi-card__icon" />{{ label }}
+    </span>
     <div class="kpi-card__row">
       <span class="kpi-card__value" :style="valueColor ? { color: valueColor } : undefined">
         <slot name="value">{{ value }}</slot>
@@ -40,9 +44,16 @@ withDefaults(
   min-width: 0;
 
   &__label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 13px;
     font-weight: 600;
     color: #475569;
+  }
+
+  &__icon {
+    color: var(--q-primary);
   }
 
   &__row {

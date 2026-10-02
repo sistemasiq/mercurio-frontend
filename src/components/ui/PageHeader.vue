@@ -91,6 +91,11 @@ const emit = defineEmits<{ back: [] }>()
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+
+    :deep(.q-btn:not(.q-btn--round)) {
+      min-height: 40px;
+      font-size: 13.5px;
+    }
   }
 }
 </style>
