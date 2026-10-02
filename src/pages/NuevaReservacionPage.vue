@@ -792,7 +792,6 @@ import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
-import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useReservacionExtrasStore } from '@/stores/reservacion_extras'
 import { useReservacionProductosStore } from '@/stores/reservacion_productos'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
@@ -810,18 +809,12 @@ const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
 const authStore = useAuthStore()
 const pagosStore = usePagosReservacionesStore()
-const turno = useTurnoCajaStore()
 const reservacionExtrasStore = useReservacionExtrasStore()
 const reservacionProductosStore = useReservacionProductosStore()
 
 onMounted(() => {
-  // Se valida al entrar, no hasta el paso de pago: si el cajero no tiene turno
-  // abierto no tiene sentido dejarlo llenar todo el formulario para enterarse
-  // hasta el final. Se redirige de inmediato, sin bloquear con un panel.
-  if (!turno.estaOperando) {
-    router.push('/pos/cierre')
-    return
-  }
+  // La validación de turno (y la espera de su carga async) ya la hace el
+  // guard de ruta (`requiresTurno`, ver router/guards.ts) antes de entrar aquí.
   // Métodos de pago es un catálogo global por diseño: se carga siempre.
   metodosPagoStore.cargar()
 

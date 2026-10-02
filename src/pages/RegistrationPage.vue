@@ -78,7 +78,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
-import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useRouter } from 'vue-router'
 import TutorForm from '@/components/registro-infantes/TutorForm.vue'
 import ChildrenSection from '@/components/registro-infantes/ChildrenSection.vue'
@@ -105,17 +104,13 @@ const MODOS = [
     icon: 'celebration',
   },
 ] as const
-const turno = useTurnoCajaStore()
 const router = useRouter()
 
 onMounted(() => {
-  // Se valida al entrar, no hasta el final del registro: si no hay turno
-  // abierto no tiene sentido dejar llenar todo el formulario del tutor/niño
-  // para enterarse hasta el final. Redirige de inmediato, sin bloquear con un panel.
-  if (!turno.estaOperando) {
-    router.push('/pos/cierre')
-    return
-  }
+  // La validación de turno (y la espera de su carga async) ya la hace el
+  // guard de ruta (`requiresTurno`, ver router/guards.ts) antes de entrar
+  // aquí: para cuando este onMounted corre, `turno.estaOperando` ya refleja
+  // el estado real del backend.
   store.loadProductos()
 })
 
