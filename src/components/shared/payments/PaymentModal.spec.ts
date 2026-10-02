@@ -1,10 +1,13 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 import AppliedPaymentsList from './AppliedPaymentsList.vue'
 import MethodSelector from './MethodSelector.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import PaymentModal from './PaymentModal.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useLealtadStore } from '@/stores/lealtad'
 import type { MetodosPago } from '@/types/metodos_pago'
 
 // Catálogo de prueba con las 4 categorías activas -- "Efectivo" queda primera
@@ -108,5 +111,109 @@ describe('PaymentModal', () => {
     expect(pagos).toHaveLength(2)
     // Con ids repetidos, eliminarPago() borraría los dos renglones a la vez.
     expect(new Set(pagos.map((p) => p.id)).size).toBe(2)
+  })
+
+  const confirmar = async (wrapper: ReturnType<typeof montar>) => {
+    const btn = wrapper
+      .findAllComponents({ name: 'QBtn' })
+      .find((b) => b.props('label') === 'Confirmar pago')
+    await btn!.trigger('click')
+    return wrapper.emitted('pago-exitoso')?.[0]?.[0] as {
+      method: string
+      amount: number
+      recibido?: number
+    }[]
+  }
+
+  it('emite el monto aplicado y el efectivo recibido por separado', async () => {
+    const wrapper = montar(300)
+    await capturarMonto(wrapper, 500)
+
+    const pagos = await confirmar(wrapper)
+    expect(pagos).toHaveLength(1)
+    expect(pagos[0]?.amount).toBe(300)
+    expect(pagos[0]?.recibido).toBe(500)
+  })
+
+  it('en pago mixto el efectivo cubre solo lo que falta tras la tarjeta', async () => {
+    const wrapper = montar(300)
+    await seleccionarMetodo(wrapper, 'Cupones')
+    await capturarMonto(wrapper, 100)
+    await seleccionarMetodo(wrapper, 'Efectivo')
+    await capturarMonto(wrapper, 500)
+
+    const pagos = await confirmar(wrapper)
+    const total = pagos.reduce((s, p) => s + p.amount, 0)
+    expect(total).toBe(300)
+    expect(pagos.find((p) => p.method === 'Efectivo')).toMatchObject({ amount: 200, recibido: 500 })
+    expect(pagos.find((p) => p.method === 'Cupones')?.recibido).toBeUndefined()
+  })
+
+  it('acepta un pago con tarjeta exacto aunque el total tenga residuo flotante (3 × 33.30)', async () => {
+    const wrapper = montar(3 * 33.3)
+    await seleccionarMetodo(wrapper, 'Tarjeta')
+    await capturarMonto(wrapper, 99.9)
+
+    // Se abre el formulario de tarjeta en vez de rechazar el monto por exceder el saldo.
+    expect(wrapper.findComponent(BaseDialog).props('modelValue')).toBe(true)
+  })
+
+  it('permitirLealtad=false oculta la categoria Lealtad y la captura de celular', () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        modelValue: true,
+        totalToPay: 100,
+        metodosPago: METODOS_PAGO_TEST,
+        permitirLealtad: false,
+      },
+      global: { stubs: { QDialog: { template: '<div><slot /></div>' } } },
+    })
+
+    expect(wrapper.text()).not.toContain('Lealtad')
+    expect(wrapper.text()).not.toContain('Celular del cliente')
+  })
+
+  it('por defecto ofrece Lealtad y la captura de celular', () => {
+    const wrapper = montar(100)
+    expect(wrapper.text()).toContain('Lealtad')
+    expect(wrapper.text()).toContain('Celular del cliente')
+  })
+
+  it('ignora la respuesta tardia de saldo de otro celular', async () => {
+    const wrapper = montar(100)
+    const auth = useAuthStore()
+    const lealtad = useLealtadStore()
+    auth.user = {
+      id: 'u1',
+      name: 'Cajero',
+      email: 'c@test.com',
+      roles: [],
+      branchId: 'suc-1',
+      branchName: 'Sucursal',
+      permissions: [],
+    }
+    lealtad.configuracion = { valor_punto: 1 } as unknown as typeof lealtad.configuracion
+
+    type Saldo = { sucursal_id: string; celular: string; saldo: number }
+    const pendientes = new Map<string, (s: Saldo) => void>()
+    vi.spyOn(lealtad, 'cargarSaldo').mockImplementation(
+      (_suc, celular) => new Promise<Saldo>((resolve) => pendientes.set(celular, resolve)),
+    )
+    vi.spyOn(lealtad, 'cargarConfiguracion').mockResolvedValue(undefined)
+
+    const input = wrapper.findComponent({ name: 'QInput' })
+    await input.vm.$emit('update:modelValue', '5511111111')
+    await wrapper.vm.$nextTick()
+    await input.vm.$emit('update:modelValue', '5522222222')
+    await wrapper.vm.$nextTick()
+
+    // Primero responde el celular nuevo, luego (tarde) el anterior.
+    pendientes.get('5522222222')?.({ sucursal_id: 'suc-1', celular: '5522222222', saldo: 20 })
+    await flushPromises()
+    pendientes.get('5511111111')?.({ sucursal_id: 'suc-1', celular: '5511111111', saldo: 999 })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('20 pts disponibles')
+    expect(wrapper.text()).not.toContain('999 pts')
   })
 })
