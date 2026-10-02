@@ -102,7 +102,7 @@ const routes: RouteRecordRaw[] = [
         path: 'cierre',
         name: 'pos-cierre',
         component: () => import('@/pages/CierreCajaPage.vue'),
-        meta: { requiresAuth: true, title: 'Cierre de Caja' },
+        meta: { requiresAuth: true, permissions: ['pos:acceder'], title: 'Cierre de Caja' },
       },
       {
         path: 'historial-arqueos',
