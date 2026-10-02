@@ -49,6 +49,16 @@ Se ocultan hasta que exista la fuente; no se muestran valores inventados.
 
 ## Cambios de comportamiento
 
+- Inicio pasó de una rejilla de accesos a un tablero operativo (pendientes,
+  eventos del día, pulseras), cada bloque condicionado a su permiso.
+- Caja: se quitó un diálogo de notas duplicado que se abría junto al modal de
+  notas; la barra de comandas en curso carga al entrar (antes, a los 15 s).
+- Apertura y Cierre: el retiro parcial y la cancelación del conteo son diálogos;
+  la pantalla de "Terminal en espera" tiene botón para abrir el acceso del
+  administrador.
+- Visor de cocina: tablero por columnas y botón de pantalla completa del
+  navegador.
+
 - Se quitó el modo "mini" (colapsar el sidebar a íconos): el diseño no lo
   contempla. Debajo de 1024 px el sidebar pasa a overlay con botón de menú en
   el Topbar.
