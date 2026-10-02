@@ -117,3 +117,42 @@ describe('cargarTurnoActivo', () => {
     expect(store.error).toBe('Error interno del servidor.')
   })
 })
+
+describe('enviarConteo', () => {
+  async function storeEnConteo() {
+    const store = useTurnoCajaStore()
+    servicio.cargarTurnoActivo.mockResolvedValueOnce(turnoEn('EN_CONTEO'))
+    await store.cargarTurnoActivo()
+    store.totalContadoDeclarado = 500
+    return store
+  }
+
+  it('ante TRANSICION_INVALIDA resincroniza el turno y abre el modal del admin sin error', async () => {
+    const store = await storeEnConteo()
+    servicio.enviarConteo.mockRejectedValue(
+      new Error('transicion invalida', {
+        cause: { code: 'TRANSICION_INVALIDA', statusCode: 409, message: 'x' },
+      }),
+    )
+    servicio.cargarTurnoActivo.mockResolvedValueOnce(turnoEn('ESPERANDO_REVISION'))
+
+    await store.enviarConteo()
+
+    expect(store.estado).toBe('ESPERANDO_REVISION')
+    expect(store.mostrarDialogAdmin).toBe(true)
+    expect(store.error).toBeNull()
+  })
+
+  it('ante otro error muestra el mensaje y no resincroniza', async () => {
+    const store = await storeEnConteo()
+    servicio.enviarConteo.mockRejectedValue(
+      new Error('boom', { cause: { code: 'X', statusCode: 500, message: 'boom' } }),
+    )
+    servicio.cargarTurnoActivo.mockClear()
+
+    await store.enviarConteo()
+
+    expect(servicio.cargarTurnoActivo).not.toHaveBeenCalled()
+    expect(store.error).toBe('boom')
+  })
+})

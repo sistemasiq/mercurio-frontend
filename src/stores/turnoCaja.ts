@@ -260,19 +260,17 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       credencialesAdmin.error = ''
       mostrarDialogAdmin.value = true
     } catch (err) {
-      const apiErr = err as ApiError
+      // El service envuelve el ApiError original en `cause`, así que el código/status
+      // hay que leerlo de ahí (no del error recibido).
+      const causa = (err as Error & { cause?: ApiError }).cause
       // Si el backend dice que el conteo ya estaba enviado (ej. la página se recargó
       // mientras estaba en ESPERANDO_REVISION y por eso mostraba otra vez este
       // formulario), no es un error real para el cajero — el conteo sí se registró,
       // solo falta la revisión del administrador. Se resincroniza el turno real:
       // _aplicarTurno ya abre el modal automáticamente si el estado es ESPERANDO_REVISION.
-      if (apiErr.code === 'TRANSICION_INVALIDA') {
-        try {
-          await cargarTurnoActivo()
-          if (esperandoRevision.value) return
-        } catch {
-          // si la resincronización falla, se maneja como error normal abajo
-        }
+      if (causa?.code === 'TRANSICION_INVALIDA' || causa?.statusCode === 409) {
+        await cargarTurnoActivo()
+        if (esperandoRevision.value) return
       }
       error.value = (err as Error).message
     } finally {
