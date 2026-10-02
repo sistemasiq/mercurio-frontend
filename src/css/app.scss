@@ -8,9 +8,9 @@ $negative: #dc2626; // Error Red
 $info: #0fa4fe; // Sky Blue
 $warning: #ffc107; // Warning Yellow
 
-// ─── Quasar overrides ───────────────────────────────────────────────────────
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-$body-font-family: 'Inter', sans-serif;
+// ─── Tipografía ─────────────────────────────────────────────────────────────
+// Plus Jakarta Sans se carga desde index.html (Refactor UI · diseño Woow Kids).
+$body-font-family: 'Plus Jakarta Sans', sans-serif;
 
 // ─── App globals ────────────────────────────────────────────────────────────
 * {
@@ -18,32 +18,65 @@ $body-font-family: 'Inter', sans-serif;
 }
 
 :root {
-  --sidebar-width: 280px;
-  --header-height: 64px;
-  --bg-main: #f8fafc; // Slate 50
-  --bg-card: #ffffff;
-  --text-primary: #0f172a; // Slate 900
-  --text-secondary: #475569; // Slate 600
-  --text-muted: #94a3b8; // Slate 400
-  --border-color: #e2e8f0; // Slate 200
+  --sidebar-width: 248px;
+  --header-height: 56px;
 
-  // Soft, modern shadows
-  --shadow-sm: 0 1px 3px rgba(11, 20, 80, 0.04), 0 1px 2px rgba(11, 20, 80, 0.02);
-  --shadow-md: 0 4px 6px -1px rgba(11, 20, 80, 0.05), 0 2px 4px -2px rgba(11, 20, 80, 0.03);
-  --shadow-lg: 0 10px 15px -3px rgba(11, 20, 80, 0.06), 0 4px 6px -4px rgba(11, 20, 80, 0.03);
-  --shadow-hover: 0 20px 25px -5px rgba(11, 20, 80, 0.08), 0 8px 10px -6px rgba(11, 20, 80, 0.04);
+  // Superficies y texto
+  --bg-main: #f6f7fb;
+  --bg-card: #ffffff;
+  --bg-subtle: #fafbfd; // encabezados de tabla, pies de diálogo
+  --bg-muted: #f3f5f9; // chips neutros, buscador del sidebar
+  --text-strong: #0b1450; // títulos (navy)
+  --text-primary: #0f172a;
+  --text-body: #334155;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --border-color: #e6e9f0; // tarjetas, tablas
+  --border-input: #dfe3eb; // inputs, botones secundarios
+  --border-soft: #eef1f5; // divisores internos
+
+  // Tonos semánticos: fondo / texto / punto
+  --tone-ok-bg: #e6f5e3;
+  --tone-ok-fg: #246b1d;
+  --tone-ok-dot: #3fa834;
+  --tone-warn-bg: #fff1d6;
+  --tone-warn-fg: #8a5a00;
+  --tone-warn-dot: #f59e0b;
+  --tone-bad-bg: #fde8e8;
+  --tone-bad-fg: #b91c1c;
+  --tone-bad-dot: #dc2626;
+  --tone-info-bg: #e8f0fd;
+  --tone-info-fg: #0347a8;
+  --tone-info-dot: #025fe0;
+  --tone-off-bg: #f1f3f7;
+  --tone-off-fg: #475569;
+  --tone-off-dot: #94a3b8;
+  --tone-pink-bg: #fdeef3;
+  --tone-pink-fg: #b00d40;
+  --tone-pink-dot: #f31258;
+
+  --shadow-sm: 0 1px 2px rgba(11, 20, 80, 0.06);
+  --shadow-md: 0 4px 12px rgba(11, 20, 80, 0.06);
+  --shadow-lg: 0 1px 2px rgba(11, 20, 80, 0.06), 0 12px 32px rgba(11, 20, 80, 0.08);
+  --shadow-hover: 0 12px 32px rgba(11, 20, 80, 0.16);
+  --shadow-dialog: 0 2px 4px rgba(11, 20, 80, 0.06), 0 24px 56px rgba(11, 20, 80, 0.18);
 
   --radius-sm: 8px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
+  --radius-control: 10px; // botones, inputs
+  --radius-md: 14px; // tarjetas, tablas
+  --radius-lg: 18px; // diálogos
 }
 
 body {
   background: var(--bg-main);
   color: var(--text-primary);
-  font-family: 'Inter', sans-serif;
+  font-family: $body-font-family;
   margin: 0;
   -webkit-font-smoothing: antialiased;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 // ─── Material Symbols Outlined (iconos de acciones: editar/eliminar) ────────
@@ -69,16 +102,228 @@ body {
 
 // ─── Field label (etiquetas de campos de formulario/detalle) ────────────────
 .field-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-body);
   margin-bottom: 6px;
 }
 
 // ─── Action button (botones de acción en filas de tabla: editar/eliminar) ───
 .action-btn {
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+// ─── Quasar: botones ────────────────────────────────────────────────────────
+.q-btn {
+  text-transform: none;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.q-btn:not(.q-btn--round) {
+  border-radius: var(--radius-control);
+}
+
+.q-btn--outline:before {
+  border-color: var(--border-input);
+}
+
+.q-btn--outline:not([class*='text-']) {
+  color: var(--text-primary);
+}
+
+// ─── Quasar: campos (q-input / q-select) ────────────────────────────────────
+.q-field--outlined .q-field__control {
+  border-radius: var(--radius-control);
+  background: #fff;
+
+  &:before {
+    border-color: var(--border-input);
+  }
+
+  &:hover:before {
+    border-color: #cbd2de;
+  }
+}
+
+.q-field--outlined.q-field--focused .q-field__control:after {
+  border-width: 1.5px;
+}
+
+.q-field--outlined.q-field--readonly .q-field__control {
+  background: #f6f8fc;
+
+  &:before {
+    border-color: var(--border-soft);
+  }
+}
+
+.q-field__native,
+.q-field__input {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+// ─── Quasar: tablas ─────────────────────────────────────────────────────────
+// Estilo base de toda q-table: encabezado gris claro en mayúsculas, filas
+// altas separadas por líneas finas (TablePage del diseño).
+.q-table__card {
+  border-radius: var(--radius-md);
+  box-shadow: none;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+}
+
+.q-table thead tr {
+  height: 40px;
+}
+
+.q-table thead th {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+}
+
+.q-table tbody tr {
+  height: 58px;
+}
+
+.q-table tbody td {
+  font-size: 13.5px;
+  color: var(--text-primary);
+  border-bottom-color: #f1f3f7;
+  font-variant-numeric: tabular-nums;
+}
+
+.q-table tbody tr:hover > td {
+  background: #fafbfd;
+}
+
+.q-table__bottom {
+  min-height: 48px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-soft);
+}
+
+// ─── Quasar: diálogos ───────────────────────────────────────────────────────
+.q-dialog__inner > .q-card {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dialog);
+}
+
+// ─── Quasar: tarjetas ───────────────────────────────────────────────────────
+.q-card--bordered,
+.q-card--flat {
+  border-color: var(--border-color);
+}
+
+// ─── Notificaciones (toast · 07b Sistema) ───────────────────────────────────
+// Todas las Notify se pintan como tarjeta blanca con ícono tonal en círculo.
+// El tono sale del color de Quasar (bg-positive / bg-negative / …), así que
+// las llamadas existentes ($q.notify({ type: 'positive', … })) no cambian.
+.q-notification.wk-toast {
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  min-height: 0;
+  padding: 14px 10px 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: #fff !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 12px 32px rgba(11, 20, 80, 0.16);
+  font-family: $body-font-family;
+
+  .q-notification__wrapper {
+    align-items: flex-start;
+  }
+
+  .q-notification__content {
+    align-items: flex-start;
+    padding: 0;
+  }
+
+  .q-notification__icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 16px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+  }
+
+  .q-notification__message {
+    padding: 6px 0 0;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--text-primary);
+  }
+
+  .q-notification__caption {
+    margin-top: 2px;
+    font-size: 12.5px;
+    font-weight: 400;
+    opacity: 1;
+    color: var(--text-secondary);
+  }
+
+  .q-notification__actions {
+    padding: 0;
+    margin-left: 8px;
+    align-self: flex-start;
+
+    .q-btn {
+      font-size: 13px;
+      font-weight: 800;
+      min-height: 32px;
+      padding: 0 6px;
+      color: var(--q-primary);
+    }
+
+    .q-btn--round {
+      color: var(--text-muted);
+    }
+  }
+
+  &.bg-positive .q-notification__icon {
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
+  }
+
+  &.bg-negative .q-notification__icon {
+    background: var(--tone-bad-bg);
+    color: var(--tone-bad-fg);
+  }
+
+  &.bg-warning .q-notification__icon {
+    background: var(--tone-warn-bg);
+    color: var(--tone-warn-fg);
+  }
+
+  &.bg-info .q-notification__icon,
+  &.bg-primary .q-notification__icon {
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+  }
+}
+
+.q-notifications__list--top {
+  top: 64px;
+}
+
+.q-notifications__list--right {
+  right: 12px;
 }
 
 // ─── Quasar Drawer Fix (Hide Scrollbars) ────────────────────────────────────
@@ -90,91 +335,17 @@ body {
     display: none !important;
     width: 0 !important;
   }
-
-  .q-scrollarea {
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-
-    &::-webkit-scrollbar {
-      display: none !important;
-      width: 0 !important;
-    }
-
-    .q-scrollarea__thumb {
-      display: none !important;
-    }
-  }
-}
-
-// ─── Top Header ─────────────────────────────────────────────────────────────
-.top-header {
-  height: var(--header-height);
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-  gap: 16px;
-
-  &__search {
-    flex: 1;
-    max-width: 340px;
-  }
-
-  &__actions {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  &__user {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 12px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: background 0.2s;
-
-    &:hover {
-      background: var(--bg-main);
-    }
-
-    .user-name {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .user-role {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-  }
 }
 
 // ─── Stat Cards ─────────────────────────────────────────────────────────────
 .stat-card {
   background: var(--bg-card);
   border-radius: var(--radius-md);
-  padding: 20px 24px;
-  box-shadow: var(--shadow-sm);
+  padding: 16px 18px;
   border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  transition:
-    box-shadow 0.2s,
-    transform 0.2s;
-
-  &:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-  }
 
   &__top {
     width: 100%;
@@ -203,17 +374,19 @@ body {
   }
 
   &__label {
-    font-size: 0.8rem;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--text-secondary);
     margin-top: 4px;
   }
 
   &__value {
-    font-size: 2rem;
+    font-size: 26px;
     font-weight: 800;
-    color: var(--text-primary);
-    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
   }
 
   &__icon {
@@ -256,14 +429,13 @@ body {
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 // ─── Panel Card ─────────────────────────────────────────────────────────────
 .panel-card {
   background: var(--bg-card);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
   overflow: hidden;
 
@@ -271,13 +443,13 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border-color);
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-soft);
 
     h3 {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-strong);
       margin: 0;
     }
   }
@@ -286,28 +458,6 @@ body {
 // ─── Table ──────────────────────────────────────────────────────────────────
 .fec-table {
   width: 100%;
-
-  .q-table thead th {
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-    background: #f8f9fd;
-    border-bottom: 2px solid var(--border-color);
-    padding: 10px 12px;
-  }
-
-  .q-table tbody td {
-    font-size: 0.875rem;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border-color);
-    color: #37474f;
-  }
-
-  .q-table tbody tr:hover td {
-    background: #f5f7ff;
-  }
 
   .event-name {
     font-weight: 700;
@@ -524,19 +674,6 @@ body {
     transform: scale(1);
     opacity: 1;
   }
-}
-
-// ─── Global Input Hover/Focus Effects (SIMPLIFIED) ──────────────────────────
-.q-field--outlined .q-field__control {
-  transition: all 0.25s ease !important;
-}
-.q-field--outlined:not(.q-field--focused):hover .q-field__control {
-  border-color: rgba(2, 95, 224, 1) !important;
-  box-shadow: 0 4px 12px rgba(2, 95, 224, 0.15);
-}
-.q-field--outlined.q-field--focused .q-field__control {
-  box-shadow: 0 4px 16px rgba(2, 95, 224, 0.2) !important;
-  border-color: #f31258 !important;
 }
 
 // ─── Stepper Active Animation ───────────────────────────────────────────────
@@ -944,7 +1081,7 @@ body {
 
 // ─── Page layout ─────────────────────────────────────────────────────────────
 .page-content {
-  padding: 14px;
+  padding: 28px;
   min-height: calc(100vh - var(--header-height));
   background: var(--bg-main);
 }
