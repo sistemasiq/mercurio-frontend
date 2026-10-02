@@ -1,157 +1,128 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div>
-      <!-- Encabezado -->
-      <div class="row items-center q-mb-md">
-        <q-btn
-          flat
-          dense
-          round
-          icon="arrow_back"
-          class="q-mr-sm"
-          @click="router.push({ name: 'insumos-listar' })"
-        >
-          <q-tooltip>Volver a Insumos</q-tooltip>
-        </q-btn>
-        <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
-            Kardex de {{ insumo?.nombre ?? '...' }}
-          </div>
-          <div class="text-body2" style="color: var(--text-secondary)">
-            Historial de movimientos y stock resultante.
-          </div>
-        </div>
-      </div>
+  <q-page class="page-content list-page">
+    <PageHeader
+      :title="`Kardex · ${insumo?.nombre ?? '…'}`"
+      subtitle="Movimientos de entrada y salida del insumo."
+      back-label="Insumos"
+      :back-to="{ name: 'insumos-listar' }"
+    />
 
-      <!-- Resumen del insumo -->
-      <q-card v-if="insumo" flat bordered class="q-pa-md q-mb-lg" style="border-radius: 12px">
-        <div class="row q-col-gutter-md">
-          <div class="col">
-            <div class="field-label">Stock actual</div>
-            <div class="text-h6 text-weight-bold">
-              {{ Number(insumo.stock_actual) }} {{ codigoUnidad(insumo.unidad_base_id) }}
-            </div>
-          </div>
-          <div class="col">
-            <div class="field-label">Stock mínimo</div>
-            <div class="text-h6 text-weight-bold">
-              {{ Number(insumo.stock_minimo) }} {{ codigoUnidad(insumo.unidad_base_id) }}
-            </div>
-          </div>
-        </div>
-      </q-card>
-
-      <!-- Filtro de fechas -->
-      <div class="row q-col-gutter-sm items-end q-mb-md">
-        <div class="col-3">
-          <div class="field-label">Desde</div>
-          <q-input v-model="desde" dense outlined type="date" />
-        </div>
-        <div class="col-3">
-          <div class="field-label">Hasta</div>
-          <q-input v-model="hasta" dense outlined type="date" />
-        </div>
-        <div class="col-auto">
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            label="Filtrar"
-            style="border-radius: 8px; font-weight: 600"
-            @click="aplicarFiltro"
-          />
-        </div>
-        <div class="col-auto">
-          <q-btn flat no-caps label="Limpiar" color="grey-7" @click="limpiarFiltro" />
-        </div>
-      </div>
-
-      <!-- Error -->
-      <q-banner
-        v-if="movimientosStore.error"
-        dense
-        rounded
-        class="bg-red-1 text-red-8 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="error_outline" color="negative" /></template>
-        {{ movimientosStore.error }}
-      </q-banner>
-
-      <!-- Tabla ── formato kardex -->
-      <q-card flat bordered style="border-radius: 12px; overflow: hidden">
-        <q-table
-          :rows="movimientosStore.items"
-          :columns="columns"
-          row-key="id"
-          flat
-          :loading="movimientosStore.loading"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="No hay movimientos en este rango de fechas"
-          class="fec-table"
-        >
-          <template #body-cell-creado="props">
-            <q-td :props="props">{{ formatearFecha(props.row.creado) }}</q-td>
-          </template>
-
-          <template #body-cell-tipo="props">
-            <q-td :props="props">
-              <EstadoBadge
-                :tono="TIPO_TONO[props.row.tipo as TipoMovimiento]"
-                :label="TIPO_LABEL[props.row.tipo as TipoMovimiento]"
-              />
-            </q-td>
-          </template>
-
-          <template #body-cell-motivo="props">
-            <q-td :props="props">{{ MOTIVO_LABEL[props.row.motivo] ?? props.row.motivo }}</q-td>
-          </template>
-
-          <template #body-cell-entrada="props">
-            <q-td :props="props" class="text-positive text-weight-medium">
-              {{ esEntrada(props.row.tipo) ? Number(props.row.cantidad) : '' }}
-            </q-td>
-          </template>
-
-          <template #body-cell-salida="props">
-            <q-td :props="props" class="text-negative text-weight-medium">
-              {{ !esEntrada(props.row.tipo) ? Number(props.row.cantidad) : '' }}
-            </q-td>
-          </template>
-
-          <template #body-cell-saldo="props">
-            <q-td :props="props" class="text-weight-bold">
-              {{ Number(props.row.stock_resultante) }}
-            </q-td>
-          </template>
-
-          <template #body-cell-costo="props">
-            <q-td :props="props">
-              {{
-                props.row.costo_total != null ? `$${Number(props.row.costo_total).toFixed(2)}` : '—'
-              }}
-            </q-td>
-          </template>
-        </q-table>
-      </q-card>
+    <div v-if="insumo" class="kpi-row">
+      <KpiCard
+        label="Stock actual"
+        :value="`${Number(insumo.stock_actual)} ${codigoUnidad(insumo.unidad_base_id)}`"
+        :note="`mín. ${Number(insumo.stock_minimo)} ${codigoUnidad(insumo.unidad_base_id)}`"
+        :note-tone="bajoMinimo ? 'bad' : undefined"
+      />
+      <KpiCard
+        label="Entradas del periodo"
+        :value="`${entradas} ${codigoUnidad(insumo.unidad_base_id)}`"
+      />
+      <KpiCard
+        label="Salidas del periodo"
+        :value="`${salidas} ${codigoUnidad(insumo.unidad_base_id)}`"
+        note="ventas y merma"
+      />
     </div>
+
+    <DataTableCard hide-search :count="`${movimientosStore.items.length} movimientos`">
+      <template #toolbar>
+        <div class="kdx-range">
+          <label class="kdx-range__field">
+            <span class="field-label">Desde</span>
+            <q-input v-model="desde" dense outlined type="date" />
+          </label>
+          <label class="kdx-range__field">
+            <span class="field-label">Hasta</span>
+            <q-input v-model="hasta" dense outlined type="date" />
+          </label>
+          <q-btn unelevated color="primary" label="Filtrar" @click="aplicarFiltro" />
+          <q-btn flat label="Limpiar" @click="limpiarFiltro" />
+        </div>
+      </template>
+      <StateBlock
+        v-if="movimientosStore.error"
+        variant="error"
+        :body="movimientosStore.error"
+        action-label="Reintentar"
+        @action="aplicarFiltro"
+      />
+      <q-table
+        v-else
+        :rows="movimientosStore.items"
+        :columns="columns"
+        row-key="id"
+        flat
+        :loading="movimientosStore.loading"
+        :rows-per-page-options="[10, 25, 50]"
+      >
+        <template #body-cell-creado="props">
+          <q-td :props="props" class="text-weight-bold">{{
+            formatearFecha(props.row.creado)
+          }}</q-td>
+        </template>
+        <template #body-cell-tipo="props">
+          <q-td :props="props">
+            <StatusBadge
+              :tone="TIPO_TONO[props.row.tipo as TipoMovimiento]"
+              :label="TIPO_LABEL[props.row.tipo as TipoMovimiento]"
+            />
+          </q-td>
+        </template>
+        <template #body-cell-motivo="props">
+          <q-td :props="props" class="cell-muted">
+            {{ MOTIVO_LABEL[props.row.motivo] ?? props.row.motivo }}
+          </q-td>
+        </template>
+        <template #body-cell-entrada="props">
+          <q-td :props="props" class="kdx-in">
+            {{ esEntrada(props.row.tipo) ? Number(props.row.cantidad) : '' }}
+          </q-td>
+        </template>
+        <template #body-cell-salida="props">
+          <q-td :props="props" class="kdx-out">
+            {{ !esEntrada(props.row.tipo) ? Number(props.row.cantidad) : '' }}
+          </q-td>
+        </template>
+        <template #body-cell-saldo="props">
+          <q-td :props="props">{{ Number(props.row.stock_resultante) }}</q-td>
+        </template>
+        <template #body-cell-costo="props">
+          <q-td :props="props" class="text-weight-bold">
+            {{ props.row.costo_total != null ? formatMXN(Number(props.row.costo_total)) : '—' }}
+          </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            variant="empty"
+            title="Sin movimientos"
+            body="No hay movimientos en este rango de fechas."
+          />
+        </template>
+      </q-table>
+    </DataTableCard>
   </q-page>
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/ui/PageHeader.vue'
+import KpiCard from '@/components/ui/KpiCard.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import { formatMXN } from '@/utils/formatoMoneda'
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import type { QTableColumn } from 'quasar'
 import { useInsumosStore } from '@/stores/insumos'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { useMovimientosInventarioStore } from '@/stores/movimientosInventario'
 import { useAuthStore } from '@/stores/auth'
-import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 
 type TipoMovimiento = 'E' | 'S' | 'A' | 'M'
 
 const route = useRoute()
-const router = useRouter()
 const authStore = useAuthStore()
 const insumosStore = useInsumosStore()
 const unidadesStore = useUnidadesMedidaStore()
@@ -196,12 +167,26 @@ const TIPO_LABEL: Record<TipoMovimiento, string> = {
   A: 'Devolución',
   M: 'Merma',
 }
-const TIPO_TONO: Record<TipoMovimiento, 'verde' | 'rojo' | 'azul' | 'naranja'> = {
-  E: 'verde',
-  S: 'rojo',
-  A: 'azul',
-  M: 'naranja',
+const TIPO_TONO: Record<TipoMovimiento, 'ok' | 'bad' | 'info' | 'warn'> = {
+  E: 'ok',
+  S: 'bad',
+  A: 'info',
+  M: 'warn',
 }
+
+const entradas = computed(() =>
+  movimientosStore.items
+    .filter((m) => esEntrada(m.tipo))
+    .reduce((s, m) => s + Number(m.cantidad), 0),
+)
+const salidas = computed(() =>
+  movimientosStore.items
+    .filter((m) => !esEntrada(m.tipo))
+    .reduce((s, m) => s + Number(m.cantidad), 0),
+)
+const bajoMinimo = computed(
+  () => !!insumo.value && Number(insumo.value.stock_actual) < Number(insumo.value.stock_minimo),
+)
 const MOTIVO_LABEL: Record<string, string> = {
   venta_comanda: 'Venta',
   cancelacion_comanda: 'Cancelación',
@@ -216,14 +201,37 @@ const formatearFecha = (iso: string): string =>
   new Date(iso).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })
 
 const columns: QTableColumn[] = [
-  { name: 'creado', label: 'FECHA', field: 'creado', align: 'left', sortable: true },
-  { name: 'tipo', label: 'TIPO', field: 'tipo', align: 'left' },
-  { name: 'motivo', label: 'MOTIVO', field: 'motivo', align: 'left' },
-  { name: 'entrada', label: 'ENTRADA', field: 'cantidad', align: 'left' },
-  { name: 'salida', label: 'SALIDA', field: 'cantidad', align: 'left' },
-  { name: 'saldo', label: 'SALDO', field: 'stock_resultante', align: 'left' },
-  { name: 'costo', label: 'COSTO', field: 'costo_total', align: 'left' },
+  { name: 'creado', label: 'Fecha', field: 'creado', align: 'left', sortable: true },
+  { name: 'tipo', label: 'Tipo', field: 'tipo', align: 'left' },
+  { name: 'motivo', label: 'Motivo', field: 'motivo', align: 'left' },
+  { name: 'entrada', label: 'Entrada', field: 'cantidad', align: 'right' },
+  { name: 'salida', label: 'Salida', field: 'cantidad', align: 'right' },
+  { name: 'saldo', label: 'Saldo', field: 'stock_resultante', align: 'right' },
+  { name: 'costo', label: 'Costo', field: 'costo_total', align: 'right' },
 ]
 </script>
 
-<style scoped></style>
+<style scoped lang="scss">
+.kdx-range {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    width: 170px;
+  }
+}
+
+.kdx-in {
+  color: var(--tone-ok-fg) !important;
+  font-weight: 700;
+}
+
+.kdx-out {
+  color: var(--tone-bad-fg) !important;
+  font-weight: 700;
+}
+</style>
