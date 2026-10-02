@@ -28,7 +28,7 @@
       <div class="pay__body">
         <section class="pay__col pay__col--methods">
           <span class="pay__label">Método</span>
-          <MethodSelector v-model="metodoSeleccionado" :metodos-disponibles="props.metodosPago" />
+          <MethodSelector v-model="metodoSeleccionado" :metodos-disponibles="metodosVisibles" />
         </section>
 
         <section class="pay__col pay__col--keypad">
@@ -41,7 +41,7 @@
         </section>
 
         <section class="pay__col pay__col--applied">
-          <div class="pay__client">
+          <div v-if="permitirLealtad" class="pay__client">
             <span class="field-label">Celular del cliente (opcional)</span>
             <q-input
               ref="celularInputRef"
@@ -173,16 +173,25 @@ import BaseDialog from '@/components/ui/BaseDialog.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import AppliedPaymentsList from './AppliedPaymentsList.vue'
 
-const props = defineProps<
-  PaymentProps & {
-    modelValue: boolean
-    metodosPago: MetodosPago[]
-    /** Encabezado del cobro (p. ej. "Cobrar pedido"). */
-    titulo?: string
-    /** Línea secundaria (cliente, mesa, folio). */
-    subtitulo?: string
-  }
->()
+const props = withDefaults(
+  defineProps<
+    PaymentProps & {
+      modelValue: boolean
+      metodosPago: MetodosPago[]
+      /** Encabezado del cobro (p. ej. "Cobrar pedido"). */
+      titulo?: string
+      /** Línea secundaria (cliente, mesa, folio). */
+      subtitulo?: string
+      /**
+       * Si es false oculta la categoría Lealtad y la captura de celular, y no
+       * emite puntos. Usar en flujos que no pueden procesar la redención.
+       * Por defecto true.
+       */
+      permitirLealtad?: boolean
+    }
+  >(),
+  { permitirLealtad: true, titulo: undefined, subtitulo: undefined },
+)
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   /**
@@ -215,12 +224,17 @@ const tarjetaMontoTemporal = ref(0)
 const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
 const tarjetaAutorizacion = ref('')
 
+// Catálogo que se ofrece en el selector: sin Lealtad si el flujo no la admite.
+const metodosVisibles = computed(() =>
+  props.permitirLealtad ? props.metodosPago : props.metodosPago.filter((m) => m.tipo !== 'L'),
+)
+
 // Primera categoría con al menos un método activo de ese tipo en el
 // catálogo real de la sucursal -- no asumir que "Efectivo" siempre existe.
 const primeraCategoriaDisponible = computed(
   () =>
     CATEGORIAS_METODO_PAGO.find((cat) =>
-      props.metodosPago.some((m) => m.activo && m.tipo === cat.tipo),
+      metodosVisibles.value.some((m) => m.activo && m.tipo === cat.tipo),
     )?.valor ?? '',
 )
 
@@ -229,7 +243,7 @@ watch(
   (visible) => {
     if (visible) {
       metodoSeleccionado.value = primeraCategoriaDisponible.value
-      if (props.celularPrellenado) {
+      if (props.permitirLealtad && props.celularPrellenado) {
         celularCliente.value = props.celularPrellenado
       }
     } else {
@@ -254,7 +268,7 @@ watch(
 )
 
 watch(celularCliente, async (val) => {
-  if (val.length !== 10 || !authStore.currentBranchId) {
+  if (!props.permitirLealtad || val.length !== 10 || !authStore.currentBranchId) {
     saldoDisponible.value = null
     puntosARedimir.value = 0
     return
@@ -490,9 +504,9 @@ const finalizarPago = () => {
   emit(
     'pago-exitoso',
     normalizarPagos(),
-    celularCliente.value.length === 10 ? celularCliente.value : null,
-    Math.min(puntosARedimir.value, maxPuntosRedimibles.value),
-    descuentoPuntos.value,
+    props.permitirLealtad && celularCliente.value.length === 10 ? celularCliente.value : null,
+    props.permitirLealtad ? Math.min(puntosARedimir.value, maxPuntosRedimibles.value) : 0,
+    props.permitirLealtad ? descuentoPuntos.value : 0,
   )
   emit('update:modelValue', false)
   pagosAplicados.value = []

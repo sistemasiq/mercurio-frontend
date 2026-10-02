@@ -155,4 +155,25 @@ describe('PaymentModal', () => {
     // Se abre el formulario de tarjeta en vez de rechazar el monto por exceder el saldo.
     expect(wrapper.findComponent(BaseDialog).props('modelValue')).toBe(true)
   })
+
+  it('permitirLealtad=false oculta la categoria Lealtad y la captura de celular', () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        modelValue: true,
+        totalToPay: 100,
+        metodosPago: METODOS_PAGO_TEST,
+        permitirLealtad: false,
+      },
+      global: { stubs: { QDialog: { template: '<div><slot /></div>' } } },
+    })
+
+    expect(wrapper.text()).not.toContain('Lealtad')
+    expect(wrapper.text()).not.toContain('Celular del cliente')
+  })
+
+  it('por defecto ofrece Lealtad y la captura de celular', () => {
+    const wrapper = montar(100)
+    expect(wrapper.text()).toContain('Lealtad')
+    expect(wrapper.text()).toContain('Celular del cliente')
+  })
 })
