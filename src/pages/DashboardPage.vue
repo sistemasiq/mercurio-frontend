@@ -1,247 +1,124 @@
 <template>
-  <q-page class="page-content">
-    <!-- Header -->
-    <div class="row items-start q-mb-lg">
-      <div>
-        <div class="text-h4 text-weight-bold" style="color: var(--text-primary)">
-          Resumen de Eventos
-        </div>
-        <div class="text-body2 text-grey-6 q-mt-xs">
-          Gestiona próximas reservaciones, paquetes y pagos.
-        </div>
-      </div>
-      <q-space />
-      <div class="row q-gutter-sm">
+  <q-page class="page-content resumen">
+    <PageHeader
+      title="Resumen de Eventos"
+      subtitle="Gestiona próximas reservaciones, paquetes y pagos."
+    >
+      <template #actions>
         <q-btn
           outline
-          no-caps
-          color="grey-8"
-          icon="filter_list"
-          label="Filtrar"
-          style="border-radius: 8px"
-        >
-          <q-tooltip>Función en desarrollo</q-tooltip>
-        </q-btn>
+          icon="event_note"
+          label="Reservaciones"
+          :to="{ name: 'eventos-reservaciones' }"
+        />
         <q-btn
           unelevated
-          no-caps
           color="primary"
           icon="add"
           label="Nueva Reservación"
-          style="border-radius: 8px; font-weight: 600"
           @click="irANuevaReservacion"
         />
-      </div>
+      </template>
+    </PageHeader>
+
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
-    <!-- Sin sucursal activa -->
-    <q-banner
-      v-if="!authStore.currentBranchId"
-      dense
-      rounded
-      class="bg-orange-1 text-orange-9 q-mb-md"
-      style="border-radius: 10px"
-    >
-      <template #avatar><q-icon name="info" color="orange-9" /></template>
-      No hay una sucursal activa en la sesión.
-    </q-banner>
+    <div class="kpi-row">
+      <KpiCard
+        label="Fiestas próximas"
+        :value="store.loading ? '—' : eventosProximos"
+        :note="eventosEstaSemana ? `+${eventosEstaSemana} esta semana` : undefined"
+        note-tone="ok"
+      />
+      <KpiCard
+        label="Depósitos pendientes"
+        :value="store.loading ? '—' : depositosPendientes"
+        :note="depositosUrgentes ? `${depositosUrgentes} urgentes` : undefined"
+        note-tone="bad"
+      />
+      <KpiCard
+        label="Saldo por cobrar"
+        :value="store.loading ? '—' : formatMXN(saldoPorCobrar)"
+        :note="`${reservacionesConSaldo.length} reservaciones`"
+      />
+      <KpiCard
+        label="Paquete más popular"
+        :value="store.loading || paquetesStore.loading ? '—' : paqueteMasPopular"
+        :note="conteoPaquetePopular ?? undefined"
+      />
+    </div>
 
-    <div class="row q-col-gutter-lg">
-      <!-- Columna izquierda: stats + agenda -->
-      <div class="col-12 col-md-8">
-        <div class="row q-col-gutter-md q-mb-md">
-          <div class="col-12 col-sm-4">
-            <div class="stat-card">
-              <div class="stat-card__top">
-                <div class="stat-card__icon stat-card__icon--blue">
-                  <q-icon name="celebration" />
-                </div>
-                <div
-                  v-if="eventosEstaSemana > 0"
-                  class="stat-card__corner-badge stat-card__corner-badge--positive"
-                >
-                  +{{ eventosEstaSemana }} esta semana
-                </div>
-              </div>
-              <div class="stat-card__value">{{ store.loading ? '—' : eventosProximos }}</div>
-              <div class="stat-card__label">Fiestas Próximas</div>
-            </div>
-          </div>
-          <div class="col-12 col-sm-4">
-            <div class="stat-card">
-              <div class="stat-card__top">
-                <div class="stat-card__icon stat-card__icon--orange">
-                  <q-icon name="pending_actions" />
-                </div>
-                <div
-                  v-if="depositosUrgentes > 0"
-                  class="stat-card__corner-badge stat-card__corner-badge--negative"
-                >
-                  {{ depositosUrgentes }} urgentes
-                </div>
-              </div>
-              <div class="stat-card__value text-warning">
-                {{ store.loading ? '—' : depositosPendientes }}
-              </div>
-              <div class="stat-card__label">Depósitos Pendientes</div>
-            </div>
-          </div>
-          <div class="col-12 col-sm-4">
-            <div class="stat-card">
-              <div class="stat-card__top">
-                <div class="stat-card__icon stat-card__icon--green">
-                  <q-icon name="diamond" />
-                </div>
-              </div>
-              <div class="stat-card__value" style="font-size: 1.4rem">
-                {{ store.loading || paquetesStore.loading ? '—' : paqueteMasPopular }}
-              </div>
-              <div class="stat-card__label">Paquete Más Popular</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel-card">
-          <div class="panel-card__header">
-            <h3>
-              <q-icon name="event_note" size="18px" color="primary" class="q-mr-xs" />
-              Agenda de Esta Semana
-            </h3>
-            <div class="week-nav">
-              <q-btn flat round dense icon="chevron_left" size="sm" @click="semanaOffset--" />
-              <div class="text-caption text-grey-6 week-nav__label">{{ rangoSemanaLabel }}</div>
-              <q-btn flat round dense icon="chevron_right" size="sm" @click="semanaOffset++" />
-            </div>
-          </div>
-
-          <q-table
-            :rows="agendaSemana"
-            :columns="columns"
-            row-key="id"
+    <section class="agenda">
+      <header class="agenda__head">
+        <h2 class="agenda__title">Agenda de la semana</h2>
+        <div class="agenda__nav">
+          <q-btn
             flat
-            class="fec-table"
-            :loading="store.loading"
-            hide-pagination
-            :rows-per-page-options="[0]"
-            no-data-label="No hay eventos programados esta semana"
+            round
+            dense
+            icon="chevron_left"
+            aria-label="Semana anterior"
+            @click="semanaOffset--"
+          />
+          <span class="agenda__range">{{ rangoSemanaLabel }}</span>
+          <q-btn
+            flat
+            round
+            dense
+            icon="chevron_right"
+            aria-label="Semana siguiente"
+            @click="semanaOffset++"
+          />
+          <q-btn outline dense label="Hoy" class="agenda__today" @click="semanaOffset = 0" />
+        </div>
+      </header>
+      <div class="agenda__grid">
+        <div
+          v-for="dia in diasSemana"
+          :key="dia.key"
+          class="agenda__day"
+          :class="{ 'agenda__day--today': dia.hoy }"
+        >
+          <span class="agenda__dow">
+            {{ dia.dow }} <b>{{ dia.num }}</b>
+          </span>
+          <button
+            v-for="ev in dia.eventos"
+            :key="ev.id"
+            type="button"
+            class="agenda-ev"
+            :class="{ 'agenda-ev--due': ev.pendiente }"
+            @click="irACierre(ev.id)"
           >
-            <template #body-cell-fecha="props">
-              <q-td :props="props">
-                <div class="event-name">{{ props.row.diaLabel }}, {{ props.row.hora }}</div>
-                <div class="text-caption text-grey-6">{{ props.row.duracion }}</div>
-              </q-td>
-            </template>
-            <template #body-cell-cliente="props">
-              <q-td :props="props">
-                <div class="event-name">{{ props.row.cliente }}</div>
-                <div v-if="props.row.festejado" class="text-caption text-grey-6">
-                  {{ props.row.festejado }}
-                </div>
-              </q-td>
-            </template>
-            <template #body-cell-paquete="props">
-              <q-td :props="props">
-                <q-badge
-                  outline
-                  color="primary"
-                  :label="props.row.paquete"
-                  style="font-size: 0.7rem; padding: 4px 8px; border-radius: 6px"
-                />
-              </q-td>
-            </template>
-            <template #body-cell-deposito="props">
-              <q-td :props="props">
-                <span
-                  class="status-dot"
-                  :class="props.row.pendienteNum > 0 ? 'status-dot--pending' : 'status-dot--paid'"
-                />
-                <span
-                  :class="props.row.pendienteNum > 0 ? 'text-warning' : 'text-positive'"
-                  class="text-weight-medium"
-                >
-                  {{ props.row.pendienteNum > 0 ? 'Pendiente' : 'Pagado' }}
-                </span>
-              </q-td>
-            </template>
-            <template #body-cell-actions="props">
-              <q-td :props="props" auto-width>
-                <q-btn
-                  flat
-                  round
-                  dense
-                  size="sm"
-                  icon="point_of_sale"
-                  color="grey-7"
-                  @click="
-                    router.push({
-                      name: 'eventos-reservaciones-cierre',
-                      params: { id: props.row.id },
-                    })
-                  "
-                >
-                  <q-tooltip>Cerrar evento</q-tooltip>
-                </q-btn>
-              </q-td>
-            </template>
-          </q-table>
-
-          <div class="panel-card__footer">
-            <q-btn
-              flat
-              no-caps
-              color="primary"
-              label="Ver Calendario Completo"
-              style="font-weight: 600"
-              @click="router.push({ name: 'eventos-calendario' })"
-            />
-          </div>
+            <span class="agenda-ev__time">{{ ev.hora }}</span>
+            <span class="agenda-ev__title">{{ ev.titulo }}</span>
+            <span class="agenda-ev__pkg">{{ ev.paquete }}</span>
+            <span class="agenda-ev__status">{{
+              ev.pendiente ? 'Depósito pendiente' : 'Pagado'
+            }}</span>
+          </button>
         </div>
       </div>
-
-      <!-- Columna derecha: paquetes más pedidos -->
-      <div class="col-12 col-md-4">
-        <div class="panel-card panel-packages">
-          <div class="panel-packages__header">
-            <div class="text-h6 text-weight-bold">Paquetes de Fiesta</div>
-            <div class="text-caption" style="opacity: 0.85">Los 3 más solicitados</div>
-          </div>
-          <div class="q-pa-md">
-            <div v-if="paquetesStore.loading" class="q-pa-sm text-grey">Cargando...</div>
-            <div v-else-if="topPaquetes.length === 0" class="q-pa-sm text-grey">
-              Aún no hay paquetes solicitados
-            </div>
-            <div
-              v-for="(p, i) in topPaquetes"
-              v-else
-              :key="p.id"
-              class="mini-package"
-              :class="{ 'mini-package--top': i === 0 }"
-            >
-              <div class="mini-package__icon">
-                <q-icon :name="i === 0 ? 'diamond' : 'celebration'" />
-              </div>
-              <div class="mini-package__info">
-                <div class="mini-package__name">{{ p.nombre }}</div>
-                <div class="mini-package__desc">{{ descripcionPaquete(p) }}</div>
-              </div>
-              <div class="mini-package__price">{{ formatCurrency(p.precio_base) }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <q-inner-loading :showing="store.loading"
+        ><q-spinner color="primary" size="32px"
+      /></q-inner-loading>
+    </section>
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import type { QTableColumn } from 'quasar'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { usePaquetesStore } from '@/stores/paquetes'
 import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import type { Paquetes } from '@/types/paquetes'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import KpiCard from '@/components/ui/KpiCard.vue'
+import { formatMXN } from '@/utils/formatoMoneda'
 
 const router = useRouter()
 const store = useReservacionesStore()
@@ -271,12 +148,6 @@ today.setHours(0, 0, 0, 0)
 function parseLocalDate(str: string): Date {
   const [y, m, d] = str.split('-').map(Number)
   return new Date(y, m - 1, d)
-}
-
-function formatCurrency(value: string | null | undefined): string {
-  const num = parseFloat(value ?? '0')
-  if (isNaN(num)) return '$0.00'
-  return `$${num.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 // ── Semana mostrada (lunes a domingo), navegable con semanaOffset ────────────
@@ -381,148 +252,221 @@ const topPaquetes = computed(() => {
 
 const paqueteMasPopular = computed(() => topPaquetes.value[0]?.nombre ?? '—')
 
-function descripcionPaquete(p: Paquetes): string {
-  if (p.descripcion) return p.descripcion
-  return `${p.min_invitados} a ${p.max_invitados} invitados`
+// ── Agenda semanal por columnas ───────────────────────────────────────────────
+
+interface EventoAgenda {
+  id: string
+  hora: string
+  titulo: string
+  paquete: string
+  pendiente: boolean
 }
 
-// ── Tabla de agenda semanal ───────────────────────────────────────────────────
-
-const columns: QTableColumn[] = [
-  { name: 'fecha', label: 'FECHA Y HORA', field: 'diaLabel', align: 'left' },
-  { name: 'cliente', label: 'CLIENTE / FESTEJADO', field: 'cliente', align: 'left' },
-  { name: 'paquete', label: 'PAQUETE', field: 'paquete', align: 'left' },
-  { name: 'deposito', label: 'DEPÓSITO', field: 'pendienteNum', align: 'left' },
-  { name: 'actions', label: '', field: 'id', align: 'right' },
-]
-
-const agendaSemana = computed(() =>
-  eventosSemana.value.map((r) => {
-    const d = parseLocalDate(r.fecha_evento)
-    const diffDias = Math.round((d.getTime() - today.getTime()) / 86400000)
-    const diaLabel =
-      diffDias === 0
-        ? 'Hoy'
-        : diffDias === 1
-          ? 'Mañana'
-          : d.toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short' })
-
-    const [h1, m1] = r.hora_inicio.split(':').map(Number)
-    const [h2, m2] = r.hora_fin.split(':').map(Number)
-    const minutos = h2! * 60 + m2! - (h1! * 60 + m1!)
-    const horas = Math.max(1, Math.ceil(minutos / 60))
-
+const diasSemana = computed(() =>
+  Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(inicioSemana.value)
+    d.setDate(d.getDate() + i)
+    const eventos: EventoAgenda[] = eventosSemana.value
+      .filter((r) => parseLocalDate(r.fecha_evento).toDateString() === d.toDateString())
+      .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio))
+      .map((r) => {
+        const familia = r.apellidos_cliente ? `Fam. ${r.apellidos_cliente}` : r.nombre_cliente
+        const festejado = r.nombre_festejado
+          ? ` · ${r.nombre_festejado}${r.edad_festejado ? ` (${r.edad_festejado})` : ''}`
+          : ''
+        return {
+          id: r.id,
+          hora: r.hora_inicio.slice(0, 5),
+          titulo: `${familia}${festejado}`,
+          paquete: paquetesStore.paquetes.find((p) => p.id === r.paquete_id)?.nombre ?? '—',
+          pendiente: parseFloat(r.saldo_pendiente || '0') > 0,
+        }
+      })
     return {
-      id: r.id,
-      diaLabel,
-      hora: r.hora_inicio.slice(0, 5),
-      duracion: `${horas} ${horas === 1 ? 'Hora' : 'Horas'}`,
-      cliente: `${r.nombre_cliente}${r.apellidos_cliente ? ' ' + r.apellidos_cliente : ''}`.trim(),
-      festejado: r.nombre_festejado
-        ? `${r.nombre_festejado}${r.edad_festejado ? ' (Cumple ' + r.edad_festejado + ')' : ''}`
-        : null,
-      paquete: paquetesStore.paquetes.find((p) => p.id === r.paquete_id)?.nombre ?? '—',
-      pendienteNum: parseFloat(r.saldo_pendiente || '0'),
+      key: d.toISOString(),
+      dow: d.toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', ''),
+      num: d.getDate(),
+      hoy: d.toDateString() === today.toDateString(),
+      eventos,
     }
   }),
 )
+
+// ── KPIs adicionales ─────────────────────────────────────────────────────────
+
+const reservacionesConSaldo = computed(() =>
+  store.reservaciones.filter(
+    (r) =>
+      r.estado !== 'cancelada' &&
+      parseLocalDate(r.fecha_evento) >= today &&
+      parseFloat(r.saldo_pendiente || '0') > 0,
+  ),
+)
+const saldoPorCobrar = computed(() =>
+  reservacionesConSaldo.value.reduce((s, r) => s + parseFloat(r.saldo_pendiente || '0'), 0),
+)
+const conteoPaquetePopular = computed(() => {
+  const top = topPaquetes.value[0]
+  if (!top) return null
+  const activas = store.reservaciones.filter((r) => r.estado !== 'cancelada')
+  return `${activas.filter((r) => r.paquete_id === top.id).length} de ${activas.length}`
+})
+
+function irACierre(id: string) {
+  router.push({ name: 'eventos-reservaciones-cierre', params: { id } })
+}
 </script>
 
-<style scoped>
-.week-nav {
+<style scoped lang="scss">
+.resumen {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.week-nav__label {
-  min-width: 100px;
-  text-align: center;
-}
-
-.status-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  margin-right: 6px;
-
-  &--paid {
-    background: var(--q-positive, #10b981);
-  }
-
-  &--pending {
-    background: var(--q-warning, #f59e0b);
-  }
-}
-
-.panel-card__footer {
-  display: flex;
-  justify-content: center;
-  padding: 12px;
-  border-top: 1px solid var(--border-color);
-}
-
-.panel-packages__header {
-  padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(139, 92, 246, 0.1));
-  border-bottom: 1px solid var(--border-color);
-}
-
-.mini-package {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
+.agenda {
+  position: relative;
+  background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  margin-bottom: 10px;
-}
-
-.mini-package:last-child {
-  margin-bottom: 0;
-}
-
-.mini-package--top {
-  border-color: var(--q-primary, #4f46e5);
-  background: rgba(79, 70, 229, 0.04);
-}
-
-.mini-package__icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(79, 70, 229, 0.1);
-  color: var(--q-primary, #4f46e5);
-  flex-shrink: 0;
-}
-
-.mini-package__info {
-  flex: 1;
-  min-width: 0;
-}
-
-.mini-package__name {
-  font-weight: 700;
-  font-size: 0.875rem;
-  color: var(--text-primary);
-}
-
-.mini-package__desc {
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  &__title {
+    flex: 1;
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__range {
+    min-width: 120px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  &__today {
+    margin-left: 8px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  &__grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    overflow-x: auto;
+
+    @media (max-width: 1100px) {
+      grid-template-columns: repeat(7, 160px);
+    }
+  }
+
+  &__day {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 10px;
+    border-right: 1px solid var(--border-soft);
+
+    &:last-child {
+      border-right: 0;
+    }
+
+    &--today {
+      background: #f2f6fe;
+
+      .agenda__dow b {
+        color: var(--q-primary);
+      }
+    }
+  }
+
+  &__dow {
+    padding: 0 2px 4px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+
+    b {
+      margin-left: 4px;
+      font-size: 18px;
+      letter-spacing: 0;
+      color: var(--text-strong);
+    }
+  }
 }
 
-.mini-package__price {
-  font-weight: 800;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  flex-shrink: 0;
+.agenda-ev {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 0;
+  border-left: 3px solid var(--q-primary);
+  border-radius: 8px;
+  background: #eaf1fd;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &--due {
+    border-left-color: var(--q-secondary);
+    background: #fdeef3;
+
+    .agenda-ev__status {
+      color: var(--tone-warn-fg);
+    }
+  }
+
+  &:hover {
+    filter: brightness(0.98);
+  }
+
+  &__time {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__title {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text-strong);
+  }
+
+  &__pkg {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__status {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--tone-ok-fg);
+  }
 }
 </style>
