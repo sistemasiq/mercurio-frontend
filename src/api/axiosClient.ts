@@ -16,6 +16,8 @@ export const rawApiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+type RetriableConfig = InternalAxiosRequestConfig & { _retry?: boolean }
+
 interface BackendRefreshResponse {
   token: string
   refresh_token: string
@@ -129,6 +131,15 @@ function createAxiosClient(): AxiosInstance {
         }
 
         const session = sessionStorage.load()
+        const retryConfig = error.config as RetriableConfig | undefined
+
+        // Ya se reintentó con un token recién refrescado y el servidor sigue
+        // respondiendo 401: no hay nada más que renovar, cerrar la sesión.
+        if (retryConfig?._retry) {
+          sessionStorage.clear()
+          window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+          return Promise.reject(buildApiError(status, code, message))
+        }
 
         if (!session?.refreshToken) {
           sessionStorage.clear()
@@ -140,7 +151,8 @@ function createAxiosClient(): AxiosInstance {
         if (isRefreshing) {
           return new Promise<AxiosResponse>((resolve, reject) => {
             refreshQueue.push((newToken) => {
-              const config = error.config as InternalAxiosRequestConfig
+              const config = error.config as RetriableConfig
+              config._retry = true
               config.headers.Authorization = `Bearer ${newToken}`
               resolve(client(config))
             })
@@ -161,7 +173,8 @@ function createAxiosClient(): AxiosInstance {
           refreshQueue.length = 0
           isRefreshing = false
 
-          const config = error.config as InternalAxiosRequestConfig
+          const config = error.config as RetriableConfig
+          config._retry = true
           config.headers.Authorization = `Bearer ${data.token}`
           return client(config)
         } catch {
