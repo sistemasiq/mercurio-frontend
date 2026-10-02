@@ -133,17 +133,16 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/sysadmin/UsersPage.vue'),
         meta: { permissions: ['usuarios:listar'], title: 'Usuarios' },
       },
+      // Alta y edición son diálogos del listado; las rutas se conservan como accesos directos.
       {
         path: 'nuevo',
         name: 'usuarios-crear',
-        component: () => import('@/pages/sysadmin/UserRegisterPage.vue'),
-        meta: { permissions: ['usuarios:crear'], title: 'Registrar usuario' },
+        redirect: { name: 'usuarios-listar', query: { nuevo: '1' } },
       },
       {
         path: ':id/editar',
         name: 'usuarios-editar',
-        component: () => import('@/pages/sysadmin/UserEditPage.vue'),
-        meta: { permissions: ['usuarios:editar'], title: 'Editar usuario' },
+        redirect: (to) => ({ name: 'usuarios-listar', query: { editar: String(to.params.id) } }),
       },
     ],
   },
