@@ -147,13 +147,14 @@ const onPagoExitoso = (
   pagos: AppliedPayment[],
   _celularCliente: string | null,
   puntosARedimir: number,
+  descuentoPuntos: number,
 ) => {
   try {
     const pagosMapeados: OnboardingPago[] = pagos.map((p) => ({
       metodoPagoId: mapearMetodoPago(p.method),
       monto: p.amount,
     }))
-    store.proceedToRFID(pagosMapeados, puntosARedimir)
+    store.proceedToRFID(pagosMapeados, puntosARedimir, descuentoPuntos)
   } catch (err) {
     console.error('[OrderSummary] onPagoExitoso:', err)
     $q.notify({
