@@ -801,6 +801,7 @@ import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 import { horasFacturables } from '@/utils/horario'
+import { mensajeDeError } from '@/utils/errorHandler'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -1279,7 +1280,7 @@ const confirmarReservacion = async () => {
   } catch (err: unknown) {
     $q.notify({
       type: 'negative',
-      message: (err as Error).message || 'No se pudo validar la reservación',
+      message: mensajeDeError(err, 'No se pudo validar la reservación'),
       position: 'top-right',
       timeout: 6000,
     })

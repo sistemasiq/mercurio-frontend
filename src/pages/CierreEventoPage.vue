@@ -205,6 +205,7 @@ import type { Reservacion_productos } from '@/types/reservacion_productos'
 import type { AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 import { redondear2, TOLERANCIA_MONTO } from '@/utils/dinero'
+import { mensajeDeError } from '@/utils/errorHandler'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import { horasFacturables } from '@/utils/horario'
 
@@ -419,7 +420,7 @@ const onPagoExitoso = async (pagosAplicados: AppliedPayment[]) => {
     } else {
       $q.notify({
         type: 'negative',
-        message: (err as Error).message || 'Error al registrar el pago',
+        message: mensajeDeError(err, 'Error al registrar el pago'),
         position: 'top-right',
       })
     }

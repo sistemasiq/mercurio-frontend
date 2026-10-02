@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { branchesApi } from '@/api/branchesApi'
 import type { Branch } from '@/types/branch'
 import type { Sucursales, SucursalCreate, SucursalUpdate } from '@/types/sucursales'
@@ -40,7 +41,7 @@ export const useSucursalesStore = defineStore('sucursales', {
         const branches = await branchesApi.list()
         this.sucursales = branches.map(mapToSucursal)
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar sucursales'
+        this.error = mensajeDeError(error, 'Error al cargar sucursales')
       } finally {
         this.loading = false
       }

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import {
   actualizarMetadataRol,
   actualizarPermisosRol,
@@ -29,7 +30,7 @@ export const useRolesStore = defineStore('roles', {
       try {
         this.roles = await listarRoles()
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar los roles'
+        this.error = mensajeDeError(error, 'Error al cargar los roles')
       } finally {
         this.loading = false
       }

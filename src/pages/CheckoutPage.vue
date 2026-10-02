@@ -135,7 +135,7 @@ import type { MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment } from '@/types/payments'
 import type { ApiError } from '@/types/auth'
 import { resolverMetodoPagoId } from '@/utils/metodosPago'
-import { resolveErrorMessage } from '@/utils/errorHandler'
+import { mensajeDeError } from '@/utils/errorHandler'
 
 const store = useAccessControlStore()
 const router = useRouter()
@@ -308,11 +308,7 @@ async function onPagoExtraExitoso(pagos: AppliedPayment[]) {
       Notify.create({
         type: 'negative',
         message: 'No se pudo registrar el pago del cargo extra.',
-        caption: apiErr?.statusCode
-          ? resolveErrorMessage(apiErr)
-          : err instanceof Error
-            ? err.message
-            : 'Error desconocido.',
+        caption: mensajeDeError(err, 'Error desconocido.'),
         position: 'top-right',
         timeout: 4000,
       })

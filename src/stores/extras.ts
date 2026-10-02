@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { extrasApi } from '@/api/extrasApi'
 import type { Extras, ExtrasUpdate, ExtrasCreate } from '@/types/extras.ts'
 
@@ -24,7 +25,7 @@ export const useExtrasStore = defineStore('extras', {
       try {
         this.extras = await extrasApi.listar(sucursal_id)
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar los extras'
+        this.error = mensajeDeError(error, 'Error al cargar los extras')
       } finally {
         this.loading = false
       }

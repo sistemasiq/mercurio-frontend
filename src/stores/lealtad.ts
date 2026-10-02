@@ -6,6 +6,7 @@ import {
   obtenerReporteLealtad,
   obtenerSaldoLealtad,
 } from '@/services/lealtadService'
+import { mensajeDeError } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import type {
   ConfiguracionLealtad,
@@ -44,7 +45,7 @@ export const useLealtadStore = defineStore('lealtad', {
         if (apiError.statusCode === 404) {
           this.configuracion = null
         } else {
-          this.error = apiError.message ?? 'Error al cargar la configuración de lealtad'
+          this.error = mensajeDeError(apiError, 'Error al cargar la configuración de lealtad')
         }
       } finally {
         this.loading = false
@@ -69,7 +70,7 @@ export const useLealtadStore = defineStore('lealtad', {
         this.movimientos = await listarMovimientosLealtad(sucursalId, celular, desde, hasta)
         this.saldo = await obtenerSaldoLealtad(sucursalId, celular)
       } catch (error: unknown) {
-        this.error = (error as ApiError).message ?? 'Error al cargar el kardex de lealtad'
+        this.error = mensajeDeError(error, 'Error al cargar el kardex de lealtad')
       } finally {
         this.loading = false
       }
@@ -80,7 +81,7 @@ export const useLealtadStore = defineStore('lealtad', {
       try {
         this.reporte = await obtenerReporteLealtad(sucursalId)
       } catch (error: unknown) {
-        this.error = (error as ApiError).message ?? 'Error al cargar el reporte de lealtad'
+        this.error = mensajeDeError(error, 'Error al cargar el reporte de lealtad')
       } finally {
         this.loading = false
       }

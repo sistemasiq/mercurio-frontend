@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { reservacionesApi } from '@/api/reservacionesApi'
 import type { Reservaciones, ReservacionesCreate, ReservacionesUpdate } from '@/types/reservaciones'
 
@@ -24,7 +25,7 @@ export const useReservacionesStore = defineStore('reservaciones', {
       try {
         this.reservaciones = await reservacionesApi.listar(sucursal_id)
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar reservaciones'
+        this.error = mensajeDeError(error, 'Error al cargar reservaciones')
       } finally {
         this.loading = false
       }

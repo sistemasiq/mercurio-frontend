@@ -219,7 +219,7 @@ import StateBlock from '@/components/ui/StateBlock.vue'
 import TablePager from '@/components/ui/TablePager.vue'
 import type { FilterChip, UiTone } from '@/types/ui'
 import { formatMXN } from '@/utils/formatoMoneda'
-import { resolveErrorMessage } from '@/utils/errorHandler'
+import { mensajeDeError, resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import { comandasApi } from '@/api/comandasApi'
 import { obtenerHistorial, obtenerEstadisticas } from '@/services/historialService'
@@ -465,7 +465,7 @@ function abrirCancelar(comandaId: string) {
       })
       void cargarDatos()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'No se pudo cancelar la orden.'
+      const msg = mensajeDeError(err, 'No se pudo cancelar la orden.')
       $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 4000 })
     }
   })

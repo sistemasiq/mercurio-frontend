@@ -14,7 +14,7 @@
 import { ref, computed, reactive } from 'vue'
 import { defineStore } from 'pinia'
 import { turnoCajaService, TurnoNoEncontradoError } from '@/services/turnoCajaService'
-import { resolveErrorMessage } from '@/utils/errorHandler'
+import { mensajeDeError, resolveErrorMessage } from '@/utils/errorHandler'
 import { useAuthStore } from '@/stores/auth'
 import type { ApiError } from '@/types/auth'
 import type {
@@ -184,7 +184,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       })
       _aplicarTurno(turno)
     } catch (err) {
-      error.value = (err as Error).message
+      error.value = mensajeDeError(err, 'No se pudo abrir el turno.')
     } finally {
       cargando.value = false
     }
@@ -213,7 +213,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
         fechaApertura.value = null
         return { ok: true, hayTurno: false }
       }
-      const mensaje = (err as Error).message
+      const mensaje = mensajeDeError(err, 'No se pudo cargar el turno activo.')
       error.value = mensaje
       return { ok: false, error: mensaje }
     } finally {
@@ -285,7 +285,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       const turno = await turnoCajaService.iniciarConteo(turnoId.value)
       _aplicarTurno(turno)
     } catch (err) {
-      error.value = (err as Error).message
+      error.value = mensajeDeError(err, 'No se pudo iniciar el conteo.')
     } finally {
       cargando.value = false
     }
@@ -344,7 +344,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
         await cargarTurnoActivo()
         if (esperandoRevision.value) return
       }
-      error.value = (err as Error).message
+      error.value = mensajeDeError(err, 'No se pudo enviar el conteo.')
     } finally {
       cargando.value = false
     }
@@ -376,8 +376,10 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       estado.value = 'BALANCE_REVELADO'
       return true
     } catch (err) {
-      credencialesAdmin.error =
-        (err as Error).message || 'Usuario o contraseña de administrador incorrectos.'
+      credencialesAdmin.error = mensajeDeError(
+        err,
+        'Usuario o contraseña de administrador incorrectos.',
+      )
       return false
     } finally {
       credencialesAdmin.cargando = false
@@ -401,7 +403,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       mostrarDialogAutorizacion.value = false
       _resetFormulario()
     } catch (err) {
-      error.value = (err as Error).message
+      error.value = mensajeDeError(err, 'No se pudo cancelar el conteo.')
     } finally {
       cargando.value = false
     }
@@ -431,7 +433,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       await cargarTurnoActivo()
       return true
     } catch (err) {
-      error.value = (err as Error).message
+      error.value = mensajeDeError(err, 'No se pudo registrar el retiro.')
       return false
     } finally {
       cargando.value = false

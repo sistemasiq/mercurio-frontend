@@ -99,6 +99,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { obtenerDetalleOrden } from '@/services/historialService'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { comandasApi } from '@/api/comandasApi'
 import MotivoCancelacionDialog from './MotivoCancelacionDialog.vue'
 import type { DetalleOrden, DetalleProducto } from '@/api/historialApi'
@@ -323,7 +324,7 @@ async function ejecutarEliminacion(motivoCancelacion?: string) {
     emit('orden-actualizada')
     emit('close')
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'No se pudo modificar la orden.'
+    const msg = mensajeDeError(err, 'No se pudo modificar la orden.')
     $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 4000 })
   } finally {
     guardando.value = false

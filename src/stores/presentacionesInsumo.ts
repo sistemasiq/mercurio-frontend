@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import {
   actualizarPresentacionInsumo,
   crearPresentacionInsumo,
@@ -45,7 +46,7 @@ export const usePresentacionesInsumoStore = defineStore('presentacionesInsumo', 
       } catch (error: unknown) {
         if (solicitud !== ultimaSolicitud) return
         this.items = []
-        this.error = (error as Error).message ?? 'Error al cargar las presentaciones'
+        this.error = mensajeDeError(error, 'Error al cargar las presentaciones')
       } finally {
         if (solicitud === ultimaSolicitud) this.loading = false
       }

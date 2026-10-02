@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { productosApi } from '@/api/productosApi'
 import {
   actualizarProducto,
@@ -27,7 +28,7 @@ export const useProductosStore = defineStore('productos', {
       try {
         this.productos = await productosApi.listarAdmin(sucursalId, signal)
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar los productos'
+        this.error = mensajeDeError(error, 'Error al cargar los productos')
       } finally {
         this.loading = false
       }

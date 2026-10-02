@@ -212,6 +212,7 @@ import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import BaseDialog from '@/components/ui/BaseDialog.vue'
 import { turnoCajaService } from '@/services/turnoCajaService'
+import { mensajeDeError } from '@/utils/errorHandler'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -276,7 +277,7 @@ async function confirmarPinCajero() {
       type: 'negative',
       position: 'top',
       icon: 'error',
-      message: (err as Error).message || 'El PIN del Cajero es incorrecto.',
+      message: mensajeDeError(err, 'El PIN del Cajero es incorrecto.'),
     })
   } finally {
     cargandoPinCajero.value = false
@@ -306,7 +307,7 @@ async function confirmarPinAdmin() {
       type: 'negative',
       position: 'top',
       icon: 'error',
-      message: (err as Error).message || 'El PIN del Administrador es incorrecto.',
+      message: mensajeDeError(err, 'El PIN del Administrador es incorrecto.'),
     })
   } finally {
     cargandoPinAdmin.value = false
@@ -343,7 +344,7 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
         position: 'top',
         icon: 'warning',
         timeout: 0,
-        message: `No se pudo descargar el comprobante automáticamente: ${(err as Error).message}`,
+        message: `No se pudo descargar el comprobante automáticamente: ${mensajeDeError(err, 'error desconocido')}`,
         actions: [
           {
             label: 'Descargar comprobante',
@@ -378,7 +379,7 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
     $q.notify({
       type: 'negative',
       position: 'top',
-      message: (err as Error).message || 'Error al procesar el cierre de caja en la base de datos',
+      message: mensajeDeError(err, 'Error al procesar el cierre de caja en la base de datos'),
     })
   } finally {
     cargandoProceso.value = false

@@ -93,6 +93,7 @@ import { metodosPagoApi } from '@/api/metodosPagoApi'
 import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment } from '@/types/payments'
 import type { OnboardingPago } from '@/api/onboardingClient'
+import { mensajeDeError } from '@/utils/errorHandler'
 
 const store = useRegistrationStore()
 const $q = useQuasar()
@@ -160,7 +161,7 @@ const onPagoExitoso = (
     $q.notify({
       type: 'negative',
       message: 'No se pudo registrar el pago.',
-      caption: err instanceof Error ? err.message : 'Error desconocido.',
+      caption: mensajeDeError(err, 'Error desconocido.'),
       position: 'top-right',
       timeout: 4000,
     })

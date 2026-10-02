@@ -116,7 +116,7 @@ import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useLealtadStore } from '@/stores/lealtad'
 import type { ConfiguracionLealtadInput } from '@/types/lealtad'
-import type { ApiError } from '@/types/auth'
+import { mensajeDeError } from '@/utils/errorHandler'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -183,8 +183,7 @@ const guardar = async () => {
     await store.guardarConfiguracion(authStore.currentBranchId, { ...form })
     $q.notify({ type: 'positive', message: 'Configuración de lealtad guardada' })
   } catch (error: unknown) {
-    const apiError = error as ApiError
-    $q.notify({ type: 'negative', message: apiError.message ?? 'No se pudo guardar' })
+    $q.notify({ type: 'negative', message: mensajeDeError(error, 'No se pudo guardar') })
   } finally {
     guardando.value = false
   }
