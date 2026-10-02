@@ -3,6 +3,7 @@ import { AxiosError } from 'axios'
 import {
   isNetworkError,
   isTimeoutError,
+  mensajeDeError,
   resolveErrorMessage,
   TIMEOUT_ERROR_CODE,
 } from '@/utils/errorHandler'
@@ -53,5 +54,46 @@ describe('isTimeoutError / isNetworkError', () => {
   it('ignora valores que no son Error', () => {
     expect(isTimeoutError({ message: 'timeout' })).toBe(false)
     expect(isNetworkError(null)).toBe(false)
+  })
+
+  it('detecta el ApiError plano que apiClient emite para un timeout', () => {
+    expect(isTimeoutError({ statusCode: 0, code: TIMEOUT_ERROR_CODE, message: 'x' })).toBe(true)
+  })
+
+  it('detecta el timeout cuando el ApiError viaja como cause de un Error', () => {
+    const apiErr = { statusCode: 0, code: TIMEOUT_ERROR_CODE, message: 'x' }
+    const wrapped = new Error('x', { cause: apiErr })
+    expect(isTimeoutError(wrapped)).toBe(true)
+  })
+
+  it('no confunde un ApiError con otro code como timeout', () => {
+    expect(isTimeoutError({ statusCode: 404, code: 'NOT_FOUND', message: 'x' })).toBe(false)
+  })
+})
+
+describe('mensajeDeError', () => {
+  it('usa resolveErrorMessage cuando el error es un ApiError plano', () => {
+    expect(mensajeDeError({ statusCode: 409, code: '', message: 'Stock insuficiente' }, 'x')).toBe(
+      'Stock insuficiente',
+    )
+  })
+
+  it('usa la causa cuando es un Error que envuelve un ApiError', () => {
+    const apiErr = { statusCode: 404, code: '', message: 'No existe' }
+    const wrapped = new Error('No existe', { cause: apiErr })
+    expect(mensajeDeError(wrapped, 'fallback')).toBe('No existe')
+  })
+
+  it('usa el mensaje del Error cuando no es vacío', () => {
+    expect(mensajeDeError(new Error('algo falló'), 'fallback')).toBe('algo falló')
+  })
+
+  it('devuelve el fallback si el Error no tiene mensaje', () => {
+    expect(mensajeDeError(new Error(''), 'fallback')).toBe('fallback')
+  })
+
+  it('devuelve el fallback para cualquier otro valor', () => {
+    expect(mensajeDeError('texto plano', 'fallback')).toBe('fallback')
+    expect(mensajeDeError(null, 'fallback')).toBe('fallback')
   })
 })

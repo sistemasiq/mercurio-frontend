@@ -173,7 +173,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useInsumosStore } from '@/stores/insumos'
 import { calcularRindePorProducto } from '@/utils/estimacionRinde'
-import { resolveErrorMessage } from '@/utils/errorHandler'
+import { isTimeoutError, resolveErrorMessage } from '@/utils/errorHandler'
+import { redondear2 } from '@/utils/dinero'
 import type { ApiError } from '@/types/auth'
 import type { TipoProducto } from '@/types/producto'
 import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
@@ -304,13 +305,10 @@ function etiquetaComanda(c: Comanda): string {
   return [folio && `#${folio}`, destino].filter(Boolean).join(' ')
 }
 
-// TODO: usar utils/dinero tras WP-03
-const r2 = (n: number): number => Math.round(n * 100) / 100
-
 const totalTicket = computed(() => {
-  return r2(
+  return redondear2(
     itemsTicket.value.reduce(
-      (suma, item) => suma + r2(item.producto.precio_unitario * item.cantidad),
+      (suma, item) => suma + redondear2(item.producto.precio_unitario * item.cantidad),
       0,
     ),
   )
@@ -479,8 +477,8 @@ const procesarPago = async (
 
     const totalBruto = itemsTicket.value
       .filter((i) => !i.es_hijo_combo)
-      .reduce((s, i) => s + r2(i.producto.precio_unitario * i.cantidad), 0)
-    const totalFinal = r2(totalBruto - descuentoPuntos)
+      .reduce((s, i) => s + redondear2(i.producto.precio_unitario * i.cantidad), 0)
+    const totalFinal = redondear2(totalBruto - descuentoPuntos)
 
     const payload: PagoCompletoRequest = {
       // TODO backend: folio secuencial por sucursal
@@ -510,6 +508,9 @@ const procesarPago = async (
 
     comandaPagadaId.value = comanda.id
     ticketPostPagoAbierto.value = true
+    // Un pago exitoso consume la clave: si el cajero inicia otro ticket, debe
+    // generarse una nueva al abrir el cobro, nunca reutilizar esta.
+    idempotencyKey = null
 
     // Actualización optimista: refrescar comandas de inmediato
     void refrescarComandas()
@@ -520,9 +521,7 @@ const procesarPago = async (
         err.response.data.detail ?? err.response.data,
       )
     }
-    // TODO: usar isTimeoutError de utils/errorHandler tras WP-01
-    const apiErr = err as Partial<ApiError> | null
-    const esTimeout = apiErr?.code === 'ECONNABORTED' || apiErr?.code === 'TIMEOUT'
+    const esTimeout = isTimeoutError(err)
     $q.notify({
       type: 'negative',
       message: 'Error al procesar el pago',

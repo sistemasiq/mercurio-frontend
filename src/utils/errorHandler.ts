@@ -48,9 +48,29 @@ export function resolveErrorMessage(error: ApiError | null): string {
   return 'Ocurrió un error inesperado. Intenta nuevamente.'
 }
 
-/** Timeout de axios: la petición pudo haber llegado al servidor y registrarse. */
+/** `true` si `value` tiene la forma de `ApiError` (lo que rechaza `apiClient`). */
+function isApiErrorLike(value: unknown): value is ApiError {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'statusCode' in value &&
+    'code' in value &&
+    'message' in value
+  )
+}
+
+/**
+ * Timeout de axios o de `apiClient`: la petición pudo haber llegado al
+ * servidor y registrarse. Cubre tanto el `AxiosError` original (código
+ * `ECONNABORTED`/`ETIMEDOUT`) como el `ApiError` plano con el que
+ * `apiClient` ya lo tradujo (`code: TIMEOUT_ERROR_CODE`), directo o envuelto
+ * en un `Error` con `cause`.
+ */
 export function isTimeoutError(error: unknown): boolean {
+  if (isApiErrorLike(error)) return error.code === TIMEOUT_ERROR_CODE
   if (!(error instanceof Error)) return false
+  const cause = (error as Error & { cause?: unknown }).cause
+  if (isApiErrorLike(cause)) return cause.code === TIMEOUT_ERROR_CODE
   const code = (error as Error & { code?: string }).code
   return code === 'ECONNABORTED' || code === 'ETIMEDOUT' || error.message.includes('timeout')
 }
@@ -58,4 +78,24 @@ export function isTimeoutError(error: unknown): boolean {
 /** Falta de red real; un timeout se distingue con `isTimeoutError`. */
 export function isNetworkError(error: unknown): boolean {
   return error instanceof Error && !isTimeoutError(error) && error.message === 'Network Error'
+}
+
+/**
+ * Extrae un mensaje de usuario de cualquier error de la capa de datos:
+ * - `ApiError` plano (lo que rechaza `apiClient` directamente) → `resolveErrorMessage`.
+ * - `Error` cuya `cause` es un `ApiError` (algunos services envuelven así,
+ *   ej. `turnoCajaService`) → `resolveErrorMessage` sobre la causa.
+ * - `Error` con mensaje no vacío → ese mensaje.
+ * - Cualquier otro caso (incluye `message === ''`) → `fallback`.
+ */
+export function mensajeDeError(err: unknown, fallback: string): string {
+  if (isApiErrorLike(err)) return resolveErrorMessage(err)
+
+  if (err instanceof Error) {
+    const cause = (err as Error & { cause?: unknown }).cause
+    if (isApiErrorLike(cause)) return resolveErrorMessage(cause)
+    if (err.message) return err.message
+  }
+
+  return fallback
 }
