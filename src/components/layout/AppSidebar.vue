@@ -21,15 +21,31 @@ const { visibleGroups, badgeFor } = useAppNavigation()
 // plegado y muestra el total de sus contadores en el encabezado.
 const openGroups = ref<Set<string>>(new Set())
 
+// Ítem del menú de la ruta actual: coincidencia exacta o, para pantallas fuera
+// del menú (detalle de sucursal, kardex de insumo…), el ítem cuya ruta es el
+// prefijo más largo de la actual.
+const activeItem = computed<string | null>(() => {
+  const items = visibleGroups.value.flatMap((g) => g.items)
+  if (items.some((i) => i.routeName === route.name)) return route.name as string
+  let best: { name: string; length: number } | null = null
+  for (const item of items) {
+    const itemPath = router.resolve({ name: item.routeName }).path
+    if (route.path.startsWith(itemPath + '/') && (!best || itemPath.length > best.length)) {
+      best = { name: item.routeName, length: itemPath.length }
+    }
+  }
+  return best?.name ?? null
+})
+
 function groupOfRoute(name: string | null): string | null {
   if (!name || name === 'home') return 'Operación'
   return visibleGroups.value.find((g) => g.items.some((i) => i.routeName === name))?.label ?? null
 }
 
 watch(
-  () => route.name,
+  activeItem,
   (name) => {
-    const label = groupOfRoute(typeof name === 'string' ? name : null)
+    const label = name || route.name === 'home' ? groupOfRoute(name) : null
     if (label) openGroups.value = new Set([...openGroups.value, label])
   },
   { immediate: true },
@@ -51,7 +67,7 @@ function groupBadge(group: NavGroup): number {
 }
 
 function isActive(routeName: string): boolean {
-  return route.name === routeName
+  return activeItem.value === routeName
 }
 
 // ── Sucursal ────────────────────────────────────────────────────────────────
