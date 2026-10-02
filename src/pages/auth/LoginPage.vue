@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { Notify } from 'quasar'
 import type { QForm } from 'quasar'
 import { useAuthForm } from '@/composables/useAuthForm'
 import BaseDialog from '@/components/ui/BaseDialog.vue'
@@ -17,6 +18,23 @@ const {
   confirmBranchSelection,
   cancelBranchSelection,
 } = useAuthForm()
+
+// El logout por inactividad recarga la app (ver setupPlugins), lo que borra el
+// toast; el motivo viaja en sessionStorage y se muestra aquí.
+onMounted(() => {
+  try {
+    if (window.sessionStorage.getItem('mercury:logout-motivo') === 'inactividad') {
+      window.sessionStorage.removeItem('mercury:logout-motivo')
+      Notify.create({
+        type: 'warning',
+        message: 'Sesión cerrada por inactividad.',
+        icon: 'timer_off',
+      })
+    }
+  } catch {
+    // sessionStorage no disponible: se omite el aviso
+  }
+})
 
 const sucursalSeleccionada = ref<string | null>(null)
 

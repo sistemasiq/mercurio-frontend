@@ -4,9 +4,14 @@ import axios, {
   type InternalAxiosRequestConfig,
   AxiosError,
 } from 'axios'
-import type { ApiError } from '@/types/auth'
+import type { ApiError, User } from '@/types/auth'
 import { sessionStorage, viewingBranch } from '@/utils/session'
-import { isNetworkError } from '@/utils/errorHandler'
+import {
+  isNetworkError,
+  isTimeoutError,
+  TIMEOUT_ERROR_CODE,
+  TIMEOUT_ERROR_MESSAGE,
+} from '@/utils/errorHandler'
 
 // Cliente sin interceptores — solo para endpoints de auth (refresh/login)
 // que no deben pasar por el interceptor de 401 para evitar loops.
@@ -16,14 +21,79 @@ export const rawApiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+type RetriableConfig = InternalAxiosRequestConfig & { _retry?: boolean }
+
 interface BackendRefreshResponse {
   token: string
   refresh_token: string
   user: { id: string; full_name: string; email: string; role: string; branch_id: string | null }
 }
 
-function buildApiError(statusCode: number, code: string, message: string): ApiError {
-  return { statusCode, code, message }
+export interface RefreshResult {
+  token: string
+  refreshToken: string
+  user: User
+}
+
+type Refresher = (refreshToken: string) => Promise<RefreshResult>
+
+// El mapeo de la respuesta (authService) se inyecta desde el arranque para que
+// api/ no importe services/ (authService -> authApi -> axiosClient sería un ciclo).
+let refresher: Refresher | null = null
+
+export function configurarRefresh(fn: Refresher | null): void {
+  refresher = fn
+}
+
+let refreshPromise: Promise<string> | null = null
+
+/**
+ * Renueva el access token con el refresh token guardado. Es la única vía de
+ * refresh de la app (interceptor y guard del router): comparten una sola
+ * promesa en vuelo, así nunca se usan dos veces refresh tokens rotados.
+ */
+export function refreshAccessToken(): Promise<string> {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    const session = sessionStorage.load()
+    if (!session?.refreshToken) throw buildApiError(401, 'NO_REFRESH_TOKEN', '')
+    let result: RefreshResult
+    if (refresher) {
+      result = await refresher(session.refreshToken)
+    } else {
+      // Fallback sin refresher registrado (tests o arranque temprano): se conserva el usuario.
+      const { data } = await rawApiClient.post<BackendRefreshResponse>('/auth/refresh', {
+        refreshToken: session.refreshToken,
+      })
+      result = { token: data.token, refreshToken: data.refresh_token, user: session.user }
+    }
+    sessionStorage.save(result.token, result.refreshToken, result.user)
+    window.dispatchEvent(new CustomEvent('auth:refreshed', { detail: { token: result.token } }))
+    return result.token
+  })().finally(() => {
+    refreshPromise = null
+  })
+
+  return refreshPromise
+}
+
+function buildApiError(
+  statusCode: number,
+  code: string,
+  message: string,
+  details?: unknown,
+): ApiError {
+  return details === undefined
+    ? { statusCode, code, message }
+    : { statusCode, code, message, details }
+}
+
+// Solo se conserva `detail` cuando es un objeto (ej. { totalExtra, horasExtra }
+// en un 409); los strings y arrays de validación ya viajan en `message`.
+function extractDetails(data: BackendErrorBody | undefined): unknown {
+  const detail = data?.detail
+  return detail && typeof detail === 'object' && !Array.isArray(detail) ? detail : undefined
 }
 
 /**
@@ -33,13 +103,21 @@ function buildApiError(statusCode: number, code: string, message: string): ApiEr
  * (ej. "Request failed with status code 401" en vez del mensaje del backend).
  */
 export function normalizeAxiosError(error: unknown): ApiError {
+  if (isTimeoutError(error)) {
+    return buildApiError(0, TIMEOUT_ERROR_CODE, TIMEOUT_ERROR_MESSAGE)
+  }
   if (isNetworkError(error)) {
     return buildApiError(0, 'NETWORK_ERROR', 'Sin conexión a internet. Verifica tu red.')
   }
   if (error instanceof AxiosError) {
     const status = error.response?.status ?? 0
     const { code, message } = extractCodeAndMessage(error.response?.data as BackendErrorBody)
-    return buildApiError(status, code, message)
+    return buildApiError(
+      status,
+      code,
+      message,
+      extractDetails(error.response?.data as BackendErrorBody),
+    )
   }
   return buildApiError(0, 'UNKNOWN_ERROR', 'Ocurrió un error inesperado.')
 }
@@ -75,9 +153,6 @@ function extractCodeAndMessage(data: BackendErrorBody | undefined): {
 }
 
 function createAxiosClient(): AxiosInstance {
-  let isRefreshing = false
-  const refreshQueue: Array<(token: string) => void> = []
-
   const client = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL,
     timeout: 15000,
@@ -102,6 +177,9 @@ function createAxiosClient(): AxiosInstance {
   client.interceptors.response.use(
     (response: AxiosResponse) => response,
     async (error: AxiosError<BackendErrorBody>) => {
+      if (isTimeoutError(error)) {
+        return Promise.reject(buildApiError(0, TIMEOUT_ERROR_CODE, TIMEOUT_ERROR_MESSAGE))
+      }
       if (isNetworkError(error)) {
         return Promise.reject(
           buildApiError(0, 'NETWORK_ERROR', 'Sin conexión a internet. Verifica tu red.'),
@@ -129,6 +207,15 @@ function createAxiosClient(): AxiosInstance {
         }
 
         const session = sessionStorage.load()
+        const retryConfig = error.config as RetriableConfig | undefined
+
+        // Ya se reintentó con un token recién refrescado y el servidor sigue
+        // respondiendo 401: no hay nada más que renovar, cerrar la sesión.
+        if (retryConfig?._retry) {
+          sessionStorage.clear()
+          window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+          return Promise.reject(buildApiError(status, code, message))
+        }
 
         if (!session?.refreshToken) {
           sessionStorage.clear()
@@ -136,44 +223,24 @@ function createAxiosClient(): AxiosInstance {
           return Promise.reject(buildApiError(status, code, message))
         }
 
-        // Si ya hay un refresh en curso, encolar esta request
-        if (isRefreshing) {
-          return new Promise<AxiosResponse>((resolve, reject) => {
-            refreshQueue.push((newToken) => {
-              const config = error.config as InternalAxiosRequestConfig
-              config.headers.Authorization = `Bearer ${newToken}`
-              resolve(client(config))
-            })
-            void reject // satisface el tipo; resolve siempre se llama
-          })
-        }
-
-        isRefreshing = true
         try {
-          const { data } = await rawApiClient.post<BackendRefreshResponse>('/auth/refresh', {
-            refreshToken: session.refreshToken,
-          })
-
-          sessionStorage.save(data.token, data.refresh_token, session.user)
-          window.dispatchEvent(new CustomEvent('auth:refreshed', { detail: { token: data.token } }))
-
-          refreshQueue.forEach((cb) => cb(data.token))
-          refreshQueue.length = 0
-          isRefreshing = false
-
-          const config = error.config as InternalAxiosRequestConfig
-          config.headers.Authorization = `Bearer ${data.token}`
+          // Todas las peticiones que reciben 401 esperan la misma promesa: si
+          // el refresh falla, todas rechazan; si funciona, todas reintentan.
+          const newToken = await refreshAccessToken()
+          const config = error.config as RetriableConfig
+          config._retry = true
+          config.headers.Authorization = `Bearer ${newToken}`
           return client(config)
         } catch {
-          isRefreshing = false
-          refreshQueue.length = 0
           sessionStorage.clear()
           window.dispatchEvent(new CustomEvent('auth:unauthorized'))
           return Promise.reject(buildApiError(status, code, message))
         }
       }
 
-      return Promise.reject(buildApiError(status, code, message))
+      return Promise.reject(
+        buildApiError(status, code, message, extractDetails(error.response?.data)),
+      )
     },
   )
 
