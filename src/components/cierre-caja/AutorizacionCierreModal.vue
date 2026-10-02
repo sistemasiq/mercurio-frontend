@@ -205,7 +205,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
@@ -224,6 +224,23 @@ const pinAdminConfirmado = ref(false)
 const cargandoPinCajero = ref(false)
 const cargandoPinAdmin = ref(false)
 const cargandoProceso = ref(false)
+
+// El modal nunca se desmonta mientras se esté en CierreCajaPage, así que su estado
+// local sobrevive entre cierres: se reinicia cada vez que se abre.
+function resetearFormulario() {
+  pinCajero.value = ''
+  pinAdmin.value = ''
+  pinCajeroConfirmado.value = false
+  pinAdminConfirmado.value = false
+  observacionesModal.value = ''
+}
+
+watch(
+  () => turno.mostrarDialogAutorizacion,
+  (abierto) => {
+    if (abierto) resetearFormulario()
+  },
+)
 
 // El backend (RevisionAdminResponse) ya entrega el total esperado/declarado y la
 // diferencia real de EFECTIVO — no hace falta recalcularlos ni usar valores de respaldo.
