@@ -7,6 +7,7 @@ interface BackendHorario {
   hora_inicio: string
   hora_fin: string
   activo: boolean
+  dias: number[] | null
 }
 
 function mapHorario(raw: BackendHorario): Horario {
@@ -16,6 +17,7 @@ function mapHorario(raw: BackendHorario): Horario {
     horaInicio: raw.hora_inicio,
     horaFin: raw.hora_fin,
     activo: raw.activo,
+    dias: raw.dias,
   }
 }
 
@@ -30,6 +32,7 @@ export const horariosApi = {
       nombre: payload.nombre,
       hora_inicio: payload.horaInicio,
       hora_fin: payload.horaFin,
+      dias: payload.dias ?? null,
     })
     return mapHorario(data)
   },
@@ -40,6 +43,7 @@ export const horariosApi = {
     if (payload.horaInicio !== undefined) body.hora_inicio = payload.horaInicio
     if (payload.horaFin !== undefined) body.hora_fin = payload.horaFin
     if (payload.activo !== undefined) body.activo = payload.activo
+    if (payload.dias !== undefined) body.dias = payload.dias
     const { data } = await apiClient.patch<BackendHorario>(`/horarios/${id}`, body)
     return mapHorario(data)
   },

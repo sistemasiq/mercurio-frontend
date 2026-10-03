@@ -16,7 +16,9 @@ import { branchService } from '@/services/branchService'
 import { userService } from '@/services/userService'
 import { useAuthStore } from '@/stores/auth'
 import { rolTono } from '@/utils/rolTono'
-import type { Branch } from '@/types/branch'
+import { resolveErrorMessage } from '@/utils/errorHandler'
+import type { Branch, IndicadoresSucursal } from '@/types/branch'
+import type { ApiError } from '@/types/auth'
 import type { UserListItem } from '@/types/user'
 import type { Sucursal } from '@/composables/useSucursales'
 
@@ -36,6 +38,38 @@ const busqueda = ref('')
 const formAbierto = ref(false)
 const desactivarAbierto = ref(false)
 
+// ── Indicadores por sucursal (periodo) ─────────────────────────────────────
+function primerDiaDelMes(): string {
+  const hoy = new Date()
+  return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`
+}
+function hoyIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+const periodoDesde = ref(primerDiaDelMes())
+const periodoHasta = ref(hoyIso())
+const indicadores = ref<IndicadoresSucursal | null>(null)
+const indicadoresCargando = ref(false)
+const indicadoresError = ref('')
+
+async function cargarIndicadores() {
+  if (!id.value) return
+  indicadoresCargando.value = true
+  indicadoresError.value = ''
+  try {
+    indicadores.value = await branchService.getIndicadores(
+      id.value,
+      periodoDesde.value,
+      periodoHasta.value,
+    )
+  } catch (err) {
+    indicadoresError.value = resolveErrorMessage(err as ApiError)
+  } finally {
+    indicadoresCargando.value = false
+  }
+}
+
 async function cargar() {
   loading.value = true
   try {
@@ -53,6 +87,7 @@ async function cargar() {
   } finally {
     loading.value = false
   }
+  void cargarIndicadores()
 }
 
 onMounted(cargar)
@@ -172,6 +207,53 @@ const columns: QTableColumn[] = [
         />
       </div>
 
+      <div class="indicadores-card">
+        <div class="indicadores-card__header">
+          <h3 class="indicadores-card__title">Indicadores del periodo</h3>
+          <div class="indicadores-card__periodo">
+            <q-input
+              v-model="periodoDesde"
+              dense
+              outlined
+              type="date"
+              label="Desde"
+              @update:model-value="cargarIndicadores"
+            />
+            <q-input
+              v-model="periodoHasta"
+              dense
+              outlined
+              type="date"
+              label="Hasta"
+              @update:model-value="cargarIndicadores"
+            />
+          </div>
+        </div>
+        <StateBlock v-if="indicadoresError" variant="error" :body="indicadoresError" />
+        <div v-else class="kpi-row">
+          <KpiCard
+            label="Ventas"
+            :value="
+              indicadoresCargando
+                ? '—'
+                : `$${(indicadores?.ventas ?? 0).toLocaleString('es-MX')}`
+            "
+          />
+          <KpiCard
+            label="Niños atendidos"
+            :value="indicadoresCargando ? '—' : indicadores?.ninosAtendidos ?? 0"
+          />
+          <KpiCard
+            label="Eventos"
+            :value="indicadoresCargando ? '—' : indicadores?.eventos ?? 0"
+          />
+          <KpiCard
+            label="Cajas abiertas"
+            :value="indicadoresCargando ? '—' : indicadores?.cajasAbiertas ?? 0"
+          />
+        </div>
+      </div>
+
       <DataTableCard
         v-model:search="busqueda"
         search-placeholder="Buscar usuario"
@@ -234,6 +316,39 @@ const columns: QTableColumn[] = [
 </template>
 
 <style scoped lang="scss">
+.indicadores-card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+
+  &__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-strong);
+  }
+
+  &__periodo {
+    display: flex;
+    gap: 8px;
+
+    .q-field {
+      width: 160px;
+    }
+  }
+}
+
 .state-card {
   background: #fff;
   border: 1px solid var(--border-color);

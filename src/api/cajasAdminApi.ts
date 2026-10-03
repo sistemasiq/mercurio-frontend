@@ -1,11 +1,24 @@
 import { apiClient } from './axiosClient'
-import type { CajaAdmin, CajaCreate, CajaUpdate } from '@/types/caja-admin'
+import type { CajaAdmin, CajaCreate, CajaUpdate, TurnoActualCaja } from '@/types/caja-admin'
+
+interface BackendTurnoActual {
+  id: string
+  cajero: string
+  apertura: string
+}
 
 interface BackendCaja {
   id: string
   nombre: string
   numero: number
   activo: boolean
+  impresora: string | null
+  turno_actual: BackendTurnoActual | null
+}
+
+function mapTurnoActual(raw: BackendTurnoActual | null): TurnoActualCaja | null {
+  if (!raw) return null
+  return { id: raw.id, cajero: raw.cajero, apertura: raw.apertura }
 }
 
 function mapCaja(raw: BackendCaja): CajaAdmin {
@@ -14,6 +27,8 @@ function mapCaja(raw: BackendCaja): CajaAdmin {
     nombre: raw.nombre,
     numero: raw.numero,
     activo: raw.activo,
+    impresora: raw.impresora,
+    turnoActual: mapTurnoActual(raw.turno_actual),
   }
 }
 
@@ -27,6 +42,7 @@ export const cajasAdminApi = {
     const { data } = await apiClient.post<BackendCaja>('/cajas', {
       nombre: payload.nombre,
       numero: payload.numero,
+      impresora: payload.impresora ?? null,
     })
     return mapCaja(data)
   },
