@@ -46,20 +46,10 @@ simplifican hasta que exista la fuente.
 - **Foto del panel de login**: el mockup deja un placeholder; se usa la
   ilustración del logo.
 
-### 01 Operación
-
-- **Método de pago en el panel del pedido**: se elige dentro del cobro
-  multimodal.
-
-### 03 Catálogo
-
-### 04 Inventario
-
-
-### 06 Administración
-
-
 ## Cambios de comportamiento
+
+- Método de pago: no se elige en el panel del pedido; se elige dentro del
+  cobro multimétodo (decisión de diseño final).
 
 - Se quitó el modo "mini" del sidebar; debajo de 1024 px pasa a overlay con
   botón de menú en el Topbar.
