@@ -3,6 +3,7 @@ import type { ComputedRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAlertasInventarioStore } from '@/stores/alertasInventario'
+import { useShellIndicadoresStore } from '@/stores/shellIndicadores'
 import type { NavBadge, NavGroup, NavItem } from '@/types/navigation'
 
 interface AppNavigation {
@@ -18,6 +19,7 @@ interface AppNavigation {
 export function useAppNavigation(): AppNavigation {
   const auth = useAuthStore()
   const alertasInventario = useAlertasInventarioStore()
+  const shellIndicadores = useShellIndicadoresStore()
   const router = useRouter()
 
   // El Administrador de sucursal no vende en mostrador (Caja POS), pero sí abre y cierra
@@ -260,11 +262,17 @@ export function useAppNavigation(): AppNavigation {
       .filter((group) => group.items.length > 0),
   )
 
-  // Solo los contadores con dato real en un store. Cocina y Control de Acceso
-  // tienen contador en el diseño pero aún no hay fuente (ver docs/refactor-ui.md).
   function badgeFor(routeName: string): NavBadge | null {
     if (routeName === 'insumos-listar' || routeName === 'reportes-inventario') {
       const count = alertasInventario.totalAlertas
+      return count > 0 ? { count, tone: 'warn' } : null
+    }
+    if (routeName === 'pos-cocina') {
+      const count = shellIndicadores.comandasPendientes
+      return count > 0 ? { count, tone: 'warn' } : null
+    }
+    if (routeName === 'estancias-control-acceso') {
+      const count = shellIndicadores.ninosActivos
       return count > 0 ? { count, tone: 'warn' } : null
     }
     return null

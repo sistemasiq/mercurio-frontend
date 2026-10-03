@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSucursalesStore } from '@/stores/sucursales'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useAlertasInventarioStore } from '@/stores/alertasInventario'
+import { useShellIndicadoresStore } from '@/stores/shellIndicadores'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppTopbar from '@/components/layout/AppTopbar.vue'
 
@@ -15,6 +16,7 @@ const auth = useAuthStore()
 const turno = useTurnoCajaStore()
 const sucursalesStore = useSucursalesStore()
 const alertasInventario = useAlertasInventarioStore()
+const shellIndicadores = useShellIndicadoresStore()
 
 // Debajo de este ancho el sidebar pasa a overlay y se abre desde el Topbar.
 const DRAWER_BREAKPOINT = 1024
@@ -38,6 +40,22 @@ const refrescarAlertasInventario = (avisar = true) => {
   }
 }
 
+// Contadores del Sidebar (Cocina y Control de Acceso): polling cada 30 s,
+// independiente de qué pantalla esté montada. Cada uno solo se pide si el
+// usuario tiene el permiso del módulo.
+const INTERVALO_INDICADORES_MS = 30 * 1000
+let indicadoresIntervalId: ReturnType<typeof setInterval> | undefined
+const abortIndicadoresComandas = new AbortController()
+
+const refrescarIndicadoresSidebar = () => {
+  if (auth.hasPermission('restaurante:gestionar_cocina')) {
+    void shellIndicadores.refrescarComandas(abortIndicadoresComandas.signal)
+  }
+  if (auth.hasPermission('estancias:ver_activos') && auth.currentBranchId) {
+    void shellIndicadores.refrescarNinosActivos(auth.currentBranchId)
+  }
+}
+
 onMounted(() => {
   // Hipótesis de roles (Bug QA #13): el turno aplica a cualquier usuario que
   // pueda cobrar, no solo al Cajero — un Administrador con
@@ -53,10 +71,15 @@ onMounted(() => {
   }
   refrescarAlertasInventario(false)
   alertasIntervalId = setInterval(() => refrescarAlertasInventario(true), INTERVALO_ALERTAS_MS)
+
+  refrescarIndicadoresSidebar()
+  indicadoresIntervalId = setInterval(refrescarIndicadoresSidebar, INTERVALO_INDICADORES_MS)
 })
 
 onBeforeUnmount(() => {
   if (alertasIntervalId) clearInterval(alertasIntervalId)
+  if (indicadoresIntervalId) clearInterval(indicadoresIntervalId)
+  abortIndicadoresComandas.abort()
 })
 
 watch(
@@ -64,6 +87,8 @@ watch(
   () => {
     alertasInventario.limpiar()
     refrescarAlertasInventario(false)
+    shellIndicadores.limpiar()
+    refrescarIndicadoresSidebar()
   },
 )
 </script>
