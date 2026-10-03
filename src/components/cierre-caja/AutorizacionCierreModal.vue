@@ -263,11 +263,17 @@ const faltanObservaciones = computed(() => turno.hayDiferencias && !observacione
 
 // El modal nunca se desmonta mientras se esté en CierreCajaPage, así que su estado
 // local sobrevive entre cierres: se reinicia cada vez que se abre.
+// Tokens de un solo uso que el backend emite al validar cada PIN; /confirmar los exige.
+const tokenPinCajero = ref<string | null>(null)
+const tokenPinAdmin = ref<string | null>(null)
+
 function resetearFormulario() {
   pinCajero.value = ''
   pinAdmin.value = ''
   pinCajeroConfirmado.value = false
   pinAdminConfirmado.value = false
+  tokenPinCajero.value = null
+  tokenPinAdmin.value = null
   observacionesModal.value = ''
 }
 
@@ -302,9 +308,13 @@ async function confirmarPinCajero() {
   if (pinCajero.value.length !== 4 || !turno.turnoId) return
   cargandoPinCajero.value = true
   try {
-    const ok = await turnoCajaService.validarPinCajero(turno.turnoId, pinCajero.value)
+    const { ok, tokenPin } = await turnoCajaService.validarPinCajero(
+      turno.turnoId,
+      pinCajero.value,
+    )
     if (ok) {
       pinCajeroConfirmado.value = true
+      tokenPinCajero.value = tokenPin
       $q.notify({
         type: 'positive',
         position: 'top',
@@ -314,6 +324,7 @@ async function confirmarPinCajero() {
     }
   } catch (err) {
     pinCajeroConfirmado.value = false
+    tokenPinCajero.value = null
     pinCajero.value = ''
     $q.notify({
       type: 'negative',
@@ -332,9 +343,14 @@ async function confirmarPinAdmin() {
   try {
     const adminEmail =
       turno.adminEmail || turno.credencialesAdmin.email || turno.adminNombre || 'admin'
-    const ok = await turnoCajaService.validarPinAdmin(turno.turnoId, adminEmail, pinAdmin.value)
+    const { ok, tokenPin } = await turnoCajaService.validarPinAdmin(
+      turno.turnoId,
+      adminEmail,
+      pinAdmin.value,
+    )
     if (ok) {
       pinAdminConfirmado.value = true
+      tokenPinAdmin.value = tokenPin
       $q.notify({
         type: 'positive',
         position: 'top',
@@ -344,6 +360,7 @@ async function confirmarPinAdmin() {
     }
   } catch (err) {
     pinAdminConfirmado.value = false
+    tokenPinAdmin.value = null
     pinAdmin.value = ''
     $q.notify({
       type: 'negative',
@@ -361,7 +378,10 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
   try {
     const obsText = observacionesModal.value.trim()
 
-    const resultado = await turno.confirmarCierre(obsText, esExtraordinario)
+    const resultado = await turno.confirmarCierre(obsText, esExtraordinario, {
+      cajero: tokenPinCajero.value,
+      admin: tokenPinAdmin.value,
+    })
     if (!resultado.ok) {
       // El backend rechazó el cierre (el store ya notificó el error): el turno sigue
       // abierto, así que se conserva el diálogo y no se reinicia el ciclo ni se redirige.

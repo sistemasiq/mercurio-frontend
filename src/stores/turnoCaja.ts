@@ -504,6 +504,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   async function confirmarCierre(
     observaciones: string,
     esExtraordinario = false,
+    tokensPin: { cajero: string | null; admin: string | null } = { cajero: null, admin: null },
   ): Promise<ResultadoCierre> {
     if (!turnoId.value) return { ok: false, error: 'No hay un turno activo para cerrar.' }
     cargando.value = true
@@ -513,6 +514,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
         turnoId: turnoId.value,
         observaciones,
         tipoCierre: esExtraordinario ? 'EXTRAORDINARIO' : 'NORMAL',
+        tokenPinCajero: tokensPin.cajero,
+        tokenPinAdmin: tokensPin.admin,
       })
       estado.value = 'CERRADO'
       mostrarDialogAutorizacion.value = false

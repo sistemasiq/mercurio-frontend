@@ -3,6 +3,7 @@ import { resolveErrorMessage } from '@/utils/errorHandler'
 import { downloadBlob } from '@/utils/downloadBlob'
 import type { ApiError } from '@/types/auth'
 import type {
+  ResultadoValidacionPin,
   TurnoActivoResponse,
   AbrirTurnoPayload,
   ConteoPayload,
@@ -173,19 +174,23 @@ export const turnoCajaService = {
     }
   },
 
-  async validarPinCajero(turnoId: string, pin: string): Promise<boolean> {
+  async validarPinCajero(turnoId: string, pin: string): Promise<ResultadoValidacionPin> {
     try {
       const resp = await turnoCajaApi.validarPinCajero(turnoId, pin)
-      return resp.ok
+      return { ok: resp.ok, tokenPin: resp.token_pin ?? null }
     } catch (err) {
       throw new Error(toMensajeError(err), { cause: err })
     }
   },
 
-  async validarPinAdmin(turnoId: string, adminEmail: string, pin: string): Promise<boolean> {
+  async validarPinAdmin(
+    turnoId: string,
+    adminEmail: string,
+    pin: string,
+  ): Promise<ResultadoValidacionPin> {
     try {
       const resp = await turnoCajaApi.validarPinAdmin(turnoId, adminEmail, pin)
-      return resp.ok
+      return { ok: resp.ok, tokenPin: resp.token_pin ?? null }
     } catch (err) {
       throw new Error(toMensajeError(err), { cause: err })
     }
