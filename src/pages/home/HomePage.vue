@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useAccessControlStore, type ActiveChild } from '@/stores/accessControl'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useAlertasInventarioStore } from '@/stores/alertasInventario'
+import { usePaquetesStore } from '@/stores/paquetes'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { obtenerComandas } from '@/services/comandaService'
 import { formatMXN } from '@/utils/formatoMoneda'
@@ -25,6 +26,7 @@ const router = useRouter()
 const acceso = useAccessControlStore()
 const reservacionesStore = useReservacionesStore()
 const alertas = useAlertasInventarioStore()
+const paquetesStore = usePaquetesStore()
 const turnoCaja = useTurnoCajaStore()
 
 const puede = {
@@ -70,6 +72,11 @@ onMounted(async () => {
   }
   if (puede.eventos.value && auth.currentBranchId) {
     tareas.push(reservacionesStore.cargar(auth.currentBranchId))
+    // Paquete en "Eventos de hoy": el catálogo solo se pide si nadie más lo
+    // cargó ya (p. ej. Nueva reservación / Catálogo de paquetes).
+    if (!paquetesStore.paquetes.length) {
+      tareas.push(paquetesStore.cargar(auth.currentBranchId))
+    }
   }
   if (puede.cocina.value) {
     tareas.push(
@@ -129,6 +136,9 @@ function irACheckout(child: ActiveChild): void {
 
 const nombreEvento = (r: Reservaciones) =>
   r.apellidos_cliente ? `Fam. ${r.apellidos_cliente}` : r.nombre_cliente
+
+const nombrePaquete = (r: Reservaciones): string | null =>
+  paquetesStore.paquetes.find((p) => p.id === r.paquete_id)?.nombre ?? null
 
 const pendientes = computed<Pendiente[]>(() => {
   const lista: Pendiente[] = []
@@ -336,6 +346,7 @@ const sinModulos = computed(
                     ></template
                   >
                 </span>
+                <span v-if="nombrePaquete(r)" class="events__package">{{ nombrePaquete(r) }}</span>
                 <span class="events__meta">{{ r.numero_personas }} invitados</span>
                 <span class="events__status">
                   {{
@@ -606,6 +617,12 @@ const sinModulos = computed(
   &__meta {
     font-size: 12.5px;
     color: var(--text-secondary);
+  }
+
+  &__package {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    font-weight: 600;
   }
 
   &__status {

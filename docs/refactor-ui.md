@@ -41,15 +41,6 @@ Implementación del diseño "Refactor UI Woow Kids" (claude.ai/design, proyecto
 No se muestran valores inventados; estos elementos se ocultan o se
 simplifican hasta que exista la fuente.
 
-### Shell
-
-- **Buscador "Buscar o ir a… ⌘K"** (Sidebar): paleta de comandos por definir.
-- **Campana de notificaciones** (Topbar): hoy solo aparece con alertas de
-  inventario y lleva al Reporte de Stock; falta un centro de notificaciones.
-- **Botón de ayuda** (Topbar): destino por definir.
-- **Contadores de Cocina y Control de Acceso** (Sidebar): no hay una fuente
-  compartida fuera de cada pantalla.
-
 ### 00 Acceso
 
 - **Foto del panel de login**: el mockup deja un placeholder; se usa la
@@ -57,10 +48,6 @@ simplifican hasta que exista la fuente.
 
 ### 01 Operación
 
-- **Paquete en "Eventos de hoy"** (Inicio): se resuelve con el catálogo de
-  paquetes solo donde ya está cargado.
-- **Desglose Subtotal / IVA 16 %** (panel del pedido): requiere confirmar la
-  regla fiscal antes de mostrarlo.
 - **Método de pago en el panel del pedido**: se elige dentro del cobro
   multimodal.
 - **Stock en piezas ("48 pzas")**: solo existe el "rinde" calculado por receta.
@@ -71,14 +58,9 @@ simplifican hasta que exista la fuente.
 
 - **Botón "Filtrar"** (Resumen): no había filtros implementados; se reemplazó
   por acceso a Reservaciones.
-- **Montos sugeridos de anticipo (30 %, 50 %, total)**: se conserva el campo
-  con mínimo sugerido.
-- **Vistas Semana / Día** (Calendario): solo existe la vista mensual; el
-  endpoint por rango (`GET /reservaciones?desde&hasta`) ya existe.
 
 ### 03 Catálogo
 
-- **Tipo de evento como chips** (Nueva reservación): se conserva el selector.
 
 ### 04 Inventario
 
@@ -89,23 +71,16 @@ simplifican hasta que exista la fuente.
 
 ### 05 Lealtad
 
-- **"Mínimo para canjear"** (configuración): la configuración no tiene ese
-  campo.
-- **Ajuste manual de puntos** (kardex): no hay endpoint de ajuste.
-- **Búsqueda por nombre del cliente** (kardex): el saldo se consulta solo por
-  celular.
-- **KPI "Por vencer"** (kardex): los movimientos no traen la caducidad por lote.
-- **Top de clientes, periodo y Exportar** (reporte): el reporte solo regresa
-  totales de la sucursal.
+- **KPI "Por vencer"** (kardex): el saldo ya trae `por_vencer`; falta mostrarlo.
+- **Exportar** (reporte): sin endpoint.
 
 ### 06 Administración
 
-- **Pestañas Cajas / Horarios en el detalle de sucursal**: sin dato (no forma
-  parte de este endpoint).
+- **Pestañas Cajas / Horarios en el detalle de sucursal**: `/cajas` y
+  `/horarios` filtran por la sucursal de la sesión, no por la que se consulta;
+  al ver otra sucursal se muestran las de la propia.
 - **PIN de caja** (usuario): su semántica es una decisión de negocio
   pendiente; el usuario no trae ese campo.
-- **Filtro de periodo y Exportar** (Reportes): sin endpoint (el filtro de
-  periodo para indicadores por sucursal ya existe).
 
 ## Cambios de comportamiento
 
