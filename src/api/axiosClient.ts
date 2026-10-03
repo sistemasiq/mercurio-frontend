@@ -15,27 +15,30 @@ import {
 
 // Cliente sin interceptores — solo para endpoints de auth (refresh/login)
 // que no deben pasar por el interceptor de 401 para evitar loops.
+// QA #32: withCredentials para que el navegador mande/reciba la cookie
+// HttpOnly refresh_token (Secure; SameSite=Strict; Path=/api/auth).
 export const rawApiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
 type RetriableConfig = InternalAxiosRequestConfig & { _retry?: boolean }
 
 interface BackendRefreshResponse {
   token: string
-  refresh_token: string
   user: { id: string; full_name: string; email: string; role: string; branch_id: string | null }
 }
 
 export interface RefreshResult {
   token: string
-  refreshToken: string
   user: User
 }
 
-type Refresher = (refreshToken: string) => Promise<RefreshResult>
+// QA #32: ya no recibe el refresh token -- viaja solo por la cookie HttpOnly
+// que el navegador manda sola (withCredentials); el backend la lee de ahí.
+type Refresher = () => Promise<RefreshResult>
 
 // El mapeo de la respuesta (authService) se inyecta desde el arranque para que
 // api/ no importe services/ (authService -> authApi -> axiosClient sería un ciclo).
@@ -48,27 +51,28 @@ export function configurarRefresh(fn: Refresher | null): void {
 let refreshPromise: Promise<string> | null = null
 
 /**
- * Renueva el access token con el refresh token guardado. Es la única vía de
- * refresh de la app (interceptor y guard del router): comparten una sola
- * promesa en vuelo, así nunca se usan dos veces refresh tokens rotados.
+ * Renueva el access token con el refresh token de la cookie HttpOnly (QA
+ * #32). Es la única vía de refresh de la app (interceptor y guard del
+ * router): comparten una sola promesa en vuelo, así nunca se usan dos veces
+ * refresh tokens rotados.
  */
 export function refreshAccessToken(): Promise<string> {
   if (refreshPromise) return refreshPromise
 
   refreshPromise = (async () => {
     const session = sessionStorage.load()
-    if (!session?.refreshToken) throw buildApiError(401, 'NO_REFRESH_TOKEN', '')
+    // Sin sesión guardada no hubo login en este navegador: no tiene sentido
+    // intentar un refresh (con o sin cookie).
+    if (!session) throw buildApiError(401, 'NO_SESSION', '')
     let result: RefreshResult
     if (refresher) {
-      result = await refresher(session.refreshToken)
+      result = await refresher()
     } else {
       // Fallback sin refresher registrado (tests o arranque temprano): se conserva el usuario.
-      const { data } = await rawApiClient.post<BackendRefreshResponse>('/auth/refresh', {
-        refreshToken: session.refreshToken,
-      })
-      result = { token: data.token, refreshToken: data.refresh_token, user: session.user }
+      const { data } = await rawApiClient.post<BackendRefreshResponse>('/auth/refresh', {})
+      result = { token: data.token, user: session.user }
     }
-    sessionStorage.save(result.token, result.refreshToken, result.user)
+    sessionStorage.save(result.token, result.user)
     window.dispatchEvent(new CustomEvent('auth:refreshed', { detail: { token: result.token } }))
     return result.token
   })().finally(() => {
@@ -157,6 +161,8 @@ function createAxiosClient(): AxiosInstance {
     baseURL: import.meta.env.VITE_API_BASE_URL,
     timeout: 15000,
     headers: { 'Content-Type': 'application/json' },
+    // QA #32: manda la cookie HttpOnly refresh_token en /auth/* (p. ej. logout).
+    withCredentials: true,
   })
 
   client.interceptors.request.use((config) => {
@@ -217,7 +223,10 @@ function createAxiosClient(): AxiosInstance {
           return Promise.reject(buildApiError(status, code, message))
         }
 
-        if (!session?.refreshToken) {
+        // QA #32: el refresh token ya no se guarda en el front (vive en la
+        // cookie HttpOnly) -- la única señal local de "hubo sesión" es el
+        // usuario guardado. Sin eso, no tiene sentido intentar un refresh.
+        if (!session) {
           sessionStorage.clear()
           window.dispatchEvent(new CustomEvent('auth:unauthorized'))
           return Promise.reject(buildApiError(status, code, message))

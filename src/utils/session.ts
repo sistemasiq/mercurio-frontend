@@ -4,18 +4,18 @@ import { decodeToken } from '@/utils/tokenUtils'
 const SESSION_KEY = 'auth_session'
 const VIEWING_BRANCH_KEY = 'auth_viewing_branch'
 
-// TODO backend (Bug QA #32): access/refresh token en localStorage son robables
-// con un solo XSS. El diseño propuesto (refresh token en cookie HttpOnly;
-// Secure; SameSite=Strict, access token solo en memoria y un ticket de un
-// solo uso vía POST /ws-ticket para el WebSocket) necesita soporte del
-// backend; no se cambia el almacenamiento aquí hasta que exista.
+// QA #32: el refresh token ya no se guarda aquí -- vive solo en la cookie
+// HttpOnly que puso el backend (ver api/axiosClient.ts, authApi.refresh());
+// este storage ya no puede entregarlo a un XSS. El access token sigue
+// guardándose para no romper el resto de la app (interceptor, WebSockets),
+// pero vive poco (settings.access_token_expire_minutes) y se renueva solo
+// vía esa cookie.
 export const sessionStorage = {
-  save(token: string, refreshToken: string, user: User): void {
+  save(token: string, user: User): void {
     const payload = decodeToken(token)
     const session: StoredSession = {
       token,
       tokenExpiry: payload?.exp ? payload.exp * 1000 : 0,
-      refreshToken,
       user,
     }
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))

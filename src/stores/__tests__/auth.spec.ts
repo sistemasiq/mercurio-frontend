@@ -103,14 +103,12 @@ describe('auth store: tryRefresh', () => {
       JSON.stringify({
         token: 'old',
         tokenExpiry: 0,
-        refreshToken: 'rt',
         user: { ...base, permissions: [] },
       }),
     )
     configurarRefresh(() =>
       Promise.resolve({
         token: 'new',
-        refreshToken: 'rt2',
         user: { ...base, permissions: ['pos:acceder'] },
       }),
     )

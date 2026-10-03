@@ -91,7 +91,7 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = result.data.token
       user.value = result.data.user
 
-      sessionStorage.save(result.data.token, result.data.refreshToken, result.data.user)
+      sessionStorage.save(result.data.token, result.data.user)
       return true
     } catch (err) {
       error.value = resolveErrorMessage(err as ApiError)
@@ -120,9 +120,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout(): Promise<void> {
-    const refreshToken = sessionStorage.load()?.refreshToken ?? ''
+    // QA #32: el refresh token ya no se manda -- el backend lo lee de la
+    // cookie HttpOnly y la borra al salir.
     try {
-      await authService.logout(refreshToken)
+      await authService.logout()
     } catch {
       // El logout local procede aunque falle el endpoint
     } finally {
@@ -152,7 +153,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function tryRefresh(): Promise<boolean> {
     const session = sessionStorage.load()
-    if (!session?.refreshToken) return false
+    // QA #32: sin refresh token local que chequear -- si hubo sesión alguna
+    // vez (hay `session`), se intenta; el backend decide con la cookie.
+    if (!session) return false
 
     try {
       // Mismo refresh compartido que usa el interceptor de axios.
