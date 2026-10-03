@@ -6,6 +6,8 @@ name: Release
 on:
   push:
     branches: [main]
+  # Permite volver a publicar a mano la imagen de la versión actual.
+  workflow_dispatch:
 
 concurrency:
   group: release
@@ -33,15 +35,20 @@ jobs:
         id: version
         run: |
           version=$(bash .github/scripts/siguiente_version.sh)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          if [ -z "$version" ]; then
-            echo "Sin commits nuevos desde el último tag: no hay release."
-          else
+          if [ -n "$version" ]; then
             echo "Siguiente versión: $version"
+            echo "crear_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            # Sin commits nuevos desde el último tag (por ejemplo, un merge de
+            # develop que ya traía su tag): se publica la versión vigente.
+            version=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)
+            echo "Sin commits nuevos: se publica la versión vigente ${version:-(ninguna)}"
+            echo "crear_tag=false" >> "$GITHUB_OUTPUT"
           fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Crear tag
-        if: steps.version.outputs.version != ''
+        if: steps.version.outputs.crear_tag == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -77,4 +84,6 @@ jobs:
         if: steps.version.outputs.version != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ steps.version.outputs.version }}" --generate-notes --verify-tag
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          gh release view "$v" >/dev/null 2>&1 || gh release create "$v" --generate-notes --verify-tag
