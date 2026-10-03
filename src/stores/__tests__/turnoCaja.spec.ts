@@ -46,6 +46,8 @@ function turnoEn(
     totalVentas: 0,
     totalRetiros: 0,
     totalIngresos: 0,
+    numeroVentas: 0,
+    totalVendido: 0,
     movimientos: [],
     ...extra,
   }

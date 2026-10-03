@@ -88,12 +88,14 @@
       :items="itemsTicket"
       :enviando="enviando"
       :nombre-cliente="nombreCliente"
+      :mesa="mesa"
       @cancelar="cancelarTicket"
       @cambiar-cantidad="cambiarCantidad"
       @editar-notas="abrirNotasDialog"
       @split-combo="handleSplitCombo"
       @pagar="abrirModalPago"
       @actualizar-nombre="actualizarNombreCliente"
+      @actualizar-mesa="(val: string) => (mesa = val)"
     />
     <aside v-else class="caja-idle">
       <span class="caja-idle__icon"><q-icon name="receipt_long" size="28px" /></span>
@@ -255,6 +257,10 @@ const {
   nombreCliente,
 } = useTicketComanda()
 
+// Mesa del pedido (B9 B.2), opcional: igual que nombreCliente, vive en el
+// componente (no en el carrito) porque no afecta el cálculo del ticket.
+const mesa = ref('')
+
 const { comandasActivas, productos, refrescarComandas } = useCajaMetrics()
 
 const insumosStore = useInsumosStore()
@@ -378,6 +384,7 @@ const cancelarTicket = () => {
   cancelarOrden()
   ticketAbierto.value = false
   nombreCliente.value = ''
+  mesa.value = ''
 }
 
 const actualizarNombreCliente = (nombre: string) => {
@@ -531,11 +538,13 @@ const procesarPago = async (
         metodo_pago_id: mapearMetodoPago(p.method),
         monto: p.amount,
         notas_pago: p.cardType ? `${p.cardType} - Folio: ${p.authCode ?? ''}` : '',
+        ...(p.ultimos4 ? { ultimos4: p.ultimos4 } : {}),
       })),
       ...(celularCliente ? { celular_cliente: celularCliente } : {}),
       ...(puntosARedimir > 0 ? { puntos_a_redimir: puntosARedimir } : {}),
       ...(cambio > 0 ? { cambio } : {}),
       ...(nombreCliente.value.trim() ? { nombre_cliente: nombreCliente.value.trim() } : {}),
+      ...(mesa.value.trim() ? { mesa: mesa.value.trim() } : {}),
     }
 
     const comanda = await pagosApi.completarPago(payload, undefined, idempotencyKey ?? undefined)

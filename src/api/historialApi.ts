@@ -17,6 +17,8 @@ export interface MetodoPagoDetalle {
   metodo_pago_nombre: string
   monto: number
   notas_pago: string | null
+  /** Últimos 4 dígitos de la tarjeta, opcionales (B9 B.1). */
+  ultimos4?: string | null
 }
 
 export interface DetalleOrden {
@@ -33,6 +35,10 @@ export interface DetalleOrden {
   comanda_id: string | null
   ticket_numero: string | null
   nombre_cliente: string | null
+  /** Puntos de lealtad ganados por esta venta; null si no aplica (B9 B.3). */
+  puntos_ganados?: number | null
+  /** Mesa del pedido, opcional (B9 B.2; solo aplica a comandas). */
+  mesa?: string | null
 }
 
 export interface Estadisticas {

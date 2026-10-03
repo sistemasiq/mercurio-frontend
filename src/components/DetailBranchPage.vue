@@ -205,6 +205,10 @@ const columns: QTableColumn[] = [
           :value="branch.administradorName ?? 'Sin asignar'"
           :note="branch.correo ?? ''"
         />
+        <KpiCard
+          label="Horario"
+          :value="`${branch.horaApertura.slice(0, 5)} - ${branch.horaCierre.slice(0, 5)}`"
+        />
       </div>
 
       <div class="indicadores-card">
@@ -234,22 +238,20 @@ const columns: QTableColumn[] = [
           <KpiCard
             label="Ventas"
             :value="
-              indicadoresCargando
-                ? '—'
-                : `$${(indicadores?.ventas ?? 0).toLocaleString('es-MX')}`
+              indicadoresCargando ? '—' : `$${(indicadores?.ventas ?? 0).toLocaleString('es-MX')}`
             "
           />
           <KpiCard
             label="Niños atendidos"
-            :value="indicadoresCargando ? '—' : indicadores?.ninosAtendidos ?? 0"
+            :value="indicadoresCargando ? '—' : (indicadores?.ninosAtendidos ?? 0)"
           />
           <KpiCard
             label="Eventos"
-            :value="indicadoresCargando ? '—' : indicadores?.eventos ?? 0"
+            :value="indicadoresCargando ? '—' : (indicadores?.eventos ?? 0)"
           />
           <KpiCard
             label="Cajas abiertas"
-            :value="indicadoresCargando ? '—' : indicadores?.cajasAbiertas ?? 0"
+            :value="indicadoresCargando ? '—' : (indicadores?.cajasAbiertas ?? 0)"
           />
         </div>
       </div>

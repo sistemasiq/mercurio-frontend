@@ -105,6 +105,10 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   const totalIngresos = ref(0)
   const totalVentas = ref(0)
   const totalVentasEfectivo = ref(0)
+  /** "Vendido en turno": numero de tickets y total vendido, visibles mientras
+   * el turno está abierto (sin desglose por método ni efectivo esperado). */
+  const numeroVentas = ref(0)
+  const totalVendido = ref(0)
   const fechaApertura = ref<string | null>(null)
   const estado = ref<EstadoTurno>('SIN_TURNO')
 
@@ -286,6 +290,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalRetiros.value = 0
     totalIngresos.value = 0
     totalVentasEfectivo.value = 0
+    numeroVentas.value = 0
+    totalVendido.value = 0
     fechaApertura.value = null
     estado.value = 'SIN_TURNO'
     error.value = null
@@ -544,6 +550,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalRetiros.value = turno.totalRetiros
     totalIngresos.value = turno.totalIngresos
     totalVentas.value = turno.totalVentas ?? 0
+    numeroVentas.value = turno.numeroVentas ?? 0
+    totalVendido.value = turno.totalVendido ?? 0
     const movEfectivo = turno.movimientos.find((m) => m.metodo.trim().toLowerCase() === 'efectivo')
     totalVentasEfectivo.value = movEfectivo?.totalVentas ?? 0
     fechaApertura.value = turno.fechaApertura ?? null
@@ -627,6 +635,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     totalIngresos,
     totalVentas,
     totalVentasEfectivo,
+    numeroVentas,
+    totalVendido,
     efectivoDisponible,
     fechaApertura,
     estado,

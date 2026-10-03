@@ -32,6 +32,30 @@
           />
         </template>
       </q-input>
+      <q-input
+        v-model="mesaLocal"
+        placeholder="Mesa (opcional)"
+        outlined
+        dense
+        maxlength="20"
+        aria-label="Mesa del pedido"
+        @update:model-value="actualizarMesa"
+      >
+        <template #prepend>
+          <q-icon name="table_restaurant" size="20px" />
+        </template>
+        <template #append>
+          <q-icon
+            v-if="mesaLocal"
+            name="close"
+            size="18px"
+            class="cursor-pointer"
+            role="button"
+            aria-label="Borrar mesa"
+            @click="limpiarMesa"
+          />
+        </template>
+      </q-input>
     </div>
 
     <div class="ticket-panel__items">
@@ -131,6 +155,7 @@ const props = defineProps<{
   items: ItemTicket[]
   enviando: boolean
   nombreCliente: string
+  mesa?: string
 }>()
 
 const emit = defineEmits<{
@@ -140,9 +165,11 @@ const emit = defineEmits<{
   (e: 'split-combo', item: ItemTicket): void
   (e: 'pagar'): void
   (e: 'actualizar-nombre', nombre: string): void
+  (e: 'actualizar-mesa', mesa: string): void
 }>()
 
 const nombreClienteLocal = ref(props.nombreCliente)
+const mesaLocal = ref(props.mesa ?? '')
 
 function actualizarNombreCliente(val: string | number | null) {
   const strVal = val ?? ''
@@ -153,6 +180,17 @@ function actualizarNombreCliente(val: string | number | null) {
 function limpiarNombre() {
   nombreClienteLocal.value = ''
   emit('actualizar-nombre', '')
+}
+
+function actualizarMesa(val: string | number | null) {
+  const strVal = val ?? ''
+  mesaLocal.value = String(strVal)
+  emit('actualizar-mesa', String(strVal))
+}
+
+function limpiarMesa() {
+  mesaLocal.value = ''
+  emit('actualizar-mesa', '')
 }
 
 const itemsAgrupados = computed<ElementoRender[]>(() => {

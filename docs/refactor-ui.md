@@ -49,9 +49,6 @@ simplifican hasta que exista la fuente.
 - **Botón de ayuda** (Topbar): destino por definir.
 - **Contadores de Cocina y Control de Acceso** (Sidebar): no hay una fuente
   compartida fuera de cada pantalla.
-- **"Vendido en turno"** (tarjeta de caja) y **KPI "Ventas del turno"**
-  (Inicio): el backend solo expone `totalVentas` al admin después de
-  `BALANCE_REVELADO`.
 
 ### 00 Acceso
 
@@ -66,12 +63,7 @@ simplifican hasta que exista la fuente.
   regla fiscal antes de mostrarlo.
 - **Método de pago en el panel del pedido**: se elige dentro del cobro
   multimodal.
-- **Número de pedido y mesa antes de cobrar**: el folio lo asigna el backend;
-  el POS no captura mesa.
 - **Stock en piezas ("48 pzas")**: solo existe el "rinde" calculado por receta.
-- **Últimos 4 dígitos de tarjeta** (1b.5): `AppliedPayment` solo guarda tipo y
-  autorización.
-- **Puntos ganados en el ticket** (1b.2): el detalle de orden no los regresa.
 - **Checklist "Quien recoge coincide"** (Checkout): sería una validación nueva;
   se deja el acceso a las fotos para comparar.
 

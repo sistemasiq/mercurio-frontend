@@ -14,6 +14,8 @@ interface BackendBranchResponse {
   estado: string | null
   codigo_postal: string | null
   zona_horaria: string
+  hora_apertura: string
+  hora_cierre: string
   telefono: string | null
   correo: string | null
   clave: string | null
@@ -37,6 +39,8 @@ function mapBranch(raw: BackendBranchResponse): Branch {
     estado: raw.estado,
     codigoPostal: raw.codigo_postal,
     zonaHoraria: raw.zona_horaria,
+    horaApertura: raw.hora_apertura,
+    horaCierre: raw.hora_cierre,
     telefono: raw.telefono,
     correo: raw.correo,
     clave: raw.clave,
