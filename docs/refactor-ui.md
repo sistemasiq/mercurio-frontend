@@ -58,14 +58,9 @@ simplifican hasta que exista la fuente.
 
 - **Botón "Filtrar"** (Resumen): no había filtros implementados; se reemplazó
   por acceso a Reservaciones.
-- **Montos sugeridos de anticipo (30 %, 50 %, total)**: se conserva el campo
-  con mínimo sugerido.
-- **Vistas Semana / Día** (Calendario): solo existe la vista mensual; el
-  endpoint por rango (`GET /reservaciones?desde&hasta`) ya existe.
 
 ### 03 Catálogo
 
-- **Tipo de evento como chips** (Nueva reservación): se conserva el selector.
 
 ### 04 Inventario
 
@@ -76,17 +71,16 @@ simplifican hasta que exista la fuente.
 
 ### 05 Lealtad
 
-- **KPI "Por vencer"** (kardex): los movimientos no traen la caducidad por lote.
+- **KPI "Por vencer"** (kardex): el saldo ya trae `por_vencer`; falta mostrarlo.
 - **Exportar** (reporte): sin endpoint.
 
 ### 06 Administración
 
-- **Pestañas Cajas / Horarios en el detalle de sucursal**: sin dato (no forma
-  parte de este endpoint).
+- **Pestañas Cajas / Horarios en el detalle de sucursal**: `/cajas` y
+  `/horarios` filtran por la sucursal de la sesión, no por la que se consulta;
+  al ver otra sucursal se muestran las de la propia.
 - **PIN de caja** (usuario): su semántica es una decisión de negocio
   pendiente; el usuario no trae ese campo.
-- **Filtro de periodo y Exportar** (Reportes): sin endpoint (el filtro de
-  periodo para indicadores por sucursal ya existe).
 
 ## Cambios de comportamiento
 
