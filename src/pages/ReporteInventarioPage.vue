@@ -5,6 +5,7 @@
       subtitle="Insumos por debajo de su mínimo o punto de reorden."
     >
       <template #actions>
+        <q-btn outline icon="download" label="Exportar" :loading="exportando" @click="exportar" />
         <q-btn
           v-if="insumosParaReponer.length > 0"
           unelevated
@@ -146,6 +147,7 @@ import type { FilterChip } from '@/types/ui'
 import { formatMXN } from '@/utils/formatoMoneda'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useInsumosStore } from '@/stores/insumos'
@@ -153,9 +155,12 @@ import { useProveedoresStore } from '@/stores/proveedores'
 import { useComprasStore, type LineaPrefill } from '@/stores/compras'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { useAlertasInventarioStore } from '@/stores/alertasInventario'
+import { exportarReporteStock } from '@/services/insumoService'
+import { mensajeDeError } from '@/utils/errorHandler'
 import type { Insumo } from '@/types/insumo'
 
 const router = useRouter()
+const $q = useQuasar()
 const authStore = useAuthStore()
 const insumosStore = useInsumosStore()
 const proveedoresStore = useProveedoresStore()
@@ -165,6 +170,19 @@ const alertas = useAlertasInventarioStore()
 
 const loading = ref(false)
 const dialogGenerar = ref(false)
+const exportando = ref(false)
+
+async function exportar() {
+  if (!authStore.currentBranchId) return
+  exportando.value = true
+  try {
+    await exportarReporteStock(authStore.currentBranchId)
+  } catch (err) {
+    $q.notify({ type: 'negative', message: mensajeDeError(err, 'No se pudo exportar el reporte.') })
+  } finally {
+    exportando.value = false
+  }
+}
 
 onMounted(async () => {
   if (!authStore.currentBranchId) return
