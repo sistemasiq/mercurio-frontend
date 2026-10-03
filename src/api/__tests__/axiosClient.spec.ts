@@ -3,6 +3,7 @@ import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'ax
 import { AxiosError } from 'axios'
 import type { ApiError } from '@/types/auth'
 import { apiClient, rawApiClient, refreshAccessToken, configurarRefresh } from '@/api/axiosClient'
+import { tokenMemory } from '@/utils/tokenMemory'
 
 function makeResponse(config: InternalAxiosRequestConfig, status: number, data: unknown) {
   return { data, status, statusText: '', headers: {}, config } as AxiosResponse
@@ -33,10 +34,9 @@ describe('axiosClient interceptor', () => {
 
   beforeEach(() => {
     localStorage.clear()
-    localStorage.setItem(
-      'auth_session',
-      JSON.stringify({ token: 'old', tokenExpiry: 0, user: USER }),
-    )
+    localStorage.setItem('auth_session', JSON.stringify({ user: USER }))
+    // C3: el access token ya no vive en localStorage -- solo en memoria.
+    tokenMemory.set('old')
     refreshCalls = 0
   })
 
@@ -151,6 +151,19 @@ describe('axiosClient interceptor', () => {
 
     const stored = JSON.parse(localStorage.getItem('auth_session') ?? '{}')
     expect(stored.user.permissions).toEqual(['pos:acceder'])
-    expect(stored.token).toBe('tok')
+    expect(stored.token).toBeUndefined()
+    // C3: el token nuevo queda solo en memoria, nunca en localStorage.
+    expect(tokenMemory.get()).toBe('tok')
+  })
+
+  it('C3: el access token nunca se persiste en localStorage', async () => {
+    setRefresh((config) => Promise.resolve(makeResponse(config, 200, REFRESH_BODY)))
+
+    const token = await refreshAccessToken()
+
+    expect(token).toBe('new')
+    expect(tokenMemory.get()).toBe('new')
+    const stored = JSON.parse(localStorage.getItem('auth_session') ?? '{}')
+    expect(stored.token).toBeUndefined()
   })
 })

@@ -6,6 +6,7 @@ import axios, {
 } from 'axios'
 import type { ApiError, User } from '@/types/auth'
 import { sessionStorage, viewingBranch } from '@/utils/session'
+import { tokenMemory } from '@/utils/tokenMemory'
 import {
   isNetworkError,
   isTimeoutError,
@@ -72,7 +73,9 @@ export function refreshAccessToken(): Promise<string> {
       const { data } = await rawApiClient.post<BackendRefreshResponse>('/auth/refresh', {})
       result = { token: data.token, user: session.user }
     }
-    sessionStorage.save(result.token, result.user)
+    // C3: el access token nunca toca localStorage -- solo vive en memoria.
+    tokenMemory.set(result.token)
+    sessionStorage.save(result.user)
     window.dispatchEvent(new CustomEvent('auth:refreshed', { detail: { token: result.token } }))
     return result.token
   })().finally(() => {
@@ -166,14 +169,16 @@ function createAxiosClient(): AxiosInstance {
   })
 
   client.interceptors.request.use((config) => {
-    const session = sessionStorage.load()
-    if (session?.token) {
-      config.headers.Authorization = `Bearer ${session.token}`
+    // C3: el access token vive solo en memoria (nunca en localStorage).
+    const token = tokenMemory.get()
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
     // Solo AdministradorSistema puede "pararse" en una sucursal para ver sus
     // catálogos/listados -- para cualquier otro rol el backend ignora este
     // header, pero evitamos mandarlo de más.
     const sucursalVista = viewingBranch.load()
+    const session = sessionStorage.load()
     if (sucursalVista && session?.user.roles.includes('AdministradorSistema')) {
       config.headers['X-Sucursal-Vista'] = sucursalVista
     }
