@@ -104,6 +104,10 @@ export interface ActivoDto {
   pulsera: string
   minutosPagados: number
   minutosTranscurridos: number
+  // Timestamp real de entrada (antes el front lo derivaba de minutosTranscurridos).
+  horaEntrada: string
+  // Excedente estimado en este momento, con la misma fórmula que cotizarCheckout.
+  cargoExtra: number
 }
 
 export interface CheckoutResponse {

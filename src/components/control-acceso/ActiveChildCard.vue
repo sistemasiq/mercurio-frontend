@@ -12,6 +12,9 @@
       <span class="stay__time">{{ tiempo }}</span>
       <span class="stay__entry">Entró {{ horaEntrada }}</span>
     </div>
+    <div v-if="child.status === 'excedido' && child.cargoExtra > 0" class="stay__extra">
+      Cargo extra: ${{ child.cargoExtra.toFixed(2) }}
+    </div>
     <div
       class="stay__bar"
       role="progressbar"
@@ -141,9 +144,10 @@ const tiempo = computed(() => {
   return props.child.status === 'excedido' ? `+${texto}` : texto
 })
 
-// El DTO trae minutos transcurridos, no la hora de entrada; se deriva aquí.
+// El DTO ya trae la hora de entrada real (ver B2 #1); antes se derivaba de
+// minutosTranscurridos, una aproximación que se iba desviando con el tiempo.
 const horaEntrada = computed(() => {
-  const d = new Date(Date.now() - props.child.minutosTranscurridos * 60000)
+  const d = new Date(props.child.horaEntrada)
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
 })
 
@@ -271,6 +275,12 @@ function formatTelefono(telefono: string) {
   &__entry {
     font-size: 12.5px;
     color: var(--text-secondary);
+  }
+
+  &__extra {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--tone-bad-fg);
   }
 
   &__bar {
