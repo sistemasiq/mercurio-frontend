@@ -44,6 +44,8 @@ function mapTurnoActivo(raw: any): TurnoActivoResponse {
     totalVentas: Number(raw.total_ventas ?? 0),
     totalRetiros: Number(raw.total_retiros ?? 0),
     totalIngresos: Number(raw.total_ingresos ?? 0),
+    numeroVentas: Number(raw.numero_ventas ?? 0),
+    totalVendido: Number(raw.total_vendido ?? 0),
     movimientos: (raw.movimientos ?? []).map(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (m: any) => ({ metodo: m.metodo, totalVentas: Number(m.total_ventas) }),

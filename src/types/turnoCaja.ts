@@ -116,6 +116,11 @@ export interface TurnoActivoResponse {
   totalVentas: number // solo visible para el admin post-BALANCE_REVELADO
   totalRetiros: number
   totalIngresos: number
+  /** "Vendido en turno": numero de tickets y total vendido, visibles mientras
+   * el turno está abierto. Sin desglose por método ni efectivo esperado
+   * (el conteo sigue siendo a ciegas). */
+  numeroVentas: number
+  totalVendido: number
   movimientos: MovimientoTurno[]
   /** Solo poblado por el backend cuando estado === 'BALANCE_REVELADO' (QA #8). */
   adminEmail?: string | null

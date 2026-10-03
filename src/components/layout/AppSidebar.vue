@@ -91,7 +91,11 @@ const showShift = computed(() => auth.hasRole('Cajero'))
 const shift = computed(() => {
   if (turno.estaOperando) {
     const desde = turno.fechaApertura ? format(new Date(turno.fechaApertura), 'HH:mm') : null
-    return { tone: 'ok', label: 'Caja abierta', meta: desde ? `desde ${desde}` : '' }
+    // "Vendido en turno" (B9 B.4): solo total y número de ventas, sin
+    // desglose por método ni efectivo esperado (conteo a ciegas).
+    const ventas = `${turno.numeroVentas} ${turno.numeroVentas === 1 ? 'venta' : 'ventas'} · $${turno.totalVendido.toLocaleString('es-MX')}`
+    const meta = [desde ? `desde ${desde}` : null, ventas].filter(Boolean).join(' · ')
+    return { tone: 'ok', label: 'Caja abierta', meta }
   }
   if (turno.sinTurno) {
     return { tone: 'bad', label: 'Sin apertura de caja', meta: 'Abrir caja' }
