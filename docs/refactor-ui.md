@@ -59,13 +59,8 @@ simplifican hasta que exista la fuente.
 
 - **Paquete en "Eventos de hoy"** (Inicio): se resuelve con el catálogo de
   paquetes solo donde ya está cargado.
-- **Desglose Subtotal / IVA 16 %** (panel del pedido): requiere confirmar la
-  regla fiscal antes de mostrarlo.
 - **Método de pago en el panel del pedido**: se elige dentro del cobro
   multimodal.
-- **Stock en piezas ("48 pzas")**: solo existe el "rinde" calculado por receta.
-- **Checklist "Quien recoge coincide"** (Checkout): sería una validación nueva;
-  se deja el acceso a las fotos para comparar.
 
 ### 02 Eventos
 
@@ -102,8 +97,6 @@ simplifican hasta que exista la fuente.
 
 - **Pestañas Cajas / Horarios en el detalle de sucursal**: sin dato (no forma
   parte de este endpoint).
-- **PIN de caja** (usuario): su semántica es una decisión de negocio
-  pendiente; el usuario no trae ese campo.
 - **Filtro de periodo y Exportar** (Reportes): sin endpoint (el filtro de
   periodo para indicadores por sucursal ya existe).
 
