@@ -4,12 +4,34 @@ import type {
   ReservacionesCreate,
   ReservacionesUpdate,
   EventoDelDia,
+  Disponibilidad,
 } from '@/types/reservaciones'
+import type {
+  ReservacionCompletaRequest,
+  ReservacionCompletaResponse,
+} from '@/types/reservaciones_completa'
 
 export const reservacionesApi = {
-  listar: (sucursal_id?: string) =>
+  /**
+   * `desde`/`hasta` (YYYY-MM-DD, ambos inclusive) acotan el calendario de
+   * eventos a un rango -- lo usan las vistas Semana y Día en vez de traer
+   * todo el histórico de la sucursal.
+   */
+  listar: (sucursal_id?: string, desde?: string, hasta?: string) =>
     apiClient
-      .get<Reservaciones[]>('/reservaciones', { params: sucursal_id ? { sucursal_id } : undefined })
+      .get<Reservaciones[]>('/reservaciones', {
+        params: { sucursal_id, desde, hasta },
+      })
+      .then((r) => r.data),
+
+  disponibilidad: (sucursal_id: string, fecha: string) =>
+    apiClient
+      .get<Disponibilidad>('/reservaciones/disponibilidad', { params: { sucursal_id, fecha } })
+      .then((r) => r.data),
+
+  crearCompleta: (body: ReservacionCompletaRequest) =>
+    apiClient
+      .post<ReservacionCompletaResponse>('/reservaciones/completa', body)
       .then((r) => r.data),
 
   obtener: (id: string) => apiClient.get<Reservaciones>(`/reservaciones/${id}`).then((r) => r.data),

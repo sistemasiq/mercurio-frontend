@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import {
   actualizarConfiguracionLealtad,
+  ajustarPuntosLealtad,
+  buscarClientesLealtad,
   listarMovimientosLealtad,
   obtenerConfiguracionLealtad,
   obtenerReporteLealtad,
@@ -9,6 +11,8 @@ import {
 import { mensajeDeError } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import type {
+  AjustePuntosInput,
+  ClienteLealtad,
   ConfiguracionLealtad,
   ConfiguracionLealtadInput,
   MovimientoPuntos,
@@ -21,6 +25,7 @@ interface LealtadState {
   saldo: SaldoPuntos | null
   movimientos: MovimientoPuntos[]
   reporte: ReporteLealtad | null
+  clientes: ClienteLealtad[]
   loading: boolean
   error: string | null
 }
@@ -31,6 +36,7 @@ export const useLealtadStore = defineStore('lealtad', {
     saldo: null,
     movimientos: [],
     reporte: null,
+    clientes: [],
     loading: false,
     error: null,
   }),
@@ -75,16 +81,37 @@ export const useLealtadStore = defineStore('lealtad', {
         this.loading = false
       }
     },
-    async cargarReporte(sucursalId: string) {
+    async cargarReporte(sucursalId: string, desde?: string, hasta?: string) {
       this.loading = true
       this.error = null
       try {
-        this.reporte = await obtenerReporteLealtad(sucursalId)
+        this.reporte = await obtenerReporteLealtad(sucursalId, desde, hasta)
       } catch (error: unknown) {
         this.error = mensajeDeError(error, 'Error al cargar el reporte de lealtad')
       } finally {
         this.loading = false
       }
+    },
+    async buscarClientes(sucursalId: string, q: string) {
+      if (!q) {
+        this.clientes = []
+        return
+      }
+      try {
+        this.clientes = await buscarClientesLealtad(sucursalId, q)
+      } catch (error: unknown) {
+        this.error = mensajeDeError(error, 'Error al buscar clientes de lealtad')
+      }
+    },
+    async ajustarPuntos(sucursalId: string, body: AjustePuntosInput) {
+      const movimiento = await ajustarPuntosLealtad(sucursalId, body)
+      if (this.saldo?.celular === body.celular) {
+        this.saldo = { ...this.saldo, saldo: movimiento.saldo_resultante }
+      }
+      if (this.movimientos.length && this.movimientos[0]?.celular === body.celular) {
+        this.movimientos = [movimiento, ...this.movimientos]
+      }
+      return movimiento
     },
   },
 })

@@ -65,12 +65,21 @@ function sucursalDe(user: UserListItem): string {
   return branches.value.find((b) => b.id === user.branchId)?.nombre ?? '—'
 }
 
+function ultimoAccesoDe(user: UserListItem): string {
+  if (!user.lastAccess) return 'Nunca'
+  return new Date(user.lastAccess).toLocaleString('es-MX', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
+}
+
 const columns: QTableColumn[] = [
   { name: 'name', label: 'Usuario', field: 'name', align: 'left', sortable: true },
   { name: 'email', label: 'Email', field: 'email', align: 'left', sortable: true },
   { name: 'role', label: 'Rol', field: 'role', align: 'left', sortable: true },
   { name: 'branch', label: 'Sucursal', field: 'branchId', align: 'left' },
   { name: 'status', label: 'Estado', field: 'isActive', align: 'left', sortable: true },
+  { name: 'lastAccess', label: 'Último acceso', field: 'lastAccess', align: 'left' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 
@@ -229,6 +238,9 @@ async function eliminar() {
               :label="props.row.isActive ? 'Activo' : 'Inactivo'"
             />
           </q-td>
+        </template>
+        <template #body-cell-lastAccess="props">
+          <q-td :props="props" class="cell-muted">{{ ultimoAccesoDe(props.row) }}</q-td>
         </template>
         <template #body-cell-actions="props">
           <q-td :props="props">

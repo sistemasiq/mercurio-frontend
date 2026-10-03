@@ -19,7 +19,7 @@
     <DataTableCard
       v-model:search="busqueda"
       v-model:filter="filtro"
-      search-placeholder="Buscar cliente o festejado"
+      search-placeholder="Buscar folio, cliente o festejado"
       :filters="FILTROS"
       :count="`${reservacionesFiltradas.length} reservaciones`"
     >
@@ -31,6 +31,11 @@
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
       >
+        <template #body-cell-folio="props">
+          <q-td :props="props" class="cell-muted">
+            {{ props.row.folio ?? props.row.id.slice(0, 8) }}
+          </q-td>
+        </template>
         <template #body-cell-cliente="props">
           <q-td :props="props">
             <span class="text-weight-bold">
@@ -598,7 +603,7 @@ const reservacionesFiltradas = computed(() => {
     .filter(
       (r) =>
         !q ||
-        `${r.nombre_cliente} ${r.apellidos_cliente ?? ''} ${r.nombre_festejado ?? ''}`
+        `${r.folio ?? ''} ${r.nombre_cliente} ${r.apellidos_cliente ?? ''} ${r.nombre_festejado ?? ''}`
           .toLowerCase()
           .includes(q),
     )
@@ -628,6 +633,7 @@ function etiquetaFecha(fecha: string): string {
 }
 
 const columns: QTableColumn[] = [
+  { name: 'folio', label: 'Folio', field: 'folio', align: 'left', sortable: true },
   {
     name: 'cliente',
     label: 'Cliente / festejado',

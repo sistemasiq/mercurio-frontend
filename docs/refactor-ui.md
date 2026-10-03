@@ -55,7 +55,6 @@ simplifican hasta que exista la fuente.
 
 ### 00 Acceso
 
-- **"Tus puntos Woow"** (portal de padres): el tutor no trae saldo de lealtad.
 - **Foto del panel de login**: el mockup deja un placeholder; se usa la
   ilustración del logo.
 
@@ -84,16 +83,10 @@ simplifican hasta que exista la fuente.
 
 - **Botón "Filtrar"** (Resumen): no había filtros implementados; se reemplazó
   por acceso a Reservaciones.
-- **Folio de reservación (R-0418)**: `Reservaciones` no tiene folio legible.
-- **Tipo de evento como chips y bloques de horario ocupados/libres**
-  (Nueva reservación): se conserva el selector y las horas libres; la
-  disponibilidad por bloque requiere endpoint.
 - **Montos sugeridos de anticipo (30 %, 50 %, total)**: se conserva el campo
   con mínimo sugerido.
-- **Vistas Semana / Día y "horario libre"** (Calendario): solo existe la vista
-  mensual.
-- **KPI "Anticipos" y filtros por método / mes** (Pagos): el modelo no
-  distingue anticipo de liquidación.
+- **Vistas Semana / Día** (Calendario): solo existe la vista mensual; el
+  endpoint por rango (`GET /reservaciones?desde&hasta`) ya existe.
 
 ### 03 Catálogo
 
@@ -131,21 +124,12 @@ simplifican hasta que exista la fuente.
 
 ### 06 Administración
 
-- **Ventas, niños atendidos, eventos y cajas por sucursal** (detalle de
-  sucursal y Reportes): no hay endpoints de indicadores por sucursal; se
-  muestran estado, usuarios asignados y administrador.
-- **Último acceso del usuario** y pestañas Cajas / Horarios en el detalle de
-  sucursal: sin dato.
-- **Ciudad, estado, código postal y zona horaria** (sucursal): el modelo solo
-  tiene una dirección libre.
-- **Apellidos, teléfono y PIN de caja** (usuario): el usuario solo tiene nombre
-  completo, email, rol y sucursal.
-- **"Cuenta activa"** al editar un usuario: la edición no acepta el estado.
-- **Conteo de usuarios por rol** (Roles): el rol no trae usuarios asignados.
-- **Días de la semana** (Horarios): el horario solo tiene hora de inicio y fin.
-- **Turno actual e impresora de tickets** (Cajas): la caja solo tiene nombre,
-  número y estado.
-- **Filtro de periodo y Exportar** (Reportes): sin endpoint.
+- **Pestañas Cajas / Horarios en el detalle de sucursal**: sin dato (no forma
+  parte de este endpoint).
+- **PIN de caja** (usuario): su semántica es una decisión de negocio
+  pendiente; el usuario no trae ese campo.
+- **Filtro de periodo y Exportar** (Reportes): sin endpoint (el filtro de
+  periodo para indicadores por sucursal ya existe).
 
 ## Cambios de comportamiento
 

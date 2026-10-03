@@ -72,6 +72,14 @@ onBeforeUnmount(() => {
     </header>
 
     <div class="padres-body">
+      <div v-if="store.currentTutor?.lealtad" class="padres-points">
+        <span class="padres-points__icon"><q-icon name="stars" size="22px" /></span>
+        <div class="padres-points__text">
+          <span class="padres-points__label">Tus puntos Woow</span>
+          <span class="padres-points__value">{{ store.currentTutor.lealtad.saldo }} pts</span>
+        </div>
+      </div>
+
       <div v-if="store.allChildren.length === 0" class="padres-empty">
         <span class="padres-empty__icon"><q-icon name="child_care" size="28px" /></span>
         <span class="padres-empty__title">Sin visitas registradas</span>
@@ -156,6 +164,46 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.padres-points {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  &__value {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
 }
 
 .padres-section {

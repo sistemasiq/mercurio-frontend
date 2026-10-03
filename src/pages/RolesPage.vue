@@ -73,6 +73,11 @@
             </div>
           </q-td>
         </template>
+        <template #body-cell-usuarios="props">
+          <q-td :props="props" class="cell-muted">
+            {{ (props.row as RolConPermisos).usuarios_count }}
+          </q-td>
+        </template>
         <template #body-cell-activo="props">
           <q-td :props="props">
             <StatusBadge
@@ -295,6 +300,7 @@ const columns: QTableColumn[] = [
   { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
   { name: 'descripcion', label: 'Descripción', field: 'descripcion', align: 'left' },
   { name: 'permisos', label: 'Permisos', field: 'permisos', align: 'left' },
+  { name: 'usuarios', label: 'Usuarios', field: 'usuarios_count', align: 'left', sortable: true },
   { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]

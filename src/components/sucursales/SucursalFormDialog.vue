@@ -78,7 +78,30 @@
           outlined
           type="textarea"
           rows="2"
-          placeholder="Calle, número, colonia, ciudad, estado"
+          placeholder="Calle, número, colonia"
+        />
+      </label>
+      <label class="form-grid__field">
+        <span class="field-label">Ciudad</span>
+        <q-input v-model="form.ciudad" dense outlined placeholder="Ej. Guadalajara" />
+      </label>
+      <label class="form-grid__field">
+        <span class="field-label">Estado</span>
+        <q-input v-model="form.estado" dense outlined placeholder="Ej. Jalisco" />
+      </label>
+      <label class="form-grid__field">
+        <span class="field-label">Código postal</span>
+        <q-input v-model="form.codigoPostal" dense outlined placeholder="Ej. 45040" />
+      </label>
+      <label class="form-grid__field">
+        <span class="field-label">Zona horaria</span>
+        <q-select
+          v-model="form.zonaHoraria"
+          dense
+          outlined
+          emit-value
+          map-options
+          :options="zonaHorariaOptions"
         />
       </label>
 
@@ -129,7 +152,25 @@ const show = defineModel<boolean>({ required: true })
 const formRef = ref<QForm | null>(null)
 const cargando = ref(false)
 const guardando = ref(false)
-const form = reactive({ clave: '', nombre: '', telefono: '', correo: '', direccion: '' })
+const form = reactive({
+  clave: '',
+  nombre: '',
+  telefono: '',
+  correo: '',
+  direccion: '',
+  ciudad: '',
+  estado: '',
+  codigoPostal: '',
+  zonaHoraria: 'America/Mexico_City',
+})
+
+const zonaHorariaOptions = [
+  { label: 'Ciudad de México (centro)', value: 'America/Mexico_City' },
+  { label: 'Tijuana (noroeste)', value: 'America/Tijuana' },
+  { label: 'Hermosillo (Pacífico, sin horario de verano)', value: 'America/Hermosillo' },
+  { label: 'Chihuahua (Pacífico)', value: 'America/Chihuahua' },
+  { label: 'Cancún (sureste)', value: 'America/Cancun' },
+]
 const administrador = ref<AdminOption | null>(null)
 const original = ref('')
 
@@ -151,7 +192,17 @@ watch(
 )
 
 async function cargar() {
-  Object.assign(form, { clave: '', nombre: '', telefono: '', correo: '', direccion: '' })
+  Object.assign(form, {
+    clave: '',
+    nombre: '',
+    telefono: '',
+    correo: '',
+    direccion: '',
+    ciudad: '',
+    estado: '',
+    codigoPostal: '',
+    zonaHoraria: 'America/Mexico_City',
+  })
   administrador.value = null
   cargando.value = !!props.branchId
   adminLoading.value = true
@@ -184,6 +235,10 @@ async function cargar() {
       telefono: b.telefono ?? '',
       correo: b.correo ?? '',
       direccion: b.direccion ?? '',
+      ciudad: b.ciudad ?? '',
+      estado: b.estado ?? '',
+      codigoPostal: b.codigoPostal ?? '',
+      zonaHoraria: b.zonaHoraria || 'America/Mexico_City',
     })
     administrador.value = adminOptionsAll.value.find((a) => a.id === b.administradorId) ?? null
   }
@@ -206,6 +261,10 @@ async function guardar() {
   const payload = {
     nombre: form.nombre,
     direccion: form.direccion || null,
+    ciudad: form.ciudad || null,
+    estado: form.estado || null,
+    codigo_postal: form.codigoPostal || null,
+    zona_horaria: form.zonaHoraria,
     telefono: form.telefono || null,
     correo: form.correo || null,
     clave: form.clave || null,

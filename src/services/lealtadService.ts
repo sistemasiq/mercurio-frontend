@@ -1,5 +1,7 @@
 import { lealtadApi } from '@/api/lealtadApi'
 import type {
+  AjustePuntosInput,
+  ClienteLealtad,
   ConfiguracionLealtad,
   ConfiguracionLealtadInput,
   MovimientoPuntos,
@@ -36,6 +38,24 @@ export async function listarMovimientosLealtad(
   return lealtadApi.listarMovimientos(sucursalId, celular, desde, hasta)
 }
 
-export async function obtenerReporteLealtad(sucursalId: string): Promise<ReporteLealtad> {
-  return lealtadApi.obtenerReporte(sucursalId)
+export async function obtenerReporteLealtad(
+  sucursalId: string,
+  desde?: string,
+  hasta?: string,
+): Promise<ReporteLealtad> {
+  return lealtadApi.obtenerReporte(sucursalId, desde, hasta)
+}
+
+export async function buscarClientesLealtad(
+  sucursalId: string,
+  q: string,
+): Promise<ClienteLealtad[]> {
+  return lealtadApi.buscarClientes(sucursalId, q)
+}
+
+export async function ajustarPuntosLealtad(
+  sucursalId: string,
+  body: AjustePuntosInput,
+): Promise<MovimientoPuntos> {
+  return lealtadApi.ajustarPuntos(sucursalId, body)
 }
