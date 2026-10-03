@@ -189,6 +189,15 @@
                       >
                         La hora de fin debe ser mayor a la hora de inicio.
                       </div>
+                      <div
+                        v-if="eventoFueraDeHorario"
+                        class="text-warning q-mt-xs"
+                        style="font-size: 0.75rem"
+                      >
+                        El evento queda fuera del horario de operación de la sucursal ({{
+                          horarioSucursal?.apertura
+                        }}–{{ horarioSucursal?.cierre }}).
+                      </div>
                     </div>
                     <div>
                       <div class="field-label">Hora seleccionada</div>
@@ -940,6 +949,7 @@ import { horasFacturables } from '@/utils/horario'
 import { mensajeDeError } from '@/utils/errorHandler'
 import { resolverMetodoPagoId } from '@/utils/pagos'
 import { pulserasApi } from '@/api/pulserasApi'
+import { branchService } from '@/services/branchService'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -975,6 +985,20 @@ onMounted(() => {
       inventarioPulseras.value = null
     })
   resStore.cargar(authStore.currentBranchId)
+
+  // Horario de operación de la sucursal, para avisar (no bloquear) cuando el
+  // evento quede fuera de ese horario.
+  branchService
+    .getBranch(authStore.currentBranchId)
+    .then((b) => {
+      horarioSucursal.value = {
+        apertura: b.horaApertura.slice(0, 5),
+        cierre: b.horaCierre.slice(0, 5),
+      }
+    })
+    .catch(() => {
+      horarioSucursal.value = null
+    })
 })
 
 interface BookingCalendarDay {
@@ -1039,6 +1063,18 @@ const horarioValido = computed(
   () =>
     !!form.value.horaInicio && !!form.value.horaFin && form.value.horaFin > form.value.horaInicio,
 )
+
+/** Horario de operación de la sucursal actual ("HH:mm"), para el aviso de
+ * evento fuera de horario. null mientras no se cargue o si falla. */
+const horarioSucursal = ref<{ apertura: string; cierre: string } | null>(null)
+
+/** Aviso, no bloqueo: si el evento cae fuera del horario de operación de la
+ * sucursal. */
+const eventoFueraDeHorario = computed(() => {
+  const horario = horarioSucursal.value
+  if (!horario || !form.value.horaInicio || !form.value.horaFin) return false
+  return form.value.horaInicio < horario.apertura || form.value.horaFin > horario.cierre
+})
 
 const paso1Valido = computed(
   () =>
