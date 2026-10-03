@@ -1,0 +1,58 @@
+name: CI
+
+# Corre en cada push y en cada PR: lint, tipos, tests, build de producción y
+# build de la imagen. Lo reutiliza release.yml antes de publicar.
+on:
+  push:
+    # main lo cubre release.yml, que llama a este mismo workflow.
+    branches-ignore: [main]
+    tags-ignore: ["**"]
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  HUSKY: "0"
+
+jobs:
+  calidad:
+    name: Lint, tipos, tests y build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Sin --fix: en CI se reporta, no se reescribe.
+      - name: ESLint
+        run: npx eslint src
+      - name: Tipos (vue-tsc)
+        run: npm run type-check
+      - name: Tests (Vitest)
+        run: npx vitest run --dir src
+      - name: Build de producción
+        run: npx vite build
+
+  imagen:
+    name: Build de la imagen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          build-args: |
+            VITE_API_BASE_URL=/api
+            VITE_APP_TITLE=Woow Kids
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
