@@ -149,19 +149,32 @@ const child = computed(() => store.checkoutChild)
 const metodosPagoDisponibles = ref<MetodosPago[]>([])
 
 /*
-  Cotización vigente del cargo extra. Se pide una sola vez, al picar
-  "Confirmar salida" (así se mantiene en exactamente 2 llamadas normales:
-  el GET de cotización y el POST de checkout). El POST vuelve a recalcular
-  con la hora real y rechaza (409) si lo cobrado ya no coincide con lo
-  debido — y esa misma respuesta 409 ya trae el monto correcto, así que un
-  reintento no necesita una tercera llamada.
+  Cotización vigente del cargo extra. Se pide al entrar a la pantalla (para
+  que el cajero vea el cargo antes de confirmar) y de nuevo justo antes de
+  confirmar la salida, porque el monto puede cambiar entre una llamada y
+  otra. El POST de checkout vuelve a recalcular con la hora real y rechaza
+  (409) si lo cobrado ya no coincide con lo debido — y esa misma respuesta
+  409 ya trae el monto correcto, así que un reintento fallido no necesita
+  una llamada GET adicional.
 */
 const cotizacion = ref<CotizacionCheckoutResponse | null>(null)
 const mostrarModalPagoExtra = ref(false)
 
 onMounted(() => {
   void cargarMetodosPago()
+  void cargarCotizacionInicial()
 })
+
+async function cargarCotizacionInicial() {
+  if (!child.value) return
+  try {
+    cotizacion.value = await cotizarCheckout(child.value.detalleId)
+  } catch (err) {
+    // No es bloqueante: el monto se vuelve a calcular al confirmar la
+    // salida, así que basta con registrar el error.
+    console.error('[CheckoutPage] cargarCotizacionInicial:', err)
+  }
+}
 
 const cargarMetodosPago = async () => {
   try {
@@ -209,7 +222,7 @@ const horasContratadas = computed(() => {
 
 const horaEntrada = computed(() => {
   if (!child.value) return '—'
-  const d = new Date(Date.now() - child.value.minutosTranscurridos * 60000)
+  const d = new Date(child.value.horaEntrada)
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
 })
 

@@ -205,6 +205,14 @@ const tiposVisibles = computed(() => {
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
   { name: 'descripcion', label: 'Descripción', field: 'descripcion', align: 'left' },
+  {
+    name: 'paquetes_count',
+    label: 'Paquetes',
+    field: 'paquetes_count',
+    align: 'right',
+    sortable: true,
+    format: (v?: number) => String(v ?? 0),
+  },
   { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]

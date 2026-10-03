@@ -16,17 +16,37 @@
     </div>
     <q-form v-else ref="formRef" greedy class="form-grid" @submit.prevent="guardar">
       <span class="form-grid__section">Datos</span>
-      <label class="form-grid__field form-grid__field--full">
-        <span class="field-label">Nombre completo</span>
+      <label class="form-grid__field">
+        <span class="field-label">Nombre</span>
         <q-input
           v-model="form.name"
           dense
           outlined
           autofocus
-          placeholder="Ej. Lucía Ortega Ramos"
+          placeholder="Ej. Lucía"
           lazy-rules
           hide-bottom-space
           :rules="nameRules"
+        />
+      </label>
+      <label class="form-grid__field">
+        <span class="field-label">Apellidos</span>
+        <q-input
+          v-model="form.lastName"
+          dense
+          outlined
+          placeholder="Ej. Ortega Ramos"
+          hide-bottom-space
+        />
+      </label>
+      <label class="form-grid__field form-grid__field--full">
+        <span class="field-label">Teléfono</span>
+        <q-input
+          v-model="form.phone"
+          dense
+          outlined
+          placeholder="Ej. 5512345678"
+          hide-bottom-space
         />
       </label>
       <label class="form-grid__field form-grid__field--full">
@@ -113,6 +133,14 @@
           :hint="branchOptions.length === 0 ? 'No hay sucursales activas.' : undefined"
         />
       </label>
+      <label v-if="userId" class="form-grid__field">
+        <span class="field-label">Cuenta activa</span>
+        <q-toggle v-model="form.isActive" color="primary" />
+      </label>
+      <label v-if="userId" class="form-grid__field">
+        <span class="field-label">Último acceso</span>
+        <span class="cell-muted">{{ ultimoAcceso }}</span>
+      </label>
     </q-form>
 
     <template v-if="userId && !cargando" #footer-extra>
@@ -149,13 +177,25 @@ const formRef = ref<QForm | null>(null)
 const cargando = ref(false)
 const guardando = ref(false)
 const verPassword = ref(false)
+const ultimoAccesoRaw = ref<string | null>(null)
+const ultimoAcceso = computed(() =>
+  ultimoAccesoRaw.value
+    ? new Date(ultimoAccesoRaw.value).toLocaleString('es-MX', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      })
+    : 'Nunca',
+)
 const form = reactive({
   name: '',
+  lastName: '',
+  phone: '',
   email: '',
   password: '',
   confirmPassword: '',
   role: null as UserRole | null,
   branchId: null as string | null,
+  isActive: true,
 })
 
 // Un Administrador de sucursal solo da de alta/edita roles operativos
@@ -207,13 +247,17 @@ watch(
 async function cargar() {
   Object.assign(form, {
     name: '',
+    lastName: '',
+    phone: '',
     email: '',
     password: '',
     confirmPassword: '',
     role: null,
     branchId: null,
+    isActive: true,
   })
   verPassword.value = false
+  ultimoAccesoRaw.value = null
   const solicitado = props.userId
   const obsoleto = () => props.userId !== solicitado || !show.value
   cargando.value = true
@@ -226,10 +270,14 @@ async function cargar() {
     if (user) {
       Object.assign(form, {
         name: user.name,
+        lastName: user.lastName ?? '',
+        phone: user.phone ?? '',
         email: user.email,
         role: user.role,
         branchId: user.branchId,
+        isActive: user.isActive,
       })
+      ultimoAccesoRaw.value = user.lastAccess
     }
   } catch {
     if (obsoleto()) return
@@ -253,15 +301,20 @@ async function guardar() {
     if (props.userId) {
       await userService.updateUser(props.userId, {
         name: form.name.trim(),
+        lastName: form.lastName.trim() || null,
+        phone: form.phone.trim() || null,
         email: form.email.trim(),
         role: form.role!,
         branchId,
         password: form.password || null,
+        isActive: form.isActive,
       })
       Notify.create({ type: 'positive', message: 'Usuario actualizado correctamente.' })
     } else {
       await userService.createUser({
         name: form.name.trim(),
+        lastName: form.lastName.trim() || null,
+        phone: form.phone.trim() || null,
         email: form.email.trim(),
         password: form.password,
         role: form.role!,

@@ -15,4 +15,8 @@ export const paquetesApi = {
     apiClient.patch<Paquetes>(`/paquetes/${id}`, body).then((r) => r.data),
 
   eliminar: (id: string) => apiClient.delete(`/paquetes/${id}`).then((r) => r.data),
+
+  /** Copia el paquete, sus incluidos y sus tipos de evento como "<nombre> (copia)". */
+  duplicar: (id: string) =>
+    apiClient.post<Paquetes>(`/paquetes/${id}/duplicar`).then((r) => r.data),
 }

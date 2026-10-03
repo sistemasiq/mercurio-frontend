@@ -39,6 +39,9 @@
         <template #body-cell-nombre="props">
           <q-td :props="props" class="text-weight-bold">{{ props.row.nombre }}</q-td>
         </template>
+        <template #body-cell-dias="props">
+          <q-td :props="props" class="cell-muted">{{ diasLabel(props.row.dias) }}</q-td>
+        </template>
         <template #body-cell-activo="props">
           <q-td :props="props">
             <StatusBadge
@@ -160,6 +163,24 @@
             ]"
           />
         </label>
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Días de la semana</span>
+          <div class="dias-selector">
+            <q-chip
+              v-for="dia in DIAS_SEMANA"
+              :key="dia.value"
+              clickable
+              :outline="!form.dias.includes(dia.value)"
+              :color="form.dias.includes(dia.value) ? 'primary' : undefined"
+              :text-color="form.dias.includes(dia.value) ? 'white' : undefined"
+              dense
+              @click="toggleDia(dia.value)"
+            >
+              {{ dia.label }}
+            </q-chip>
+          </div>
+          <span class="dias-selector__hint">Sin selección = todos los días.</span>
+        </label>
       </div>
     </BaseDialog>
 
@@ -197,6 +218,10 @@
             />
           </dd>
         </div>
+        <div class="detail-grid__item detail-grid__item--full">
+          <dt>Días de la semana</dt>
+          <dd>{{ diasLabel(filaDetalle.dias) }}</dd>
+        </div>
       </dl>
     </BaseDialog>
 
@@ -232,7 +257,7 @@ import { useAuthStore } from '@/stores/auth'
 import { horarioService } from '@/services/horarioService'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
-import type { Horario } from '@/types/horario'
+import { DIAS_SEMANA, type Horario } from '@/types/horario'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import DataTableCard from '@/components/ui/DataTableCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -277,6 +302,7 @@ const columns: QTableColumn[] = [
   { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
   { name: 'horaInicio', label: 'Hora inicio', field: 'horaInicio', align: 'left', sortable: true },
   { name: 'horaFin', label: 'Hora fin', field: 'horaFin', align: 'left' },
+  { name: 'dias', label: 'Días', field: 'dias', align: 'left' },
   { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
@@ -331,17 +357,35 @@ const nombreRef = ref()
 const horaInicioRef = ref()
 const horaFinRef = ref()
 
-const form = ref({ nombre: '', horaInicio: '', horaFin: '' })
+const form = ref({ nombre: '', horaInicio: '', horaFin: '', dias: [] as number[] })
+
+function toggleDia(dia: number) {
+  const idx = form.value.dias.indexOf(dia)
+  if (idx === -1) form.value.dias.push(dia)
+  else form.value.dias.splice(idx, 1)
+}
+
+function diasLabel(dias: number[] | null): string {
+  if (!dias || dias.length === 0) return 'Todos los días'
+  return DIAS_SEMANA.filter((d) => dias.includes(d.value))
+    .map((d) => d.fullLabel)
+    .join(', ')
+}
 
 const abrirCrear = () => {
   editando.value = null
-  form.value = { nombre: '', horaInicio: '', horaFin: '' }
+  form.value = { nombre: '', horaInicio: '', horaFin: '', dias: [] }
   dialogOpen.value = true
 }
 
 const abrirEditar = (row: Horario) => {
   editando.value = row
-  form.value = { nombre: row.nombre, horaInicio: row.horaInicio, horaFin: row.horaFin }
+  form.value = {
+    nombre: row.nombre,
+    horaInicio: row.horaInicio,
+    horaFin: row.horaFin,
+    dias: row.dias ? [...row.dias] : [],
+  }
   dialogOpen.value = true
 }
 
@@ -369,6 +413,7 @@ const guardar = async () => {
         nombre: form.value.nombre.trim(),
         horaInicio: form.value.horaInicio,
         horaFin: form.value.horaFin,
+        dias: form.value.dias.length ? form.value.dias : null,
       })
       const idx = horarios.value.findIndex((h) => h.id === editando.value!.id)
       if (idx !== -1) horarios.value[idx] = actualizado
@@ -378,6 +423,7 @@ const guardar = async () => {
         nombre: form.value.nombre.trim(),
         horaInicio: form.value.horaInicio,
         horaFin: form.value.horaFin,
+        dias: form.value.dias.length ? form.value.dias : null,
       })
       horarios.value.push(nuevo)
       $q.notify({ type: 'positive', message: 'Horario creado' })
@@ -425,6 +471,19 @@ const ejecutarEliminar = async () => {
 </script>
 
 <style scoped lang="scss">
+.dias-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  &__hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

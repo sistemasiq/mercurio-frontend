@@ -128,6 +128,29 @@
           <span class="field-label">Teléfono</span>
           <q-input v-model="formDialog.telefono" dense outlined placeholder="10 dígitos" />
         </label>
+        <label class="form-grid__field">
+          <span class="field-label">RFC</span>
+          <q-input
+            v-model="formDialog.rfc"
+            dense
+            outlined
+            maxlength="13"
+            placeholder="Opcional"
+            :rules="[(v) => !v || /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i.test(v) || 'RFC no válido']"
+            hide-bottom-space
+          />
+        </label>
+        <label class="form-grid__field">
+          <span class="field-label">Días de entrega</span>
+          <q-input
+            v-model.number="formDialog.dias_entrega"
+            dense
+            outlined
+            type="number"
+            min="0"
+            placeholder="Opcional"
+          />
+        </label>
         <label class="form-grid__field form-grid__field--full">
           <span class="field-label">Email</span>
           <q-input
@@ -221,6 +244,14 @@ const columns: QTableColumn[] = [
   { name: 'contacto_nombre', label: 'Contacto', field: 'contacto_nombre', align: 'left' },
   { name: 'telefono', label: 'Teléfono', field: 'telefono', align: 'left' },
   { name: 'email', label: 'Email', field: 'email', align: 'left' },
+  { name: 'rfc', label: 'RFC', field: 'rfc', align: 'left', format: (v: string | null) => v ?? '—' },
+  {
+    name: 'dias_entrega',
+    label: 'Entrega',
+    field: 'dias_entrega',
+    align: 'right',
+    format: (v: number | null) => (v === null ? '—' : `${v} días`),
+  },
   { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
@@ -238,11 +269,25 @@ const formDialog = ref({
   telefono: '',
   email: '',
   notas: '',
+  rfc: '',
+  dias_entrega: null as number | string | null,
 })
+
+// v-model.number deja '' cuando se borra el campo.
+const diasEntrega = (v: number | string | null): number | null =>
+  v === null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v)
 
 const abrirCrear = () => {
   editando.value = null
-  formDialog.value = { nombre: '', contacto_nombre: '', telefono: '', email: '', notas: '' }
+  formDialog.value = {
+    nombre: '',
+    contacto_nombre: '',
+    telefono: '',
+    email: '',
+    notas: '',
+    rfc: '',
+    dias_entrega: null,
+  }
   dialogOpen.value = true
 }
 
@@ -254,6 +299,8 @@ const abrirEditar = (row: Proveedor) => {
     telefono: row.telefono ?? '',
     email: row.email ?? '',
     notas: row.notas ?? '',
+    rfc: row.rfc ?? '',
+    dias_entrega: row.dias_entrega,
   }
   dialogOpen.value = true
 }
@@ -277,6 +324,8 @@ const guardar = async () => {
         telefono: formDialog.value.telefono.trim() || null,
         email: formDialog.value.email.trim() || null,
         notas: formDialog.value.notas.trim() || null,
+        rfc: formDialog.value.rfc.trim().toUpperCase() || null,
+        dias_entrega: diasEntrega(formDialog.value.dias_entrega),
       })
       $q.notify({ type: 'positive', message: 'Proveedor actualizado', position: 'top-right' })
     } else {
@@ -287,6 +336,8 @@ const guardar = async () => {
         telefono: formDialog.value.telefono.trim() || null,
         email: formDialog.value.email.trim() || null,
         notas: formDialog.value.notas.trim() || null,
+        rfc: formDialog.value.rfc.trim().toUpperCase() || null,
+        dias_entrega: diasEntrega(formDialog.value.dias_entrega),
         sucursal_id: authStore.currentBranchId,
       })
       $q.notify({ type: 'positive', message: 'Proveedor creado', position: 'top-right' })

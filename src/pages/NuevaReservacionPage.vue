@@ -267,6 +267,7 @@
                     <div v-if="pkg.id === paqueteMasContratadoId" class="package-card__badge">
                       Más contratado
                     </div>
+                    <div v-else-if="pkg.destacado" class="package-card__badge">Destacado</div>
                     <div class="package-card__name">{{ pkg.nombre }}</div>
                     <div class="package-card__capacity">
                       De {{ pkg.min_invitados }} a {{ pkg.max_invitados }} invitados
@@ -558,7 +559,7 @@
                   <div class="field-label">PORCENTAJE A CUBRIR</div>
                   <div class="anticipo-opciones">
                     <button
-                      v-for="opcion in OPCIONES_ANTICIPO"
+                      v-for="opcion in opcionesAnticipo"
                       :key="opcion"
                       type="button"
                       class="anticipo-chip"
@@ -570,6 +571,9 @@
                         fmt(montoPorPorcentaje(opcion))
                       }}</span>
                       <span v-if="opcion === 100" class="anticipo-chip__nota">Liquida todo</span>
+                      <span v-else-if="opcion === porcentajePaquete" class="anticipo-chip__nota">
+                        Sugerido
+                      </span>
                       <span v-else-if="opcion === PORCENTAJE_MINIMO" class="anticipo-chip__nota">
                         Mínimo
                       </span>
@@ -1294,7 +1298,12 @@ const metodosPagoResumen = computed(() => {
 
 // Pre-rellena el anticipo al llegar al step 3
 watch(step, (s) => {
-  if (s === 3 && !pagoRegistrado.value) anticipoIngresado.value = advanceNum.value
+  if (s === 3 && !pagoRegistrado.value) {
+    anticipoIngresado.value =
+      porcentajePaquete.value !== null
+        ? montoPorPorcentaje(porcentajePaquete.value)
+        : advanceNum.value
+  }
 })
 
 const abrirModalPago = () => {
@@ -1417,8 +1426,23 @@ const advanceNum = computed(() => montoPorPorcentaje(PORCENTAJE_MINIMO))
  * guardarse aparte para que editar el campo a mano no deje una opción marcada que
  * ya no refleja lo que se va a cobrar.
  */
+/**
+ * Anticipo sugerido del paquete elegido (`anticipo_porcentaje`). Solo cuenta si
+ * respeta el piso del negocio; uno menor no se ofrece ni se pre-rellena.
+ */
+const porcentajePaquete = computed(() => {
+  const pct = Math.round(Number(selectedPkg.value?.anticipo_porcentaje ?? NaN))
+  return Number.isFinite(pct) && pct >= PORCENTAJE_MINIMO && pct <= 100 ? pct : null
+})
+
+const opcionesAnticipo = computed<number[]>(() => {
+  const opciones = new Set<number>(OPCIONES_ANTICIPO)
+  if (porcentajePaquete.value !== null) opciones.add(porcentajePaquete.value)
+  return [...opciones].sort((a, b) => a - b)
+})
+
 const porcentajeSeleccionado = computed(
-  () => OPCIONES_ANTICIPO.find((p) => montoPorPorcentaje(p) === anticipoIngresado.value) ?? null,
+  () => opcionesAnticipo.value.find((p) => montoPorPorcentaje(p) === anticipoIngresado.value) ?? null,
 )
 
 const aplicarPorcentaje = (porcentaje: number) => {

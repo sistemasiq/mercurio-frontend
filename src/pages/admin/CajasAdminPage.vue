@@ -44,6 +44,19 @@
             <span class="code-chip">#{{ numeroCaja(props.row.numero) }}</span>
           </q-td>
         </template>
+        <template #body-cell-impresora="props">
+          <q-td :props="props" class="cell-muted">{{ props.row.impresora || '—' }}</q-td>
+        </template>
+        <template #body-cell-turnoActual="props">
+          <q-td :props="props">
+            <StatusBadge
+              v-if="props.row.turnoActual"
+              tone="ok"
+              :label="`Abierta · ${props.row.turnoActual.cajero}`"
+            />
+            <span v-else class="cell-muted">Cerrada</span>
+          </q-td>
+        </template>
         <template #body-cell-activo="props">
           <q-td :props="props">
             <StatusBadge
@@ -153,6 +166,16 @@
             ]"
           />
         </label>
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Impresora (opcional)</span>
+          <q-input
+            v-model="form.impresora"
+            dense
+            outlined
+            placeholder="Ej. Epson TM-T20 (recepción)"
+            hide-bottom-space
+          />
+        </label>
       </div>
     </BaseDialog>
 
@@ -185,6 +208,18 @@
               :label="filaDetalle.activo ? 'Activa' : 'Inactiva'"
             />
           </dd>
+        </div>
+        <div class="detail-grid__item">
+          <dt>Impresora</dt>
+          <dd>{{ filaDetalle.impresora || '—' }}</dd>
+        </div>
+        <div class="detail-grid__item detail-grid__item--full">
+          <dt>Turno actual</dt>
+          <dd v-if="filaDetalle.turnoActual">
+            {{ filaDetalle.turnoActual.cajero }} · abierto el
+            {{ new Date(filaDetalle.turnoActual.apertura).toLocaleString('es-MX') }}
+          </dd>
+          <dd v-else>Cerrada</dd>
         </div>
       </dl>
     </BaseDialog>
@@ -262,6 +297,8 @@ const filasFiltradas = computed(() => {
 const columns: QTableColumn[] = [
   { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
   { name: 'numero', label: 'Número', field: 'numero', align: 'left', sortable: true },
+  { name: 'impresora', label: 'Impresora', field: 'impresora', align: 'left' },
+  { name: 'turnoActual', label: 'Turno actual', field: 'turnoActual', align: 'left' },
   { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
@@ -315,17 +352,21 @@ const guardando = ref(false)
 const nombreRef = ref()
 const numeroRef = ref()
 
-const form = ref<{ nombre: string; numero: number | null }>({ nombre: '', numero: null })
+const form = ref<{ nombre: string; numero: number | null; impresora: string }>({
+  nombre: '',
+  numero: null,
+  impresora: '',
+})
 
 const abrirCrear = () => {
   editando.value = null
-  form.value = { nombre: '', numero: null }
+  form.value = { nombre: '', numero: null, impresora: '' }
   dialogOpen.value = true
 }
 
 const abrirEditar = (row: CajaAdmin) => {
   editando.value = row
-  form.value = { nombre: row.nombre, numero: row.numero }
+  form.value = { nombre: row.nombre, numero: row.numero, impresora: row.impresora ?? '' }
   dialogOpen.value = true
 }
 
@@ -345,6 +386,7 @@ const guardar = async () => {
       const actualizada = await cajaAdminService.updateCaja(editando.value.id, {
         nombre: form.value.nombre.trim(),
         numero: form.value.numero,
+        impresora: form.value.impresora.trim() || null,
       })
       const idx = cajas.value.findIndex((c) => c.id === editando.value!.id)
       if (idx !== -1) cajas.value[idx] = actualizada
@@ -353,6 +395,7 @@ const guardar = async () => {
       const nueva = await cajaAdminService.createCaja({
         nombre: form.value.nombre.trim(),
         numero: form.value.numero,
+        impresora: form.value.impresora.trim() || null,
       })
       cajas.value.push(nueva)
       $q.notify({ type: 'positive', message: 'Caja creada' })

@@ -78,6 +78,12 @@
             />
           </q-td>
         </template>
+        <template #body-cell-asignada_a="props">
+          <q-td :props="props">
+            <span v-if="props.row.asignada_a">{{ props.row.asignada_a }}</span>
+            <span v-else class="text-grey-6">—</span>
+          </q-td>
+        </template>
         <template #body-cell-actions="props">
           <q-td :props="props">
             <q-toggle
@@ -188,6 +194,7 @@ const columns: QTableColumn[] = [
   },
   { name: 'creado', label: 'Registrada', field: 'creado', align: 'left', sortable: true },
   { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
+  { name: 'asignada_a', label: 'Asignada a', field: 'asignada_a', align: 'left' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 

@@ -71,6 +71,19 @@
                 suffix="días"
               />
             </label>
+            <label class="form-grid__field">
+              <span class="field-label">Mínimo de puntos para canjear</span>
+              <q-input
+                v-model.number="form.minimo_canje"
+                outlined
+                dense
+                type="number"
+                min="0"
+                step="1"
+                suffix="pts"
+                hint="0 = sin mínimo"
+              />
+            </label>
           </div>
         </section>
 
@@ -160,6 +173,7 @@ const form = reactive<ConfiguracionLealtadInput>({
   otorga_puntos_comandas: true,
   otorga_puntos_reservaciones: true,
   otorga_puntos_checkin: true,
+  minimo_canje: 0,
 })
 
 const cargar = async () => {
@@ -173,6 +187,7 @@ const cargar = async () => {
     form.otorga_puntos_comandas = store.configuracion.otorga_puntos_comandas
     form.otorga_puntos_reservaciones = store.configuracion.otorga_puntos_reservaciones
     form.otorga_puntos_checkin = store.configuracion.otorga_puntos_checkin
+    form.minimo_canje = store.configuracion.minimo_canje
   }
 }
 

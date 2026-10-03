@@ -128,6 +128,27 @@
             placeholder="Descripción breve (opcional)"
           />
         </label>
+        <label class="form-grid__field">
+          <span class="field-label">Comisión</span>
+          <q-input
+            v-model="formDialog.comision"
+            dense
+            outlined
+            type="number"
+            min="0"
+            step="0.01"
+            suffix="%"
+            placeholder="Opcional"
+            :rules="[(v) => v === '' || Number(v) >= 0 || 'La comisión no puede ser negativa']"
+            hide-bottom-space
+          />
+        </label>
+        <div class="form-grid__toggle">
+          <q-toggle
+            v-model="formDialog.requiereReferencia"
+            label="Pedir folio o referencia al cobrar"
+          />
+        </div>
       </div>
     </BaseDialog>
   </q-page>
@@ -201,6 +222,13 @@ const columns: QTableColumn[] = [
     align: 'left',
     format: (v: TipoMetodoPago) => TIPO_LABELS[v] ?? v,
   },
+  {
+    name: 'comision',
+    label: 'Comisión',
+    field: 'comision_porcentaje',
+    align: 'right',
+    format: (v: string | null) => (v === null ? '—' : `${Number(v)} %`),
+  },
   { name: 'activo', label: 'Activo en esta sucursal', field: 'activo', align: 'center' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
@@ -212,9 +240,16 @@ const editando = ref<MetodosPago | null>(null)
 const guardando = ref(false)
 const nombreRef = ref()
 
-const formDialog = ref<{ nombre: string; descripcion: string }>({
+const formDialog = ref<{
+  nombre: string
+  descripcion: string
+  comision: string
+  requiereReferencia: boolean
+}>({
   nombre: '',
   descripcion: '',
+  comision: '',
+  requiereReferencia: false,
 })
 
 const abrirEditar = (row: MetodosPago) => {
@@ -222,6 +257,8 @@ const abrirEditar = (row: MetodosPago) => {
   formDialog.value = {
     nombre: row.nombre,
     descripcion: row.descripcion ?? '',
+    comision: row.comision_porcentaje === null ? '' : String(Number(row.comision_porcentaje)),
+    requiereReferencia: row.requiere_referencia,
   }
   dialogOpen.value = true
 }
@@ -242,6 +279,8 @@ const guardar = async () => {
     await store.actualizarMetodoPago(editando.value.id, {
       nombre: formDialog.value.nombre.trim(),
       descripcion: formDialog.value.descripcion.trim() || undefined,
+      comision_porcentaje: formDialog.value.comision === '' ? null : formDialog.value.comision,
+      requiere_referencia: formDialog.value.requiereReferencia,
     })
     $q.notify({ type: 'positive', message: 'Método de pago actualizado', position: 'top-right' })
     cerrarDialog()
