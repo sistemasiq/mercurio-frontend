@@ -4,6 +4,9 @@ export interface PulseraAdmin {
   pulsera_rfid: string
   activo: boolean
   usada: boolean
+  // Nombre del niño o del tutor que tiene esta pulsera en este momento,
+  // solo si `usada` es true.
+  asignada_a?: string | null
   creado?: string | null
   creado_por?: string | null
   modificado?: string | null

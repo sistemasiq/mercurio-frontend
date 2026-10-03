@@ -48,6 +48,14 @@ const badgeLabel = computed(() => {
 
 const finalizada = computed(() => tone.value === 'neutral')
 
+const cargoExtra = computed(() => nino.cargoExtra ?? 0)
+const importe = computed(() => nino.importe ?? null)
+const puntosGanados = computed(() => nino.puntosGanados ?? null)
+
+function formatMoneda(valor: number): string {
+  return `$${valor.toFixed(2)}`
+}
+
 // Cifra principal de la tarjeta: tiempo excedido o tiempo restante.
 const tiempoPrincipal = computed(() => {
   if (tone.value === 'danger') return `+${formatMinutos(excedido.value)}`
@@ -107,6 +115,10 @@ function formatMinutos(min: number): string {
       </span>
       <span class="visita-pasada__meta">
         {{ formatMinutos(minutosTranscurridos) }} · pulsera {{ nino.pulsera }}
+        <template v-if="importe !== null"> · {{ formatMoneda(importe) }}</template>
+        <template v-if="puntosGanados">
+          · <span class="visita-pasada__puntos">+{{ puntosGanados }} pts</span>
+        </template>
       </span>
     </div>
   </article>
@@ -136,6 +148,9 @@ function formatMinutos(min: number): string {
       aria-valuemax="100"
     >
       <div class="visita__bar-fill" :style="{ width: `${progreso * 100}%` }" />
+    </div>
+    <div v-if="tone === 'danger' && cargoExtra > 0" class="visita__extra">
+      Cargo extra: {{ formatMoneda(cargoExtra) }}
     </div>
   </article>
 </template>
@@ -253,6 +268,12 @@ function formatMinutos(min: number): string {
     background: var(--tone-bar);
     transition: width 0.3s;
   }
+
+  &__extra {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--tone-bad-fg);
+  }
 }
 
 .visita-pasada {
@@ -284,6 +305,11 @@ function formatMinutos(min: number): string {
   &__meta {
     font-size: 12px;
     color: var(--text-secondary);
+  }
+
+  &__puntos {
+    font-weight: 700;
+    color: var(--tone-ok-fg);
   }
 }
 </style>
