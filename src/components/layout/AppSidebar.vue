@@ -17,7 +17,6 @@ const route = useRoute()
 const router = useRouter()
 const { visibleGroups, badgeFor } = useAppNavigation()
 const { openPalette } = useCommandPalette()
-const esMac = /mac/i.test(navigator.platform)
 
 // ── Grupos plegables ────────────────────────────────────────────────────────
 // Se abre el grupo de la ruta activa (en Inicio, Operación). El resto queda
@@ -172,7 +171,7 @@ async function handleLogout(): Promise<void> {
       <button type="button" class="sb-search" @click="openPalette">
         <q-icon name="search" size="17px" class="sb-search__icon" />
         <span class="sb-search__label">Buscar o ir a…</span>
-        <kbd class="sb-search__kbd">{{ esMac ? '⌘K' : 'Ctrl K' }}</kbd>
+        <kbd class="sb-search__kbd">Ctrl K</kbd>
       </button>
     </div>
 

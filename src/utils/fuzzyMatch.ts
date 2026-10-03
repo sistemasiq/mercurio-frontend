@@ -1,5 +1,5 @@
 /**
- * Coincidencia difusa simple para la paleta de comandos (⌘K): cada letra de
+ * Coincidencia difusa simple para la paleta de comandos (Ctrl+K): cada letra de
  * `query`, en orden, debe aparecer en `text` (no necesariamente contigua).
  * Entre más juntas y más al inicio aparezcan las letras, menor (mejor) el
  * puntaje. `null` significa que no hay coincidencia.

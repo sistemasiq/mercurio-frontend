@@ -6,9 +6,11 @@ import { useCommandPalette } from '@/composables/useCommandPalette'
 import { fuzzyScore } from '@/utils/fuzzyMatch'
 
 /**
- * Paleta de comandos "Buscar o ir a… ⌘K": búsqueda difusa sobre las rutas
- * del menú (ya filtradas por permiso en useAppNavigation). Se abre con
- * Ctrl/Cmd+K desde cualquier pantalla, o desde el botón del Sidebar.
+ * Paleta de comandos "Buscar o ir a… Ctrl+K": búsqueda difusa sobre las
+ * rutas del menú (ya filtradas por permiso en useAppNavigation). Responde a
+ * Ctrl+K y también a Cmd+K (Meta), pero la etiqueta visible siempre dice
+ * "Ctrl" (los usuarios de esta app usan Windows). Se abre desde cualquier
+ * pantalla o desde el botón del Sidebar.
  */
 const router = useRouter()
 const { visibleGroups } = useAppNavigation()
