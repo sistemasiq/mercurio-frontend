@@ -107,6 +107,7 @@ import BaseDialog from '@/components/ui/BaseDialog.vue'
 import { ref, watch } from 'vue'
 import { formatMXN, formatEntero, formatDiferencia, claseDiferencia } from '@/utils/formatoMoneda'
 import { turnoCajaService } from '@/services/turnoCajaService'
+import { mensajeDeError } from '@/utils/errorHandler'
 import type { DetalleArqueo } from '@/types/turnoCaja'
 
 /**
@@ -136,7 +137,7 @@ watch(
     try {
       detalle.value = await turnoCajaService.obtenerDetalle(id)
     } catch (err) {
-      error.value = (err as Error).message
+      error.value = mensajeDeError(err, 'No se pudo cargar el detalle del arqueo.')
     } finally {
       cargando.value = false
     }

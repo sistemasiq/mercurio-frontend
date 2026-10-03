@@ -8,6 +8,7 @@ export interface PaymentProps {
 export interface AppliedPayment {
   id: string
   method: string
+  /** En efectivo es lo entregado por el cliente; el cambio se emite aparte. */
   amount: number
   timestamp: Date
   cardType?: 'DEBITO' | 'CREDITO'

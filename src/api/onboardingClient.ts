@@ -26,12 +26,17 @@ export async function fetchFotosLlegadaUrls(registroId: string): Promise<string[
   const zip = await JSZip.loadAsync(data)
   const urls: string[] = []
 
-  for (const filename of Object.keys(zip.files)) {
-    const file = zip.files[filename]
-    if (!file.dir && /\.(jpe?g|png|webp)$/i.test(filename)) {
-      const blob = await file.async('blob')
-      urls.push(URL.createObjectURL(blob))
+  try {
+    for (const filename of Object.keys(zip.files)) {
+      const file = zip.files[filename]
+      if (!file.dir && /\.(jpe?g|png|webp)$/i.test(filename)) {
+        const blob = await file.async('blob')
+        urls.push(URL.createObjectURL(blob))
+      }
     }
+  } catch (err) {
+    urls.forEach((u) => URL.revokeObjectURL(u))
+    throw err
   }
 
   return urls

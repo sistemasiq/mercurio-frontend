@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { tiposEventoApi } from '@/api/tiposEventoApi'
 import type { Tipos_evento, Tipos_evento_create, Tipos_evento_update } from '@/types/tipos_evento'
 
@@ -24,7 +25,7 @@ export const useTiposEventoStore = defineStore('tipos_evento', {
       try {
         this.tipos = await tiposEventoApi.listar()
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar tipos de evento'
+        this.error = mensajeDeError(error, 'Error al cargar tipos de evento')
       } finally {
         this.loading = false
       }

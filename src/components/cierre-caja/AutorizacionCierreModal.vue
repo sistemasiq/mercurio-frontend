@@ -110,7 +110,8 @@
               outlined
               type="textarea"
               rows="2"
-              placeholder="Opcional"
+              :placeholder="turno.hayDiferencias ? 'Obligatorio' : 'Opcional'"
+              :hint="turno.hayDiferencias ? 'Obligatorio cuando hay diferencias' : undefined"
             />
           </label>
         </div>
@@ -199,7 +200,7 @@
           label="Autorizar cierre y descargar PDF"
           class="arqueo__confirm"
           :loading="cargandoProceso"
-          :disable="!pinCajeroConfirmado || !pinAdminConfirmado"
+          :disable="!pinCajeroConfirmado || !pinAdminConfirmado || faltanObservaciones"
           @click="ejecutarAutorizacionCierre"
         />
       </footer>
@@ -235,12 +236,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import BaseDialog from '@/components/ui/BaseDialog.vue'
 import { turnoCajaService } from '@/services/turnoCajaService'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { filtrarTeclaEntero } from '@/utils/validacionNumerica'
 
 const $q = useQuasar()
@@ -255,6 +257,26 @@ const pinAdminConfirmado = ref(false)
 const cargandoPinCajero = ref(false)
 const cargandoPinAdmin = ref(false)
 const cargandoProceso = ref(false)
+
+// Con diferencias en el arqueo las observaciones son obligatorias (auditoría).
+const faltanObservaciones = computed(() => turno.hayDiferencias && !observacionesModal.value.trim())
+
+// El modal nunca se desmonta mientras se esté en CierreCajaPage, así que su estado
+// local sobrevive entre cierres: se reinicia cada vez que se abre.
+function resetearFormulario() {
+  pinCajero.value = ''
+  pinAdmin.value = ''
+  pinCajeroConfirmado.value = false
+  pinAdminConfirmado.value = false
+  observacionesModal.value = ''
+}
+
+watch(
+  () => turno.mostrarDialogAutorizacion,
+  (abierto) => {
+    if (abierto) resetearFormulario()
+  },
+)
 
 // El backend (RevisionAdminResponse) ya entrega el total esperado/declarado y la
 // diferencia real de EFECTIVO — no hace falta recalcularlos ni usar valores de respaldo.
@@ -297,7 +319,7 @@ async function confirmarPinCajero() {
       type: 'negative',
       position: 'top',
       icon: 'error',
-      message: (err as Error).message || 'El PIN del Cajero es incorrecto.',
+      message: mensajeDeError(err, 'El PIN del Cajero es incorrecto.'),
     })
   } finally {
     cargandoPinCajero.value = false
@@ -327,7 +349,7 @@ async function confirmarPinAdmin() {
       type: 'negative',
       position: 'top',
       icon: 'error',
-      message: (err as Error).message || 'El PIN del Administrador es incorrecto.',
+      message: mensajeDeError(err, 'El PIN del Administrador es incorrecto.'),
     })
   } finally {
     cargandoPinAdmin.value = false
@@ -339,17 +361,44 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
   try {
     const obsText = observacionesModal.value.trim()
 
-    const arqueoId = await turno.confirmarCierre(obsText, esExtraordinario)
-    if (!arqueoId) {
-      throw new Error(turno.error || 'No se pudo confirmar el cierre de caja.')
+    const resultado = await turno.confirmarCierre(obsText, esExtraordinario)
+    if (!resultado.ok) {
+      // El backend rechazó el cierre (el store ya notificó el error): el turno sigue
+      // abierto, así que se conserva el diálogo y no se reinicia el ciclo ni se redirige.
+      return
     }
     turno.mostrarDialogAutorizacion = false
 
-    // Intentar descarga automática de PDF del arqueo
+    // Intentar descarga automática del PDF con el id del arqueo (no el del turno).
+    const descargarComprobante = () =>
+      turnoCajaService.descargarPdfArqueo(
+        resultado.arqueoId,
+        `arqueo_${resultado.arqueoId.slice(-8)}.pdf`,
+      )
+    let descargado = true
     try {
-      await turnoCajaService.descargarPdfArqueo(arqueoId, `arqueo_${arqueoId.slice(-8)}.pdf`)
+      await descargarComprobante()
     } catch (err) {
-      console.warn('No se pudo descargar el PDF automáticamente:', err)
+      descargado = false
+      $q.notify({
+        type: 'warning',
+        position: 'top',
+        icon: 'warning',
+        timeout: 0,
+        message: `No se pudo descargar el comprobante automáticamente: ${mensajeDeError(err, 'error desconocido')}`,
+        actions: [
+          {
+            label: 'Descargar comprobante',
+            color: 'white',
+            handler: () => {
+              descargarComprobante().catch((e: Error) =>
+                $q.notify({ type: 'negative', position: 'top', message: e.message }),
+              )
+            },
+          },
+          { label: 'Cerrar', color: 'white' },
+        ],
+      })
     }
 
     $q.notify({
@@ -358,7 +407,9 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
       icon: 'check_circle',
       message: esExtraordinario
         ? 'Cierre extraordinario registrado con éxito en la base de datos. Redirigiendo a apertura de caja...'
-        : 'Cierre de caja autorizado correctamente. Se ha descargado el comprobante PDF.',
+        : descargado
+          ? 'Cierre de caja autorizado correctamente. Se ha descargado el comprobante PDF.'
+          : 'Cierre de caja autorizado correctamente.',
     })
 
     // Tras confirmar (normal o extraordinario), se limpia el turno y se regresa
@@ -369,7 +420,7 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
     $q.notify({
       type: 'negative',
       position: 'top',
-      message: (err as Error).message || 'Error al procesar el cierre de caja en la base de datos',
+      message: mensajeDeError(err, 'Error al procesar el cierre de caja en la base de datos'),
     })
   } finally {
     cargandoProceso.value = false
@@ -395,6 +446,16 @@ async function ejecutarAutorizacionCierre() {
       icon: 'warning',
       message:
         'Es obligatorio que tanto el Cajero como el Administrador confirmen sus PINs contra la BD.',
+    })
+    return
+  }
+
+  if (faltanObservaciones.value) {
+    $q.notify({
+      type: 'warning',
+      position: 'top',
+      icon: 'warning',
+      message: 'Las observaciones son obligatorias cuando el arqueo tiene diferencias.',
     })
     return
   }

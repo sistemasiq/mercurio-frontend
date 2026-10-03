@@ -146,6 +146,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useQuasar, type QTableColumn } from 'quasar'
 import { turnoCajaService } from '@/services/turnoCajaService'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { formatDiferencia, formatMXN } from '@/utils/formatoMoneda'
 import { getAvatarColor, getInitials } from '@/utils/avatar'
 import type { ArqueoResumen, FiltrosHistorial } from '@/types/turnoCaja'
@@ -210,7 +211,7 @@ async function cargar() {
     items.value = resp.items
     total.value = resp.total
   } catch (err) {
-    error.value = (err as Error).message
+    error.value = mensajeDeError(err, 'No se pudo cargar el historial de arqueos.')
   } finally {
     cargando.value = false
   }
@@ -234,7 +235,7 @@ async function descargarPdf(id: string) {
   try {
     await turnoCajaService.descargarPdfArqueo(id, `arqueo_${id.slice(-8)}.pdf`)
   } catch (err) {
-    $q.notify({ type: 'negative', message: (err as Error).message })
+    $q.notify({ type: 'negative', message: mensajeDeError(err, 'No se pudo descargar el PDF.') })
   } finally {
     descargandoId.value = null
   }

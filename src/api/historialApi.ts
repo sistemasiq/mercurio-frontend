@@ -9,6 +9,8 @@ export interface DetalleProducto {
   importe: number
   notas_especiales: string | null
   nombre_combo_padre: string | null
+  // Id de la instancia de combo a la que pertenece el hijo (puede faltar en órdenes viejas)
+  id_combo_padre?: string | null
 }
 
 export interface MetodoPagoDetalle {

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import {
   cancelarCompra,
   crearCompra,
@@ -51,7 +52,7 @@ export const useComprasStore = defineStore('compras', {
       try {
         this.compras = await listarCompras(sucursalId)
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar las compras'
+        this.error = mensajeDeError(error, 'Error al cargar las compras')
       } finally {
         this.loading = false
       }

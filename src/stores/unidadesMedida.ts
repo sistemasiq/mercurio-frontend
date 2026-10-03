@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { listarUnidadesMedida } from '@/services/unidadMedidaService'
 import type { UnidadMedida } from '@/types/unidadMedida'
 
@@ -21,7 +22,7 @@ export const useUnidadesMedidaStore = defineStore('unidadesMedida', {
       try {
         this.unidades = await listarUnidadesMedida()
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar las unidades de medida'
+        this.error = mensajeDeError(error, 'Error al cargar las unidades de medida')
       } finally {
         this.loading = false
       }

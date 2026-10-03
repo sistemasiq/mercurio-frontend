@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import {
   eliminarRecetaItem,
   listarReceta,
@@ -25,7 +26,7 @@ export const useRecetaProductoStore = defineStore('recetaProducto', {
       try {
         this.items = await listarReceta(productoId)
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar la receta'
+        this.error = mensajeDeError(error, 'Error al cargar la receta')
       } finally {
         this.loading = false
       }

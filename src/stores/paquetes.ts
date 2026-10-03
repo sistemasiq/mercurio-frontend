@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { paquetesApi } from '@/api/paquetesApi'
 import type { Paquetes, PaquetesCreate, PaquetesUpdate } from '@/types/paquetes.ts'
 
@@ -24,7 +25,7 @@ export const usePaquetesStore = defineStore('paquetes', {
       try {
         this.paquetes = await paquetesApi.listar(sucursal_id)
       } catch (e: unknown) {
-        this.error = (e as Error).message ?? 'Error al cargar paquetes'
+        this.error = mensajeDeError(e, 'Error al cargar paquetes')
       } finally {
         this.loading = false
       }

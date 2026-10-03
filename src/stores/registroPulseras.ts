@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { pulserasApi } from '@/api/pulserasApi'
+import { mensajeDeError } from '@/utils/errorHandler'
 
 export interface EscaneoItem {
   codigo: string
@@ -40,7 +41,7 @@ export const useRegistroPulserasStore = defineStore('registroPulseras', () => {
         item.estado = 'success'
       } catch (err: unknown) {
         item.estado = 'error'
-        item.mensaje = extraerMensajeError(err)
+        item.mensaje = mensajeDeError(err, 'Error al registrar la pulsera')
       }
     }
     enviando.value = false
@@ -70,21 +71,3 @@ export const useRegistroPulserasStore = defineStore('registroPulseras', () => {
     limpiarSesion,
   }
 })
-
-function extraerMensajeError(err: unknown): string {
-  if (
-    err &&
-    typeof err === 'object' &&
-    'response' in err &&
-    err.response &&
-    typeof err.response === 'object' &&
-    'data' in err.response &&
-    err.response.data &&
-    typeof err.response.data === 'object'
-  ) {
-    const data = err.response.data as Record<string, unknown>
-    if (typeof data.message === 'string') return data.message
-    if (typeof data.detail === 'string') return data.detail
-  }
-  return 'Error al registrar la pulsera'
-}

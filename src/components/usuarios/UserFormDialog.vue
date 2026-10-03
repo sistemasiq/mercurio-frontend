@@ -214,12 +214,15 @@ async function cargar() {
     branchId: null,
   })
   verPassword.value = false
+  const solicitado = props.userId
+  const obsoleto = () => props.userId !== solicitado || !show.value
   cargando.value = true
   try {
     const [user] = await Promise.all([
       props.userId ? userService.getUser(props.userId) : Promise.resolve(null),
       rolesStore.roles.length === 0 ? rolesStore.cargar() : Promise.resolve(),
     ])
+    if (obsoleto()) return
     if (user) {
       Object.assign(form, {
         name: user.name,
@@ -229,10 +232,11 @@ async function cargar() {
       })
     }
   } catch {
+    if (obsoleto()) return
     Notify.create({ type: 'negative', message: 'No se pudo cargar el usuario.' })
     show.value = false
   } finally {
-    cargando.value = false
+    if (!obsoleto()) cargando.value = false
   }
 }
 

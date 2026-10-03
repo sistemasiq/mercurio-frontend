@@ -147,11 +147,12 @@
                           class="booking-calendar__day"
                           :class="{
                             'booking-calendar__day--selected':
-                              day.day === form.selectedDay && !day.isOtherMonth,
+                              day.date === form.selectedDate && !day.isOtherMonth,
                             'booking-calendar__day--today': day.isToday,
                             'booking-calendar__day--booked': day.isBooked,
                             'booking-calendar__day--other-month': day.isOtherMonth,
-                            'booking-calendar__day--disabled': day.isOtherMonth || day.day === '',
+                            'booking-calendar__day--disabled':
+                              day.isOtherMonth || day.day === '' || day.isPast,
                           }"
                           @click="handleDayClick(day)"
                         >
@@ -888,6 +889,7 @@
       v-model="modalPagoAbierto"
       :total-to-pay="anticipoIngresado"
       :metodos-pago="metodosPagoStore.activos"
+      :permitir-lealtad="false"
       @pago-exitoso="onPagoExitoso"
     />
   </q-page>
@@ -896,6 +898,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { format as formatDate, parseISO, startOfDay, isBefore } from 'date-fns'
 import { useQuasar } from 'quasar'
 import { usePaquetesStore } from '@/stores/paquetes'
 import type { Paquetes } from '@/types/paquetes'
@@ -909,12 +912,12 @@ import { useReservacionesStore } from '@/stores/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
-import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useReservacionExtrasStore } from '@/stores/reservacion_extras'
 import { useReservacionProductosStore } from '@/stores/reservacion_productos'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
 import { horasFacturables } from '@/utils/horario'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { resolverMetodoPagoId } from '@/utils/pagos'
 import { pulserasApi } from '@/api/pulserasApi'
 
@@ -928,18 +931,12 @@ const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
 const authStore = useAuthStore()
 const pagosStore = usePagosReservacionesStore()
-const turno = useTurnoCajaStore()
 const reservacionExtrasStore = useReservacionExtrasStore()
 const reservacionProductosStore = useReservacionProductosStore()
 
 onMounted(() => {
-  // Se valida al entrar, no hasta el paso de pago: si el cajero no tiene turno
-  // abierto no tiene sentido dejarlo llenar todo el formulario para enterarse
-  // hasta el final. Se redirige de inmediato, sin bloquear con un panel.
-  if (!turno.estaOperando) {
-    router.push('/pos/cierre')
-    return
-  }
+  // La validación de turno (y la espera de su carga async) ya la hace el
+  // guard de ruta (`requiresTurno`, ver router/guards.ts) antes de entrar aquí.
   // Métodos de pago es un catálogo global por diseño: se carga siempre.
   metodosPagoStore.cargar()
 
@@ -968,6 +965,9 @@ interface BookingCalendarDay {
   isToday: boolean
   isBooked: boolean
   isOtherMonth: boolean
+  isPast: boolean
+  /** Fecha completa 'YYYY-MM-DD' del día; vacío cuando es relleno de otro mes. */
+  date: string
 }
 
 const step = ref(1)
@@ -978,7 +978,7 @@ const form = ref({
   email: '',
   ninos: 20,
   tipoEvento: null as string | null,
-  selectedDay: null as number | null,
+  selectedDate: null as string | null,
   horaInicio: '15:00',
   horaFin: '18:00',
   selectedPackage: null as string | null,
@@ -1028,7 +1028,7 @@ const paso1Valido = computed(
     form.value.nombre.trim().length > 0 &&
     form.value.telefono.trim().length > 0 &&
     !!form.value.tipoEvento &&
-    form.value.selectedDay !== null &&
+    form.value.selectedDate !== null &&
     horarioValido.value,
 )
 
@@ -1058,15 +1058,25 @@ const bookedDays = computed(() => {
 
 const daysOfWeek = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 
+const inicioHoy = startOfDay(today)
+
 const bookingCalendarDays = computed((): BookingCalendarDay[] => {
   const days: BookingCalendarDay[] = []
   const firstDay = new Date(currentYear.value, currentMonth.value, 1).getDay()
   const daysInMonth = new Date(currentYear.value, currentMonth.value + 1, 0).getDate()
 
   for (let i = 0; i < firstDay; i++) {
-    days.push({ day: '', isToday: false, isBooked: false, isOtherMonth: true })
+    days.push({
+      day: '',
+      isToday: false,
+      isBooked: false,
+      isOtherMonth: true,
+      isPast: false,
+      date: '',
+    })
   }
   for (let d = 1; d <= daysInMonth; d++) {
+    const fecha = new Date(currentYear.value, currentMonth.value, d)
     days.push({
       day: d,
       isToday:
@@ -1075,6 +1085,8 @@ const bookingCalendarDays = computed((): BookingCalendarDay[] => {
         currentYear.value === today.getFullYear(),
       isBooked: bookedDays.value.includes(d),
       isOtherMonth: false,
+      isPast: isBefore(fecha, inicioHoy),
+      date: formatDate(fecha, 'yyyy-MM-dd'),
     })
   }
   return days
@@ -1098,15 +1110,16 @@ const nextMonth = () => {
 }
 
 const handleDayClick = (day: BookingCalendarDay) => {
-  if (!day.isOtherMonth && day.day !== '') form.value.selectedDay = day.day as number
+  if (!day.isOtherMonth && day.day !== '' && !day.isPast) form.value.selectedDate = day.date
 }
 
 const selectedDateLabel = computed(() => {
-  if (!form.value.selectedDay) return 'Sin seleccionar'
-  return new Date(currentYear.value, currentMonth.value, form.value.selectedDay).toLocaleDateString(
-    'es-MX',
-    { day: 'numeric', month: 'long', year: 'numeric' },
-  )
+  if (!form.value.selectedDate) return 'Sin seleccionar'
+  return parseISO(form.value.selectedDate).toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
 })
 
 const timeSlotLabel = computed(() => {
@@ -1415,6 +1428,9 @@ const advanceAmount = computed(() => fmt(advanceNum.value))
 // ── Confirmar reservación ─────────────────────────────────────────────────────
 
 const confirmando = ref(false)
+// Id de la reservación ya creada en un intento previo de confirmar: evita que
+// un reintento tras un fallo parcial cree una reservación duplicada.
+const reservacionCreadaId = ref<string | null>(null)
 
 /**
  * Datos del comprobante. Null hasta confirmar; en cuanto tiene valor, el paso 4
@@ -1448,6 +1464,18 @@ function conceptosTicket(): TicketConcepto[] {
 const irAListaReservaciones = () => router.push({ name: 'eventos-reservaciones' })
 
 const confirmarReservacion = async () => {
+  if (confirmando.value) return
+
+  if (reservacionCreadaId.value) {
+    $q.notify({
+      type: 'warning',
+      message: 'La reservación ya se creó. Completa los registros pendientes desde su cierre.',
+      position: 'top-right',
+    })
+    router.push({ name: 'eventos-reservaciones-cierre', params: { id: reservacionCreadaId.value } })
+    return
+  }
+
   const sucursalId = authStore.currentBranchId
   if (!sucursalId) {
     $q.notify({
@@ -1458,10 +1486,7 @@ const confirmarReservacion = async () => {
     return
   }
 
-  const d = form.value.selectedDay
-  const fecha = d
-    ? `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    : null
+  const fecha = form.value.selectedDate
 
   if (
     !form.value.nombre.trim() ||
@@ -1490,6 +1515,35 @@ const confirmarReservacion = async () => {
   const telefonoLimpio = form.value.telefono.replace(/\D/g, '').slice(-10)
 
   confirmando.value = true
+
+  // Se resuelve y valida todo lo que dependa del catálogo ANTES de crear la
+  // reservación: si algo falla aquí no se crea nada.
+  let metodosPagoIds: string[]
+  try {
+    metodosPagoIds = pagosAplicados.value.map((pago) => mapearMetodoPago(pago.method))
+    for (const extraId of selectedExtraIds.value) {
+      if (!extrasStore.activos.some((e) => e.id === extraId)) {
+        throw new Error('Un extra seleccionado ya no está disponible.')
+      }
+    }
+    for (const item of productosAdicionales.value) {
+      if (!productosStore.productos.some((p) => p.id === item.producto_id)) {
+        throw new Error('Un producto adicional seleccionado ya no está disponible.')
+      }
+    }
+  } catch (err: unknown) {
+    $q.notify({
+      type: 'negative',
+      message: mensajeDeError(err, 'No se pudo validar la reservación'),
+      position: 'top-right',
+      timeout: 6000,
+    })
+    confirmando.value = false
+    return
+  }
+
+  // TODO backend: POST /reservaciones/completa transaccional
+  let faltante = 'la reservación'
   try {
     const nuevaReservacion = await resStore.crearReservacion({
       sucursal_id: sucursalId,
@@ -1515,6 +1569,8 @@ const confirmarReservacion = async () => {
       anticipo: String(montoPagado.value),
       estado: 'confirmada',
     })
+    reservacionCreadaId.value = nuevaReservacion.id
+    faltante = 'extras, productos adicionales y anticipo'
 
     for (const extraId of selectedExtraIds.value) {
       const extra = extrasStore.activos.find((e) => e.id === extraId)
@@ -1537,11 +1593,13 @@ const confirmarReservacion = async () => {
       })
     }
 
+    faltante = 'el anticipo'
     if (pagosAplicados.value.length > 0) {
       const resultadoPago = await pagosStore.completarPagosReservacion({
         reservacion_id: nuevaReservacion.id,
-        pagos: pagosAplicados.value.map((pago) => ({
-          metodo_pago_id: resolverMetodoPagoId(pago.method, metodosPagoStore.activos),
+        // Los ids ya se resolvieron y validaron antes de crear la reservación (#10).
+        pagos: pagosAplicados.value.map((pago, i) => ({
+          metodo_pago_id: metodosPagoIds[i]!,
           monto: String(pago.amount),
           notas: pago.cardType
             ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
@@ -1588,8 +1646,21 @@ const confirmarReservacion = async () => {
   } catch (err: unknown) {
     const apiErr = err as { message?: string; statusCode?: number }
     const msg = apiErr?.message || 'Error al guardar la reservación'
-    $q.notify({ type: 'negative', message: msg, position: 'top-right', timeout: 6000 })
     console.error('[confirmarReservacion]', err)
+    if (reservacionCreadaId.value) {
+      $q.notify({
+        type: 'warning',
+        message: `La reservación se creó pero faltó registrar: ${faltante}. ${msg}`,
+        position: 'top-right',
+        timeout: 8000,
+      })
+      router.push({
+        name: 'eventos-reservaciones-cierre',
+        params: { id: reservacionCreadaId.value },
+      })
+    } else {
+      $q.notify({ type: 'negative', message: msg, position: 'top-right', timeout: 6000 })
+    }
   } finally {
     confirmando.value = false
   }

@@ -109,6 +109,8 @@ const router = useRouter()
 const $q = useQuasar()
 
 onMounted(() => {
+  // La validación de turno (y la espera de su carga async) ya la hace el
+  // guard de ruta (`requiresTurno`, ver router/guards.ts) antes de entrar aquí.
   store.loadProductos()
 })
 

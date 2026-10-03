@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import {
   actualizarProveedor,
   crearProveedor,
@@ -26,7 +27,7 @@ export const useProveedoresStore = defineStore('proveedores', {
       try {
         this.proveedores = await listarProveedores(sucursalId)
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar los proveedores'
+        this.error = mensajeDeError(error, 'Error al cargar los proveedores')
       } finally {
         this.loading = false
       }

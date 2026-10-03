@@ -28,7 +28,7 @@
       <div class="pay__body">
         <section class="pay__col pay__col--methods">
           <span class="pay__label">Método</span>
-          <MethodSelector v-model="metodoSeleccionado" :metodos-disponibles="props.metodosPago" />
+          <MethodSelector v-model="metodoSeleccionado" :metodos-disponibles="metodosVisibles" />
         </section>
 
         <section class="pay__col pay__col--keypad">
@@ -41,7 +41,7 @@
         </section>
 
         <section class="pay__col pay__col--applied">
-          <div class="pay__client">
+          <div v-if="permitirLealtad" class="pay__client">
             <span class="field-label">Celular del cliente (opcional)</span>
             <q-input
               ref="celularInputRef"
@@ -103,7 +103,7 @@
           color="primary"
           label="Confirmar pago"
           class="pay__confirm"
-          :disable="saldoPendiente > 0"
+          :disable="saldoPendiente > TOLERANCIA_MONTO"
           @click="finalizarPago"
         />
       </footer>
@@ -162,28 +162,45 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useQuasar, type QInput } from 'quasar'
+import type { ApiError } from '@/types/auth'
 import type { PaymentProps, AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { useLealtadStore } from '@/stores/lealtad'
+import { TOLERANCIA_MONTO, redondear2 } from '@/utils/dinero'
 
 import MethodSelector from './MethodSelector.vue'
 import BaseDialog from '@/components/ui/BaseDialog.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import AppliedPaymentsList from './AppliedPaymentsList.vue'
 
-const props = defineProps<
-  PaymentProps & {
-    modelValue: boolean
-    metodosPago: MetodosPago[]
-    /** Encabezado del cobro (p. ej. "Cobrar pedido"). */
-    titulo?: string
-    /** Línea secundaria (cliente, mesa, folio). */
-    subtitulo?: string
-  }
->()
+const props = withDefaults(
+  defineProps<
+    PaymentProps & {
+      modelValue: boolean
+      metodosPago: MetodosPago[]
+      /** Encabezado del cobro (p. ej. "Cobrar pedido"). */
+      titulo?: string
+      /** Línea secundaria (cliente, mesa, folio). */
+      subtitulo?: string
+      /**
+       * Si es false oculta la categoría Lealtad y la captura de celular, y no
+       * emite puntos. Usar en flujos que no pueden procesar la redención.
+       * Por defecto true.
+       */
+      permitirLealtad?: boolean
+    }
+  >(),
+  { permitirLealtad: true, titulo: undefined, subtitulo: undefined },
+)
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
+  /**
+   * Se emite al confirmar el cobro. En efectivo, `amount` es lo que entregó el
+   * cliente; `cambio` (último argumento) es lo que se le devuelve. El consumidor
+   * descuenta el cambio o lo manda al endpoint atómico (`completar`) — el modal
+   * no lo descuenta para no restarlo dos veces.
+   */
   (
     e: 'pago-exitoso',
     pagos: AppliedPayment[],
@@ -210,12 +227,17 @@ const tarjetaMontoTemporal = ref(0)
 const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
 const tarjetaAutorizacion = ref('')
 
+// Catálogo que se ofrece en el selector: sin Lealtad si el flujo no la admite.
+const metodosVisibles = computed(() =>
+  props.permitirLealtad ? props.metodosPago : props.metodosPago.filter((m) => m.tipo !== 'L'),
+)
+
 // Primera categoría con al menos un método activo de ese tipo en el
 // catálogo real de la sucursal -- no asumir que "Efectivo" siempre existe.
 const primeraCategoriaDisponible = computed(
   () =>
     CATEGORIAS_METODO_PAGO.find((cat) =>
-      props.metodosPago.some((m) => m.activo && m.tipo === cat.tipo),
+      metodosVisibles.value.some((m) => m.activo && m.tipo === cat.tipo),
     )?.valor ?? '',
 )
 
@@ -223,8 +245,11 @@ watch(
   () => props.modelValue,
   (visible) => {
     if (visible) {
+      saldoDisponible.value = null
+      valorPunto.value = null
+      puntosARedimir.value = 0
       metodoSeleccionado.value = primeraCategoriaDisponible.value
-      if (props.celularPrellenado) {
+      if (props.permitirLealtad && props.celularPrellenado) {
         celularCliente.value = props.celularPrellenado
       }
     } else {
@@ -249,17 +274,36 @@ watch(
 )
 
 watch(celularCliente, async (val) => {
-  if (val.length !== 10 || !authStore.currentBranchId) {
+  if (!props.permitirLealtad || val.length !== 10 || !authStore.currentBranchId) {
     saldoDisponible.value = null
     puntosARedimir.value = 0
     return
   }
   const sucursalId = authStore.currentBranchId
-  const [saldo] = await Promise.all([
-    lealtadStore.cargarSaldo(sucursalId, val),
-    lealtadStore.cargarConfiguracion(sucursalId),
-  ])
-  saldoDisponible.value = saldo.saldo
+  const consultado = val
+  // Mientras se consulta no se muestra el saldo del celular anterior.
+  saldoDisponible.value = null
+  let saldo = 0
+  try {
+    const [respuesta] = await Promise.all([
+      lealtadStore.cargarSaldo(sucursalId, consultado),
+      lealtadStore.cargarConfiguracion(sucursalId),
+    ])
+    saldo = respuesta.saldo
+  } catch (error: unknown) {
+    // 404 = cliente sin cuenta de puntos: saldo 0. Otro error: también 0, con aviso.
+    if ((error as ApiError).statusCode !== 404) {
+      $q.notify({
+        type: 'warning',
+        message: 'No se pudo consultar el saldo de puntos del cliente.',
+        position: 'top',
+        timeout: 3000,
+      })
+    }
+  }
+  // Respuesta tardía: el celular cambió o el modal se cerró mientras esperaba.
+  if (celularCliente.value !== consultado || !props.modelValue) return
+  saldoDisponible.value = saldo
   valorPunto.value = lealtadStore.configuracion?.valor_punto ?? null
 })
 
@@ -272,20 +316,20 @@ const maxPuntosRedimibles = computed(() => {
 const descuentoPuntos = computed(() => {
   if (!valorPunto.value) return 0
   const puntos = Math.min(puntosARedimir.value, maxPuntosRedimibles.value)
-  return puntos * valorPunto.value
+  return redondear2(puntos * valorPunto.value)
 })
 
-const totalNeto = computed(() => props.totalToPay - descuentoPuntos.value)
+const totalNeto = computed(() => redondear2(props.totalToPay - descuentoPuntos.value))
 
 watch(totalNeto, (nuevoTotal) => {
   let excedente = 0
   for (const pago of pagosAplicados.value) {
     if (!esEfectivo(pago.method)) {
-      const maxPermitido = Math.max(0, nuevoTotal - excedente)
+      const maxPermitido = Math.max(0, redondear2(nuevoTotal - excedente))
       if (pago.amount > maxPermitido) {
         pago.amount = maxPermitido
       }
-      excedente += pago.amount
+      excedente = redondear2(excedente + pago.amount)
     }
   }
 })
@@ -311,28 +355,29 @@ const esTarjeta = (nombre: string) => {
 }
 
 const totalPagado = computed(() => {
-  return pagosAplicados.value.reduce((suma, pago) => suma + pago.amount, 0)
+  return redondear2(pagosAplicados.value.reduce((suma, pago) => suma + pago.amount, 0))
 })
 
 const saldoPendiente = computed(() => {
-  const restante = totalNeto.value - totalPagado.value
-  return restante > 0 ? restante : 0
+  const restante = redondear2(totalNeto.value - totalPagado.value)
+  return restante > TOLERANCIA_MONTO ? restante : 0
 })
 
 const cambioADevolver = computed(() => {
-  const excedente = totalPagado.value - totalNeto.value
-  return excedente > 0 ? excedente : 0
+  const excedente = redondear2(totalPagado.value - totalNeto.value)
+  return excedente > TOLERANCIA_MONTO ? excedente : 0
 })
 
 const iniciarAbono = (monto: number) => {
-  if (monto <= 0 || !metodoSeleccionado.value) return
+  monto = redondear2(monto)
+  if (monto <= TOLERANCIA_MONTO || !metodoSeleccionado.value) return
 
   if (esLealtad(metodoSeleccionado.value)) {
     aplicarRedencionLealtad(monto)
     return
   }
 
-  if (!esEfectivo(metodoSeleccionado.value) && monto > saldoPendiente.value) {
+  if (!esEfectivo(metodoSeleccionado.value) && monto > saldoPendiente.value + TOLERANCIA_MONTO) {
     $q.notify({
       type: 'warning',
       message: `No se puede dar cambio en ${metodoSeleccionado.value}. El máximo es $${saldoPendiente.value.toFixed(2)}`,
@@ -406,7 +451,7 @@ const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: 
   if (esEfectivo(metodoSeleccionado.value)) {
     const existente = pagosAplicados.value.find((p) => esEfectivo(p.method))
     if (existente) {
-      existente.amount += monto
+      existente.amount = redondear2(existente.amount + monto)
       existente.timestamp = new Date()
       return
     }
@@ -458,9 +503,9 @@ const finalizarPago = () => {
   emit(
     'pago-exitoso',
     pagosAplicados.value.map((p) => ({ ...p })),
-    celularCliente.value.length === 10 ? celularCliente.value : null,
-    Math.min(puntosARedimir.value, maxPuntosRedimibles.value),
-    descuentoPuntos.value,
+    props.permitirLealtad && celularCliente.value.length === 10 ? celularCliente.value : null,
+    props.permitirLealtad ? Math.min(puntosARedimir.value, maxPuntosRedimibles.value) : 0,
+    props.permitirLealtad ? descuentoPuntos.value : 0,
     cambioADevolver.value,
   )
   emit('update:modelValue', false)

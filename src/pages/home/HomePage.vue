@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -38,15 +38,20 @@ const puede = {
 }
 
 // ── Encabezado ──────────────────────────────────────────────────────────────
-const ahora = new Date()
+// Reloj reactivo (se actualiza cada minuto) del que dependen la fecha, el saludo
+// y el "siguiente evento".
+const ahora = ref(new Date())
+const relojTimer = setInterval(() => {
+  ahora.value = new Date()
+}, 60_000)
 const saludo = computed(() => {
-  const h = ahora.getHours()
+  const h = ahora.value.getHours()
   const nombre = (auth.currentUser?.name ?? '').split(' ')[0]
   const parte = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'
   return nombre ? `${parte}, ${nombre}` : parte
 })
 const subtitulo = computed(() => {
-  const fecha = format(ahora, "EEEE d 'de' MMMM", { locale: es })
+  const fecha = format(ahora.value, "EEEE d 'de' MMMM", { locale: es })
   const texto = fecha.charAt(0).toUpperCase() + fecha.slice(1)
   return auth.currentBranchName ? `${texto} · ${auth.currentBranchName}` : texto
 })
@@ -75,6 +80,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  clearInterval(relojTimer)
   abortComandas.abort()
   if (puede.estancias.value) acceso.stopTicking()
 })
@@ -85,14 +91,20 @@ const comandasAbiertas = computed(() =>
 )
 const comandasListas = computed(() => comandas.value.filter((c) => c.estado_actual === 'L'))
 
-const hoyISO = format(ahora, 'yyyy-MM-dd')
+const hoyISO = computed(() => format(ahora.value, 'yyyy-MM-dd'))
+// Pasada la medianoche cambia el día: se vuelven a pedir los eventos.
+watch(hoyISO, () => {
+  if (puede.eventos.value && auth.currentBranchId) {
+    void reservacionesStore.cargar(auth.currentBranchId)
+  }
+})
 const eventosHoy = computed(() =>
   reservacionesStore.reservaciones
-    .filter((r) => r.fecha_evento?.slice(0, 10) === hoyISO && r.estado !== 'cancelada')
+    .filter((r) => r.fecha_evento?.slice(0, 10) === hoyISO.value && r.estado !== 'cancelada')
     .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio)),
 )
 const siguienteEvento = computed(() => {
-  const hhmm = format(new Date(), 'HH:mm')
+  const hhmm = format(ahora.value, 'HH:mm')
   return eventosHoy.value.find((r) => r.hora_inicio.slice(0, 5) >= hhmm) ?? null
 })
 

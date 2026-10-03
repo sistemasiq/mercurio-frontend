@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { pulserasApi } from '@/api/pulserasApi'
 import type { PulseraAdmin, PulseraCreate, PulseraUpdate } from '@/types/pulsera'
 
@@ -21,7 +22,7 @@ export const usePulserasStore = defineStore('pulseras', {
       try {
         this.pulseras = await pulserasApi.listarAdmin(sucursalId)
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar las pulseras'
+        this.error = mensajeDeError(error, 'Error al cargar las pulseras')
       } finally {
         this.loading = false
       }

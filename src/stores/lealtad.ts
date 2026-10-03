@@ -6,6 +6,7 @@ import {
   obtenerReporteLealtad,
   obtenerSaldoLealtad,
 } from '@/services/lealtadService'
+import { mensajeDeError } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import type {
   ConfiguracionLealtad,
@@ -44,7 +45,7 @@ export const useLealtadStore = defineStore('lealtad', {
         if (apiError.statusCode === 404) {
           this.configuracion = null
         } else {
-          this.error = apiError.message ?? 'Error al cargar la configuración de lealtad'
+          this.error = mensajeDeError(apiError, 'Error al cargar la configuración de lealtad')
         }
       } finally {
         this.loading = false
@@ -54,9 +55,13 @@ export const useLealtadStore = defineStore('lealtad', {
       this.configuracion = await actualizarConfiguracionLealtad(sucursalId, body)
       return this.configuracion
     },
-    async cargarSaldo(sucursalId: string, celular: string) {
-      this.saldo = await obtenerSaldoLealtad(sucursalId, celular)
-      return this.saldo
+    /**
+     * Consulta el saldo de un celular y lo devuelve sin escribirlo en
+     * `this.saldo`: ese estado pertenece al kardex y una consulta tardía desde
+     * el modal de pago no debe pisar (ni dejar) el saldo de otro cliente.
+     */
+    async cargarSaldo(sucursalId: string, celular: string): Promise<SaldoPuntos> {
+      return obtenerSaldoLealtad(sucursalId, celular)
     },
     async cargarMovimientos(sucursalId: string, celular: string, desde?: string, hasta?: string) {
       this.loading = true
@@ -65,7 +70,7 @@ export const useLealtadStore = defineStore('lealtad', {
         this.movimientos = await listarMovimientosLealtad(sucursalId, celular, desde, hasta)
         this.saldo = await obtenerSaldoLealtad(sucursalId, celular)
       } catch (error: unknown) {
-        this.error = (error as ApiError).message ?? 'Error al cargar el kardex de lealtad'
+        this.error = mensajeDeError(error, 'Error al cargar el kardex de lealtad')
       } finally {
         this.loading = false
       }
@@ -76,7 +81,7 @@ export const useLealtadStore = defineStore('lealtad', {
       try {
         this.reporte = await obtenerReporteLealtad(sucursalId)
       } catch (error: unknown) {
-        this.error = (error as ApiError).message ?? 'Error al cargar el reporte de lealtad'
+        this.error = mensajeDeError(error, 'Error al cargar el reporte de lealtad')
       } finally {
         this.loading = false
       }

@@ -9,14 +9,19 @@ import '@quasar/extras/material-symbols-outlined/material-symbols-outlined.css'
 import 'quasar/src/css/index.sass'
 import '@/css/app.scss'
 import { createPinia } from 'pinia'
+import { configurarRefresh } from '@/api/axiosClient'
+import { authService } from '@/services/authService'
 import { useAuthStore } from '@/stores/auth'
 import { setupRouterGuards } from '@/router/guards'
+import { resetPlugin } from '@/utils/piniaReset'
 import { inactivityTimer } from '@/utils/inactivityTimer'
 
 const INACTIVITY_MS = 15 * 60 * 1000
 
 export function setupPlugins(app: App, router: Router): void {
+  configurarRefresh((refreshToken) => authService.refresh(refreshToken))
   const pinia = createPinia()
+  pinia.use(resetPlugin)
 
   app.use(pinia)
   app.use(router)
@@ -48,12 +53,14 @@ export function setupPlugins(app: App, router: Router): void {
 
   inactivityTimer.init(() => {
     auth.logout().then(() => {
-      Notify.create({
-        type: 'warning',
-        message: 'Sesión cerrada por inactividad.',
-        icon: 'timer_off',
-      })
-      router.push({ name: 'login' })
+      try {
+        window.sessionStorage.setItem('mercury:logout-motivo', 'inactividad')
+      } catch {
+        // sin sessionStorage solo se pierde el aviso
+      }
+      // Recarga completa (no router.push): descarta toda la memoria de la
+      // app, incluidos estados que ningún store sabe resetear.
+      window.location.assign(router.resolve({ name: 'login' }).href)
     })
   }, INACTIVITY_MS)
 

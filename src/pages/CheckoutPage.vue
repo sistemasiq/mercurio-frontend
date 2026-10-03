@@ -115,6 +115,7 @@
       :subtitulo="child.nino"
       :total-to-pay="cotizacion?.totalExtra ?? 0"
       :metodos-pago="metodosPagoDisponibles"
+      :permitir-lealtad="false"
       @pago-exitoso="onPagoExtraExitoso"
     />
   </q-page>
@@ -126,26 +127,22 @@ import PageHeader from '@/components/ui/PageHeader.vue'
 import FotosRegistroDialog from '@/components/control-acceso/FotosRegistroDialog.vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
-import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { checkout, cotizarCheckout, type CotizacionCheckoutResponse } from '@/api/onboardingClient'
 import { Notify } from 'quasar'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import { metodosPagoApi } from '@/api/metodosPagoApi'
 import type { MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment } from '@/types/payments'
+import type { ApiError } from '@/types/auth'
+import { resolverMetodoPagoId } from '@/utils/metodosPago'
+import { mensajeDeError } from '@/utils/errorHandler'
+import { descontarCambio } from '@/utils/pagos'
 
 const store = useAccessControlStore()
-const turno = useTurnoCajaStore()
 const router = useRouter()
 
-onMounted(() => {
-  // Se valida al entrar, no hasta el final del checkout: si no hay turno
-  // abierto no tiene sentido dejar revisar todo el checkout para enterarse
-  // hasta el final. Redirige de inmediato, sin bloquear con un panel.
-  if (!turno.estaOperando) {
-    router.push('/pos/cierre')
-  }
-})
+// La validación de turno (y la espera de su carga async) ya la hace el guard
+// de ruta (`requiresTurno`, ver router/guards.ts) antes de entrar aquí.
 
 const child = computed(() => store.checkoutChild)
 
@@ -181,25 +178,8 @@ const cargarMetodosPago = async () => {
   }
 }
 
-const mapearMetodoPago = (nombreMetodo: string): string => {
-  if (!metodosPagoDisponibles.value || metodosPagoDisponibles.value.length === 0) {
-    throw new Error('Los métodos de pago no se han cargado correctamente desde el servidor.')
-  }
-
-  const metodo = metodosPagoDisponibles.value.find(
-    (m) => m.nombre.trim().toLowerCase() === nombreMetodo.trim().toLowerCase() && m.activo,
-  )
-
-  if (!metodo) {
-    const disponibles = metodosPagoDisponibles.value
-      .map((m) => `${m.nombre.trim()} (${m.activo ? 'activo' : 'inactivo'})`)
-      .join(', ')
-    throw new Error(
-      `El método de pago "${nombreMetodo}" no está configurado o no está activo. Métodos disponibles: [${disponibles}]`,
-    )
-  }
-  return metodo.id
-}
+const mapearMetodoPago = (categoriaSeleccionada: string): string =>
+  resolverMetodoPagoId(categoriaSeleccionada, metodosPagoDisponibles.value)
 
 const isLoading = ref(false)
 
@@ -286,55 +266,53 @@ async function ejecutarCheckout(pagos: { metodoPagoId: string; monto: number }[]
 async function onPagoExtraExitoso(pagos: AppliedPayment[]) {
   isLoading.value = true
   try {
-    const pagosMapeados = pagos.map((p) => ({
+    // El modal entrega el efectivo recibido; el checkout exige que los pagos
+    // cubran exactamente el cargo, así que se descuenta el cambio antes de enviar.
+    const aplicados = descontarCambio(pagos, cotizacion.value?.totalExtra ?? 0)
+    const pagosMapeados = aplicados.map((p) => ({
       metodoPagoId: mapearMetodoPago(p.method),
       monto: p.amount,
     }))
 
     await ejecutarCheckout(pagosMapeados)
-  } catch (err: unknown) {
+  } catch (err) {
     console.error('[CheckoutPage] onPagoExtraExitoso:', err)
 
-    const detail = (
-      err as {
-        response?: {
-          status?: number
-          data?: { detail?: { message?: string; horasExtra?: number; totalExtra?: number } }
-        }
-      }
-    )?.response
+    // apiClient siempre rechaza con un ApiError plano (nunca con
+    // err.response): el 409 trae el monto recalculado en `details`.
+    const apiErr = err as ApiError & { details?: { totalExtra?: number; horasExtra?: number } }
 
-    if (detail?.status === 409 && detail.data?.detail) {
-      /*  
-        El 409 ya trae el monto correcto en su cuerpo (horasExtra/totalExtra),
-        así que el reintento no necesita una llamada GET adicional: se
-        actualiza la cotización local con esos mismos datos y se reabre el
-        modal con el monto ya corregido.
+    if (
+      apiErr?.statusCode === 409 &&
+      child.value &&
+      typeof apiErr.details?.totalExtra === 'number' &&
+      typeof apiErr.details?.horasExtra === 'number'
+    ) {
+      /*
+        El 409 ya trae el monto correcto (horasExtra/totalExtra), así que el
+        reintento no necesita una llamada GET adicional: se actualiza la
+        cotización local con esos mismos datos y el modal queda abierto con
+        :total-to-pay ya apuntando al nuevo cotizacion.totalExtra.
       */
-      const { totalExtra, horasExtra, message } = detail.data.detail
-      if (child.value && totalExtra !== undefined && horasExtra !== undefined) {
-        cotizacion.value = {
-          detalleId: child.value.detalleId,
-          totalExtra,
-          horasExtra,
-          cotizadoEn: new Date().toISOString(),
-        }
+      cotizacion.value = {
+        detalleId: child.value.detalleId,
+        totalExtra: apiErr.details.totalExtra,
+        horasExtra: apiErr.details.horasExtra,
+        cotizadoEn: new Date().toISOString(),
       }
       Notify.create({
         type: 'warning',
-        message: message ?? 'El monto a cobrar cambió porque avanzó el tiempo.',
+        message: `El monto cambió a $${apiErr.details.totalExtra.toFixed(2)}. Vuelve a cobrar.`,
         caption: 'Se actualizó el monto, vuelve a intentar el cobro.',
         icon: 'schedule',
         timeout: 6000,
       })
-      // El modal queda abierto (o se puede reabrir) con :total-to-pay ya
-      // apuntando al nuevo cotizacion.totalExtra.
     } else {
       mostrarModalPagoExtra.value = false
       Notify.create({
         type: 'negative',
         message: 'No se pudo registrar el pago del cargo extra.',
-        caption: err instanceof Error ? err.message : 'Error desconocido.',
+        caption: mensajeDeError(err, 'Error desconocido.'),
         position: 'top-right',
         timeout: 4000,
       })

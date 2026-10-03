@@ -1,4 +1,5 @@
 import type { Router } from 'vue-router'
+import { Notify } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
@@ -25,10 +26,31 @@ export function setupRouterGuards(router: Router): void {
       }
     }
 
-    // El Administrador de sucursal no opera la caja directamente (apertura/cierre/venta):
-    // su única vista de este módulo es el historial de arqueos. AdministradorSistema sí puede.
+    if (to.meta.requiresTurno) {
+      const turno = useTurnoCajaStore()
+      // `asegurarTurnoCargado` nunca lanza: distingue "turno cargado" (resultado.ok)
+      // de "no se pudo cargar" (red/5xx/403), que no debe expulsar a nadie (#13, #17).
+      const resultado = await turno.asegurarTurnoCargado()
+      if (resultado.ok && !turno.estaOperando) {
+        if (auth.hasPermission('pos:acceder')) {
+          return { name: 'pos-cierre' }
+        }
+        Notify.create({
+          type: 'warning',
+          message: 'Se requiere un turno de caja abierto para continuar.',
+          position: 'top-right',
+        })
+        return false
+      }
+      // resultado.ok === false: la carga falló por red/5xx/403. Se deja pasar;
+      // la página debe mostrar turno.error en vez de expulsar sin motivo.
+    }
+
+    // El Administrador de sucursal no vende en mostrador (pos-caja), pero sí abre y
+    // cierra su propio turno en pos-cierre: lo necesita para cobrar reservaciones y
+    // eventos (#13). AdministradorSistema puede ambas.
     const esAdminDeSucursal = auth.hasRole('Administrador') && !auth.hasRole('AdministradorSistema')
-    if (esAdminDeSucursal && (to.name === 'pos-cierre' || to.name === 'pos-caja')) {
+    if (esAdminDeSucursal && to.name === 'pos-caja') {
       return { name: 'pos-historial-arqueos' }
     }
 

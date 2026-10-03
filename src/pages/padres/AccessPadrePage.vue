@@ -24,6 +24,11 @@ onMounted(async () => {
     return
   }
 
+  // El código de acceso es una credencial: se quita de la URL de inmediato
+  // para que no quede en el historial del navegador, en logs de proxy ni en
+  // el header Referer de la siguiente navegación.
+  void router.replace({ query: {} })
+
   validating.value = true
   store.clearError()
 

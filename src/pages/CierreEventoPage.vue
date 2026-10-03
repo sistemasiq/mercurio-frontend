@@ -141,13 +141,13 @@
 
             <div class="settle__spacer" />
 
-            <div class="settle__due" :class="{ 'settle__due--ok': saldoPendiente <= 0 }">
+            <div class="settle__due" :class="{ 'settle__due--ok': !tieneSaldo }">
               <span class="settle__due-label">Saldo por cobrar</span>
               <span class="settle__due-value">{{ fmt(saldoPendiente) }}</span>
             </div>
 
             <q-btn
-              v-if="!yaCerrado && saldoPendiente > 0"
+              v-if="!yaCerrado && tieneSaldo"
               unelevated
               color="primary"
               label="Procesar pago"
@@ -157,16 +157,16 @@
             />
             <q-btn
               unelevated
-              :color="yaCerrado || saldoPendiente > 0 ? 'grey-4' : 'positive'"
-              :text-color="yaCerrado || saldoPendiente > 0 ? 'grey-7' : 'white'"
+              :color="yaCerrado || tieneSaldo ? 'grey-4' : 'positive'"
+              :text-color="yaCerrado || tieneSaldo ? 'grey-7' : 'white'"
               :icon="yaCerrado ? 'check_circle' : 'lock'"
               :label="yaCerrado ? 'Evento cerrado' : 'Finalizar y cerrar evento'"
               class="settle__cta"
               :loading="finalizando"
-              :disable="yaCerrado || saldoPendiente > 0"
+              :disable="yaCerrado || tieneSaldo"
               @click="finalizarEvento"
             />
-            <span v-if="!yaCerrado && saldoPendiente > 0" class="settle__hint">
+            <span v-if="!yaCerrado && tieneSaldo" class="settle__hint">
               Liquida el saldo para poder cerrar el evento.
             </span>
             <span v-else-if="!yaCerrado" class="settle__hint">
@@ -183,6 +183,7 @@
       :subtitulo="tituloEvento"
       :total-to-pay="saldoPendiente"
       :metodos-pago="metodosPagoStore.activos"
+      :permitir-lealtad="false"
       @pago-exitoso="onPagoExitoso"
     />
   </q-page>
@@ -211,6 +212,8 @@ import type { Reservacion_extras } from '@/types/reservacion_extras'
 import type { Reservacion_productos } from '@/types/reservacion_productos'
 import type { AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
+import { redondear2, TOLERANCIA_MONTO } from '@/utils/dinero'
+import { mensajeDeError } from '@/utils/errorHandler'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import { horasFacturables } from '@/utils/horario'
 import { printTicketElement } from '@/utils/ticketPrinting'
@@ -382,7 +385,10 @@ const pagosDetallados = computed(() =>
 )
 
 const totalPagado = computed(() => pagos.value.reduce((sum, p) => sum + parseFloat(p.monto), 0))
-const saldoPendiente = computed(() => Math.max(0, totalNum.value - totalPagado.value))
+const saldoPendiente = computed(() =>
+  Math.max(0, redondear2(redondear2(totalNum.value) - redondear2(totalPagado.value))),
+)
+const tieneSaldo = computed(() => saldoPendiente.value > TOLERANCIA_MONTO)
 
 // ── Procesar pago ────────────────────────────────────────────────────────────
 
@@ -413,15 +419,15 @@ const onPagoExitoso = async (
   const saldoAntes = saldoPendiente.value
 
   // El modal entrega lo que el cliente ENTREGÓ; descontarCambio() lo ajusta a
-  // lo que de verdad se queda en caja antes de guardarlo, porque el excedente
-  // se le devolvió como cambio y no es ingreso del evento (mismo ajuste que
-  // hace PagosPage.vue — sin él, un pago en efectivo con cambio se guardaba
-  // completo y descuadraba el corte de caja).
+  // lo que de verdad se queda en caja. Solo se usa para descartar un cobro vacío:
+  // el endpoint atómico recibe los montos entregados y el `cambio` aparte.
   const aplicados = descontarCambio(pagosAplicados, saldoAntes)
   if (!aplicados.length) return
 
   procesandoPago.value = true
   try {
+    // `completar` registra todos los pagos en una sola transacción (Bug QA #11):
+    // ya no hay fallo parcial que deje pagos sueltos.
     const resultado = await pagosReservacionApi.completar({
       reservacion_id: reservacion.value.id,
       pagos: pagosAplicados.map((pago) => ({
@@ -443,15 +449,17 @@ const onPagoExitoso = async (
         timeout: 6000,
       })
     }
-    await cargarTodo()
   } catch (err: unknown) {
     $q.notify({
       type: 'negative',
-      message: (err as Error).message || 'Error al registrar el pago',
+      message: mensajeDeError(err, 'Error al registrar el pago'),
       position: 'top-right',
     })
   } finally {
     procesandoPago.value = false
+    // Siempre se recarga: el saldo en pantalla debe reflejar lo que quedó en el
+    // servidor, haya salido bien o no.
+    await cargarTodo()
   }
 }
 
@@ -460,7 +468,7 @@ const onPagoExitoso = async (
 const finalizando = ref(false)
 
 const finalizarEvento = async () => {
-  if (!reservacion.value || saldoPendiente.value > 0) return
+  if (!reservacion.value || tieneSaldo.value) return
   finalizando.value = true
   try {
     reservacion.value = await reservacionesApi.actualizar(reservacion.value.id, {

@@ -188,6 +188,7 @@
       v-model="modalCobroAbierto"
       :total-to-pay="saldoSeleccionado ?? 0"
       :metodos-pago="metodosPagoStore.activos"
+      :permitir-lealtad="false"
       @pago-exitoso="onCobroExitoso"
     />
 
@@ -243,7 +244,7 @@ onMounted(() => {
 
   if (!authStore.currentBranchId) return
   pagosStore.cargar()
-  if (!resStore.reservaciones.length) resStore.cargar(authStore.currentBranchId)
+  resStore.cargar(authStore.currentBranchId)
   tiposEventoStore.cargar()
 })
 
