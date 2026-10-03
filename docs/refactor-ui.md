@@ -85,10 +85,6 @@ simplifican hasta que exista la fuente.
 - **Cargo excedente antes de confirmar** (Checkout): la cotización se pide al
   confirmar la salida.
 - **UID RFID y "Asignada a"** (Pulseras): `PulseraAdmin` no los trae.
-- **Filtros por método y caja; Exportar** (historiales): sin soporte en el
-  endpoint.
-- **KPIs de arqueos**: el historial se pagina en el servidor; los KPIs cubren
-  la página cargada.
 
 ### 02 Eventos
 
@@ -118,9 +114,6 @@ simplifican hasta que exista la fuente.
   propio diálogo.
 - **RFC y días de entrega del proveedor** (4c.1): el modelo no los tiene.
 - **IVA y folio OC en compras** (4d): las compras solo tienen total y estado.
-- **Exportar** (kardex, stock, costo de ventas): sin endpoint.
-- **KPIs de ventas, margen y merma** (4f): el reporte solo regresa costo por
-  insumo.
 
 ### 05 Lealtad
 
