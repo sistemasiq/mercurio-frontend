@@ -45,6 +45,7 @@ function turnoEn(
     fechaApertura: '2026-01-01T10:00:00Z',
     totalVentas: 0,
     totalRetiros: 0,
+    totalIngresos: 0,
     movimientos: [],
     ...extra,
   }
