@@ -56,9 +56,6 @@ simplifican hasta que exista la fuente.
 ### 00 Acceso
 
 - **"Tus puntos Woow"** (portal de padres): el tutor no trae saldo de lealtad.
-- **"Cargo extra"** en visita excedida: no viene en `NinoActivo`.
-- **Importe y puntos de visita finalizada**: `NinoActivo` no los trae; se
-  muestra duración y pulsera.
 - **Foto del panel de login**: el mockup deja un placeholder; se usa la
   ilustración del logo.
 
@@ -76,15 +73,8 @@ simplifican hasta que exista la fuente.
 - **Últimos 4 dígitos de tarjeta** (1b.5): `AppliedPayment` solo guarda tipo y
   autorización.
 - **Puntos ganados en el ticket** (1b.2): el detalle de orden no los regresa.
-- **Hora de entrada real** (Control de Acceso): `ActivoDto` trae minutos
-  transcurridos; la hora se deriva.
-- **"Cliente frecuente · pts" y tiempo de juego por niño** (Registro): el
-  registro no consulta lealtad y define un solo tiempo para todo el registro.
 - **Checklist "Quien recoge coincide"** (Checkout): sería una validación nueva;
   se deja el acceso a las fotos para comparar.
-- **Cargo excedente antes de confirmar** (Checkout): la cotización se pide al
-  confirmar la salida.
-- **UID RFID y "Asignada a"** (Pulseras): `PulseraAdmin` no los trae.
 - **Filtros por método y caja; Exportar** (historiales): sin soporte en el
   endpoint.
 - **KPIs de arqueos**: el historial se pagina en el servidor; los KPIs cubren
