@@ -41,18 +41,6 @@ Implementación del diseño "Refactor UI Woow Kids" (claude.ai/design, proyecto
 No se muestran valores inventados; estos elementos se ocultan o se
 simplifican hasta que exista la fuente.
 
-### Shell
-
-- **Buscador "Buscar o ir a… ⌘K"** (Sidebar): paleta de comandos por definir.
-- **Campana de notificaciones** (Topbar): hoy solo aparece con alertas de
-  inventario y lleva al Reporte de Stock; falta un centro de notificaciones.
-- **Botón de ayuda** (Topbar): destino por definir.
-- **Contadores de Cocina y Control de Acceso** (Sidebar): no hay una fuente
-  compartida fuera de cada pantalla.
-- **"Vendido en turno"** (tarjeta de caja) y **KPI "Ventas del turno"**
-  (Inicio): el backend solo expone `totalVentas` al admin después de
-  `BALANCE_REVELADO`.
-
 ### 00 Acceso
 
 - **Foto del panel de login**: el mockup deja un placeholder; se usa la
@@ -60,18 +48,9 @@ simplifican hasta que exista la fuente.
 
 ### 01 Operación
 
-- **Paquete en "Eventos de hoy"** (Inicio): se resuelve con el catálogo de
-  paquetes solo donde ya está cargado.
-- **Desglose Subtotal / IVA 16 %** (panel del pedido): requiere confirmar la
-  regla fiscal antes de mostrarlo.
 - **Método de pago en el panel del pedido**: se elige dentro del cobro
   multimodal.
-- **Número de pedido y mesa antes de cobrar**: el folio lo asigna el backend;
-  el POS no captura mesa.
 - **Stock en piezas ("48 pzas")**: solo existe el "rinde" calculado por receta.
-- **Últimos 4 dígitos de tarjeta** (1b.5): `AppliedPayment` solo guarda tipo y
-  autorización.
-- **Puntos ganados en el ticket** (1b.2): el detalle de orden no los regresa.
 - **Checklist "Quien recoge coincide"** (Checkout): sería una validación nueva;
   se deja el acceso a las fotos para comparar.
 
@@ -97,14 +76,8 @@ simplifican hasta que exista la fuente.
 
 ### 05 Lealtad
 
-- **"Mínimo para canjear"** (configuración): la configuración no tiene ese
-  campo.
-- **Ajuste manual de puntos** (kardex): no hay endpoint de ajuste.
-- **Búsqueda por nombre del cliente** (kardex): el saldo se consulta solo por
-  celular.
 - **KPI "Por vencer"** (kardex): los movimientos no traen la caducidad por lote.
-- **Top de clientes, periodo y Exportar** (reporte): el reporte solo regresa
-  totales de la sucursal.
+- **Exportar** (reporte): sin endpoint.
 
 ### 06 Administración
 
