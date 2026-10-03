@@ -37,6 +37,8 @@ export interface DetalleOrden {
   nombre_cliente: string | null
   /** Puntos de lealtad ganados por esta venta; null si no aplica (B9 B.3). */
   puntos_ganados?: number | null
+  /** Mesa del pedido, opcional (B9 B.2; solo aplica a comandas). */
+  mesa?: string | null
 }
 
 export interface Estadisticas {

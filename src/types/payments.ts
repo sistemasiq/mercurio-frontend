@@ -38,4 +38,5 @@ export interface PagoCompletoRequest {
   puntos_a_redimir?: number
   cambio?: number
   nombre_cliente?: string
+  mesa?: string
 }

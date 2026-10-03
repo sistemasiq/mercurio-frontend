@@ -126,6 +126,7 @@ async function ejecutarImpresion() {
           <span class="receipt-card__subtitle">
             {{ referenciaLabel === 'TICKET' ? 'Pedido' : 'Cliente' }} {{ orden.titulo }} ·
             {{ formatearFecha(orden.fecha_hora) }}
+            <template v-if="orden.mesa"> · Mesa {{ orden.mesa }}</template>
           </span>
         </div>
 
