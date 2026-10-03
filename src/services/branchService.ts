@@ -1,5 +1,10 @@
 import { branchesApi } from '@/api/branchesApi'
-import type { Branch, CreateBranchPayload, UpdateBranchPayload } from '@/types/branch'
+import type {
+  Branch,
+  CreateBranchPayload,
+  IndicadoresSucursal,
+  UpdateBranchPayload,
+} from '@/types/branch'
 
 export const branchService = {
   async listBranches(): Promise<Branch[]> {
@@ -24,5 +29,9 @@ export const branchService = {
 
   async restoreBranch(id: string): Promise<void> {
     return branchesApi.restore(id)
+  },
+
+  async getIndicadores(id: string, desde: string, hasta: string): Promise<IndicadoresSucursal> {
+    return branchesApi.getIndicadores(id, desde, hasta)
   },
 }
