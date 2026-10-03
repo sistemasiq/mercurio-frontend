@@ -12,6 +12,7 @@ interface BackendUserResponse {
   branch_id: string | null
   is_active: boolean
   ultimo_acceso: string | null
+  tiene_pin?: boolean
 }
 
 function mapUser(raw: BackendUserResponse): UserListItem {
@@ -25,6 +26,7 @@ function mapUser(raw: BackendUserResponse): UserListItem {
     branchId: raw.branch_id,
     isActive: raw.is_active,
     lastAccess: raw.ultimo_acceso,
+    tienePin: raw.tiene_pin ?? false,
   }
 }
 
@@ -48,6 +50,7 @@ export const usersApi = {
       password: payload.password,
       role: payload.role,
       branch_id: payload.branchId ?? null,
+      pin: payload.pin || null,
     })
     return mapUser(data)
   },
@@ -62,11 +65,17 @@ export const usersApi = {
       branch_id: payload.branchId ?? null,
       password: payload.password || null,
       is_active: payload.isActive ?? null,
+      pin: payload.pin || null,
     })
     return mapUser(data)
   },
 
   async remove(id: string): Promise<void> {
     await apiClient.delete(`/usuarios/${id}`)
+  },
+
+  /** C1: PUT /usuarios/me/pin — el usuario cambia su propio PIN de caja. */
+  async cambiarMiPin(actual: string, pinNuevo: string): Promise<void> {
+    await apiClient.put('/usuarios/me/pin', { actual, pin_nuevo: pinNuevo })
   },
 }

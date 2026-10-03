@@ -99,6 +99,21 @@
           :rules="confirmRules"
         />
       </label>
+      <label class="form-grid__field form-grid__field--full">
+        <span class="field-label">PIN de caja (opcional)</span>
+        <q-input
+          v-model="form.pin"
+          dense
+          outlined
+          maxlength="4"
+          inputmode="numeric"
+          autocomplete="off"
+          :placeholder="userId ? 'Sin cambios' : '4 dígitos'"
+          lazy-rules
+          hide-bottom-space
+          :rules="pinRules"
+        />
+      </label>
 
       <span class="form-grid__section">Acceso</span>
       <label class="form-grid__field" :class="{ 'form-grid__field--full': !showBranchSelector }">
@@ -193,6 +208,7 @@ const form = reactive({
   email: '',
   password: '',
   confirmPassword: '',
+  pin: '',
   role: null as UserRole | null,
   branchId: null as string | null,
   isActive: true,
@@ -229,6 +245,7 @@ const passwordRules = [
   (v: string) => !v || v.length >= 8 || 'Mínimo 8 caracteres',
 ]
 const confirmRules = [(v: string) => v === form.password || 'Las contraseñas no coinciden']
+const pinRules = [(v: string) => !v || /^\d{4}$/.test(v) || 'El PIN debe tener 4 dígitos']
 const roleRules = [(v: UserRole | null) => !!v || 'Selecciona un rol']
 const branchRules = [
   (v: string | null) => !requiresBranch.value || !!v || 'La sucursal es requerida para este rol',
@@ -252,6 +269,7 @@ async function cargar() {
     email: '',
     password: '',
     confirmPassword: '',
+    pin: '',
     role: null,
     branchId: null,
     isActive: true,
@@ -308,6 +326,7 @@ async function guardar() {
         branchId,
         password: form.password || null,
         isActive: form.isActive,
+        pin: form.pin || null,
       })
       Notify.create({ type: 'positive', message: 'Usuario actualizado correctamente.' })
     } else {
@@ -319,6 +338,7 @@ async function guardar() {
         password: form.password,
         role: form.role!,
         branchId,
+        pin: form.pin || null,
       })
       Notify.create({ type: 'positive', message: 'Usuario registrado correctamente.' })
     }

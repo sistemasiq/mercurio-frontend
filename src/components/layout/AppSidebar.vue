@@ -7,7 +7,12 @@ import { useSucursalesStore } from '@/stores/sucursales'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useAppNavigation } from '@/composables/useAppNavigation'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
+import CambiarPinDialog from '@/components/usuarios/CambiarPinDialog.vue'
 import type { NavGroup } from '@/types/navigation'
+
+// C1: diálogo "Cambiar mi PIN" en el menú del usuario. Toque mínimo de este
+// archivo (propiedad de C4): solo este ref y el botón/diálogo abajo.
+const showCambiarPin = ref(false)
 
 const auth = useAuthStore()
 const turno = useTurnoCajaStore()
@@ -228,6 +233,18 @@ async function handleLogout(): Promise<void> {
           flat
           round
           dense
+          icon="password"
+          size="13px"
+          class="sb-user__logout"
+          aria-label="Cambiar mi PIN"
+          @click="showCambiarPin = true"
+        >
+          <q-tooltip>Cambiar mi PIN</q-tooltip>
+        </q-btn>
+        <q-btn
+          flat
+          round
+          dense
           icon="logout"
           size="13px"
           class="sb-user__logout"
@@ -238,6 +255,8 @@ async function handleLogout(): Promise<void> {
         </q-btn>
       </div>
     </div>
+
+    <CambiarPinDialog v-model="showCambiarPin" />
   </aside>
 </template>
 
