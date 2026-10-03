@@ -39,6 +39,9 @@ export interface ProductoBase {
   es_combo: boolean
   productos_combo?: ComboItemCreate[]
   config_estancia?: TramoEstancia[]
+  /** Unidades estimadas que se pueden preparar con el stock actual de la
+   * receta (mínimo de stock_actual / cantidad). Null si no tiene receta. */
+  disponible_estimado?: number | null
 }
 
 export interface Producto extends Omit<ProductoBase, 'precio_unitario'> {

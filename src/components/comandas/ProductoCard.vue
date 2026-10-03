@@ -30,7 +30,7 @@
           class="producto-card__stock"
           :class="{ 'producto-card__stock--low': stockBajo }"
         >
-          Rinde {{ rinde }}
+          ≈ {{ rinde }} disponibles (estimado)
         </span>
       </div>
     </div>
