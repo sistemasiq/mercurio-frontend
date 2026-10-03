@@ -4,6 +4,8 @@ export interface Tipos_evento extends AuditFields {
   sucursal_id: string | null
   nombre: string
   descripcion: string | null
+  /** Paquetes activos asociados. Solo lo puebla el listado. */
+  paquetes_count?: number
 }
 
 export interface Tipos_evento_create {
