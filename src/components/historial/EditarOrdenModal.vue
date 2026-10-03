@@ -1,8 +1,105 @@
-<!-- src/components/historial/EditarOrdenModal.vue -->
+<template>
+  <div class="edit-backdrop" @click.self="$emit('close')">
+    <div class="edit-card" role="dialog" aria-modal="true">
+      <div v-if="isLoading" class="edit-card__loading">
+        <q-spinner size="32px" color="primary" />
+        <span>Cargando detalle…</span>
+      </div>
+
+      <template v-else-if="orden">
+        <header class="edit-card__head">
+          <span class="edit-card__icon"><q-icon name="edit" size="22px" /></span>
+          <div class="edit-card__titles">
+            <span class="edit-card__title">Editar orden #{{ orden.ticket_numero }}</span>
+            <span class="edit-card__subtitle">Selecciona los productos a quitar</span>
+          </div>
+          <q-btn flat round dense icon="close" aria-label="Cerrar" @click="$emit('close')" />
+        </header>
+
+        <div class="edit-card__body">
+          <div class="edit-list">
+            <label class="edit-list__head">
+              <q-checkbox
+                :model-value="todosSeleccionados"
+                dense
+                color="negative"
+                @update:model-value="toggleTodos"
+              />
+              <span>Seleccionar todo</span>
+              <span class="edit-list__count">{{ idsAEliminar.length }} seleccionados</span>
+            </label>
+            <div
+              v-for="item in itemsVisibles"
+              :key="item.key"
+              class="edit-list__row"
+              :class="{ 'edit-list__row--on': selectedKeys.has(item.key) }"
+              @click="toggleItem(item.key)"
+            >
+              <q-checkbox
+                :model-value="selectedKeys.has(item.key)"
+                dense
+                color="negative"
+                @click.stop
+                @update:model-value="toggleItem(item.key)"
+              />
+              <div class="edit-list__info">
+                <span class="edit-list__name">{{ item.producto_nombre }}</span>
+                <span class="edit-list__meta">
+                  {{ item.cantidad }} × ${{ Number(item.precio_unitario).toFixed(2) }}
+                  <template v-if="item.notas_especiales"> · {{ item.notas_especiales }}</template>
+                  <template v-if="item.tipo === 'combo' && item.hijos">
+                    · {{ item.hijos.map((h) => `${h.cantidad}× ${h.producto_nombre}`).join(', ') }}
+                  </template>
+                </span>
+              </div>
+              <span class="edit-list__price">${{ item.importe.toFixed(2) }}</span>
+            </div>
+          </div>
+
+          <dl class="edit-totals">
+            <div>
+              <dt>Total original</dt>
+              <dd>${{ Number(orden.total_final).toFixed(2) }}</dd>
+            </div>
+            <div>
+              <dt>A devolver</dt>
+              <dd>−${{ totalSeleccionado.toFixed(2) }}</dd>
+            </div>
+            <div class="edit-totals__net">
+              <dt>Nuevo total</dt>
+              <dd>${{ (Number(orden.total_final) - totalSeleccionado).toFixed(2) }}</dd>
+            </div>
+          </dl>
+
+          <div class="edit-callout">
+            <q-icon name="info" size="19px" />
+            Se pedirá confirmación. Los insumos de los productos quitados regresan al inventario.
+          </div>
+        </div>
+
+        <footer class="edit-card__foot">
+          <q-btn outline label="Cancelar" @click="$emit('close')" />
+          <q-btn
+            unelevated
+            color="negative"
+            :loading="guardando"
+            :disable="idsAEliminar.length === 0"
+            :label="
+              idsAEliminar.length === orden.detalles.length ? 'Cancelar orden' : 'Quitar productos'
+            "
+            @click="confirmarEliminar"
+          />
+        </footer>
+      </template>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { obtenerDetalleOrden } from '@/services/historialService'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { comandasApi } from '@/api/comandasApi'
 import MotivoCancelacionDialog from './MotivoCancelacionDialog.vue'
 import type { DetalleOrden, DetalleProducto } from '@/api/historialApi'
@@ -46,22 +143,9 @@ const itemsVisibles = computed<DisplayItem[]>(() => {
 
   for (const comboName of comboNames) {
     const hijos = detalles.filter((d) => d.nombre_combo_padre === comboName)
-    const padre = detalles.find((d) => d.producto_nombre === comboName && !d.nombre_combo_padre)
+    const padres = detalles.filter((d) => d.producto_nombre === comboName && !d.nombre_combo_padre)
 
-    if (padre) {
-      usedParentIds.add(padre.id)
-      result.push({
-        key: `combo-${padre.id}`,
-        tipo: 'combo',
-        producto_nombre: comboName,
-        cantidad: padre.cantidad,
-        precio_unitario: padre.precio_unitario,
-        importe: padre.importe,
-        ids: [padre.id, ...hijos.map((h) => h.id)],
-        notas_especiales: padre.notas_especiales,
-        hijos,
-      })
-    } else {
+    if (padres.length === 0) {
       for (const h of hijos) {
         result.push({
           key: `suelto-${h.id}`,
@@ -74,7 +158,58 @@ const itemsVisibles = computed<DisplayItem[]>(() => {
           notas_especiales: h.notas_especiales,
         })
       }
+      continue
     }
+
+    for (const p of padres) usedParentIds.add(p.id)
+
+    // Agrupa los hijos por instancia (id_combo_padre) y reparte los grupos
+    // entre las líneas padre en orden, según su cantidad. Así quitar un padre
+    // no arrastra los hijos de otras instancias del mismo combo.
+    const porInstancia = new Map<string, DetalleProducto[]>()
+    for (const h of hijos) {
+      if (!h.id_combo_padre) break
+      porInstancia.set(h.id_combo_padre, [...(porInstancia.get(h.id_combo_padre) ?? []), h])
+    }
+    const agrupablePorId =
+      padres.length > 1 && porInstancia.size > 0 && hijos.every((h) => h.id_combo_padre)
+
+    if (!agrupablePorId) {
+      // Un solo padre, o orden vieja sin id_combo_padre: un único bloque con
+      // todos los padres y los hijos del combo (no editable por grupo).
+      result.push({
+        key: `combo-${padres[0]!.id}`,
+        tipo: 'combo',
+        producto_nombre: comboName,
+        cantidad: padres.reduce((sum, p) => sum + p.cantidad, 0),
+        precio_unitario: padres[0]!.precio_unitario,
+        importe: padres.reduce((sum, p) => sum + p.importe, 0),
+        ids: [...padres.map((p) => p.id), ...hijos.map((h) => h.id)],
+        notas_especiales: padres[0]!.notas_especiales,
+        hijos,
+      })
+      continue
+    }
+
+    const grupos = [...porInstancia.values()]
+    let cursor = 0
+    padres.forEach((padre, idx) => {
+      const esUltimo = idx === padres.length - 1
+      const asignados = grupos.slice(cursor, esUltimo ? undefined : cursor + padre.cantidad)
+      cursor += padre.cantidad
+      const hijosPadre = asignados.flat()
+      result.push({
+        key: `combo-${padre.id}`,
+        tipo: 'combo',
+        producto_nombre: comboName,
+        cantidad: padre.cantidad,
+        precio_unitario: padre.precio_unitario,
+        importe: padre.importe,
+        ids: [padre.id, ...hijosPadre.map((h) => h.id)],
+        notas_especiales: padre.notas_especiales,
+        hijos: hijosPadre,
+      })
+    })
   }
 
   for (const d of detalles) {
@@ -189,7 +324,7 @@ async function ejecutarEliminacion(motivoCancelacion?: string) {
     emit('orden-actualizada')
     emit('close')
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'No se pudo modificar la orden.'
+    const msg = mensajeDeError(err, 'No se pudo modificar la orden.')
     $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 4000 })
   } finally {
     guardando.value = false
@@ -197,422 +332,204 @@ async function ejecutarEliminacion(motivoCancelacion?: string) {
 }
 </script>
 
-<template>
-  <div class="modal-backdrop-blur" @click.self="$emit('close')">
-    <div class="order-detail-card">
-      <!-- Loading -->
-      <div v-if="isLoading" class="loading-container">
-        <q-spinner size="32px" color="primary" />
-        <p class="loading-text">Cargando detalle...</p>
-      </div>
-
-      <!-- Contenido -->
-      <template v-else-if="orden">
-        <!-- Header -->
-        <div class="order-detail-header">
-          <div class="header-left">
-            <div class="title-row">
-              <h2 class="order-title">Editar Orden #{{ orden.ticket_numero }}</h2>
-              <span class="badge badge-pendiente">PENDIENTE</span>
-            </div>
-            <p class="order-meta">Selecciona los productos que deseas eliminar</p>
-          </div>
-          <button type="button" class="btn-close-x" @click="$emit('close')">
-            <q-icon name="close" size="xs" />
-          </button>
-        </div>
-
-        <!-- Select All -->
-        <div class="select-all-bar">
-          <label class="checkbox-row">
-            <input
-              type="checkbox"
-              :checked="todosSeleccionados"
-              class="custom-checkbox"
-              @change="toggleTodos"
-            />
-            <span class="select-all-text">Seleccionar todo</span>
-          </label>
-          <span v-if="idsAEliminar.length > 0" class="selected-count">
-            {{ idsAEliminar.length }} seleccionado(s) · -${{ totalSeleccionado.toFixed(2) }}
-          </span>
-        </div>
-
-        <!-- Productos -->
-        <div class="products-list">
-          <template v-for="item in itemsVisibles" :key="item.key">
-            <!-- Combo -->
-            <div
-              v-if="item.tipo === 'combo'"
-              class="combo-group"
-              :class="{ 'combo-selected': selectedKeys.has(item.key) }"
-              @click="toggleItem(item.key)"
-            >
-              <label class="checkbox-row combo-checkbox" @click.stop>
-                <input
-                  type="checkbox"
-                  :checked="selectedKeys.has(item.key)"
-                  class="custom-checkbox"
-                  @change="toggleItem(item.key)"
-                />
-              </label>
-              <div class="combo-body">
-                <div class="combo-header-row">
-                  <q-icon name="restaurant" size="14px" class="combo-icon" />
-                  <span class="combo-name">{{ item.producto_nombre }}</span>
-                  <span v-if="item.cantidad > 1" class="combo-qty">×{{ item.cantidad }}</span>
-                </div>
-                <p v-if="item.notas_especiales" class="product-note">
-                  <q-icon name="warning" size="12px" /> {{ item.notas_especiales }}
-                </p>
-                <div v-if="item.hijos" class="combo-children">
-                  <span v-for="h in item.hijos" :key="h.id" class="combo-child-chip">
-                    {{ h.cantidad }}× {{ h.producto_nombre }}
-                  </span>
-                </div>
-              </div>
-              <p class="product-total-price">${{ item.importe.toFixed(2) }}</p>
-            </div>
-
-            <!-- Suelto -->
-            <div
-              v-else
-              class="product-item"
-              :class="{ 'product-selected': selectedKeys.has(item.key) }"
-              @click="toggleItem(item.key)"
-            >
-              <label class="checkbox-row" @click.stop>
-                <input
-                  type="checkbox"
-                  :checked="selectedKeys.has(item.key)"
-                  class="custom-checkbox"
-                  @change="toggleItem(item.key)"
-                />
-              </label>
-              <div class="product-qty-box">{{ item.cantidad }}x</div>
-              <div class="product-details">
-                <p class="product-name">{{ item.producto_nombre }}</p>
-                <p v-if="item.notas_especiales" class="product-note">
-                  <q-icon name="warning" size="12px" /> {{ item.notas_especiales }}
-                </p>
-                <p class="product-unit-price">${{ Number(item.precio_unitario).toFixed(2) }} c/u</p>
-              </div>
-              <p class="product-total-price">${{ item.importe.toFixed(2) }}</p>
-            </div>
-          </template>
-        </div>
-
-        <!-- Footer -->
-        <div class="modal-actions-footer">
-          <button type="button" class="btn-action-outline" @click="$emit('close')">Cancelar</button>
-          <button
-            type="button"
-            class="btn-action-solid-red"
-            :disabled="idsAEliminar.length === 0 || guardando"
-            @click="confirmarEliminar"
-          >
-            <q-icon v-if="guardando" name="hourglass_empty" size="xs" class="q-mr-xs" />
-            <q-icon v-else name="delete" size="xs" class="q-mr-xs" />
-            {{ idsAEliminar.length === orden.detalles.length ? 'Cancelar Orden' : 'Eliminar' }}
-            {{ idsAEliminar.length > 0 ? `(${idsAEliminar.length})` : '' }}
-          </button>
-        </div>
-      </template>
-    </div>
-  </div>
-</template>
-
-<style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap');
-
-.modal-backdrop-blur {
+<style scoped lang="scss">
+.edit-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  inset: 0;
+  z-index: 3000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px;
-  box-sizing: border-box;
-  z-index: 1000;
-  font-family: 'Inter', sans-serif;
+  padding: 24px;
+  background: rgba(11, 20, 80, 0.32);
 }
 
-.order-detail-card {
-  background-color: #ffffff;
-  width: 100%;
-  max-width: 540px;
-  max-height: 80vh;
-  overflow-y: auto;
-  border-radius: 24px;
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.2),
-    0 10px 10px -5px rgba(0, 0, 0, 0.1);
-  padding: 32px;
-  box-sizing: border-box;
-  border: 1px solid #e2e8f0;
-  position: relative;
-  z-index: 10;
-}
-
-.loading-container {
+.edit-card {
+  width: 540px;
+  max-width: 100%;
+  max-height: 100%;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dialog);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 0;
-  gap: 12px;
-}
-.loading-text {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0;
+  overflow: hidden;
+
+  &__loading {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-secondary);
+  }
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 22px 24px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--tone-warn-bg);
+    color: var(--tone-warn-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+  }
+
+  &__title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow-y: auto;
+  }
+
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-subtle);
+
+    :deep(.q-btn) {
+      min-height: 42px;
+    }
+  }
 }
 
-.order-detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
-}
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.order-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-.badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 9999px;
-}
-.badge-pendiente {
-  background-color: #0059bb;
-  color: #ffffff;
-}
-.order-meta {
-  font-size: 12px;
-  color: #64748b;
-  margin: 6px 0 0 0;
-}
-.btn-close-x {
-  border: none;
-  background: transparent;
-  color: #64748b;
-  cursor: pointer;
-  padding: 4px;
-}
-
-.select-all-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 16px;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
+.edit-list {
+  border: 1px solid var(--border-color);
   border-radius: 12px;
-  margin-bottom: 16px;
-}
-.checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-.custom-checkbox {
-  width: 18px;
-  height: 18px;
-  accent-color: #0059bb;
-  cursor: pointer;
-}
-.select-all-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: #0f172a;
-}
-.selected-count {
-  font-size: 12px;
-  font-weight: 700;
-  color: #ba1a1a;
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  &__count {
+    margin-left: auto;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-bottom: 1px solid #f1f3f7;
+    cursor: pointer;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+
+    &--on {
+      background: #fff7f7;
+    }
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  &__meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__price {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
 }
 
-.products-list {
+.edit-totals {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f6f8fc;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13.5px;
+    color: #475569;
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__net {
+    font-size: 20px !important;
+    font-weight: 800;
+    color: var(--text-strong) !important;
+  }
+}
+
+.edit-callout {
+  display: flex;
   gap: 10px;
-  margin-bottom: 24px;
-}
-.product-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border: 1px solid #e2e8f0;
+  padding: 12px 14px;
   border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.product-item:hover {
-  background-color: #f8fafc;
-}
-.product-selected {
-  background-color: #fef2f2;
-  border-color: #fca5a5;
-}
-.product-qty-box {
-  width: 28px;
-  height: 28px;
-  background-color: #e2e8f0;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #0059bb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.product-details {
-  flex-grow: 1;
-}
-.product-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0;
-}
-.product-unit-price {
-  font-size: 11px;
-  color: #64748b;
-  margin: 2px 0 0 0;
-}
-.product-total-price {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0;
-  flex-shrink: 0;
-}
-
-/* ── Combo group card ─────────────────────────────────────────────── */
-.combo-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
-  border: 1px solid #fde68a;
-  border-radius: 12px;
-  background-color: #fffbeb;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.combo-group:hover {
-  background-color: #fef3c7;
-}
-.combo-selected {
-  background-color: #fef2f2;
-  border-color: #fca5a5;
-}
-.combo-checkbox {
-  padding-top: 2px;
-}
-.combo-body {
-  flex: 1;
-  min-width: 0;
-}
-.combo-header-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.combo-icon {
-  color: #92400e;
-  flex-shrink: 0;
-}
-.combo-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: #92400e;
-}
-.combo-qty {
-  font-size: 12px;
-  font-weight: 600;
-  color: #92400e;
-  background-color: #fde68a;
-  padding: 1px 6px;
-  border-radius: 9999px;
-}
-.combo-children {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-.combo-child-chip {
-  font-size: 11px;
-  font-weight: 500;
-  color: #78716c;
-  background-color: rgba(255, 255, 255, 0.7);
-  padding: 2px 8px;
-  border-radius: 9999px;
-  border: 1px solid #e7e5e4;
-}
-.product-note {
-  font-size: 11px;
-  color: #ba1a1a;
-  margin: 4px 0 0 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.modal-actions-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 8px;
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
-}
-.btn-action-outline {
-  height: 44px;
-  padding: 0 20px;
-  background: transparent;
-  border: 1px solid #0059bb;
-  color: #0059bb;
-  border-radius: 12px;
+  background: var(--tone-warn-bg);
+  color: var(--tone-warn-fg);
   font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-.btn-action-solid-red {
-  height: 44px;
-  padding: 0 28px;
-  background-color: #ba1a1a;
-  border: none;
-  color: #ffffff;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-.btn-action-solid-red:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  font-weight: 600;
+  line-height: 1.45;
 }
 </style>

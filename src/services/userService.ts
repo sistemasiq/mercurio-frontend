@@ -21,4 +21,8 @@ export const userService = {
   async deleteUser(id: string): Promise<void> {
     return usersApi.remove(id)
   },
+
+  async cambiarMiPin(actual: string, pinNuevo: string): Promise<void> {
+    return usersApi.cambiarMiPin(actual, pinNuevo)
+  },
 }

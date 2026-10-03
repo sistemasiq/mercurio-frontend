@@ -1,54 +1,60 @@
 <template>
-  <div class="kds-layout">
-    <header class="kds-header">
-      <div>
-        <h2 class="kds-title">Visor de Cocina</h2>
-        <p class="kds-subtitle">Órdenes activas para preparación</p>
-      </div>
-      <div class="kds-pills-container">
-        <div class="kds-pill pill-pendientes">
-          <span class="dot dot-pendientes"></span>
-          <span>{{ totalPendientes }} Pendientes</span>
-        </div>
-        <div class="kds-pill pill-proceso">
-          <span class="dot dot-proceso"></span>
-          <span>{{ totalEnProceso }} En Preparación</span>
-        </div>
-        <div class="kds-pill pill-listos">
-          <span class="dot dot-listos"></span>
-          <span>{{ totalListos }} Listos</span>
-        </div>
-      </div>
+  <div class="page-content kds">
+    <header class="kds__head">
+      <h1 class="kds__title">Cocina</h1>
+      <span class="kds__live" :class="`kds__live--${socket.estado.value}`">
+        <span class="kds__live-dot" />
+        {{
+          socket.estado.value === 'conectado'
+            ? 'En vivo'
+            : socket.estado.value === 'caido'
+              ? 'Sin conexión en vivo · actualizando cada 10 s'
+              : 'Conectando…'
+        }}
+      </span>
+      <q-btn
+        outline
+        :icon="enPantallaCompleta ? 'fullscreen_exit' : 'fullscreen'"
+        :label="enPantallaCompleta ? 'Salir de pantalla completa' : 'Pantalla completa'"
+        @click="alternarPantallaCompleta"
+      />
     </header>
 
-    <q-inner-loading :showing="loading">
+    <div v-if="error" class="kds__error"><q-icon name="cloud_off" size="19px" />{{ error }}</div>
+
+    <div v-if="!loading && comandasEnCocina.length === 0" class="kds__empty">
+      <StateBlock
+        variant="empty"
+        title="¡Cocina despejada!"
+        body="No hay pedidos pendientes por preparar."
+      />
+    </div>
+
+    <div v-else class="kds__board">
+      <section v-for="col in columnas" :key="col.key" class="kds-col">
+        <header class="kds-col__head">
+          <span class="kds-col__dot" :class="`kds-col__dot--${col.tono}`" />
+          <span class="kds-col__title">{{ col.titulo }}</span>
+          <span class="kds-col__count">{{ col.items.length }}</span>
+        </header>
+        <TransitionGroup name="card-list" tag="div" class="kds-col__list">
+          <ComandaCard
+            v-for="comanda in col.items"
+            :key="comanda.id"
+            :comanda="comanda"
+            @cambiar-estado="onCambiarEstado"
+            @ver-detalle="onVerDetalle"
+          />
+        </TransitionGroup>
+      </section>
+    </div>
+
+    <q-inner-loading :showing="loading && comandas.length === 0">
       <q-spinner size="40px" color="primary" />
     </q-inner-loading>
 
-    <q-banner v-if="error" class="bg-orange-1 text-orange-10 q-mb-lg" rounded>
-      {{ error }}
-    </q-banner>
-
-    <div v-if="!loading && comandasEnCocina.length === 0" class="empty-state">
-      <q-icon name="celebration" size="80px" color="grey-4" />
-      <div class="empty-title">¡Cocina despejada!</div>
-      <p class="empty-subtitle">No hay pedidos pendientes por preparar.</p>
-    </div>
-
-    <div v-else class="kds-grid">
-      <TransitionGroup name="card-list" tag="div" class="kds-grid-inner">
-        <ComandaCard
-          v-for="comanda in comandasEnCocina"
-          :key="comanda.id"
-          :comanda="comanda"
-          @cambiar-estado="onCambiarEstado"
-          @ver-detalle="onVerDetalle"
-        />
-      </TransitionGroup>
-    </div>
-
-    <!-- Componente siempre montado: la apertura/cierre (v-show) y el cambio de
-         comanda (cross-fade interno) se animan sin desmontar el DOM. -->
+    <!-- Siempre montado: la apertura/cierre y el cambio de comanda se animan
+         sin desmontar el DOM. -->
     <ComandaFullScreen
       :comanda="comandaSeleccionada"
       @close="cerrarDetalle"
@@ -65,6 +71,7 @@ import { useComandasSocket } from '@/composables/useComandasSocket'
 import type { Comanda, ComandaWsMessage, EstadoActualComanda } from '@/types/comanda'
 import ComandaCard from './ComandaCard.vue'
 import ComandaFullScreen from './ComandaFullScreen.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
 
 const POLLING_FALLBACK_MS = 10000
 
@@ -79,9 +86,37 @@ const comandaSeleccionadaId = ref<string | null>(null)
 const comandasEnCocina = computed(() =>
   comandas.value.filter((c) => ['P', 'E', 'L'].includes(c.estado_actual)),
 )
-const totalPendientes = computed(() => comandas.value.filter((c) => c.estado_actual === 'P').length)
-const totalEnProceso = computed(() => comandas.value.filter((c) => c.estado_actual === 'E').length)
-const totalListos = computed(() => comandas.value.filter((c) => c.estado_actual === 'L').length)
+
+const columnas = computed(() => [
+  {
+    key: 'P',
+    titulo: 'Nuevas',
+    tono: 'pink',
+    items: comandas.value.filter((c) => c.estado_actual === 'P'),
+  },
+  {
+    key: 'E',
+    titulo: 'En preparación',
+    tono: 'warn',
+    items: comandas.value.filter((c) => c.estado_actual === 'E'),
+  },
+  {
+    key: 'L',
+    titulo: 'Listas para entregar',
+    tono: 'ok',
+    items: comandas.value.filter((c) => c.estado_actual === 'L'),
+  },
+])
+
+// Pantalla completa del tablero (pensado para la pantalla de cocina).
+const enPantallaCompleta = ref(false)
+const onFullscreenChange = () => {
+  enPantallaCompleta.value = !!document.fullscreenElement
+}
+async function alternarPantallaCompleta() {
+  if (document.fullscreenElement) await document.exitFullscreen()
+  else await document.documentElement.requestFullscreen()
+}
 
 const comandaSeleccionada = computed(
   () => comandas.value.find((c) => c.id === comandaSeleccionadaId.value) ?? null,
@@ -215,9 +250,13 @@ watch(socket.estado, (estado) => {
   }
 })
 
-onMounted(() => void fetchComandas())
+onMounted(() => {
+  void fetchComandas()
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+})
 
 onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
   limpiarRequestActiva()
   if (fallbackIntervalId.value !== null) {
     window.clearInterval(fallbackIntervalId.value)
@@ -226,125 +265,146 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style lang="scss" scoped>
-.kds-layout {
-  background-color: var(--bg-main);
-  min-height: calc(100vh - 64px);
-  padding: 32px;
+<style scoped lang="scss">
+.kds {
+  position: relative;
   display: flex;
   flex-direction: column;
-  color: var(--text-primary);
-}
+  gap: 18px;
+  min-height: calc(100vh - var(--header-height));
 
-.kds-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  flex-shrink: 0;
-}
-.kds-title {
-  font-size: 32px;
-  font-weight: 700;
-  margin: 0;
-}
-.kds-subtitle {
-  font-size: 16px;
-  color: var(--text-secondary);
-  margin: 4px 0 0 0;
-}
-
-.kds-pills-container {
-  display: flex;
-  gap: 16px;
-}
-.kds-pill {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 24px;
-  border-radius: 9999px;
-  font-size: 20px;
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.pill-pendientes {
-  background-color: var(--bg-card);
-  color: var(--text-primary);
-}
-.dot-pendientes {
-  background-color: var(--text-muted);
-}
-.pill-proceso {
-  background-color: rgba(255, 193, 7, 0.16);
-  color: #b45309;
-}
-.dot-proceso {
-  background-color: #ffc107;
-}
-.pill-listos {
-  background-color: rgba(63, 168, 52, 0.16);
-  color: #2f7d27;
-}
-.dot-listos {
-  background-color: #3fa834;
-}
-
-.kds-grid {
-  flex: 1;
-}
-.kds-grid-inner {
-  display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: 24px;
-  align-items: start;
-
-  @media (min-width: 1024px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
   }
-  @media (min-width: 1440px) {
+
+  &__title {
+    flex: 1;
+    margin: 0;
+    font-size: 26px;
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+  }
+
+  &__live {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+
+    &--caido .kds__live-dot {
+      background: var(--tone-warn-dot);
+    }
+
+    &--conectando .kds__live-dot,
+    &--reconectando .kds__live-dot {
+      background: var(--text-muted);
+    }
+  }
+
+  &__live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--tone-ok-dot);
+  }
+
+  &__error {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--tone-warn-bg);
+    color: var(--tone-warn-fg);
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+
+  &__empty {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+  }
+
+  &__board {
+    display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    align-items: start;
+
+    @media (max-width: 900px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 }
 
-.card-list-enter-active {
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+.kds-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+
+    &--pink {
+      background: var(--q-secondary);
+    }
+    &--warn {
+      background: var(--tone-warn-dot);
+    }
+    &--ok {
+      background: var(--tone-ok-dot);
+    }
+  }
+
+  &__title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__count {
+    min-width: 22px;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 10px;
+    background: #eef1f5;
+    color: var(--text-body);
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 }
+
+.card-list-enter-active,
 .card-list-leave-active {
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s ease;
 }
-.card-list-enter-from {
-  opacity: 0;
-  transform: translateY(20px) scale(0.97);
-}
+
+.card-list-enter-from,
 .card-list-leave-to {
   opacity: 0;
-  transform: scale(0.92);
-}
-.card-list-move {
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.empty-state {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
-.empty-title {
-  font-size: 24px;
-  font-weight: 700;
-  margin-top: 16px;
-}
-.empty-subtitle {
-  color: var(--text-muted);
-  margin-top: 4px;
+  transform: translateY(8px);
 }
 </style>

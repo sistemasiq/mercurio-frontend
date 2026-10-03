@@ -6,7 +6,7 @@ import type {
   InsumoRecetaInversa,
   InsumoUpdate,
 } from '@/types/insumo'
-import type { CogsRenglon } from '@/types/movimientoInventario'
+import type { CogsRenglon, ResumenCogs } from '@/types/movimientoInventario'
 
 export const insumosApi = {
   async listar(sucursalId: string): Promise<Insumo[]> {
@@ -35,6 +35,34 @@ export const insumosApi = {
       params: { sucursal_id: sucursalId, desde, hasta },
     })
     return data
+  },
+
+  async resumenCogs(sucursalId: string, desde?: string, hasta?: string): Promise<ResumenCogs> {
+    const { data } = await apiClient.get('/insumos/reporte-cogs/resumen', {
+      params: { sucursal_id: sucursalId, desde, hasta },
+    })
+    return {
+      ventasTotales: Number(data.ventas_totales),
+      costoVentas: Number(data.costo_ventas),
+      margen: Number(data.margen),
+      merma: Number(data.merma),
+    }
+  },
+
+  async exportarStock(sucursalId: string): Promise<Blob> {
+    const { data } = await apiClient.get('/insumos/export', {
+      params: { sucursal_id: sucursalId },
+      responseType: 'blob',
+    })
+    return data as Blob
+  },
+
+  async exportarCogs(sucursalId: string, desde?: string, hasta?: string): Promise<Blob> {
+    const { data } = await apiClient.get('/insumos/reporte-cogs/export', {
+      params: { sucursal_id: sucursalId, desde, hasta },
+      responseType: 'blob',
+    })
+    return data as Blob
   },
 
   async obtener(insumoId: string): Promise<Insumo> {

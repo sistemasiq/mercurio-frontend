@@ -8,10 +8,13 @@ export interface PaymentProps {
 export interface AppliedPayment {
   id: string
   method: string
+  /** En efectivo es lo entregado por el cliente; el cambio se emite aparte. */
   amount: number
   timestamp: Date
   cardType?: 'DEBITO' | 'CREDITO'
   authCode?: string
+  /** Últimos 4 dígitos de la tarjeta, opcionales (B9 B.1). */
+  ultimos4?: string
 }
 
 // ── Tipos para el endpoint POST /api/pagos/completar ────────────────────────
@@ -20,10 +23,13 @@ export interface PaymentItemRequest {
   metodo_pago_id: string
   monto: number
   notas_pago?: string
+  ultimos4?: string
 }
 
 export interface PagoCompletoRequest {
-  ticket_numero: string
+  // QA #21: el backend asigna el folio secuencial por sucursal; ya no lo
+  // genera el front. Se mantiene opcional solo como fallback de compatibilidad.
+  ticket_numero?: string
   total_final: number
   detalles_comanda: DetalleComandaRequest[]
   notas_generales?: string
@@ -32,4 +38,5 @@ export interface PagoCompletoRequest {
   puntos_a_redimir?: number
   cambio?: number
   nombre_cliente?: string
+  mesa?: string
 }

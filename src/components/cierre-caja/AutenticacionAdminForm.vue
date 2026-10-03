@@ -1,120 +1,62 @@
 <template>
-  <q-dialog
+  <BaseDialog
     v-model="turno.mostrarDialogAdmin"
+    title="Autorización de administrador"
+    subtitle="Se requiere para revisar el balance y cerrar el turno"
+    icon="admin_panel_settings"
+    :width="460"
     persistent
-    transition-show="scale"
-    transition-hide="scale"
+    primary-label="Autorizar"
+    :loading="turno.credencialesAdmin.cargando"
+    :primary-disabled="!turno.credencialesAdmin.email || !turno.credencialesAdmin.password"
+    @cancel="turno.cancelarConteo()"
+    @confirm="intentarAutenticar"
   >
-    <div class="rs-dialog">
-      <!-- ── Header ── -->
-      <div class="rs-dialog-header">
-        <span class="rs-dialog-title">Acceso de Administrador</span>
-        <button
-          type="button"
-          class="rs-close-btn"
-          :disabled="turno.credencialesAdmin.cargando"
-          @click="turno.cancelarConteo()"
-        >
-          <q-icon name="close" size="20px" />
-        </button>
-      </div>
-
-      <!-- ── Formulario ── -->
-      <div class="rs-dialog-body">
-        <!-- Usuario -->
-        <div class="rs-field-group">
-          <label class="rs-field-label">Usuario o Email</label>
-          <input
-            v-model="turno.credencialesAdmin.email"
-            type="email"
-            class="rs-input"
-            :class="{ 'rs-input--focused': emailFocused }"
-            placeholder="Ej. admin_01"
-            autocomplete="username"
-            :disabled="turno.credencialesAdmin.cargando"
-            @focus="emailFocused = true"
-            @blur="emailFocused = false"
-            @input="turno.credencialesAdmin.error = ''"
-            @keyup.enter="intentarAutenticar"
-          />
-        </div>
-
-        <!-- Contraseña -->
-        <div class="rs-field-group">
-          <label class="rs-field-label">Contraseña</label>
-          <input
-            v-model="turno.credencialesAdmin.password"
-            type="password"
-            class="rs-input"
-            :class="{ 'rs-input--focused': passFocused }"
-            placeholder="••••••••"
-            autocomplete="current-password"
-            :disabled="turno.credencialesAdmin.cargando"
-            @focus="passFocused = true"
-            @blur="passFocused = false"
-            @input="turno.credencialesAdmin.error = ''"
-            @keyup.enter="intentarAutenticar"
-          />
-        </div>
-
-        <!-- Error de credenciales (Aviso en caja roja dentro del modal) -->
-        <q-banner
-          v-if="turno.credencialesAdmin.error"
-          rounded
+    <div class="admin-form">
+      <label class="admin-form__field">
+        <span class="field-label">Administrador</span>
+        <q-input
+          v-model="turno.credencialesAdmin.email"
+          type="email"
+          outlined
           dense
-          class="bg-negative text-white q-mt-sm"
-        >
-          <template #avatar>
-            <q-icon name="error" color="white" size="20px" />
-          </template>
-          <div><strong>Credenciales incorrectas:</strong> {{ turno.credencialesAdmin.error }}</div>
-        </q-banner>
-      </div>
-
-      <!-- ── Acciones ── -->
-      <div class="rs-dialog-footer">
-        <button
-          type="button"
-          class="rs-btn-cancel"
-          :disabled="turno.credencialesAdmin.cargando"
-          @click="turno.cancelarConteo()"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          class="rs-btn-login"
-          :disabled="
-            !turno.credencialesAdmin.email ||
-            !turno.credencialesAdmin.password ||
-            turno.credencialesAdmin.cargando
-          "
-          @click="intentarAutenticar"
-        >
-          <q-spinner-dots
-            v-if="turno.credencialesAdmin.cargando"
-            size="18px"
-            color="white"
-            class="q-mr-xs"
-          />
-          <q-icon v-else name="login" size="18px" color="white" class="q-mr-xs" />
-          Ingresar al Panel
-        </button>
+          placeholder="correo@woowkids.mx"
+          autocomplete="username"
+          autofocus
+          :disable="turno.credencialesAdmin.cargando"
+          @update:model-value="turno.credencialesAdmin.error = ''"
+          @keyup.enter="intentarAutenticar"
+        />
+      </label>
+      <label class="admin-form__field">
+        <span class="field-label">Contraseña</span>
+        <q-input
+          v-model="turno.credencialesAdmin.password"
+          type="password"
+          outlined
+          dense
+          placeholder="••••••••"
+          autocomplete="current-password"
+          :disable="turno.credencialesAdmin.cargando"
+          @update:model-value="turno.credencialesAdmin.error = ''"
+          @keyup.enter="intentarAutenticar"
+        />
+      </label>
+      <div v-if="turno.credencialesAdmin.error" class="admin-form__error" role="alert">
+        <q-icon name="error" size="19px" />{{ turno.credencialesAdmin.error }}
       </div>
     </div>
-  </q-dialog>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted } from 'vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 
 const $q = useQuasar()
 const turno = useTurnoCajaStore()
-
-const emailFocused = ref(false)
-const passFocused = ref(false)
 
 onMounted(() => {
   turno.credencialesAdmin.email = ''
@@ -156,149 +98,26 @@ async function intentarAutenticar() {
 }
 </script>
 
-<style scoped>
-/* ── Dialog card ────────────────────────────────────────────────────── */
-.rs-dialog {
-  width: 420px;
-  max-width: 95vw;
-  background: var(--bg-card);
-  border-radius: 12px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-/* ── Header ─────────────────────────────────────────────────────────── */
-.rs-dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-card);
-}
-.rs-dialog-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.rs-close-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  padding: 4px;
-  border-radius: 6px;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease;
-}
-.rs-close-btn:hover {
-  color: var(--text-primary);
-  background: var(--bg-main);
-}
-.rs-close-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* ── Body ───────────────────────────────────────────────────────────── */
-.rs-dialog-body {
-  padding: 20px 20px 4px;
-  background: var(--bg-main);
+<style scoped lang="scss">
+.admin-form {
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
 
-/* ── Campos ─────────────────────────────────────────────────────────── */
-.rs-field-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.rs-field-label {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
-}
-.rs-input {
-  width: 100%;
-  padding: 10px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--text-primary);
-  outline: none;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-  box-sizing: border-box;
-}
-.rs-input::placeholder {
-  color: var(--text-muted);
-}
-.rs-input:focus,
-.rs-input--focused {
-  border-color: #025fe0;
-  box-shadow: 0 0 0 2px rgba(2, 95, 224, 0.1);
-}
-.rs-input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+  &__field {
+    display: flex;
+    flex-direction: column;
+  }
 
-/* ── Footer ─────────────────────────────────────────────────────────── */
-.rs-dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 20px;
-  background: var(--bg-card);
-  border-top: 1px solid var(--border-color);
-}
-.rs-btn-cancel {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: background 0.15s ease;
-}
-.rs-btn-cancel:hover {
-  background: var(--bg-main);
-}
-.rs-btn-cancel:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.rs-btn-login {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #025fe0;
-  color: var(--bg-card);
-  border: none;
-  border-radius: 8px;
-  padding: 9px 20px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.rs-btn-login:hover:not(:disabled) {
-  background: #0350c4;
-}
-.rs-btn-login:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+  &__error {
+    display: flex;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tone-bad-bg);
+    color: var(--tone-bad-fg);
+    font-size: 13px;
+    font-weight: 600;
+  }
 }
 </style>

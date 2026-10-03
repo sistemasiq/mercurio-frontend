@@ -5,6 +5,8 @@ import { useTurnoCajaStore } from './turnoCaja'
 import { turnoCajaService } from '@/services/turnoCajaService'
 
 vi.mock('@/services/turnoCajaService', () => ({
+  // El store distingue el 404 con `instanceof TurnoNoEncontradoError`.
+  TurnoNoEncontradoError: class TurnoNoEncontradoError extends Error {},
   turnoCajaService: {
     registrarIngreso: vi.fn(),
     cargarTurnoActivo: vi.fn(),

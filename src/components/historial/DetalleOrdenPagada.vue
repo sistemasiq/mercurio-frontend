@@ -1,6 +1,6 @@
 <!-- src/components/historial/DetalleOrdenPagada.vue -->
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
 import { obtenerDetalleOrden } from '@/services/historialService'
 import type { DetalleOrden } from '@/api/historialApi'
@@ -19,7 +19,6 @@ const props = withDefaults(
 const emit = defineEmits(['close'])
 
 const $q = useQuasar()
-// El comprobante se imprime mediante el diálogo del navegador.
 
 const isLoading = ref(true)
 const orden = ref<DetalleOrden | null>(null)
@@ -55,6 +54,33 @@ onBeforeUnmount(() => {
   document.body.style.overflow = ''
 })
 
+const esCancelado = computed(() => {
+  const estado = orden.value?.estado_actual
+  if (!estado) return false
+  if (orden.value?.tipo_origen === 'reservacion') return estado === 'cancelada'
+  return estado === 'C'
+})
+
+const referenciaLabel = computed(() =>
+  orden.value?.tipo_origen === 'comanda' ? 'TICKET' : 'CLIENTE',
+)
+
+const puntosGanados = computed(() => orden.value?.puntos_ganados ?? null)
+
+const ultimos4PorMetodo = computed(() => orden.value?.metodos_pago.filter((m) => m.ultimos4) ?? [])
+
+function formatearFecha(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 async function ejecutarImpresion() {
   if (!orden.value || isPrinting.value) return
   isPrinting.value = true
@@ -73,131 +99,210 @@ async function ejecutarImpresion() {
 
 <template>
   <div :class="posMode ? 'ticket-pos-root' : 'modal-backdrop-blur'" @click="onBackdropClick">
-    <div class="order-detail-card" @click.stop>
-      <!-- Header de la ventana (Oculto al imprimir) -->
-      <header class="pos-header print-hide">
-        <span v-if="orden" class="pos-header__title">Pago Registrado</span>
-        <q-btn icon="close" round unelevated class="close-styled-btn" @click="emit('close')" />
-      </header>
+    <div class="receipt-card" role="dialog" aria-modal="true" @click.stop>
+      <button
+        v-if="!posMode"
+        type="button"
+        class="receipt-card__close"
+        aria-label="Cerrar detalle de orden"
+        @click="emit('close')"
+      >
+        <q-icon name="close" size="22px" />
+      </button>
 
-      <div class="detail-scroll-area">
-        <div class="detail-content">
-          <div v-if="isLoading" class="loading-state print-hide">
-            <q-spinner size="32px" color="primary" />
-            <p>Cargando detalle...</p>
-          </div>
-
-          <!-- TICKET TÉRMICO — ancho dinámico 58/80mm unificado con PDF -->
-          <TicketReceipt v-else-if="orden" ref="ticketRef" :orden="orden" :ancho-mm="80" />
-
-          <!-- Botones de Acción (Ocultos al imprimir) -->
-          <div v-if="orden" class="pos-actions print-hide">
-            <button
-              type="button"
-              class="btn-pos-print"
-              :disabled="isPrinting"
-              @click="ejecutarImpresion()"
-            >
-              <q-icon name="print" size="sm" class="q-mr-xs" />
-              {{ isPrinting ? 'Imprimiendo...' : 'Imprimir Ticket' }}
-            </button>
-            <button type="button" class="btn-pos-close" @click="emit('close')">Cerrar</button>
-          </div>
-        </div>
+      <div v-if="isLoading" class="receipt-card__loading">
+        <q-spinner size="32px" color="primary" />
+        <span>Cargando detalle…</span>
       </div>
+
+      <template v-else-if="orden">
+        <div class="receipt-card__hero">
+          <span class="receipt-card__icon" :class="{ 'receipt-card__icon--bad': esCancelado }">
+            <q-icon :name="esCancelado ? 'block' : 'check'" size="28px" />
+          </span>
+          <span class="receipt-card__title">
+            {{ esCancelado ? 'Orden cancelada' : posMode ? 'Pago registrado' : 'Detalle de orden' }}
+          </span>
+          <span class="receipt-card__subtitle">
+            {{ referenciaLabel === 'TICKET' ? 'Pedido' : 'Cliente' }} {{ orden.titulo }} ·
+            {{ formatearFecha(orden.fecha_hora) }}
+            <template v-if="orden.mesa"> · Mesa {{ orden.mesa }}</template>
+          </span>
+        </div>
+
+        <div v-if="esCancelado" class="receipt-card__cancel">
+          <q-icon name="warning" size="19px" />
+          <span>{{ orden.motivo_cancelacion || 'Cancelación sin motivo especificado' }}</span>
+        </div>
+
+        <!-- Info en pantalla únicamente (B9 B.1/B.3): no forma parte del ticket
+             térmico impreso, que no se toca. -->
+        <div v-if="puntosGanados !== null" class="receipt-card__info">
+          <q-icon name="stars" size="18px" />
+          Puntos ganados: {{ puntosGanados }}
+        </div>
+        <div v-if="ultimos4PorMetodo.length" class="receipt-card__info">
+          <q-icon name="credit_card" size="18px" />
+          <span v-for="(m, idx) in ultimos4PorMetodo" :key="idx">
+            {{ m.metodo_pago_nombre }} terminada en {{ m.ultimos4
+            }}<template v-if="idx < ultimos4PorMetodo.length - 1">, </template>
+          </span>
+        </div>
+
+        <!-- TICKET TÉRMICO — ancho dinámico 58/80mm, impresión universal -->
+        <TicketReceipt ref="ticketRef" :orden="orden" :ancho-mm="80" />
+
+        <div class="receipt-card__actions">
+          <q-btn
+            outline
+            icon="print"
+            :label="isPrinting ? 'Imprimiendo…' : 'Imprimir'"
+            :loading="isPrinting"
+            @click="ejecutarImpresion()"
+          />
+          <q-btn
+            unelevated
+            color="primary"
+            :label="posMode ? 'Nuevo pedido' : 'Cerrar'"
+            @click="emit('close')"
+          />
+        </div>
+      </template>
     </div>
   </div>
 </template>
 
-<style scoped>
-/* ── UI Del Modal ── */
-.modal-backdrop-blur {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(4px);
-  z-index: 4000;
-}
-.order-detail-card {
-  max-width: 450px;
-  width: 100%;
-  max-height: 90vh;
-  background-color: #f8fafc;
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+<style scoped lang="scss">
+.modal-backdrop-blur,
 .ticket-pos-root {
-  width: 100%;
-  height: 100%;
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
   display: flex;
-  flex-direction: column;
-}
-.ticket-pos-root .order-detail-card {
-  max-width: 450px;
-  margin: 0 auto;
-  border-radius: 16px;
-  flex: 1;
-}
-.pos-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 14px 20px;
-  background-color: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-}
-.pos-header__title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #0f172a;
-}
-.detail-scroll-area {
-  flex: 1;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(11, 20, 80, 0.32);
   overflow-y: auto;
 }
-.detail-content {
-  padding: 20px;
-}
-.loading-state {
+
+.receipt-card {
+  position: relative;
+  width: 400px;
+  max-width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: var(--shadow-dialog);
+  padding: 28px 24px 24px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 40px 0;
-  color: #64748b;
-}
-.pos-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
-.btn-pos-print,
-.btn-pos-close {
-  flex: 1;
-  height: 44px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  font-size: 14px;
-}
-.btn-pos-print {
-  background: transparent;
-  border: 1px solid #0059bb;
-  color: #0059bb;
-}
-.btn-pos-close {
-  background: #0059bb;
-  border: none;
-  color: white;
+  gap: 18px;
+
+  &__close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bg-muted);
+    }
+  }
+
+  &__loading {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+  }
+
+  &__hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+  }
+
+  &__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+    margin-bottom: 6px;
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &--bad {
+      background: var(--tone-bad-bg);
+      color: var(--tone-bad-fg);
+    }
+  }
+
+  &__title {
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  &__cancel {
+    display: flex;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tone-bad-bg);
+    color: var(--tone-bad-fg);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  &__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+
+    :deep(.q-btn) {
+      min-height: 46px;
+    }
+  }
+
+  :deep(.ticket-receipt) {
+    margin: 0 auto;
+  }
 }
 </style>

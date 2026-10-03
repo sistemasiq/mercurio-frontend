@@ -3,11 +3,17 @@ export interface SucursalTutor {
   nombre: string
 }
 
+export interface LealtadTutor {
+  saldo: number
+  por_vencer: number
+}
+
 export interface Tutor {
   id: string
   nombreCompleto: string
   telefono: string
   sucursal: SucursalTutor
+  lealtad?: LealtadTutor | null
 }
 
 export interface NinoActivo {
@@ -20,6 +26,12 @@ export interface NinoActivo {
   minutosTranscurridos: number
   minutosPagados: number
   pulsera: string
+  // Solo si la visita sigue activa: excedente estimado en este momento.
+  cargoExtra?: number
+  // Solo si la visita ya terminó: lo que costó la estancia y los puntos de
+  // lealtad otorgados (por el registro completo, no por niño).
+  importe?: number | null
+  puntosGanados?: number | null
 }
 
 export interface PadreDashboardResponse {
@@ -27,6 +39,12 @@ export interface PadreDashboardResponse {
   token_type: string
   expires_in: number
   tutor: Tutor
+  ninosActivos: NinoActivo[]
+}
+
+// QA #31: respuesta del polling autenticado (GET /padres/ninos-activos con
+// el token de la sesión), sin volver a mandar el código.
+export interface PadreNinosActivosResponse {
   ninosActivos: NinoActivo[]
 }
 

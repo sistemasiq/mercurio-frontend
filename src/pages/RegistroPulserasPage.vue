@@ -1,323 +1,174 @@
 <template>
-  <q-page class="page-bg q-pa-md q-pa-lg-lg">
-    <!-- Sin sucursal activa -->
-    <q-banner
-      v-if="!authStore.currentBranchId"
-      dense
-      rounded
-      class="bg-orange-1 text-orange-9 q-mb-md"
-      style="border-radius: 10px; max-width: 1100px; margin: 0 auto 16px"
-    >
-      <template #avatar><q-icon name="info" color="orange-9" /></template>
+  <q-page class="page-content list-page">
+    <PageHeader
+      title="Registro de pulseras"
+      subtitle="Escanea pulseras nuevas una por una con el lector."
+      back-label="Pulseras"
+      :back-to="{ name: 'estancias-pulseras' }"
+    />
+
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />
       No hay una sucursal activa en la sesión. Activa una sucursal para continuar.
-    </q-banner>
-
-    <div class="rp-layout">
-      <!-- ── Panel izquierdo ─────────────────────────────────────────────────── -->
-      <div class="rp-left">
-        <div class="rp-card">
-          <!-- Encabezado -->
-          <div class="rp-card__header">
-            <div class="rp-title">Registro de Nueva Pulsera – Escaneo</div>
-            <div class="rp-desc">
-              Conecte su escáner de código de barras para el registro masivo en el inventario
-              central.
-            </div>
-          </div>
-
-          <!-- Campos globales de lote -->
-          <div class="rp-global-fields">
-            <div class="rp-field-group">
-              <div class="field-label">Número de Lote</div>
-              <q-input
-                v-model="store.numeroDeLote"
-                outlined
-                dense
-                placeholder="ej. LOT-2023-04"
-                :disable="!authStore.currentBranchId"
-                @blur="enfocarEscaneo"
-              />
-            </div>
-            <div
-              v-if="!store.formularioHabilitado && authStore.currentBranchId"
-              class="rp-hint-lote"
-            >
-              Ingrese un número de lote para habilitar el registro de pulseras.
-            </div>
-          </div>
-
-          <!-- Sección "Registrar Pulsera" -->
-          <div class="rp-section">
-            <div class="rp-section__title">Registrar Pulsera</div>
-            <div class="rp-section__desc">
-              Escanee el código de barras de la pulsera con el lector HID. El campo capturará
-              automáticamente la entrada del escáner.
-            </div>
-          </div>
-
-          <!-- Campo de escaneo -->
-          <div class="rp-scan-block">
-            <div class="field-label field-label--primary">
-              <q-icon name="barcode_reader" size="14px" class="q-mr-xs" />
-              ID de Pulsera (Esperando Escaneo)
-            </div>
-            <div class="rp-scan-input-wrapper">
-              <q-input
-                ref="scanInputRef"
-                v-model="inputEscaneo"
-                outlined
-                dense
-                placeholder="Ej. WK-0000001"
-                maxlength="10"
-                counter
-                :disable="!store.formularioHabilitado || store.enviando"
-                @keydown.enter.prevent="handleScanEnter"
-              >
-                <template #append>
-                  <span v-if="store.formularioHabilitado" class="rp-listening-badge">
-                    <span class="rp-listening-dot" />
-                    LISTENING
-                  </span>
-                </template>
-              </q-input>
-            </div>
-            <div class="rp-scan-hint">
-              El sistema detecta automáticamente la entrada de escáneres HID.
-            </div>
-          </div>
-
-          <!-- Escaneos recientes -->
-          <div v-if="store.escaneos.length > 0" class="rp-recent">
-            <div class="rp-recent__header">
-              <q-icon name="history" size="16px" class="q-mr-xs" />
-              Escaneos Recientes (Esta Sesión)
-            </div>
-            <q-separator class="q-my-sm" />
-            <div class="rp-recent__list">
-              <div
-                v-for="(item, i) in store.escaneos"
-                :key="i"
-                class="rp-scan-item"
-                :class="{ 'rp-scan-item--error': item.estado === 'error' }"
-              >
-                <q-icon
-                  :name="
-                    item.estado === 'success'
-                      ? 'check_circle'
-                      : item.estado === 'error'
-                        ? 'cancel'
-                        : 'schedule'
-                  "
-                  :color="
-                    item.estado === 'success'
-                      ? 'positive'
-                      : item.estado === 'error'
-                        ? 'negative'
-                        : 'grey-5'
-                  "
-                  size="20px"
-                />
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="delete_outline"
-                  color="red"
-                  size="md"
-                  @click="pedirConfirmacionEliminar(item.codigo, i)"
-                />
-                <span class="rp-scan-item__code">{{ item.codigo }}</span>
-                <span v-if="item.mensaje" class="rp-scan-item__msg">{{ item.mensaje }}</span>
-                <q-badge
-                  :color="
-                    item.estado === 'success'
-                      ? 'positive'
-                      : item.estado === 'error'
-                        ? 'negative'
-                        : 'grey-5'
-                  "
-                  :label="
-                    item.estado === 'success'
-                      ? 'SUCCESS'
-                      : item.estado === 'error'
-                        ? 'ERROR'
-                        : 'PENDIENTE'
-                  "
-                  class="rp-scan-badge"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Panel derecho ───────────────────────────────────────────────────── -->
-      <div class="rp-right">
-        <!-- Card azul: Apunta y Escanea -->
-        <div class="rp-card-blue">
-          <div class="rp-card-blue__icon-wrap">
-            <q-icon name="barcode_reader" size="56px" color="white" class="rp-card-blue__barcode" />
-            <div class="rp-card-blue__icon-badge">
-              <q-icon name="qr_code_scanner" size="28px" color="white" />
-            </div>
-          </div>
-          <div class="rp-card-blue__title">Apunta y Escanea</div>
-          <div class="rp-card-blue__desc">
-            Simplemente apunta el laser al código de la pulsera y apriete el gatillo para registrar
-            al instante.
-          </div>
-        </div>
-
-        <!-- Card tips: Consejos de Registro -->
-        <div class="rp-card-tips">
-          <div class="rp-tips__header">
-            <q-icon name="lightbulb_outline" size="20px" color="primary" />
-            <span>Consejos de Registro</span>
-          </div>
-
-          <div class="rp-tips__list">
-            <div class="rp-tip">
-              <span class="rp-tip__num">1</span>
-              <span>
-                Compruebe que la impresión sea clara. Si falla, introduzca el número manualmente.
-              </span>
-            </div>
-            <div class="rp-tip">
-              <span class="rp-tip__num">2</span>
-              <span>
-                Un pitido suave confirmará que el escaneo ha sido capturado correctamente.
-              </span>
-            </div>
-            <div class="rp-tip">
-              <span class="rp-tip__num">3</span>
-              <span>
-                Use "Finalizar Registro" para generar un reporte de actualización del inventario.
-              </span>
-            </div>
-          </div>
-
-          <q-separator class="q-my-md" />
-
-          <!-- Botones Finalizar y Cancelar -->
-          <div class="rp-tips__actions">
-            <q-btn
-              unelevated
-              no-caps
-              color="warning"
-              label="Finalizar Registro"
-              :disable="
-                !store.formularioHabilitado || store.totalPendientes === 0 || store.enviando
-              "
-              :loading="store.enviando"
-              style="border-radius: 8px; font-weight: 600; flex: 1"
-              @click="mostrarModalFinalizar = true"
-            />
-            <q-btn
-              flat
-              no-caps
-              color="grey-7"
-              label="Cancelar"
-              style="border-radius: 8px; font-weight: 600"
-              @click="mostrarModalCancelar = true"
-            />
-          </div>
-        </div>
-      </div>
     </div>
 
-    <!-- ── Modal Eliminar Escaneo ───────────────────────────────────────────── -->
-    <q-dialog v-model="mostrarModalEliminar" backdrop-filter="blur(3px) brightness(0.6)">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="row items-center q-gutter-sm q-mb-xs">
-            <q-icon name="delete_outline" color="negative" size="28px" />
-            <span class="text-h6 text-weight-bold">Eliminar registro</span>
-          </div>
-          <div class="text-body2 text-grey-8">
-            ¿Quieres eliminar el registro de la pulsera
-            <strong>{{ codigoAEliminar }}</strong
-            >?
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="negative"
-            label="Sí, eliminar"
-            style="border-radius: 8px; font-weight: 600"
-            @click="confirmarEliminar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <section class="scan-card">
+      <header class="scan-card__head">
+        <span class="scan-card__icon"><q-icon name="sensors" size="22px" /></span>
+        <div class="scan-card__titles">
+          <h2 class="scan-card__title">Registro de pulseras</h2>
+          <span class="scan-card__subtitle">Escanea pulseras nuevas una por una</span>
+        </div>
+      </header>
 
-    <!-- ── Modal Finalizar Registro ──────────────────────────────────────────── -->
-    <q-dialog v-model="mostrarModalFinalizar" backdrop-filter="blur(3px) brightness(0.6)">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="row items-center q-gutter-sm q-mb-xs">
-            <q-icon name="check_circle" color="positive" size="28px" />
-            <span class="text-h6 text-weight-bold">Finalizar Registro</span>
-          </div>
-          <div class="text-body2 text-grey-8">
-            Se enviarán
-            <strong>{{ store.totalPendientes }} pulsera(s)</strong>
-            <span v-if="store.numeroDeLote">
-              del lote <strong>{{ store.numeroDeLote }}</strong></span
+      <div class="scan-card__body">
+        <div class="scan-card__fields">
+          <label class="scan-card__field">
+            <span class="field-label">Número de lote</span>
+            <q-input
+              v-model="store.numeroDeLote"
+              outlined
+              dense
+              placeholder="ej. LOT-2026-04"
+              :disable="!authStore.currentBranchId"
+              @blur="enfocarEscaneo"
+            />
+          </label>
+          <label class="scan-card__field">
+            <span class="field-label">ID de pulsera</span>
+            <q-input
+              ref="scanInputRef"
+              v-model="inputEscaneo"
+              outlined
+              dense
+              placeholder="Ej. WK-0000001"
+              maxlength="10"
+              counter
+              :disable="!store.formularioHabilitado || store.enviando"
+              @keydown.enter.prevent="handleScanEnter"
             >
-            al sistema. ¿Deseas finalizar la sesión de registro?
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn v-close-popup flat no-caps label="Volver" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="positive"
-            label="Sí, finalizar"
-            style="border-radius: 8px; font-weight: 600"
-            @click="confirmarFinalizar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+              <template #append>
+                <span v-if="store.formularioHabilitado" class="scan-card__live">
+                  <span class="scan-card__live-dot" />Escuchando
+                </span>
+              </template>
+            </q-input>
+          </label>
+        </div>
+        <p v-if="!store.formularioHabilitado && authStore.currentBranchId" class="scan-card__hint">
+          Ingresa un número de lote para habilitar el registro de pulseras.
+        </p>
 
-    <!-- ── Modal Cancelar ────────────────────────────────────────────────────── -->
-    <q-dialog v-model="mostrarModalCancelar" backdrop-filter="blur(3px) brightness(0.6)">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="row items-center q-gutter-sm q-mb-xs">
-            <q-icon name="warning" color="warning" size="28px" />
-            <span class="text-h6 text-weight-bold">Cancelar Sesión</span>
+        <div class="scan-card__table">
+          <div class="scan-card__row scan-card__row--head">
+            <span>Escaneadas ({{ store.escaneos.length }})</span><span>Estado</span>
           </div>
-          <div class="text-body2 text-grey-8">
-            <span v-if="store.escaneos.length > 0">
-              Las <strong>{{ store.escaneos.length }} pulsera(s)</strong> escaneadas aún no han sido
-              guardadas y se perderán.
-            </span>
-            <span v-else>No se ha escaneado ninguna pulsera en esta sesión.</span>
-            ¿Deseas continuar?
+          <div v-if="!store.escaneos.length" class="scan-card__empty">
+            Aún no hay pulseras escaneadas en esta sesión.
           </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn v-close-popup flat no-caps label="Volver" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="negative"
-            label="Sí, salir"
-            style="border-radius: 8px; font-weight: 600"
-            @click="confirmarCancelar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+          <div v-for="(item, i) in store.escaneos" :key="i" class="scan-card__row">
+            <div class="scan-card__code">
+              <span>{{ item.codigo }}</span>
+              <span v-if="item.mensaje" class="scan-card__msg">{{ item.mensaje }}</span>
+            </div>
+            <div class="scan-card__status">
+              <StatusBadge
+                :tone="item.estado === 'success' ? 'ok' : item.estado === 'error' ? 'bad' : 'off'"
+                :label="
+                  item.estado === 'success'
+                    ? 'Leída'
+                    : item.estado === 'error'
+                      ? 'Error'
+                      : 'Pendiente'
+                "
+              />
+              <q-btn
+                flat
+                round
+                dense
+                icon="delete"
+                class="action-btn"
+                aria-label="Quitar"
+                @click="pedirConfirmacionEliminar(item.codigo, i)"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="scan-card__callout">
+          <q-icon name="info" size="19px" />
+          {{
+            store.formularioHabilitado
+              ? 'Acerca la siguiente pulsera al lector…'
+              : 'El lector se habilita al capturar el número de lote.'
+          }}
+        </div>
+      </div>
+
+      <footer class="scan-card__foot">
+        <q-btn outline label="Cancelar" @click="mostrarModalCancelar = true" />
+        <q-btn
+          unelevated
+          color="primary"
+          label="Finalizar registro"
+          :disable="!store.formularioHabilitado || store.totalPendientes === 0 || store.enviando"
+          :loading="store.enviando"
+          @click="mostrarModalFinalizar = true"
+        />
+      </footer>
+    </section>
+
+    <BaseDialog
+      v-model="mostrarModalEliminar"
+      title="Quitar pulsera"
+      :subtitle="codigoAEliminar"
+      icon="delete"
+      tone="red"
+      :width="440"
+      primary-label="Sí, quitar"
+      danger
+      @confirm="confirmarEliminar"
+    >
+      Se quitará esta pulsera de la sesión de registro.
+    </BaseDialog>
+
+    <BaseDialog
+      v-model="mostrarModalFinalizar"
+      title="Finalizar registro"
+      :subtitle="store.numeroDeLote ? `Lote ${store.numeroDeLote}` : undefined"
+      icon="task_alt"
+      tone="green"
+      :width="440"
+      secondary-label="Volver"
+      primary-label="Sí, finalizar"
+      @confirm="confirmarFinalizar"
+    >
+      Se enviarán {{ store.totalPendientes }} pulsera(s) al sistema.
+    </BaseDialog>
+
+    <BaseDialog
+      v-model="mostrarModalCancelar"
+      title="Cancelar sesión"
+      icon="warning"
+      tone="amber"
+      :width="440"
+      secondary-label="Volver"
+      primary-label="Sí, salir"
+      danger
+      @confirm="confirmarCancelar"
+    >
+      <template v-if="store.escaneos.length > 0">
+        Las {{ store.escaneos.length }} pulsera(s) escaneadas aún no se han guardado y se perderán.
+      </template>
+      <template v-else>No se ha escaneado ninguna pulsera en esta sesión.</template>
+    </BaseDialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/ui/PageHeader.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { ref, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar, type QInput } from 'quasar'
@@ -424,321 +275,179 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-.rp-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  max-width: 1100px;
-  margin: 0 auto;
+.scan-card {
+  width: 100%;
+  max-width: 640px;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
 
-  @media (max-width: 767px) {
-    grid-template-columns: 1fr;
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 22px 24px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__hint {
+    margin: -6px 0 0;
+    font-size: 12.5px;
+    color: var(--tone-warn-fg);
+  }
+
+  &__live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--tone-ok-fg);
+  }
+
+  &__live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 4px;
+    background: var(--tone-ok-dot);
+    animation: scan-pulse 1.2s infinite;
+  }
+
+  &__table {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    max-height: 360px;
+    overflow-y: auto;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #f1f3f7;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+
+    &--head {
+      position: sticky;
+      top: 0;
+      background: var(--bg-subtle);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+  }
+
+  &__code {
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+  }
+
+  &__msg {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--tone-bad-fg);
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__empty {
+    padding: 18px 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__callout {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-subtle);
+
+    :deep(.q-btn) {
+      min-height: 42px;
+    }
   }
 }
 
-.rp-left {
-  min-width: 0;
-}
-
-.rp-right {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-}
-
-/* ── Card principal ─────────────────────────────────────────────────────────── */
-.rp-card {
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
-  padding: 28px;
-}
-
-.rp-card__header {
-  margin-bottom: 24px;
-}
-
-.rp-title {
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  line-height: 1.25;
-  margin-bottom: 8px;
-}
-
-.rp-desc {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-/* ── Campos globales ────────────────────────────────────────────────────────── */
-.rp-global-fields {
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 24px;
-}
-
-.rp-hint-lote {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-top: 10px;
-  font-style: italic;
-}
-
-/* ── Sección Registrar Pulsera ──────────────────────────────────────────────── */
-.rp-section {
-  margin-bottom: 20px;
-}
-
-.rp-section__title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.rp-section__desc {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-/* ── Área de escaneo ────────────────────────────────────────────────────────── */
-.rp-scan-block {
-  margin-bottom: 20px;
-}
-
-.rp-scan-input-wrapper {
-  margin-top: 6px;
-}
-
-.rp-listening-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #1e40af;
-  color: white;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 4px 12px;
-  border-radius: 20px;
-  white-space: nowrap;
-}
-
-.rp-listening-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #93c5fd;
-  animation: pulse-dot 1.4s ease-in-out infinite;
-}
-
-@keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-  }
+@keyframes scan-pulse {
   50% {
     opacity: 0.3;
   }
-}
-
-.rp-scan-hint {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-top: 6px;
-  font-style: italic;
-}
-
-/* ── Escaneos recientes ─────────────────────────────────────────────────────── */
-.rp-recent {
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 4px;
-}
-
-.rp-recent__header {
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-}
-
-.rp-recent__list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.rp-scan-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px 14px;
-}
-
-.rp-scan-item--error {
-  background: #fff5f5;
-  border-color: #fed7d7;
-}
-
-.rp-scan-item__code {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  flex: 1;
-}
-
-.rp-scan-item__msg {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  flex: 1;
-}
-
-.rp-scan-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 3px 10px;
-  border-radius: 20px;
-}
-
-/* ── Field labels ───────────────────────────────────────────────────────────── */
-.field-label {
-  display: flex;
-  align-items: center;
-}
-
-.field-label--primary {
-  color: var(--q-primary);
-}
-
-.rp-field-group {
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── Card azul ──────────────────────────────────────────────────────────────── */
-.rp-card-blue {
-  background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
-  border-radius: 16px;
-  padding: 32px 28px;
-  color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 16px;
-  min-height: 220px;
-  justify-content: center;
-}
-
-.rp-card-blue__icon-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
-  width: 90px;
-  height: 90px;
-}
-
-.rp-card-blue__barcode {
-  opacity: 0.9;
-}
-
-.rp-card-blue__icon-badge {
-  position: absolute;
-  bottom: -8px;
-  right: -8px;
-  background: #f97316;
-  border-radius: 10px;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rp-card-blue__title {
-  font-size: 1.3rem;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.rp-card-blue__desc {
-  font-size: 0.875rem;
-  opacity: 0.85;
-  line-height: 1.5;
-  max-width: 260px;
-}
-
-/* ── Card tips ──────────────────────────────────────────────────────────────── */
-.rp-card-tips {
-  background: #f1f5f9;
-  border-radius: 12px;
-  padding: 20px;
-}
-
-.rp-tips__header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 16px;
-}
-
-.rp-tips__list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.rp-tip {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.rp-tip__num {
-  min-width: 26px;
-  height: 26px;
-  background: #e2e8f0;
-  color: #475569;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.78rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.rp-tips__actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
 }
 </style>

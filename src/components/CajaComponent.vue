@@ -1,143 +1,124 @@
 <template>
   <div class="caja-root">
-    <!-- Columna izquierda: catálogo -->
-    <div class="caja-col">
-      <div class="caja-header row items-center justify-between">
-        <div>
-          <h1 class="caja-header__titulo">Estación Principal</h1>
-          <div class="caja-header__sub">Terminal #01 | Cajero: {{ turno.cajeroNombre || '—' }}</div>
-        </div>
-      </div>
-
-      <!-- El estado del turno (aperturado / en conteo / sin apertura) ya se ve de
-           forma universal en el encabezado, junto a la sucursal — aquí no se
-           duplica. El catálogo y el armado del pedido SÍ se pueden ver y usar sin
-           turno abierto; lo único que se bloquea es el cobro (ver abrirModalPago),
-           que redirige a Apertura de Caja en vez de dejar pagar sin turno.
-           (Un <template> sin v-if/v-for/#slot no es un agrupador transparente:
-           Vue lo compila como una etiqueta <template> real de HTML, que el
-           navegador oculta — por eso no se usa aquí, solo un fragmento normal.) -->
-      <div class="caja-cats hide-scrollbar">
-        <button
-          v-for="cat in listaCategorias"
-          :key="cat.value"
-          class="cat-pill"
-          :class="{ 'cat-pill--active': categoriaSeleccionada === cat.value }"
-          @click="seleccionarCategoria(cat.value)"
+    <section class="caja-col">
+      <!-- El catálogo y el armado del pedido se pueden usar sin turno abierto;
+           lo único que se bloquea es el cobro (ver abrirModalPago), que redirige
+           a Apertura de Caja en vez de dejar pagar sin turno. -->
+      <div class="caja-top">
+        <q-input
+          v-model="busqueda"
+          outlined
+          clearable
+          placeholder="Buscar producto"
+          class="caja-search"
+          aria-label="Buscar producto"
         >
-          {{ cat.label }}
-        </button>
+          <template #prepend><q-icon name="search" size="20px" /></template>
+        </q-input>
+        <div class="caja-cats" role="tablist">
+          <button
+            v-for="cat in listaCategorias"
+            :key="cat.value"
+            type="button"
+            role="tab"
+            class="cat-pill"
+            :class="{ 'cat-pill--active': categoriaSeleccionada === cat.value }"
+            :aria-selected="categoriaSeleccionada === cat.value"
+            @click="seleccionarCategoria(cat.value)"
+          >
+            {{ cat.label }}
+          </button>
+        </div>
       </div>
 
-      <div class="caja-productos hide-scrollbar">
+      <div class="caja-productos">
         <div v-if="loading" class="caja-grid">
-          <q-card v-for="n in 8" :key="n" flat bordered class="skeleton-card">
-            <q-skeleton type="rect" height="100px" />
-            <q-card-section>
-              <q-skeleton type="text" width="65%" class="q-mb-xs" />
-              <q-skeleton type="text" width="85%" />
-            </q-card-section>
-          </q-card>
+          <q-skeleton v-for="n in 8" :key="n" type="rect" height="150px" class="caja-skeleton" />
         </div>
 
-        <q-banner v-else-if="error" class="bg-orange-1 text-orange-10" rounded>
-          No se pudieron cargar los productos. Intenta de nuevo.
-        </q-banner>
+        <StateBlock
+          v-else-if="error"
+          variant="error"
+          body="No se pudieron cargar los productos. Intenta de nuevo."
+          action-label="Reintentar"
+          @action="cargarProductos"
+        />
+
+        <StateBlock
+          v-else-if="!productosFiltrados.length"
+          variant="no-results"
+          :title="busqueda ? `Sin resultados para &quot;${busqueda}&quot;` : 'Sin productos'"
+          :body="
+            busqueda
+              ? 'Prueba con otro término o cambia de categoría.'
+              : 'No hay productos en esta categoría.'
+          "
+        />
 
         <div v-else class="caja-grid">
           <ProductoCard
             v-for="producto in productosFiltrados"
             :key="producto.id"
             :producto="producto"
-            :rinde="rindePorProducto.get(producto.id) ?? null"
+            :rinde="producto.disponible_estimado ?? null"
             @agregar="agregarAlTicket"
           />
         </div>
       </div>
 
-      <div class="caja-footer">
-        <div class="caja-footer__stats">
-          <div class="stat-block">
-            <span class="stat-label">PRODUCTOS TOTALES</span>
-            <span class="stat-value text-primary" :class="{ 'stat-pulse': pulseProductos }">{{
-              totalProductos
-            }}</span>
-          </div>
-          <div class="stat-sep"></div>
-          <div class="stat-block">
-            <span class="stat-label">PEDIDOS</span>
-            <span class="stat-value text-orange-9" :class="{ 'stat-pulse': pulsePedidos }">{{
-              totalComandasActivas
-            }}</span>
-          </div>
+      <footer v-if="comandasEnCurso.length" class="caja-comandas">
+        <span class="caja-comandas__label">Comandas en curso</span>
+        <div class="caja-comandas__list">
+          <router-link
+            v-for="c in comandasEnCurso"
+            :key="c.id"
+            :to="{ name: 'pos-cocina' }"
+            class="comanda-chip"
+            :class="c.estado_actual === 'L' ? 'comanda-chip--ok' : 'comanda-chip--warn'"
+          >
+            <span class="comanda-chip__dot" />
+            {{ etiquetaComanda(c) }} · {{ c.estado_actual === 'L' ? 'Lista' : 'En cocina' }}
+          </router-link>
         </div>
-        <q-btn
-          v-if="!ticketAbierto"
-          unelevated
-          color="primary"
-          icon="add_circle"
-          label="Nuevo Pedido"
-          class="text-weight-bold"
-          style="border-radius: 12px"
-          @click="iniciarNuevoPedido"
-        />
-      </div>
-    </div>
+      </footer>
+    </section>
 
-    <!-- Columna derecha: panel del ticket -->
-    <transition name="slide-ticket">
-      <TicketPanel
-        v-if="ticketAbierto"
-        :items="itemsTicket"
-        :enviando="enviando"
-        :nombre-cliente="nombreCliente"
-        @cancelar="cancelarTicket"
-        @cambiar-cantidad="cambiarCantidad"
-        @editar-notas="abrirNotasDialog"
-        @split-combo="handleSplitCombo"
-        @pagar="abrirModalPago"
-        @actualizar-nombre="actualizarNombreCliente"
+    <TicketPanel
+      v-if="ticketAbierto"
+      :items="itemsTicket"
+      :enviando="enviando"
+      :nombre-cliente="nombreCliente"
+      :mesa="mesa"
+      @cancelar="cancelarTicket"
+      @cambiar-cantidad="cambiarCantidad"
+      @editar-notas="abrirNotasDialog"
+      @split-combo="handleSplitCombo"
+      @pagar="abrirModalPago"
+      @actualizar-nombre="actualizarNombreCliente"
+      @actualizar-mesa="(val: string) => (mesa = val)"
+    />
+    <aside v-else class="caja-idle">
+      <span class="caja-idle__icon"><q-icon name="receipt_long" size="28px" /></span>
+      <span class="caja-idle__title">Sin pedido abierto</span>
+      <span class="caja-idle__text">Inicia un pedido o toca un producto para empezar.</span>
+      <q-btn
+        unelevated
+        color="primary"
+        icon="add"
+        label="Nuevo pedido"
+        @click="iniciarNuevoPedido"
       />
-    </transition>
-    <!-- Dialog de notas especiales -->
-    <q-dialog v-model="notasDialog">
-      <q-card style="min-width: 320px; border-radius: 16px">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">Notas especiales</div>
-          <div class="text-grey-6 text-caption">{{ itemEditando?.producto.nombre }}</div>
-        </q-card-section>
-        <q-card-section>
-          <q-input
-            v-model="notasTemp"
-            outlined
-            autofocus
-            placeholder="Ej: Sin cebolla, extra salsa..."
-            type="textarea"
-            rows="3"
-          />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn v-close-popup flat label="Cancelar" color="grey-7" />
-          <q-btn
-            unelevated
-            label="Guardar"
-            color="primary"
-            style="border-radius: 8px"
-            @click="() => guardarNotas(itemEditando!, notasTemp)"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    </aside>
 
-    <!-- MODAL DE PAGO MULTIMODAL CON EL TOTAL REAL -->
     <PaymentModal
       v-model="modalPagoAbierto"
+      titulo="Cobrar pedido"
+      :subtitulo="nombreCliente"
       :total-to-pay="totalTicket"
       :metodos-pago="metodosPagoDisponibles"
       @pago-exitoso="onPagoExitoso"
     />
 
-    <!-- TICKET POST-PAGO -->
     <q-dialog
       v-model="ticketPostPagoAbierto"
       persistent
@@ -154,8 +135,22 @@
       />
     </q-dialog>
 
-    <!-- MODALES DE PERSONALIZACIÓN -->
     <ProductNoteModal v-model="notasDialog" :item="itemEditando" @guardar="guardarNotasLocal" />
+
+    <BaseDialog
+      v-model="splitDialog"
+      title="Dividir combo"
+      :subtitle="splitItem ? `${splitItem.producto.nombre} × ${splitItem.cantidad}` : ''"
+      icon="call_split"
+      tone="amber"
+      :width="460"
+      secondary-label="No, mantener"
+      primary-label="Dividir"
+      @confirm="confirmarSplit"
+    >
+      Este combo tiene cantidad {{ splitItem?.cantidad }}. ¿Quieres dividirlo para personalizar una
+      unidad independiente?
+    </BaseDialog>
 
     <!-- MODAL DE INGRESO DE EFECTIVO PREVENTIVO -->
     <IngresoEfectivoModal
@@ -169,7 +164,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
@@ -178,6 +173,7 @@ import TicketPanel from '@/components/comandas/TicketPanel.vue'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import IngresoEfectivoModal from '@/components/shared/payments/IngresoEfectivoModal.vue'
 import ProductNoteModal from '@/components/comandas/ProductNoteModal.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
 import DetalleOrdenPagada from '@/components/historial/DetalleOrdenPagada.vue'
 import type { ItemTicket } from '@/components/comandas/TicketItem.vue'
 import { pagosApi } from '@/api/pagosApi'
@@ -187,14 +183,14 @@ import { useTicketComanda } from '@/composables/useTicketComanda'
 import { useCajaMetrics } from '@/composables/useCajaMetrics'
 import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
-import { useInsumosStore } from '@/stores/insumos'
-import { calcularRindePorProducto } from '@/utils/estimacionRinde'
-import { resolveErrorMessage } from '@/utils/errorHandler'
+import { isTimeoutError, resolveErrorMessage } from '@/utils/errorHandler'
+import { redondear2 } from '@/utils/dinero'
 import type { ApiError } from '@/types/auth'
 import type { TipoProducto } from '@/types/producto'
 import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import type { AppliedPayment, PagoCompletoRequest } from '@/types/payments'
-import type { ComandaWsMessage } from '@/types/comanda'
+import type { Comanda, ComandaWsMessage } from '@/types/comanda'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -202,6 +198,9 @@ const authStore = useAuthStore()
 const turno = useTurnoCajaStore()
 
 const modalPagoAbierto = ref(false)
+// Clave de idempotencia del ticket en curso: se genera al abrir el cobro y se
+// reutiliza en cada reintento; solo se regenera al iniciar un ticket nuevo.
+let idempotencyKey: string | null = null
 const comandaPagadaId = ref<string | null>(null)
 const ticketPostPagoAbierto = ref(false)
 
@@ -239,6 +238,7 @@ const abrirModalPago = () => {
     })
     return
   }
+  idempotencyKey ??= crypto.randomUUID()
   modalPagoAbierto.value = true
 }
 const props = defineProps<{ searchTerm?: string }>()
@@ -255,16 +255,15 @@ const {
   nombreCliente,
 } = useTicketComanda()
 
+// Mesa del pedido (B9 B.2), opcional: igual que nombreCliente, vive en el
+// componente (no en el carrito) porque no afecta el cálculo del ticket.
+const mesa = ref('')
+
 const { comandasActivas, productos, refrescarComandas } = useCajaMetrics()
 
-const insumosStore = useInsumosStore()
-
-// Rinde estimado por producto A/B (unidades preparables con el stock actual),
-// para avisar en el catálogo antes de cobrar. El bloqueo duro real sigue en el
-// backend al crear la comanda; esto solo evita el camino de cobrar-y-fallar.
-const rindePorProducto = computed(() =>
-  calcularRindePorProducto(insumosStore.insumos, insumosStore.estimaciones),
-)
+// disponible_estimado (C1 #3) viene directo del catálogo de venta (cada
+// producto), no de /insumos/estimaciones -- ese endpoint exige inventario:ver
+// y el Cajero no lo tiene, así que nunca veía la estimación aquí.
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -296,8 +295,10 @@ const listaCategorias: { value: TipoProducto | 'Todos'; label: string }[] = [
 ]
 const categoriaSeleccionada = ref<TipoProducto | 'Todos'>('Todos')
 
+const busqueda = ref('')
+
 const productosFiltrados = computed(() => {
-  const term = (props.searchTerm ?? '').trim().toLowerCase()
+  const term = (busqueda.value || props.searchTerm || '').trim().toLowerCase()
   let base = productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B' || p.es_combo)
   if (categoriaSeleccionada.value !== 'Todos') {
     base = base.filter((p) => p.tipo === categoriaSeleccionada.value)
@@ -312,37 +313,24 @@ const productosFiltrados = computed(() => {
   return base
 })
 
-const totalProductos = computed(
-  () => productos.value.filter((p) => p.tipo === 'A' || p.tipo === 'B' || p.es_combo).length,
+// Barra inferior "Comandas en curso": pendientes, en preparación y listas.
+const comandasEnCurso = computed(() =>
+  comandasActivas.value.filter((c) => ['P', 'E', 'L'].includes(c.estado_actual)),
 )
-const totalComandasActivas = computed(() => comandasActivas.value.length)
+
+function etiquetaComanda(c: Comanda): string {
+  const folio = c.ticket_numero ?? c.folio ?? ''
+  const destino = c.mesa ? `Mesa ${c.mesa}` : (c.nombre_cliente ?? '')
+  return [folio && `#${folio}`, destino].filter(Boolean).join(' ')
+}
 
 const totalTicket = computed(() => {
-  return itemsTicket.value.reduce(
-    (suma, item) => suma + item.producto.precio_unitario * item.cantidad,
-    0,
+  return redondear2(
+    itemsTicket.value.reduce(
+      (suma, item) => suma + redondear2(item.producto.precio_unitario * item.cantidad),
+      0,
+    ),
   )
-})
-
-// ── Pulse animation on stat changes ────────────────────────────────
-const pulseProductos = ref(false)
-const pulsePedidos = ref(false)
-
-watch(totalProductos, (newVal, oldVal) => {
-  if (oldVal !== undefined && newVal !== oldVal) {
-    pulseProductos.value = true
-    setTimeout(() => {
-      pulseProductos.value = false
-    }, 600)
-  }
-})
-watch(totalComandasActivas, (newVal, oldVal) => {
-  if (oldVal !== undefined && newVal !== oldVal) {
-    pulsePedidos.value = true
-    setTimeout(() => {
-      pulsePedidos.value = false
-    }, 600)
-  }
 })
 
 // ── WebSocket ──────────────────────────────────────────────────────
@@ -363,7 +351,7 @@ const seleccionarCategoria = (cat: TipoProducto | 'Todos') => {
 }
 
 const agregarAlTicket = async (producto: ReturnType<typeof Object> & { id: string }) => {
-  if (rindePorProducto.value.get(producto.id) === 0) {
+  if ((producto as { disponible_estimado?: number | null }).disponible_estimado === 0) {
     $q.notify({
       type: 'warning',
       message: `Sin stock para «${(producto as { nombre?: string }).nombre ?? 'este producto'}»`,
@@ -385,9 +373,11 @@ const agregarAlTicket = async (producto: ReturnType<typeof Object> & { id: strin
 }
 
 const cancelarTicket = () => {
+  idempotencyKey = null
   cancelarOrden()
   ticketAbierto.value = false
   nombreCliente.value = ''
+  mesa.value = ''
 }
 
 const actualizarNombreCliente = (nombre: string) => {
@@ -400,24 +390,47 @@ const onCerrarTicket = () => {
   cancelarTicket()
 }
 
-const handleSplitCombo = async (item: ItemTicket) => {
-  await splitCombo(item)
+const notificarErrorSplit = (err: unknown) => {
+  console.error('[CajaComponent] splitCombo:', err)
+  $q.notify({
+    type: 'negative',
+    message: 'No se pudo separar el combo.',
+    caption: resolveErrorMessage(err as ApiError),
+    position: 'top-right',
+  })
 }
 
+const handleSplitCombo = async (item: ItemTicket) => {
+  try {
+    await splitCombo(item)
+  } catch (err) {
+    notificarErrorSplit(err)
+  }
+}
+
+const splitDialog = ref(false)
+const splitItem = ref<ItemTicket | null>(null)
+
 function promptSplitThenEdit(item: ItemTicket) {
-  $q.dialog({
-    title: 'Dividir combo',
-    message: `Este combo tiene cantidad ${item.cantidad}. ¿Quieres dividirlo para personalizar una unidad independiente?`,
-    cancel: { label: 'Cancelar', flat: true, color: 'grey-7' },
-    ok: { label: 'Dividir y personalizar', color: 'blue-7' },
-    persistent: true,
-  }).onOk(async () => {
-    const nuevo = await splitCombo(item)
-    if (nuevo) {
-      itemEditando.value = nuevo
-      notasDialog.value = true
-    }
-  })
+  splitItem.value = item
+  splitDialog.value = true
+}
+
+async function confirmarSplit() {
+  const item = splitItem.value
+  splitDialog.value = false
+  if (!item) return
+  let nuevo: ItemTicket | null
+  try {
+    nuevo = await splitCombo(item)
+  } catch (err) {
+    notificarErrorSplit(err)
+    return
+  }
+  if (nuevo) {
+    itemEditando.value = nuevo
+    notasDialog.value = true
+  }
 }
 
 const abrirNotasDialog = (item: ItemTicket) => {
@@ -506,25 +519,28 @@ const procesarPago = async (
 
     const totalBruto = itemsTicket.value
       .filter((i) => !i.es_hijo_combo)
-      .reduce((s, i) => s + i.producto.precio_unitario * i.cantidad, 0)
-    const totalFinal = totalBruto - descuentoPuntos
+      .reduce((s, i) => s + redondear2(i.producto.precio_unitario * i.cantidad), 0)
+    const totalFinal = redondear2(totalBruto - descuentoPuntos)
 
     const payload: PagoCompletoRequest = {
-      ticket_numero: `TICK-${String(Date.now() % 10000).padStart(4, '0')}`,
+      // QA #21: el backend asigna el folio secuencial por sucursal; ya no se
+      // genera ticket_numero aquí.
       total_final: totalFinal,
       detalles_comanda: detalles,
       pagos: pagos.map((p) => ({
         metodo_pago_id: mapearMetodoPago(p.method),
         monto: p.amount,
         notas_pago: p.cardType ? `${p.cardType} - Folio: ${p.authCode ?? ''}` : '',
+        ...(p.ultimos4 ? { ultimos4: p.ultimos4 } : {}),
       })),
       ...(celularCliente ? { celular_cliente: celularCliente } : {}),
       ...(puntosARedimir > 0 ? { puntos_a_redimir: puntosARedimir } : {}),
       ...(cambio > 0 ? { cambio } : {}),
       ...(nombreCliente.value.trim() ? { nombre_cliente: nombreCliente.value.trim() } : {}),
+      ...(mesa.value.trim() ? { mesa: mesa.value.trim() } : {}),
     }
 
-    const comanda = await pagosApi.completarPago(payload)
+    const comanda = await pagosApi.completarPago(payload, undefined, idempotencyKey ?? undefined)
 
     $q.notify({
       type: 'positive',
@@ -537,6 +553,9 @@ const procesarPago = async (
 
     comandaPagadaId.value = comanda.id
     ticketPostPagoAbierto.value = true
+    // Un pago exitoso consume la clave: si el cajero inicia otro ticket, debe
+    // generarse una nueva al abrir el cobro, nunca reutilizar esta.
+    idempotencyKey = null
 
     // Actualización optimista: refrescar comandas de inmediato
     void refrescarComandas()
@@ -549,10 +568,13 @@ const procesarPago = async (
         err.response.data.detail ?? err.response.data,
       )
     }
+    const esTimeout = isTimeoutError(err)
     $q.notify({
       type: 'negative',
       message: 'Error al procesar el pago',
-      caption: resolveErrorMessage(err as ApiError),
+      caption: esTimeout
+        ? 'No se confirmó el cobro. Verifica en el historial antes de reintentar.'
+        : resolveErrorMessage(err as ApiError),
       position: 'top-right',
       timeout: 4000,
     })
@@ -606,29 +628,20 @@ const cargarMetodosPago = async () => {
 // pero productos se cargan por separado (no están en el composable)
 void cargarProductos()
 void cargarMetodosPago()
+// El polling de useCajaMetrics tarda 15 s en su primera vuelta; la barra de
+// "Comandas en curso" necesita datos desde el inicio.
+void refrescarComandas()
 void turno.cargarTurnoActivo(authStore.currentBranchId)
-if (authStore.currentBranchId) {
-  void insumosStore.cargar(authStore.currentBranchId)
-  void insumosStore.cargarEstimaciones(authStore.currentBranchId)
-}
 
 onBeforeUnmount(() => abortController.abort())
 </script>
 
-<style scoped>
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
+<style scoped lang="scss">
 .caja-root {
   display: flex;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--header-height));
   overflow: hidden;
-  background-color: #f5f6f7;
+  background: var(--bg-main);
 }
 
 .caja-col {
@@ -639,58 +652,68 @@ onBeforeUnmount(() => abortController.abort())
   overflow: hidden;
 }
 
-.caja-header {
-  background: #fff;
-  padding: 14px 32px;
-  border-bottom: 1px solid #e2e8f0;
+.caja-top {
+  padding: 24px 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   flex-shrink: 0;
 }
-.caja-header__titulo {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--q-primary);
-  margin: 0;
-}
-.caja-header__sub {
-  font-size: 12px;
-  color: #94a3b8;
-  margin-top: 2px;
+
+.caja-search {
+  :deep(.q-field__control) {
+    height: 44px;
+    min-height: 44px;
+    border-radius: 12px;
+  }
+
+  :deep(.q-field__marginal) {
+    height: 44px;
+    color: var(--text-secondary);
+  }
 }
 
 .caja-cats {
   display: flex;
   gap: 8px;
-  padding: 12px 32px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
   overflow-x: auto;
-  flex-shrink: 0;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
+
 .cat-pill {
-  background-color: #e2e8f0;
-  color: #64748b;
-  border: none;
-  padding: 8px 20px;
+  height: 38px;
+  padding: 0 16px;
   border-radius: 999px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  border: 1px solid var(--border-input);
+  background: #fff;
+  color: var(--text-body);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
   white-space: nowrap;
-}
-.cat-pill:hover {
-  background-color: #cbd5e1;
-}
-.cat-pill--active {
-  background-color: #0059bb;
-  color: #fff;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bg-subtle);
+  }
+
+  &--active,
+  &--active:hover {
+    background: var(--text-strong);
+    border-color: var(--text-strong);
+    color: #fff;
+  }
 }
 
 .caja-productos {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 24px;
+  padding: 16px 24px 24px;
 }
 
 .caja-grid {
@@ -699,77 +722,113 @@ onBeforeUnmount(() => abortController.abort())
   gap: 14px;
 }
 
-.skeleton-card {
+.caja-skeleton {
   border-radius: 12px;
-  overflow: hidden;
 }
 
-.caja-footer {
-  background: #fff;
-  border-top: 1px solid #e2e8f0;
-  padding: 10px 32px;
+.caja-comandas {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-.caja-footer__stats {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+  gap: 16px;
+  padding: 12px 24px;
+  background: #fff;
+  border-top: 1px solid var(--border-color);
+
+  &__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  &__list {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
 }
 
-.stat-block {
+.comanda-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-decoration: none;
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+  }
+
+  &--ok {
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
+
+    .comanda-chip__dot {
+      background: var(--tone-ok-dot);
+    }
+  }
+
+  &--warn {
+    background: var(--tone-warn-bg);
+    color: var(--tone-warn-fg);
+
+    .comanda-chip__dot {
+      background: var(--tone-warn-dot);
+    }
+  }
+}
+
+.caja-idle {
+  width: 380px;
+  min-width: 380px;
+  background: #fff;
+  border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  gap: 1px;
-}
-.stat-label {
-  font-size: 10px;
-  font-weight: 700;
-  color: #94a3b8;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1;
-  transition:
-    transform 0.15s ease,
-    opacity 0.15s ease;
-}
-.stat-pulse {
-  animation: stat-pulse-anim 0.6s ease;
-}
-@keyframes stat-pulse-anim {
-  0% {
-    transform: scale(1);
-    opacity: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+
+  &__icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  30% {
-    transform: scale(1.25);
-    opacity: 0.6;
+
+  &__title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-strong);
   }
-  100% {
-    transform: scale(1);
-    opacity: 1;
+
+  &__text {
+    max-width: 240px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--text-secondary);
   }
-}
-.stat-sep {
-  width: 1px;
-  height: 28px;
-  background-color: #e2e8f0;
 }
 
-.slide-ticket-enter-active,
-.slide-ticket-leave-active {
-  transition: all 0.25s ease;
-}
-.slide-ticket-enter-from,
-.slide-ticket-leave-to {
-  transform: translateX(100%);
-  opacity: 0;
+@media (max-width: 900px) {
+  .caja-idle {
+    display: none;
+  }
 }
 
 :deep(.ticket-dialog) {

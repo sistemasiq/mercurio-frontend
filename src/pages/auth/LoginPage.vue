@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { Notify } from 'quasar'
 import type { QForm } from 'quasar'
 import { useAuthForm } from '@/composables/useAuthForm'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 
 const formRef = ref<InstanceType<typeof QForm> | null>(null)
 
@@ -17,6 +19,23 @@ const {
   cancelBranchSelection,
 } = useAuthForm()
 
+// El logout por inactividad recarga la app (ver setupPlugins), lo que borra el
+// toast; el motivo viaja en sessionStorage y se muestra aquí.
+onMounted(() => {
+  try {
+    if (window.sessionStorage.getItem('mercury:logout-motivo') === 'inactividad') {
+      window.sessionStorage.removeItem('mercury:logout-motivo')
+      Notify.create({
+        type: 'warning',
+        message: 'Sesión cerrada por inactividad.',
+        icon: 'timer_off',
+      })
+    }
+  } catch {
+    // sessionStorage no disponible: se omite el aviso
+  }
+})
+
 const sucursalSeleccionada = ref<string | null>(null)
 
 async function onSubmit(): Promise<void> {
@@ -30,6 +49,9 @@ async function onConfirmSucursal(): Promise<void> {
   await confirmBranchSelection(sucursalSeleccionada.value)
 }
 
+// Con pocas sucursales el diseño las ofrece como chips de selección rápida.
+const MAX_CHIPS_SUCURSAL = 4
+
 function onCancelSucursal(): void {
   sucursalSeleccionada.value = null
   cancelBranchSelection()
@@ -38,65 +60,75 @@ function onCancelSucursal(): void {
 
 <template>
   <q-page class="auth-page">
-    <aside class="auth-left">
-      <img src="/woow-kids-logo.png" alt="" class="auth-left__illustration" aria-hidden="true" />
+    <aside class="auth-brand">
+      <div class="auth-brand__head">
+        <img src="/woow-kids-mascot.png" alt="" class="auth-brand__mascot" aria-hidden="true" />
+        <span class="auth-brand__name">Woow Kids</span>
+      </div>
+      <div class="auth-brand__art">
+        <img src="/woow-kids-logo.png" alt="" aria-hidden="true" />
+      </div>
+      <p class="auth-brand__tagline">
+        Caja, estancias, eventos e inventario de tu sucursal en un solo lugar.
+      </p>
     </aside>
 
-    <section class="auth-right">
-      <!-- Contenido principal centrado -->
+    <section class="auth-panel">
       <main class="auth-main">
-        <h1 class="auth-title">Bienvenido de nuevo</h1>
-        <p class="auth-subtitle">Ingrese sus credenciales corporativas para continuar.</p>
+        <header class="auth-head">
+          <h1 class="auth-title">Bienvenido</h1>
+          <p class="auth-subtitle">Ingresa con tu cuenta de Woow Kids.</p>
+        </header>
 
         <q-form ref="formRef" class="auth-form" greedy @submit.prevent="onSubmit">
-          <!-- Usuario / Email -->
-          <div class="field-wrap">
-            <label class="field-label">Usuario o Correo Electrónico</label>
+          <div class="auth-field">
+            <label class="auth-label" for="login-email">Correo electrónico</label>
             <q-input
               v-model="credentials.email"
+              for="login-email"
               type="text"
               inputmode="email"
               outlined
-              dense
-              placeholder="usuario@woowkids.com"
+              placeholder="usuario@woowkids.mx"
               autocomplete="username"
               :rules="emailRules"
               lazy-rules
               :disable="isLoading()"
               no-error-icon
-              class="field-input"
+              hide-bottom-space
+              class="auth-input"
             >
               <template #prepend>
-                <q-icon name="person_outline" color="grey-5" size="16px" />
+                <q-icon name="mail" size="20px" />
               </template>
             </q-input>
           </div>
 
-          <!-- Contraseña -->
-          <div class="field-wrap">
-            <label class="field-label">Contraseña</label>
+          <div class="auth-field">
+            <label class="auth-label" for="login-password">Contraseña</label>
             <q-input
               v-model="credentials.password"
+              for="login-password"
               :type="showPassword ? 'text' : 'password'"
               outlined
-              dense
               placeholder="••••••••"
               autocomplete="current-password"
               :rules="passwordRules"
               lazy-rules
               :disable="isLoading()"
               no-error-icon
-              class="field-input"
+              hide-bottom-space
+              class="auth-input"
             >
               <template #prepend>
-                <q-icon name="lock_outline" color="grey-5" size="16px" />
+                <q-icon name="lock" size="20px" />
               </template>
               <template #append>
                 <q-icon
                   :name="showPassword ? 'visibility_off' : 'visibility'"
-                  color="grey-5"
-                  size="16px"
+                  size="20px"
                   class="cursor-pointer"
+                  role="button"
                   :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
                   @click="showPassword = !showPassword"
                 />
@@ -104,7 +136,6 @@ function onCancelSucursal(): void {
             </q-input>
           </div>
 
-          <!-- Opciones -->
           <div class="auth-options">
             <q-checkbox
               v-model="credentials.rememberMe"
@@ -116,11 +147,9 @@ function onCancelSucursal(): void {
             <a href="#" class="auth-forgot" @click.prevent>¿Olvidaste tu contraseña?</a>
           </div>
 
-          <!-- Botón de envío -->
           <q-btn
             type="submit"
             label="Acceder al Sistema"
-            icon-right="arrow_forward"
             color="primary"
             class="auth-submit full-width"
             unelevated
@@ -134,215 +163,274 @@ function onCancelSucursal(): void {
         </q-form>
       </main>
 
-      <!-- Footer -->
-      <footer class="auth-footer">
-        <span class="auth-footer__copy">© 2026 Woow Kids.</span>
-      </footer>
+      <footer class="auth-footer">© 2026 Woow Kids.</footer>
     </section>
 
-    <q-dialog :model-value="pendingBranchSelection() !== null" persistent>
-      <q-card style="min-width: 320px">
-        <q-card-section>
-          <div class="text-h6">Elige tu sucursal</div>
-          <p class="text-body2 text-grey-7 q-mb-none">
-            Tu cuenta tiene acceso a varias sucursales. Elige con cuál quieres trabajar en esta
-            sesión.
-          </p>
-        </q-card-section>
-        <q-card-section class="q-pt-none">
-          <q-select
-            v-model="sucursalSeleccionada"
-            outlined
-            dense
-            :options="pendingBranchSelection() ?? []"
-            option-value="id"
-            option-label="nombre"
-            emit-value
-            map-options
-            label="Sucursal"
-          />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Cancelar" :disable="isLoading()" @click="onCancelSucursal" />
-          <q-btn
-            color="primary"
-            label="Continuar"
-            :loading="isLoading()"
-            :disable="!sucursalSeleccionada"
-            @click="onConfirmSucursal"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <BaseDialog
+      :model-value="pendingBranchSelection() !== null"
+      title="Elige una sucursal"
+      subtitle="Tu cuenta tiene acceso a varias sucursales"
+      icon="store"
+      :width="480"
+      secondary-label="Salir"
+      primary-label="Continuar"
+      persistent
+      :loading="isLoading()"
+      :primary-disabled="!sucursalSeleccionada"
+      @cancel="onCancelSucursal"
+      @confirm="onConfirmSucursal"
+    >
+      <div
+        v-if="(pendingBranchSelection()?.length ?? 0) <= MAX_CHIPS_SUCURSAL"
+        class="branch-chips"
+        role="radiogroup"
+      >
+        <button
+          v-for="s in pendingBranchSelection() ?? []"
+          :key="s.id"
+          type="button"
+          role="radio"
+          class="branch-chip"
+          :class="{ 'branch-chip--on': sucursalSeleccionada === s.id }"
+          :aria-checked="sucursalSeleccionada === s.id"
+          @click="sucursalSeleccionada = s.id"
+        >
+          {{ s.nombre }}
+        </button>
+      </div>
+      <div class="auth-field">
+        <span class="field-label">Sucursal</span>
+        <q-select
+          v-model="sucursalSeleccionada"
+          outlined
+          dense
+          :options="pendingBranchSelection() ?? []"
+          option-value="id"
+          option-label="nombre"
+          emit-value
+          map-options
+          placeholder="Selecciona una sucursal"
+        />
+      </div>
+    </BaseDialog>
   </q-page>
 </template>
 
-<style scoped>
-/* ── Página raíz ──────────────────────────────────────────── */
+<style scoped lang="scss">
 .auth-page {
-  display: flex;
-  flex-direction: row;
-  /* Ocupa exactamente el alto disponible sin desbordarse */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   height: 100% !important;
   min-height: 0 !important;
   max-height: 100vh;
   overflow: hidden;
   padding: 0 !important;
+  background: #fff;
+
+  @media (max-width: 900px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-/* ── Panel izquierdo ─────────────────────────────────────── */
-.auth-left {
-  flex: 0 0 56%;
-  overflow: hidden;
-  background: #0b1450;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px;
-}
-
-.auth-left__illustration {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center;
-  display: block;
-}
-
-/* ── Panel derecho ───────────────────────────────────────── */
-.auth-right {
-  flex: 1;
-  background: var(--bg-card);
+// ── Panel de marca ──────────────────────────────────────────────────────────
+.auth-brand {
+  background: var(--text-strong);
+  color: #fff;
+  padding: 56px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  gap: 24px;
+  min-height: 0;
+
+  @media (max-width: 900px) {
+    display: none;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__mascot {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    object-fit: cover;
+  }
+
+  &__name {
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  &__art {
+    flex: 1;
+    min-height: 0;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  }
+
+  &__tagline {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #c9d0f2;
+  }
 }
 
-/* ── Contenido central ───────────────────────────────────── */
+// ── Panel del formulario ────────────────────────────────────────────────────
+.auth-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .auth-main {
   flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 24px 48px;
-  max-width: 460px;
   width: 100%;
+  max-width: 400px;
   margin: 0 auto;
+  padding: 56px 0;
+
+  @media (max-width: 480px) {
+    padding: 32px 16px;
+  }
+}
+
+.auth-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 24px;
 }
 
 .auth-title {
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px;
+  margin: 0;
+  font-size: 30px;
   line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
 }
 
 .auth-subtitle {
-  font-size: 13.5px;
+  margin: 0;
+  font-size: 14.5px;
   color: var(--text-secondary);
-  margin: 0 0 20px;
 }
 
-/* ── Formulario ──────────────────────────────────────────── */
 .auth-form {
   display: flex;
   flex-direction: column;
+  gap: 18px;
 }
 
-.field-wrap {
+.auth-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: 6px;
 }
 
-.field-label {
-  cursor: default;
+.auth-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-body);
 }
 
-/* Quasar overrides — bordes más sutiles */
-.field-input :deep(.q-field__control) {
-  border-radius: 8px;
+.auth-input {
+  :deep(.q-field__control) {
+    height: 48px;
+    border-radius: 12px;
+  }
+
+  :deep(.q-field__marginal) {
+    height: 48px;
+    color: var(--text-secondary);
+  }
+
+  :deep(.q-field__native) {
+    font-size: 14.5px;
+  }
 }
 
-.field-input :deep(.q-field--outlined .q-field__control::before) {
-  border-color: var(--border-color);
-}
-
-.field-input :deep(.q-field--outlined:hover .q-field__control::before) {
-  border-color: var(--text-muted);
-}
-
-.field-input :deep(.q-field--focused .q-field__control::before) {
-  border-color: #025fe0 !important;
-}
-
-/* ── Opciones (recordar / olvidaste) ─────────────────────── */
 .auth-options {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 4px;
-  margin-bottom: 16px;
+  gap: 8px;
 }
 
 .auth-remember :deep(.q-checkbox__label) {
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-size: 13.5px;
+  color: var(--text-body);
 }
 
 .auth-forgot {
-  font-size: 13px;
-  color: #025fe0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--q-primary);
   text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s;
+
+  &:hover {
+    color: var(--text-strong);
+    text-decoration: underline;
+  }
 }
 
-.auth-forgot:hover {
-  color: #0350c4;
-  text-decoration: underline;
-}
-
-/* ── Botón de envío ──────────────────────────────────────── */
 .auth-submit {
-  border-radius: 8px;
-  font-size: 14.5px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  height: 44px;
+  height: 52px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 800;
 }
 
-/* ── Footer ─────────────────────────────────────────────── */
 .auth-footer {
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px 32px;
-  border-top: 1px solid var(--bg-main);
-}
-
-.auth-footer__copy {
+  padding: 16px;
+  text-align: center;
   font-size: 12px;
   color: var(--text-muted);
 }
 
-/* ── Responsive ──────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .auth-left {
-    display: none;
-  }
+// ── Diálogo de sucursal ─────────────────────────────────────────────────────
+.branch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
-  .auth-main {
-    padding: 24px;
-    max-width: 100%;
-  }
+.branch-chip {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border-input);
+  background: #fff;
+  color: var(--text-body);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 
-  .auth-footer {
-    padding: 12px 24px;
+  &--on {
+    background: var(--tone-info-bg);
+    border-color: var(--q-primary);
+    color: var(--q-primary);
   }
 }
 </style>

@@ -14,6 +14,7 @@ export interface RolConPermisos {
   requiere_sucursal: boolean
   permisos_editables: boolean
   permisos: Permiso[]
+  usuarios_count: number
 }
 
 export interface RolCreate {

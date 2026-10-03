@@ -8,6 +8,8 @@ const props = defineProps<{ index: number }>()
 
 const store = useRegistrationStore()
 
+const TIME_OPTIONS = ['1 hr', '2 hr', '3 hr', '4 hr', '5 hr']
+
 const child = computed(() => store.children[props.index])
 
 const canSave = computed(() => child.value.name.trim() !== '' && child.value.age !== null)
@@ -47,7 +49,9 @@ function limitAgeInput(value: number | string | null) {
         <div class="col">
           <div class="text-weight-bold">{{ child.name }}</div>
           <div class="text-caption text-grey-7">
-            {{ child.age }} años · {{ child.notes || 'Sin notas' }}
+            {{ child.age }} años
+            <template v-if="!store.isEventoMode"> · {{ child.estimatedTime }}</template>
+            · {{ child.notes || 'Sin notas' }}
           </div>
         </div>
         <q-btn flat round dense icon="edit" color="primary" size="sm" @click="edit" />
@@ -130,6 +134,16 @@ function limitAgeInput(value: number | string | null) {
         v-model="store.children[index].notes"
         label="Notas / Alergias"
         placeholder="Ej. alérgico al maní"
+        outlined
+        dense
+        class="q-mb-sm"
+      />
+
+      <q-select
+        v-if="!store.isEventoMode"
+        v-model="store.children[index].estimatedTime"
+        :options="TIME_OPTIONS"
+        label="Tiempo de juego"
         outlined
         dense
         class="q-mb-sm"

@@ -4,268 +4,248 @@
     persistent
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <q-card
-      style="
-        width: 900px;
-        max-width: 95vw;
-        max-height: 85vh;
-        display: flex;
-        flex-direction: row;
-        border-radius: 12px;
-        overflow: hidden;
-      "
-    >
-      <!-- PANEL IZQUIERDO -->
-      <div
-        style="
-          flex: 3;
-          display: flex;
-          flex-direction: column;
-          padding: 16px 20px;
-          background: var(--bg-card);
-          overflow-y: auto;
-          min-height: 0;
-        "
-      >
-        <div class="row items-center justify-between q-mb-sm">
-          <div class="row items-center q-gutter-sm">
-            <q-btn
-              icon="arrow_back"
-              flat
-              round
-              dense
-              class="bg-grey-2"
-              @click="$emit('update:modelValue', false)"
-            />
-            <span class="text-h6 text-weight-bold">Pago Multimodal</span>
-          </div>
+    <q-card class="pay">
+      <header class="pay__head">
+        <div class="pay__titles">
+          <span class="pay__title">{{ titulo ?? 'Cobrar' }}</span>
+          <span v-if="subtitulo" class="pay__subtitle">{{ subtitulo }}</span>
         </div>
+        <div class="pay__total">
+          <span class="pay__total-label">Total a pagar</span>
+          <span class="pay__total-value">${{ totalNeto.toFixed(2) }}</span>
+        </div>
+        <q-btn
+          flat
+          round
+          dense
+          icon="close"
+          class="pay__close"
+          aria-label="Cerrar"
+          @click="$emit('update:modelValue', false)"
+        />
+      </header>
 
-        <MethodSelector v-model="metodoSeleccionado" :metodos-disponibles="props.metodosPago" />
+      <div class="pay__body">
+        <section class="pay__col pay__col--methods">
+          <span class="pay__label">Método</span>
+          <MethodSelector v-model="metodoSeleccionado" :metodos-disponibles="metodosVisibles" />
+        </section>
 
-        <div
-          style="
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-          "
-        >
-          <div class="row justify-between items-center q-mb-sm">
-            <span class="text-subtitle1 text-weight-bold">Ingresar Monto</span>
-            <span class="text-grey-7 text-caption">Método: {{ metodoSeleccionado }}</span>
-          </div>
-
+        <section class="pay__col pay__col--keypad">
           <PaymentKeypad
-            class="full-width"
-            style="flex-grow: 1"
-            :action-label="metodoSeleccionado === 'Lealtad' ? 'Aplicar Puntos' : 'Aplicar Pago'"
+            :label="etiquetaMonto"
+            :exacto="esEfectivo(metodoSeleccionado) ? saldoPendiente : null"
+            :action-label="metodoSeleccionado === 'Lealtad' ? 'Aplicar puntos' : 'Aplicar'"
             @add-payment="iniciarAbono"
           />
-        </div>
-      </div>
+        </section>
 
-      <!-- PANEL DERECHO -->
-      <div
-        style="
-          flex: 2;
-          background: var(--bg-main);
-          border-left: 1px solid var(--border-color);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        "
-      >
-        <div
-          style="
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border-color);
-            background: var(--bg-card);
-          "
-        >
-          <div class="field-label">Celular del cliente (opcional)</div>
-          <q-input
-            ref="celularInputRef"
-            v-model="celularCliente"
-            placeholder="10 dígitos"
-            outlined
-            dense
-            mask="##########"
-            class="q-mb-sm"
-            :readonly="!!props.celularPrellenado"
-            :rules="[(val: string) => !val || val.length === 10 || 'Debe tener 10 dígitos']"
-            :hint="
-              props.celularPrellenado
-                ? 'Tel. del tutor, usado para puntos de lealtad'
-                : 'Para acumular puntos de lealtad'
-            "
+        <section class="pay__col pay__col--applied">
+          <div v-if="permitirLealtad" class="pay__client">
+            <span class="field-label">Celular del cliente (opcional)</span>
+            <q-input
+              ref="celularInputRef"
+              v-model="celularCliente"
+              placeholder="10 dígitos"
+              outlined
+              dense
+              mask="##########"
+              :readonly="!!props.celularPrellenado"
+              :rules="[(val: string) => !val || val.length === 10 || 'Debe tener 10 dígitos']"
+              :hint="
+                props.celularPrellenado
+                  ? 'Tel. del tutor, usado para puntos de lealtad'
+                  : 'Para acumular puntos de lealtad'
+              "
+            />
+            <span
+              v-if="saldoDisponible !== null && saldoDisponible > 0 && !debajoDelMinimoCanje"
+              class="pay__points"
+            >
+              {{ saldoDisponible }} pts disponibles · ${{ valorPunto?.toFixed(2) }} c/u
+            </span>
+            <span v-else-if="debajoDelMinimoCanje" class="pay__points pay__points--warn">
+              Mínimo para canjear: {{ minimoCanje }} pts
+            </span>
+          </div>
+
+          <AppliedPaymentsList
+            class="pay__applied"
+            :pagos="pagosParaMostrar"
+            @remove-payment="eliminarPago"
           />
 
-          <div
-            v-if="saldoDisponible !== null && saldoDisponible > 0"
-            class="row justify-between text-caption q-mb-sm"
-            style="color: var(--text-secondary)"
-          >
-            <span>Puntos disponibles</span>
-            <span>{{ saldoDisponible }} pts · ${{ valorPunto?.toFixed(2) }} c/u</span>
-          </div>
-
-          <div class="row justify-between text-grey-8 text-caption q-mb-xs">
-            <span>Subtotal</span>
-            <span>${{ props.totalToPay.toFixed(2) }}</span>
-          </div>
-          <div
-            v-if="descuentoPuntos > 0"
-            class="row justify-between text-positive text-caption q-mb-xs"
-          >
-            <span>Descuento por puntos</span>
-            <span>-${{ descuentoPuntos.toFixed(2) }}</span>
-          </div>
-          <div class="row justify-between text-h6 text-weight-bold q-mt-xs">
-            <span>Total a Pagar</span>
-            <span>${{ totalNeto.toFixed(2) }}</span>
-          </div>
-        </div>
-
-        <div style="flex-grow: 1; padding: 12px; overflow-y: auto; min-height: 0">
-          <AppliedPaymentsList :pagos="pagosParaMostrar" @remove-payment="eliminarPago" />
-        </div>
-
-        <div
-          style="
-            padding: 16px;
-            background: var(--bg-card);
-            border-top: 1px solid var(--border-color);
-          "
-        >
-          <!-- ESTADO 1: Hay saldo pendiente -->
-          <div
-            v-if="saldoPendiente > 0"
-            style="
-              background: rgba(63, 168, 52, 0.1);
-              border: 1px solid #3fa834;
-              border-radius: 10px;
-              padding: 12px;
-              margin-bottom: 12px;
-            "
-            class="row justify-between items-center"
-          >
-            <div class="row items-center q-gutter-x-sm text-positive">
-              <q-icon name="pending" size="sm" />
-              <span class="text-subtitle1 text-weight-bold">Saldo Pendiente</span>
+          <dl class="pay__summary">
+            <template v-if="descuentoPuntos > 0">
+              <div>
+                <dt>Subtotal</dt>
+                <dd>${{ props.totalToPay.toFixed(2) }}</dd>
+              </div>
+              <div class="pay__summary--ok">
+                <dt>Descuento por puntos</dt>
+                <dd>−${{ descuentoPuntos.toFixed(2) }}</dd>
+              </div>
+            </template>
+            <div>
+              <dt>Aplicado</dt>
+              <dd>${{ totalPagado.toFixed(2) }}</dd>
             </div>
-            <span class="text-h5 text-weight-bold text-positive"
-              >${{ saldoPendiente.toFixed(2) }}</span
-            >
-          </div>
-
-          <!-- ESTADO 2: Transacción Completa / Hay Cambio -->
-          <div
-            v-else
-            style="
-              background: rgba(2, 95, 224, 0.08);
-              border: 1px solid #025fe0;
-              border-radius: 10px;
-              padding: 12px;
-              margin-bottom: 12px;
-            "
-            class="row justify-between items-center"
-          >
-            <div class="row items-center q-gutter-x-sm text-primary">
-              <q-icon name="monetization_on" size="sm" />
-              <span class="text-subtitle1 text-weight-bold">{{
-                cambioADevolver > 0 ? 'Cambio a Devolver' : 'Pagado Completamente'
-              }}</span>
+            <div class="pay__summary--bad">
+              <dt>Restante</dt>
+              <dd>${{ saldoPendiente.toFixed(2) }}</dd>
             </div>
-            <span class="text-h5 text-weight-bold text-primary"
-              >${{ cambioADevolver.toFixed(2) }}</span
-            >
-          </div>
-
-          <q-btn
-            class="full-width text-subtitle1 shadow-2"
-            style="border-radius: 8px; font-weight: 600; height: 50px"
-            :color="saldoPendiente <= 0 ? 'primary' : 'grey-5'"
-            :icon="saldoPendiente <= 0 ? 'receipt_long' : 'lock'"
-            :label="saldoPendiente <= 0 ? 'Finalizar Transacción' : 'Falta Pago'"
-            unelevated
-            :disable="saldoPendiente > 0"
-            @click="finalizarPago"
-          />
-        </div>
+            <div class="pay__summary--ok">
+              <dt>Cambio</dt>
+              <dd>${{ cambioADevolver.toFixed(2) }}</dd>
+            </div>
+          </dl>
+        </section>
       </div>
+
+      <footer class="pay__foot">
+        <q-btn outline label="Cancelar" @click="$emit('update:modelValue', false)" />
+        <q-btn
+          unelevated
+          color="primary"
+          label="Confirmar pago"
+          class="pay__confirm"
+          :disable="saldoPendiente > TOLERANCIA_MONTO"
+          @click="finalizarPago"
+        />
+      </footer>
     </q-card>
   </q-dialog>
 
-  <!-- MINI MODAL PARA DATOS DE TARJETA (Sin Cambios) -->
-  <q-dialog v-model="mostrarModalTarjeta" persistent>
-    <q-card style="min-width: 350px; border-radius: 12px">
-      <q-card-section class="bg-primary text-white row items-center q-pb-sm">
-        <div class="text-subtitle1 text-weight-bold">Detalles de Tarjeta</div>
-        <q-space />
-        <q-btn v-close-popup icon="close" flat round dense @click="limpiarModalTarjeta" />
-      </q-card-section>
-
-      <q-card-section class="q-pt-md">
-        <div class="text-center q-mb-md">
-          Monto a cobrar: <br />
-          <span class="text-h5 text-weight-bold">${{ tarjetaMontoTemporal.toFixed(2) }}</span>
-        </div>
-
-        <div class="field-label">Tipo de tarjeta</div>
-        <q-select
-          v-model="tarjetaTipo"
-          :options="['DEBITO', 'CREDITO']"
+  <BaseDialog
+    v-model="mostrarModalTarjeta"
+    title="Pago con tarjeta"
+    subtitle="Cobra en la terminal bancaria y captura los datos"
+    icon="credit_card"
+    tone="pink"
+    :width="480"
+    persistent
+    primary-label="Agregar pago"
+    :primary-disabled="!tarjetaTipo || !tarjetaAutorizacion"
+    @cancel="limpiarModalTarjeta"
+    @confirm="onConfirmarTarjeta"
+  >
+    <div class="card-form">
+      <div class="card-form__field">
+        <span class="field-label">Monto</span>
+        <q-input
+          :model-value="tarjetaMontoTemporal.toFixed(2)"
           outlined
           dense
-          class="q-mb-md"
+          readonly
+          prefix="$"
         />
-        <div class="field-label">Folio de autorización</div>
-        <q-input v-model="tarjetaAutorizacion" outlined dense autofocus />
-      </q-card-section>
+      </div>
+      <div class="card-form__field">
+        <span class="field-label">Tipo</span>
+        <q-select
+          v-model="tarjetaTipo"
+          :options="OPCIONES_TARJETA"
+          emit-value
+          map-options
+          outlined
+          dense
+        />
+      </div>
+      <div class="card-form__field card-form__field--full">
+        <span class="field-label">Autorización</span>
+        <q-input
+          v-model="tarjetaAutorizacion"
+          outlined
+          dense
+          autofocus
+          placeholder="Folio del voucher"
+        />
+      </div>
+      <div class="card-form__field">
+        <span class="field-label">Últimos 4 dígitos (opcional)</span>
+        <q-input
+          v-model="tarjetaUltimos4"
+          outlined
+          dense
+          maxlength="4"
+          mask="####"
+          placeholder="0000"
+          :rules="[(v: string) => !v || /^\d{4}$/.test(v) || '4 dígitos']"
+          hide-bottom-space
+        />
+      </div>
+    </div>
+  </BaseDialog>
 
-      <q-card-actions align="right" class="text-primary bg-grey-1 border-top">
-        <q-btn
-          v-close-popup
-          flat
-          no-caps
-          label="Cancelar"
-          color="grey-7"
-          @click="limpiarModalTarjeta"
+  <BaseDialog
+    v-model="mostrarModalReferencia"
+    title="Referencia del pago"
+    :subtitle="`${metodoSeleccionado} · $${referenciaMontoTemporal.toFixed(2)}`"
+    icon="receipt_long"
+    :width="440"
+    persistent
+    primary-label="Agregar pago"
+    :primary-disabled="!referenciaPago.trim()"
+    @cancel="limpiarModalReferencia"
+    @confirm="onConfirmarReferencia"
+  >
+    <div class="card-form">
+      <div class="card-form__field card-form__field--full">
+        <span class="field-label">Folio o referencia</span>
+        <q-input
+          v-model="referenciaPago"
+          outlined
+          dense
+          autofocus
+          placeholder="Ej. folio de la transferencia"
         />
-        <q-btn
-          v-close-popup
-          unelevated
-          no-caps
-          color="primary"
-          label="Agregar Pago"
-          style="border-radius: 8px; font-weight: 600"
-          :disable="!tarjetaTipo || !tarjetaAutorizacion"
-          @click="confirmarPagoTarjeta"
-        />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
+      </div>
+    </div>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useQuasar, type QInput } from 'quasar'
+import type { ApiError } from '@/types/auth'
 import type { PaymentProps, AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO, type MetodosPago } from '@/types/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
 import { useLealtadStore } from '@/stores/lealtad'
+import { TOLERANCIA_MONTO, redondear2 } from '@/utils/dinero'
 
 import MethodSelector from './MethodSelector.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import AppliedPaymentsList from './AppliedPaymentsList.vue'
 
-const props = defineProps<PaymentProps & { modelValue: boolean; metodosPago: MetodosPago[] }>()
+const props = withDefaults(
+  defineProps<
+    PaymentProps & {
+      modelValue: boolean
+      metodosPago: MetodosPago[]
+      /** Encabezado del cobro (p. ej. "Cobrar pedido"). */
+      titulo?: string
+      /** Línea secundaria (cliente, mesa, folio). */
+      subtitulo?: string
+      /**
+       * Si es false oculta la categoría Lealtad y la captura de celular, y no
+       * emite puntos. Usar en flujos que no pueden procesar la redención.
+       * Por defecto true.
+       */
+      permitirLealtad?: boolean
+    }
+  >(),
+  { permitirLealtad: true, titulo: undefined, subtitulo: undefined },
+)
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
+  /**
+   * Se emite al confirmar el cobro. En efectivo, `amount` es lo que entregó el
+   * cliente; `cambio` (último argumento) es lo que se le devuelve. El consumidor
+   * descuenta el cambio o lo manda al endpoint atómico (`completar`) — el modal
+   * no lo descuenta para no restarlo dos veces.
+   */
   (
     e: 'pago-exitoso',
     pagos: AppliedPayment[],
@@ -291,13 +271,30 @@ const mostrarModalTarjeta = ref(false)
 const tarjetaMontoTemporal = ref(0)
 const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
 const tarjetaAutorizacion = ref('')
+const tarjetaUltimos4 = ref('')
+
+// Métodos marcados con "requiere referencia" en el catálogo piden un folio
+// antes de agregarse (la tarjeta ya lo pide en su propio diálogo).
+const mostrarModalReferencia = ref(false)
+const referenciaMontoTemporal = ref(0)
+const referenciaPago = ref('')
+
+const requiereReferencia = (categoria: string): boolean => {
+  const tipo = CATEGORIAS_METODO_PAGO.find((c) => c.valor === categoria)?.tipo
+  return props.metodosPago.some((m) => m.tipo === tipo && m.requiere_referencia)
+}
+
+// Catálogo que se ofrece en el selector: sin Lealtad si el flujo no la admite.
+const metodosVisibles = computed(() =>
+  props.permitirLealtad ? props.metodosPago : props.metodosPago.filter((m) => m.tipo !== 'L'),
+)
 
 // Primera categoría con al menos un método activo de ese tipo en el
 // catálogo real de la sucursal -- no asumir que "Efectivo" siempre existe.
 const primeraCategoriaDisponible = computed(
   () =>
     CATEGORIAS_METODO_PAGO.find((cat) =>
-      props.metodosPago.some((m) => m.activo && m.tipo === cat.tipo),
+      metodosVisibles.value.some((m) => m.activo && m.tipo === cat.tipo),
     )?.valor ?? '',
 )
 
@@ -305,8 +302,11 @@ watch(
   () => props.modelValue,
   (visible) => {
     if (visible) {
+      saldoDisponible.value = null
+      valorPunto.value = null
+      puntosARedimir.value = 0
       metodoSeleccionado.value = primeraCategoriaDisponible.value
-      if (props.celularPrellenado) {
+      if (props.permitirLealtad && props.celularPrellenado) {
         celularCliente.value = props.celularPrellenado
       }
     } else {
@@ -325,28 +325,53 @@ watch(
       tarjetaMontoTemporal.value = 0
       tarjetaTipo.value = 'CREDITO'
       tarjetaAutorizacion.value = ''
+      tarjetaUltimos4.value = ''
     }
   },
   { immediate: true },
 )
 
 watch(celularCliente, async (val) => {
-  if (val.length !== 10 || !authStore.currentBranchId) {
+  if (!props.permitirLealtad || val.length !== 10 || !authStore.currentBranchId) {
     saldoDisponible.value = null
     puntosARedimir.value = 0
     return
   }
   const sucursalId = authStore.currentBranchId
-  const [saldo] = await Promise.all([
-    lealtadStore.cargarSaldo(sucursalId, val),
-    lealtadStore.cargarConfiguracion(sucursalId),
-  ])
-  saldoDisponible.value = saldo.saldo
+  const consultado = val
+  // Mientras se consulta no se muestra el saldo del celular anterior.
+  saldoDisponible.value = null
+  let saldo = 0
+  try {
+    const [respuesta] = await Promise.all([
+      lealtadStore.cargarSaldo(sucursalId, consultado),
+      lealtadStore.cargarConfiguracion(sucursalId),
+    ])
+    saldo = respuesta.saldo
+  } catch (error: unknown) {
+    // 404 = cliente sin cuenta de puntos: saldo 0. Otro error: también 0, con aviso.
+    if ((error as ApiError).statusCode !== 404) {
+      $q.notify({
+        type: 'warning',
+        message: 'No se pudo consultar el saldo de puntos del cliente.',
+        position: 'top',
+        timeout: 3000,
+      })
+    }
+  }
+  // Respuesta tardía: el celular cambió o el modal se cerró mientras esperaba.
+  if (celularCliente.value !== consultado || !props.modelValue) return
+  saldoDisponible.value = saldo
   valorPunto.value = lealtadStore.configuracion?.valor_punto ?? null
 })
 
+const minimoCanje = computed(() => lealtadStore.configuracion?.minimo_canje ?? 0)
+const debajoDelMinimoCanje = computed(
+  () => saldoDisponible.value !== null && saldoDisponible.value < minimoCanje.value,
+)
+
 const maxPuntosRedimibles = computed(() => {
-  if (saldoDisponible.value === null || !valorPunto.value) return 0
+  if (saldoDisponible.value === null || !valorPunto.value || debajoDelMinimoCanje.value) return 0
   const maxPorTotal = Math.floor(props.totalToPay / valorPunto.value)
   return Math.max(0, Math.min(saldoDisponible.value, maxPorTotal))
 })
@@ -354,22 +379,29 @@ const maxPuntosRedimibles = computed(() => {
 const descuentoPuntos = computed(() => {
   if (!valorPunto.value) return 0
   const puntos = Math.min(puntosARedimir.value, maxPuntosRedimibles.value)
-  return puntos * valorPunto.value
+  return redondear2(puntos * valorPunto.value)
 })
 
-const totalNeto = computed(() => props.totalToPay - descuentoPuntos.value)
+const totalNeto = computed(() => redondear2(props.totalToPay - descuentoPuntos.value))
 
 watch(totalNeto, (nuevoTotal) => {
   let excedente = 0
   for (const pago of pagosAplicados.value) {
     if (!esEfectivo(pago.method)) {
-      const maxPermitido = Math.max(0, nuevoTotal - excedente)
+      const maxPermitido = Math.max(0, redondear2(nuevoTotal - excedente))
       if (pago.amount > maxPermitido) {
         pago.amount = maxPermitido
       }
-      excedente += pago.amount
+      excedente = redondear2(excedente + pago.amount)
     }
   }
+})
+
+const etiquetaMonto = computed(() => {
+  const m = metodoSeleccionado.value
+  if (esEfectivo(m)) return 'Efectivo recibido'
+  if (esLealtad(m)) return 'Monto en puntos'
+  return m ? `Monto · ${m}` : 'Monto'
 })
 
 const esEfectivo = (nombre: string) => nombre.trim().toLowerCase().includes('efectivo')
@@ -386,28 +418,29 @@ const esTarjeta = (nombre: string) => {
 }
 
 const totalPagado = computed(() => {
-  return pagosAplicados.value.reduce((suma, pago) => suma + pago.amount, 0)
+  return redondear2(pagosAplicados.value.reduce((suma, pago) => suma + pago.amount, 0))
 })
 
 const saldoPendiente = computed(() => {
-  const restante = totalNeto.value - totalPagado.value
-  return restante > 0 ? restante : 0
+  const restante = redondear2(totalNeto.value - totalPagado.value)
+  return restante > TOLERANCIA_MONTO ? restante : 0
 })
 
 const cambioADevolver = computed(() => {
-  const excedente = totalPagado.value - totalNeto.value
-  return excedente > 0 ? excedente : 0
+  const excedente = redondear2(totalPagado.value - totalNeto.value)
+  return excedente > TOLERANCIA_MONTO ? excedente : 0
 })
 
 const iniciarAbono = (monto: number) => {
-  if (monto <= 0 || !metodoSeleccionado.value) return
+  monto = redondear2(monto)
+  if (monto <= TOLERANCIA_MONTO || !metodoSeleccionado.value) return
 
   if (esLealtad(metodoSeleccionado.value)) {
     aplicarRedencionLealtad(monto)
     return
   }
 
-  if (!esEfectivo(metodoSeleccionado.value) && monto > saldoPendiente.value) {
+  if (!esEfectivo(metodoSeleccionado.value) && monto > saldoPendiente.value + TOLERANCIA_MONTO) {
     $q.notify({
       type: 'warning',
       message: `No se puede dar cambio en ${metodoSeleccionado.value}. El máximo es $${saldoPendiente.value.toFixed(2)}`,
@@ -420,6 +453,9 @@ const iniciarAbono = (monto: number) => {
   if (esTarjeta(metodoSeleccionado.value)) {
     tarjetaMontoTemporal.value = monto
     mostrarModalTarjeta.value = true
+  } else if (!esEfectivo(metodoSeleccionado.value) && requiereReferencia(metodoSeleccionado.value)) {
+    referenciaMontoTemporal.value = monto
+    mostrarModalReferencia.value = true
   } else {
     agregarPago(monto)
   }
@@ -434,6 +470,16 @@ const aplicarRedencionLealtad = (monto: number) => {
       timeout: 3000,
     })
     celularInputRef.value?.focus()
+    return
+  }
+
+  if (debajoDelMinimoCanje.value) {
+    $q.notify({
+      type: 'warning',
+      message: `Mínimo para canjear: ${minimoCanje.value} pts.`,
+      position: 'top',
+      timeout: 3000,
+    })
     return
   }
 
@@ -452,11 +498,22 @@ const aplicarRedencionLealtad = (monto: number) => {
   puntosARedimir.value += Math.min(puntosSolicitados, puntosDisponiblesRestantes)
 }
 
+const OPCIONES_TARJETA = [
+  { label: 'Débito', value: 'DEBITO' },
+  { label: 'Crédito', value: 'CREDITO' },
+]
+
+const onConfirmarTarjeta = () => {
+  confirmarPagoTarjeta()
+  mostrarModalTarjeta.value = false
+}
+
 const confirmarPagoTarjeta = () => {
   agregarPago(
     tarjetaMontoTemporal.value,
     tarjetaTipo.value as 'DEBITO' | 'CREDITO',
     tarjetaAutorizacion.value,
+    tarjetaUltimos4.value || undefined,
   )
   limpiarModalTarjeta()
 }
@@ -467,11 +524,16 @@ const confirmarPagoTarjeta = () => {
 let contadorPagos = 0
 const nuevoIdPago = () => `pago-${Date.now()}-${++contadorPagos}`
 
-const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: string) => {
+const agregarPago = (
+  monto: number,
+  cardType?: 'DEBITO' | 'CREDITO',
+  authCode?: string,
+  ultimos4?: string,
+) => {
   if (esEfectivo(metodoSeleccionado.value)) {
     const existente = pagosAplicados.value.find((p) => esEfectivo(p.method))
     if (existente) {
-      existente.amount += monto
+      existente.amount = redondear2(existente.amount + monto)
       existente.timestamp = new Date()
       return
     }
@@ -483,13 +545,27 @@ const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: 
     timestamp: new Date(),
     cardType,
     authCode,
+    ultimos4,
   })
+}
+
+const onConfirmarReferencia = () => {
+  // La referencia viaja en `authCode`, igual que el folio del voucher de tarjeta.
+  agregarPago(referenciaMontoTemporal.value, undefined, referenciaPago.value.trim())
+  limpiarModalReferencia()
+}
+
+const limpiarModalReferencia = () => {
+  mostrarModalReferencia.value = false
+  referenciaMontoTemporal.value = 0
+  referenciaPago.value = ''
 }
 
 const limpiarModalTarjeta = () => {
   tarjetaMontoTemporal.value = 0
   tarjetaTipo.value = 'CREDITO'
   tarjetaAutorizacion.value = ''
+  tarjetaUltimos4.value = ''
 }
 
 const ID_REDENCION_LEALTAD = 'redencion-lealtad'
@@ -523,9 +599,9 @@ const finalizarPago = () => {
   emit(
     'pago-exitoso',
     pagosAplicados.value.map((p) => ({ ...p })),
-    celularCliente.value.length === 10 ? celularCliente.value : null,
-    Math.min(puntosARedimir.value, maxPuntosRedimibles.value),
-    descuentoPuntos.value,
+    props.permitirLealtad && celularCliente.value.length === 10 ? celularCliente.value : null,
+    props.permitirLealtad ? Math.min(puntosARedimir.value, maxPuntosRedimibles.value) : 0,
+    props.permitirLealtad ? descuentoPuntos.value : 0,
     cambioADevolver.value,
   )
   emit('update:modelValue', false)
@@ -537,3 +613,191 @@ const finalizarPago = () => {
   valorPunto.value = null
 }
 </script>
+<style scoped lang="scss">
+.pay {
+  width: 900px;
+  max-width: 96vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__total {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  &__total-label {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__total-value {
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__close {
+    color: var(--text-secondary);
+  }
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 260px;
+    overflow-y: auto;
+
+    @media (max-width: 760px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__col {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    &--methods {
+      border-right: 1px solid var(--border-soft);
+    }
+
+    &--keypad {
+      padding: 18px 24px;
+    }
+
+    &--applied {
+      border-left: 1px solid var(--border-soft);
+      background: var(--bg-subtle);
+      gap: 16px;
+    }
+  }
+
+  &__label {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  &__client {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__points {
+    font-size: 12px;
+    color: var(--tone-info-fg);
+    font-weight: 600;
+
+    &--warn {
+      color: var(--tone-warn-fg);
+    }
+  }
+
+  &__applied {
+    flex: 1;
+  }
+
+  &__summary {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    div {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13.5px;
+      color: var(--text-secondary);
+    }
+
+    dt {
+      font-weight: 500;
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 800;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  &__summary--bad dd {
+    color: var(--tone-bad-fg) !important;
+  }
+
+  &__summary--ok dd {
+    color: var(--tone-ok-fg) !important;
+  }
+
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-subtle);
+
+    :deep(.q-btn) {
+      min-height: 46px;
+    }
+  }
+
+  &__confirm {
+    font-weight: 800;
+    padding: 0 22px;
+  }
+}
+
+.card-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
+}
+</style>

@@ -12,6 +12,7 @@ function mapUser(raw: BackendUser, payload: TokenPayload | null): User {
     branchId: payload?.branch_id ?? raw.branch_id,
     branchName: raw.branch_name,
     permissions: payload?.permissions ?? raw.permissions,
+    tienePin: raw.tiene_pin ?? false,
   }
 }
 
@@ -41,12 +42,13 @@ export const authService = {
     return mapUser(data, null)
   },
 
-  async refresh(refreshToken: string): Promise<LoginResponse> {
-    const data = await authApi.refresh(refreshToken)
+  // QA #32: el refresh token ya no se manda -- viaja en la cookie HttpOnly.
+  async refresh(): Promise<LoginResponse> {
+    const data = await authApi.refresh()
     return mapLoginResponse(data)
   },
 
-  async logout(refreshToken: string): Promise<void> {
-    await authApi.logout(refreshToken)
+  async logout(): Promise<void> {
+    await authApi.logout()
   },
 }

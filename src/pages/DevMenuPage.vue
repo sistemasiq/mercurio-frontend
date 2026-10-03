@@ -1,43 +1,52 @@
 <template>
   <div class="dev-root">
-    <div class="dev-card">
-      <!-- Header -->
-      <div class="dev-header">
-        <span class="dev-badge">⚗ DEV ONLY</span>
-        <h1 class="dev-title">Mercurio — Menú de Desarrollo</h1>
-        <p class="dev-sub">
-          Solo visible en <code>import.meta.env.DEV</code>. Haz clic en cualquier ruta para inyectar
-          la sesión mock y navegar directo.
-        </p>
-        <div class="dev-session-bar" :class="autenticado ? 'ok' : 'off'">
-          <span>{{
-            autenticado ? `✓ Sesión activa · ${authStore.currentUser?.name}` : '✗ Sin sesión'
-          }}</span>
-          <button v-if="!autenticado" class="dev-btn" @click="login">Inyectar sesión mock</button>
-          <button v-else class="dev-btn dev-btn--ghost" @click="authStore.logout()">
+    <div class="dev-wrap">
+      <header class="dev-header">
+        <div class="dev-header__text">
+          <span class="dev-badge">DEV ONLY</span>
+          <h1 class="dev-title">Mercurio — Menú de Desarrollo</h1>
+          <p class="dev-sub">
+            Solo visible en <code>import.meta.env.DEV</code>. Haz clic en cualquier ruta para
+            inyectar la sesión mock y navegar directo.
+          </p>
+        </div>
+        <div v-if="autenticado" class="dev-session dev-session--on">
+          <span class="dev-session__dot" />
+          <span class="dev-session__text">Sesión activa · {{ authStore.currentUser?.name }}</span>
+          <button type="button" class="dev-session__btn" @click="authStore.logout()">
             Limpiar sesión
           </button>
         </div>
-      </div>
+        <div v-else class="dev-session dev-session--off">
+          <span class="dev-session__dot" />
+          <span class="dev-session__text">Sin sesión</span>
+          <button type="button" class="dev-session__btn" @click="login">
+            Inyectar sesión mock
+          </button>
+        </div>
+      </header>
 
-      <!-- Grupos de rutas -->
-      <div v-for="grupo in rutas" :key="grupo.label" class="dev-group">
-        <div class="dev-group-label">{{ grupo.label }}</div>
+      <section v-for="grupo in rutas" :key="grupo.label" class="dev-group">
+        <span class="dev-group__label" :class="{ 'dev-group__label--hl': grupo.highlight }">
+          {{ grupo.label }}
+        </span>
         <div class="dev-grid">
           <button
             v-for="ruta in grupo.items"
             :key="ruta.name"
             type="button"
-            class="dev-route-btn"
-            :class="{ 'dev-route-btn--highlight': grupo.highlight }"
+            class="dev-route"
+            :class="{ 'dev-route--hl': grupo.highlight }"
             @click="irA(ruta.name)"
           >
-            <span class="material-symbols-outlined dev-route-icon">{{ ruta.icon }}</span>
-            <span class="dev-route-label">{{ ruta.label }}</span>
-            <span class="dev-route-path">{{ ruta.path }}</span>
+            <q-icon :name="ruta.icon" size="20px" class="dev-route__icon" />
+            <span class="dev-route__text">
+              <span class="dev-route__label">{{ ruta.label }}</span>
+              <span class="dev-route__path">{{ ruta.path }}</span>
+            </span>
           </button>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
@@ -64,7 +73,7 @@ async function irA(routeName: string) {
 
 const rutas = [
   {
-    label: '★ CIERRE DE CAJA — Módulo nuevo',
+    label: '★ CIERRE DE CAJA — MÓDULO NUEVO',
     highlight: true,
     items: [
       { name: 'pos-cierre', icon: 'point_of_sale', label: 'Cierre de Caja', path: '/pos/cierre' },
@@ -119,28 +128,16 @@ const rutas = [
         label: 'Calendario',
         path: '/eventos/calendario',
       },
-      { name: 'eventos-pagos', icon: 'payment', label: 'Pagos', path: '/eventos/pagos' },
     ],
   },
   {
-    label: 'CATÁLOGO',
+    label: 'CATÁLOGO E INVENTARIO',
     highlight: false,
     items: [
       { name: 'extras-listar', icon: 'add_box', label: 'Extras', path: '/extras' },
-      { name: 'paquetes-listar', icon: 'inventory_2', label: 'Paquetes', path: '/paquetes' },
-      {
-        name: 'tipos-evento-listar',
-        icon: 'category',
-        label: 'Tipos de Evento',
-        path: '/tipos-evento',
-      },
-      {
-        name: 'metodos-pago-listar',
-        icon: 'credit_card',
-        label: 'Métodos de Pago',
-        path: '/metodos-pago',
-      },
+      { name: 'paquetes-listar', icon: 'card_giftcard', label: 'Paquetes', path: '/paquetes' },
       { name: 'productos-listar', icon: 'liquor', label: 'Productos', path: '/productos' },
+      { name: 'insumos-listar', icon: 'inventory_2', label: 'Insumos', path: '/insumos' },
     ],
   },
   {
@@ -149,187 +146,233 @@ const rutas = [
     items: [
       { name: 'sucursales-listar', icon: 'store', label: 'Sucursales', path: '/sucursales' },
       { name: 'usuarios-listar', icon: 'group', label: 'Usuarios', path: '/usuarios' },
+      { name: 'roles-listar', icon: 'admin_panel_settings', label: 'Roles', path: '/roles' },
       {
         name: 'reportes-dashboard',
-        icon: 'query_stats',
+        icon: 'analytics',
         label: 'Reportes',
         path: '/reportes/dashboard',
       },
     ],
   },
+  {
+    label: 'SISTEMA',
+    highlight: false,
+    items: [{ name: 'dev-ui-kit', icon: 'palette', label: 'Kit de UI', path: '/dev/ui' }],
+  },
 ]
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .dev-root {
   min-height: 100vh;
-  background: #0f172a;
+  background: #0d1230;
   display: flex;
   justify-content: center;
-  padding: 40px 20px;
-  font-family: 'Inter', sans-serif;
-}
-.dev-card {
-  width: 100%;
-  max-width: 860px;
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 16px;
-  overflow: hidden;
-  align-self: flex-start;
+  padding: 48px 24px;
 }
 
-/* Header */
+.dev-wrap {
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
 .dev-header {
-  padding: 28px 32px 20px;
-  border-bottom: 1px solid #334155;
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 280px;
+  }
+}
+
+.dev-badge {
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #ffc107;
+  color: #0d1230;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.dev-title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.dev-sub {
+  margin: 0;
+  font-size: 14px;
+  color: #aeb8e8;
+
+  code {
+    font-family: ui-monospace, Menlo, monospace;
+    color: #dfe4fa;
+  }
+}
+
+.dev-session {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 8px 0 14px;
+  border-radius: 12px;
+  white-space: nowrap;
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+  }
+
+  &__text {
+    font-size: 13.5px;
+    font-weight: 700;
+  }
+
+  &__btn {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  &--on {
+    background: rgba(63, 168, 52, 0.16);
+    border: 1px solid rgba(63, 168, 52, 0.4);
+
+    .dev-session__dot {
+      background: #3fa834;
+    }
+    .dev-session__text {
+      color: #bfe9b8;
+    }
+  }
+
+  &--off {
+    background: rgba(220, 38, 38, 0.16);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+
+    .dev-session__dot {
+      background: #dc2626;
+    }
+    .dev-session__text {
+      color: #f5c2c2;
+    }
+  }
+}
+
+.dev-group {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-.dev-badge {
-  width: fit-content;
-  padding: 3px 10px;
-  border-radius: 9999px;
-  background: rgba(245, 147, 0, 0.15);
-  border: 1px solid rgba(245, 147, 0, 0.35);
-  color: #f59300;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-.dev-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #f1f5f9;
-  margin: 0;
-}
-.dev-sub {
-  font-size: 13px;
-  color: #94a3b8;
-  line-height: 1.5;
-  margin: 0;
-}
-.dev-sub code {
-  background: #0f172a;
-  padding: 1px 6px;
-  border-radius: 4px;
-  color: #7dd3fc;
-  font-size: 12px;
+
+  &__label {
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #8f9bd4;
+
+    &--hl {
+      color: #ffc107;
+    }
+  }
 }
 
-/* Session bar */
-.dev-session-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-}
-.dev-session-bar.ok {
-  background: rgba(34, 197, 94, 0.1);
-  color: #4ade80;
-}
-.dev-session-bar.off {
-  background: rgba(239, 68, 68, 0.1);
-  color: #f87171;
-}
-
-/* Buttons */
-.dev-btn {
-  padding: 5px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  background: #f59300;
-  color: #0f172a;
-  transition: opacity 0.15s;
-}
-.dev-btn:hover {
-  opacity: 0.85;
-}
-.dev-btn--ghost {
-  background: transparent;
-  border: 1px solid #475569;
-  color: #94a3b8;
-}
-
-/* Groups */
-.dev-group {
-  padding: 20px 32px;
-  border-top: 1px solid #334155;
-}
-.dev-group-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #475569;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
-
-/* Grid */
 .dev-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-/* Route button */
-.dev-route-btn {
+.dev-route {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
+  align-items: center;
+  gap: 12px;
   padding: 12px 14px;
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 10px;
-  cursor: pointer;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font: inherit;
   text-align: left;
+  cursor: pointer;
   transition:
-    border-color 0.15s,
-    background 0.15s;
-}
-.dev-route-btn:hover {
-  border-color: #3b82f6;
-  background: #0d1b3e;
-}
-.dev-route-btn--highlight {
-  border-color: rgba(79, 97, 215, 0.5);
-  background: rgba(26, 35, 126, 0.2);
-}
-.dev-route-btn--highlight:hover {
-  border-color: #8690ee;
-  background: rgba(26, 35, 126, 0.4);
-}
-.dev-route-icon {
-  font-size: 18px;
-  color: #64748b;
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
-}
-.dev-route-btn--highlight .dev-route-icon {
-  color: #8690ee;
-}
-.dev-route-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #e2e8f0;
-  line-height: 1.2;
-}
-.dev-route-path {
-  font-size: 11px;
-  color: #475569;
-  font-family: 'Roboto Mono', monospace;
+    background 0.12s,
+    border-color 0.12s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+
+  &__icon {
+    color: #aeb8e8;
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__label {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+  }
+
+  &__path {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11.5px;
+    color: #8f9bd4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &--hl {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.35);
+
+    .dev-route__icon {
+      color: #ffc107;
+    }
+
+    &:hover {
+      background: rgba(255, 193, 7, 0.16);
+    }
+  }
 }
 </style>

@@ -1,4 +1,5 @@
 import { movimientosInventarioApi } from '@/api/movimientosInventarioApi'
+import { downloadBlob } from '@/utils/downloadBlob'
 import type {
   ConteoFisicoCreate,
   MovimientoInventario,
@@ -25,4 +26,14 @@ export async function registrarConteoFisico(
   body: ConteoFisicoCreate,
 ): Promise<MovimientoInventario> {
   return movimientosInventarioApi.conteo(insumoId, body)
+}
+
+export async function exportarMovimientos(
+  insumoId: string,
+  desde?: string,
+  hasta?: string,
+  nombreArchivo = `kardex_${insumoId}.csv`,
+): Promise<void> {
+  const blob = await movimientosInventarioApi.exportar(insumoId, desde, hasta)
+  downloadBlob(blob, nombreArchivo)
 }

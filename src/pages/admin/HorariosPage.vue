@@ -1,294 +1,251 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div>
-      <!-- Encabezado -->
-      <div class="row items-center q-mb-lg">
-        <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
-            Gestión de Horarios
-          </div>
-          <div class="text-body2" style="color: var(--text-secondary)">
-            Administra los turnos de trabajo disponibles para los cajeros.
-          </div>
-        </div>
-        <q-space />
+  <q-page class="page-content list-page">
+    <PageHeader title="Horarios" subtitle="Turnos de trabajo disponibles para los cajeros.">
+      <template #actions>
         <q-btn
           v-if="puedeCrear"
+          unelevated
           color="primary"
           icon="add"
           label="Nuevo horario"
-          unelevated
-          no-caps
-          style="border-radius: 8px; font-weight: 600"
           @click="abrirCrear"
         />
-      </div>
+      </template>
+    </PageHeader>
 
-      <!-- Filtros -->
-      <div class="row items-center q-mb-md q-gutter-sm">
-        <q-input
-          v-model="busqueda"
-          dense
-          outlined
-          clearable
-          placeholder="Buscar horario..."
-          style="min-width: 260px"
-        >
-          <template #prepend><q-icon name="search" size="18px" color="grey-6" /></template>
-        </q-input>
-        <q-space />
-        <q-select
-          v-model="filtroEstado"
-          :options="opcionesEstado"
-          dense
-          outlined
-          emit-value
-          map-options
-          style="min-width: 140px"
-          label="Estado"
-        />
-      </div>
-
-      <!-- Error -->
-      <q-banner
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtroEstado"
+      :filters="FILTROS"
+      search-placeholder="Buscar horario"
+      :count="`${filasFiltradas.length} horarios`"
+    >
+      <StateBlock
         v-if="error"
-        dense
-        rounded
-        class="bg-red-1 text-red-8 q-mb-md"
-        style="border-radius: 10px"
+        variant="error"
+        :body="error"
+        action-label="Reintentar"
+        @action="cargar"
+      />
+      <q-table
+        v-else
+        :rows="filasFiltradas"
+        :columns="columns"
+        row-key="id"
+        flat
+        :loading="cargando"
+        :rows-per-page-options="[10, 25, 50]"
       >
-        <template #avatar><q-icon name="error_outline" color="negative" /></template>
-        {{ error }}
-        <template #action>
-          <q-btn flat dense no-caps label="Reintentar" @click="cargar" />
+        <template #body-cell-nombre="props">
+          <q-td :props="props" class="text-weight-bold">{{ props.row.nombre }}</q-td>
         </template>
-      </q-banner>
-
-      <!-- Tabla -->
-      <q-card flat bordered style="border-radius: 12px; overflow-x: auto; overflow-y: hidden">
-        <q-table
-          :rows="filasFiltradas"
-          :columns="columns"
-          row-key="id"
-          flat
-          :loading="cargando"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="No hay horarios registrados"
-          class="fec-table"
-        >
-          <template #body-cell-horaInicio="props">
-            <q-td :props="props">{{ props.row.horaInicio }}</q-td>
-          </template>
-
-          <template #body-cell-horaFin="props">
-            <q-td :props="props">{{ props.row.horaFin }}</q-td>
-          </template>
-
-          <template #body-cell-activo="props">
-            <q-td :props="props">
-              <EstadoBadge
-                :tono="props.row.activo ? 'verde' : 'gris'"
-                :label="props.row.activo ? 'Activo' : 'Inactivo'"
-              />
-            </q-td>
-          </template>
-
-          <template #body-cell-actions="props">
-            <q-td :props="props" class="text-right">
-              <q-btn
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
-                @click="abrirDetalle(props.row)"
-              >
-                <span class="material-symbols-outlined">visibility</span>
-                <q-tooltip>Ver detalle</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-if="puedeEditar"
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
-                @click="abrirEditar(props.row)"
-              >
-                <span class="material-symbols-outlined">edit</span>
-                <q-tooltip>Editar</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-if="puedeEliminar && props.row.activo"
-                flat
-                dense
-                color="negative"
-                size="sm"
-                class="action-btn"
-                @click="confirmarEliminar(props.row)"
-              >
-                <span class="material-symbols-outlined">delete</span>
-                <q-tooltip>Desactivar</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-else-if="puedeEliminar"
-                flat
-                dense
-                color="positive"
-                size="sm"
-                class="action-btn"
-                @click="reactivar(props.row)"
-              >
-                <span class="material-symbols-outlined">restore</span>
-                <q-tooltip>Reactivar</q-tooltip>
-              </q-btn>
-            </q-td>
-          </template>
-        </q-table>
-      </q-card>
-    </div>
-
-    <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
-    <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 420px; border-radius: 12px">
-        <q-card-section class="row items-center q-pb-sm">
-          <div class="text-h6 text-weight-bold">
-            {{ editando ? 'Editar horario' : 'Nuevo horario' }}
-          </div>
-          <q-space />
-          <q-btn flat round dense icon="close" color="grey-7" @click="cerrarDialog" />
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">NOMBRE</div>
-            <q-input
-              ref="nombreRef"
-              v-model="form.nombre"
-              dense
-              outlined
-              autofocus
-              placeholder="Ej. Turno matutino"
-              :rules="[(v: string) => !!v.trim() || 'El nombre es requerido']"
-              lazy-rules
+        <template #body-cell-dias="props">
+          <q-td :props="props" class="cell-muted">{{ diasLabel(props.row.dias) }}</q-td>
+        </template>
+        <template #body-cell-activo="props">
+          <q-td :props="props">
+            <StatusBadge
+              :tone="props.row.activo ? 'ok' : 'off'"
+              :label="props.row.activo ? 'Activo' : 'Inactivo'"
             />
-          </div>
-          <div class="row q-gutter-md">
-            <div class="col">
-              <div class="field-label">HORA INICIO</div>
-              <q-input
-                ref="horaInicioRef"
-                v-model="form.horaInicio"
-                dense
-                outlined
-                type="time"
-                :rules="[(v: string) => !!v || 'La hora de inicio es requerida']"
-                lazy-rules
-              />
-            </div>
-            <div class="col">
-              <div class="field-label">HORA FIN</div>
-              <q-input
-                ref="horaFinRef"
-                v-model="form.horaFin"
-                dense
-                outlined
-                type="time"
-                :rules="[
-                  (v: string) => !!v || 'La hora de fin es requerida',
-                  (v: string) =>
-                    !form.horaInicio ||
-                    v > form.horaInicio ||
-                    'Debe ser posterior a la hora de inicio',
-                ]"
-                lazy-rules
-              />
-            </div>
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            :label="editando ? 'Guardar cambios' : 'Crear horario'"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            @click="guardar"
+          </q-td>
+        </template>
+        <template #body-cell-actions="props">
+          <q-td :props="props">
+            <q-btn
+              flat
+              round
+              dense
+              icon="visibility"
+              class="action-btn"
+              aria-label="Ver detalle"
+              @click="abrirDetalle(props.row)"
+            />
+            <q-btn
+              v-if="puedeEditar"
+              flat
+              round
+              dense
+              icon="edit"
+              class="action-btn"
+              aria-label="Editar"
+              @click="abrirEditar(props.row)"
+            />
+            <q-btn
+              v-if="puedeEliminar && props.row.activo"
+              flat
+              round
+              dense
+              icon="block"
+              class="action-btn"
+              aria-label="Desactivar"
+              @click="confirmarEliminar(props.row)"
+            />
+            <q-btn
+              v-else-if="puedeEliminar"
+              flat
+              round
+              dense
+              icon="restart_alt"
+              class="action-btn"
+              aria-label="Reactivar"
+              @click="reactivar(props.row)"
+            />
+          </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="filtrando ? 'no-results' : 'empty'"
+            :title="filtrando ? undefined : 'No hay horarios registrados'"
+            :action-label="filtrando ? 'Limpiar filtros' : puedeCrear ? 'Nuevo horario' : undefined"
+            @action="filtrando ? ((busqueda = ''), (filtroEstado = 'todos')) : abrirCrear()"
           />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+        </template>
+      </q-table>
+    </DataTableCard>
 
-    <!-- ── Dialog Confirmar Eliminar ────────────────────────────────────────── -->
-    <q-dialog v-model="dialogEliminar">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">Desactivar horario</div>
-          <div class="q-mt-sm text-body2 text-grey-8">
-            ¿Deseas desactivar <strong>{{ filaEliminar?.nombre }}</strong
-            >? Dejará de estar disponible para los cajeros, pero podrás reactivarlo después.
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="negative"
-            label="Desactivar"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="eliminando"
-            @click="ejecutarEliminar"
+    <!-- ── Crear / editar ──────────────────────────────────────────────────── -->
+    <BaseDialog
+      v-model="dialogOpen"
+      :title="editando ? 'Editar horario' : 'Nuevo horario'"
+      :subtitle="editando ? editando.nombre : 'Turno disponible para los cajeros.'"
+      icon="schedule"
+      :width="520"
+      persistent
+      :primary-label="editando ? 'Guardar cambios' : 'Guardar horario'"
+      :loading="guardando"
+      @cancel="cerrarDialog"
+      @confirm="guardar"
+    >
+      <div class="form-grid">
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Nombre</span>
+          <q-input
+            ref="nombreRef"
+            v-model="form.nombre"
+            dense
+            outlined
+            autofocus
+            placeholder="Ej. Vespertino"
+            hide-bottom-space
+            lazy-rules
+            :rules="[(v: string) => !!v.trim() || 'El nombre es requerido']"
           />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ── Dialog Ver Detalle ──────────────────────────────────────────────── -->
-    <q-dialog v-model="dialogDetalle">
-      <q-card style="min-width: 420px; border-radius: 12px">
-        <q-card-section class="row items-center q-pb-sm">
-          <div class="text-h6 text-weight-bold">Detalle del horario</div>
-          <q-space />
-          <q-btn v-close-popup flat round dense icon="close" color="grey-7" />
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section v-if="filaDetalle" class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">NOMBRE</div>
-            <div class="text-body1">{{ filaDetalle.nombre }}</div>
+        </label>
+        <label class="form-grid__field">
+          <span class="field-label">Hora inicio</span>
+          <q-input
+            ref="horaInicioRef"
+            v-model="form.horaInicio"
+            dense
+            outlined
+            type="time"
+            hide-bottom-space
+            lazy-rules
+            :rules="[(v: string) => !!v || 'La hora de inicio es requerida']"
+          />
+        </label>
+        <label class="form-grid__field">
+          <span class="field-label">Hora fin</span>
+          <q-input
+            ref="horaFinRef"
+            v-model="form.horaFin"
+            dense
+            outlined
+            type="time"
+            hide-bottom-space
+            lazy-rules
+            :rules="[
+              (v: string) => !!v || 'La hora de fin es requerida',
+              (v: string) =>
+                !form.horaInicio || v > form.horaInicio || 'Debe ser posterior a la hora de inicio',
+            ]"
+          />
+        </label>
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Días de la semana</span>
+          <div class="dias-selector">
+            <q-chip
+              v-for="dia in DIAS_SEMANA"
+              :key="dia.value"
+              clickable
+              :outline="!form.dias.includes(dia.value)"
+              :color="form.dias.includes(dia.value) ? 'primary' : undefined"
+              :text-color="form.dias.includes(dia.value) ? 'white' : undefined"
+              dense
+              @click="toggleDia(dia.value)"
+            >
+              {{ dia.label }}
+            </q-chip>
           </div>
-          <div class="row q-gutter-md">
-            <div class="col">
-              <div class="field-label">HORA INICIO</div>
-              <div class="text-body1">{{ filaDetalle.horaInicio }}</div>
-            </div>
-            <div class="col">
-              <div class="field-label">HORA FIN</div>
-              <div class="text-body1">{{ filaDetalle.horaFin }}</div>
-            </div>
-          </div>
-          <div>
-            <div class="field-label">ESTADO</div>
-            <EstadoBadge
-              :tono="filaDetalle.activo ? 'verde' : 'gris'"
+          <span class="dias-selector__hint">Sin selección = todos los días.</span>
+        </label>
+      </div>
+    </BaseDialog>
+
+    <!-- ── Detalle ─────────────────────────────────────────────────────────── -->
+    <BaseDialog
+      v-model="dialogDetalle"
+      title="Detalle del horario"
+      :subtitle="filaDetalle?.nombre"
+      icon="schedule"
+      :width="460"
+      secondary-label="Cerrar"
+      primary-label="Editar"
+      :primary-disabled="!puedeEditar"
+      @confirm="filaDetalle && ((dialogDetalle = false), abrirEditar(filaDetalle))"
+    >
+      <dl v-if="filaDetalle" class="detail-grid">
+        <div class="detail-grid__item detail-grid__item--full">
+          <dt>Nombre</dt>
+          <dd>{{ filaDetalle.nombre }}</dd>
+        </div>
+        <div class="detail-grid__item">
+          <dt>Hora inicio</dt>
+          <dd>{{ filaDetalle.horaInicio }}</dd>
+        </div>
+        <div class="detail-grid__item">
+          <dt>Hora fin</dt>
+          <dd>{{ filaDetalle.horaFin }}</dd>
+        </div>
+        <div class="detail-grid__item">
+          <dt>Estado</dt>
+          <dd>
+            <StatusBadge
+              :tone="filaDetalle.activo ? 'ok' : 'off'"
               :label="filaDetalle.activo ? 'Activo' : 'Inactivo'"
             />
-          </div>
-        </q-card-section>
+          </dd>
+        </div>
+        <div class="detail-grid__item detail-grid__item--full">
+          <dt>Días de la semana</dt>
+          <dd>{{ diasLabel(filaDetalle.dias) }}</dd>
+        </div>
+      </dl>
+    </BaseDialog>
 
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <!-- ── Desactivar ──────────────────────────────────────────────────────── -->
+    <BaseDialog
+      v-model="dialogEliminar"
+      title="Desactivar horario"
+      :subtitle="
+        filaEliminar
+          ? `${filaEliminar.nombre} · ${filaEliminar.horaInicio} – ${filaEliminar.horaFin}`
+          : ''
+      "
+      icon="block"
+      tone="red"
+      danger
+      :width="460"
+      primary-label="Desactivar"
+      :loading="eliminando"
+      @confirm="ejecutarEliminar"
+    >
+      <p class="dlg-text">
+        Dejará de estar disponible para los cajeros. Podrás reactivarlo después.
+      </p>
+    </BaseDialog>
   </q-page>
 </template>
 
@@ -300,8 +257,13 @@ import { useAuthStore } from '@/stores/auth'
 import { horarioService } from '@/services/horarioService'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
-import type { Horario } from '@/types/horario'
-import EstadoBadge from '@/components/shared/EstadoBadge.vue'
+import { DIAS_SEMANA, type Horario } from '@/types/horario'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
 
 const $q = useQuasar()
 const auth = useAuthStore()
@@ -316,17 +278,18 @@ const horarios = ref<Horario[]>([])
 const cargando = ref(false)
 const error = ref<string | null>(null)
 const busqueda = ref('')
-const filtroEstado = ref<'todos' | 'activo' | 'inactivo'>('todos')
-
-const opcionesEstado = [
+type Filtro = 'todos' | 'activo' | 'inactivo'
+const filtroEstado = ref<Filtro | null>('todos')
+const FILTROS: FilterChip<Filtro>[] = [
   { label: 'Todos', value: 'todos' },
-  { label: 'Activo', value: 'activo' },
-  { label: 'Inactivo', value: 'inactivo' },
+  { label: 'Activos', value: 'activo' },
+  { label: 'Inactivos', value: 'inactivo' },
 ]
+const filtrando = computed(() => !!busqueda.value || filtroEstado.value !== 'todos')
 
 const filasFiltradas = computed(() => {
   let result = horarios.value
-  if (busqueda.value.trim()) {
+  if (busqueda.value?.trim()) {
     const q = busqueda.value.trim().toLowerCase()
     result = result.filter((h) => h.nombre.toLowerCase().includes(q))
   }
@@ -336,11 +299,12 @@ const filasFiltradas = computed(() => {
 })
 
 const columns: QTableColumn[] = [
-  { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
-  { name: 'horaInicio', label: 'HORA INICIO', field: 'horaInicio', align: 'left' },
-  { name: 'horaFin', label: 'HORA FIN', field: 'horaFin', align: 'left' },
-  { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
-  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+  { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
+  { name: 'horaInicio', label: 'Hora inicio', field: 'horaInicio', align: 'left', sortable: true },
+  { name: 'horaFin', label: 'Hora fin', field: 'horaFin', align: 'left' },
+  { name: 'dias', label: 'Días', field: 'dias', align: 'left' },
+  { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 
 const cargar = async () => {
@@ -364,12 +328,11 @@ const reactivar = async (row: Horario) => {
     const actualizado = await horarioService.updateHorario(row.id, { activo: true })
     const idx = horarios.value.findIndex((h) => h.id === row.id)
     if (idx !== -1) horarios.value[idx] = actualizado
-    $q.notify({ type: 'positive', message: 'Horario activado', position: 'top-right' })
+    $q.notify({ type: 'positive', message: 'Horario activado' })
   } catch (err) {
     $q.notify({
       type: 'negative',
       message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
     })
   }
 }
@@ -394,17 +357,35 @@ const nombreRef = ref()
 const horaInicioRef = ref()
 const horaFinRef = ref()
 
-const form = ref({ nombre: '', horaInicio: '', horaFin: '' })
+const form = ref({ nombre: '', horaInicio: '', horaFin: '', dias: [] as number[] })
+
+function toggleDia(dia: number) {
+  const idx = form.value.dias.indexOf(dia)
+  if (idx === -1) form.value.dias.push(dia)
+  else form.value.dias.splice(idx, 1)
+}
+
+function diasLabel(dias: number[] | null): string {
+  if (!dias || dias.length === 0) return 'Todos los días'
+  return DIAS_SEMANA.filter((d) => dias.includes(d.value))
+    .map((d) => d.fullLabel)
+    .join(', ')
+}
 
 const abrirCrear = () => {
   editando.value = null
-  form.value = { nombre: '', horaInicio: '', horaFin: '' }
+  form.value = { nombre: '', horaInicio: '', horaFin: '', dias: [] }
   dialogOpen.value = true
 }
 
 const abrirEditar = (row: Horario) => {
   editando.value = row
-  form.value = { nombre: row.nombre, horaInicio: row.horaInicio, horaFin: row.horaFin }
+  form.value = {
+    nombre: row.nombre,
+    horaInicio: row.horaInicio,
+    horaFin: row.horaFin,
+    dias: row.dias ? [...row.dias] : [],
+  }
   dialogOpen.value = true
 }
 
@@ -432,25 +413,26 @@ const guardar = async () => {
         nombre: form.value.nombre.trim(),
         horaInicio: form.value.horaInicio,
         horaFin: form.value.horaFin,
+        dias: form.value.dias.length ? form.value.dias : null,
       })
       const idx = horarios.value.findIndex((h) => h.id === editando.value!.id)
       if (idx !== -1) horarios.value[idx] = actualizado
-      $q.notify({ type: 'positive', message: 'Horario actualizado', position: 'top-right' })
+      $q.notify({ type: 'positive', message: 'Horario actualizado' })
     } else {
       const nuevo = await horarioService.createHorario({
         nombre: form.value.nombre.trim(),
         horaInicio: form.value.horaInicio,
         horaFin: form.value.horaFin,
+        dias: form.value.dias.length ? form.value.dias : null,
       })
       horarios.value.push(nuevo)
-      $q.notify({ type: 'positive', message: 'Horario creado', position: 'top-right' })
+      $q.notify({ type: 'positive', message: 'Horario creado' })
     }
     cerrarDialog()
   } catch (err) {
     $q.notify({
       type: 'negative',
       message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
     })
   } finally {
     guardando.value = false
@@ -475,16 +457,64 @@ const ejecutarEliminar = async () => {
     await horarioService.deleteHorario(filaEliminar.value.id)
     const idx = horarios.value.findIndex((h) => h.id === filaEliminar.value!.id)
     if (idx !== -1) horarios.value[idx] = { ...horarios.value[idx], activo: false }
-    $q.notify({ type: 'positive', message: 'Horario desactivado', position: 'top-right' })
+    $q.notify({ type: 'positive', message: 'Horario desactivado' })
     dialogEliminar.value = false
   } catch (err) {
     $q.notify({
       type: 'negative',
       message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
     })
   } finally {
     eliminando.value = false
   }
 }
 </script>
+
+<style scoped lang="scss">
+.dias-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  &__hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+
+  &__item {
+    dt {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    dd {
+      margin: 0;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-strong);
+    }
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+.dlg-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+</style>

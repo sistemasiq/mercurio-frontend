@@ -6,6 +6,10 @@ export interface Proveedor {
   telefono: string | null
   email: string | null
   notas: string | null
+  /** RFC: 12 caracteres (persona moral) o 13 (física). */
+  rfc: string | null
+  /** Días hábiles que tarda en entregar un pedido. */
+  dias_entrega: number | null
   activo: boolean
   creado?: string | null
   creado_por?: string | null
@@ -20,6 +24,8 @@ export interface ProveedorCreate {
   telefono?: string | null
   email?: string | null
   notas?: string | null
+  rfc?: string | null
+  dias_entrega?: number | null
 }
 
 export interface ProveedorUpdate {
@@ -28,5 +34,7 @@ export interface ProveedorUpdate {
   telefono?: string | null
   email?: string | null
   notas?: string | null
+  rfc?: string | null
+  dias_entrega?: number | null
   activo?: boolean
 }

@@ -1,12 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AuthState, BranchOption, LoginRequest, User, UserRole } from '@/types/auth'
+import { refreshAccessToken } from '@/api/axiosClient'
 import { authService } from '@/services/authService'
 import { sessionStorage, viewingBranch } from '@/utils/session'
+import { tokenMemory } from '@/utils/tokenMemory'
 import { resolveErrorMessage } from '@/utils/errorHandler'
+import { resetAllStores } from '@/utils/piniaReset'
 import { inactivityTimer } from '@/utils/inactivityTimer'
 import { isTokenExpired } from '@/utils/tokenUtils'
 import type { ApiError } from '@/types/auth'
+
+// Tiempo máximo que la contraseña puede quedar en memoria esperando a que el
+// usuario elija sucursal.
+const PENDING_CREDENTIALS_TTL_MS = 2 * 60 * 1000
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthState['user']>(null)
@@ -15,6 +22,7 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
   const pendingBranchSelection = ref<BranchOption[] | null>(null)
   const pendingCredentials = ref<LoginRequest | null>(null)
+  let pendingCredentialsTimer: ReturnType<typeof setTimeout> | null = null
   /** Sucursal en la que AdministradorSistema se "paró" para ver catálogos y
    * listados de esa sucursal, sin reautenticarse. null para cualquier otro rol. */
   const viewingBranchId = ref<string | null>(viewingBranch.load())
@@ -24,6 +32,12 @@ export const useAuthStore = defineStore('auth', () => {
   const currentUser = computed<User | null>(() => user.value)
 
   const primaryRole = computed<UserRole | null>(() => user.value?.roles[0] ?? null)
+
+  function clearPendingCredentials(): void {
+    if (pendingCredentialsTimer) clearTimeout(pendingCredentialsTimer)
+    pendingCredentialsTimer = null
+    pendingCredentials.value = null
+  }
 
   function hasRole(role: UserRole): boolean {
     return user.value?.roles.includes(role) ?? false
@@ -63,17 +77,24 @@ export const useAuthStore = defineStore('auth', () => {
       const result = await authService.login(credentials)
 
       if (result.kind === 'selection_required') {
+        clearPendingCredentials()
         pendingCredentials.value = credentials
+        pendingCredentialsTimer = setTimeout(() => {
+          clearPendingCredentials()
+          pendingBranchSelection.value = null
+        }, PENDING_CREDENTIALS_TTL_MS)
         pendingBranchSelection.value = result.sucursales
         return false
       }
 
-      pendingCredentials.value = null
+      clearPendingCredentials()
       pendingBranchSelection.value = null
       token.value = result.data.token
       user.value = result.data.user
 
-      sessionStorage.save(result.data.token, result.data.refreshToken, result.data.user)
+      // C3: el access token nunca toca localStorage -- solo vive en memoria.
+      tokenMemory.set(result.data.token)
+      sessionStorage.save(result.data.user)
       return true
     } catch (err) {
       error.value = resolveErrorMessage(err as ApiError)
@@ -86,18 +107,26 @@ export const useAuthStore = defineStore('auth', () => {
   /** Reintenta el login guardado con la sucursal elegida en el selector. */
   async function selectBranchAndLogin(sucursalId: string): Promise<boolean> {
     if (!pendingCredentials.value) return false
-    return login({ ...pendingCredentials.value, sucursalId })
+    try {
+      return await login({ ...pendingCredentials.value, sucursalId })
+    } catch (err) {
+      // Un intento fallido no deja la contraseña en memoria: hay que reingresarla.
+      clearPendingCredentials()
+      pendingBranchSelection.value = null
+      throw err
+    }
   }
 
   function cancelBranchSelection(): void {
     pendingBranchSelection.value = null
-    pendingCredentials.value = null
+    clearPendingCredentials()
   }
 
   async function logout(): Promise<void> {
-    const refreshToken = sessionStorage.load()?.refreshToken ?? ''
+    // QA #32: el refresh token ya no se manda -- el backend lo lee de la
+    // cookie HttpOnly y la borra al salir.
     try {
-      await authService.logout(refreshToken)
+      await authService.logout()
     } catch {
       // El logout local procede aunque falle el endpoint
     } finally {
@@ -105,35 +134,31 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function restoreSession(): boolean {
+  // C3: al recargar la página el access token se pierde (vivía solo en
+  // memoria); lo único que sobrevive es el usuario cacheado en localStorage.
+  // Se muestra de inmediato (evita el parpadeo a "sin sesión") mientras se
+  // confirma la sesión real con un refresh vía la cookie HttpOnly.
+  async function restoreSession(): Promise<boolean> {
     const session = sessionStorage.load()
     if (!session) return false
 
-    token.value = session.token
     user.value = session.user
 
-    // Refrescar datos del usuario en segundo plano
-    authService
-      .me()
-      .then((freshUser) => {
-        user.value = freshUser
-      })
-      .catch(() => {
-        // El interceptor de 401 maneja la renovación o el logout
-      })
-
-    return true
+    return tryRefresh()
   }
 
   async function tryRefresh(): Promise<boolean> {
     const session = sessionStorage.load()
-    if (!session?.refreshToken) return false
+    // QA #32: sin refresh token local que chequear -- si hubo sesión alguna
+    // vez (hay `session`), se intenta; el backend decide con la cookie.
+    if (!session) return false
 
     try {
-      const response = await authService.refresh(session.refreshToken)
-      token.value = response.token
-      user.value = response.user
-      sessionStorage.save(response.token, response.refreshToken, response.user)
+      // Mismo refresh compartido que usa el interceptor de axios. Ya deja el
+      // token en memoria (tokenMemory) y el usuario en localStorage.
+      const newToken = await refreshAccessToken()
+      token.value = newToken
+      user.value = sessionStorage.load()?.user ?? user.value
       return true
     } catch {
       sessionStorage.clear()
@@ -144,6 +169,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function updateToken(newToken: string): void {
     token.value = newToken
+    tokenMemory.set(newToken)
   }
 
   function clearError(): void {
@@ -155,8 +181,13 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     error.value = null
     viewingBranchId.value = null
+    pendingBranchSelection.value = null
+    clearPendingCredentials()
     sessionStorage.clear()
     inactivityTimer.stop()
+    // Los demás stores conservan datos del usuario anterior (comandas, cajas,
+    // reservaciones...); en una terminal compartida pasarían al siguiente.
+    resetAllStores(['auth'])
   }
 
   return {
@@ -187,10 +218,11 @@ export const useAuthStore = defineStore('auth', () => {
     // Helper DEV: inyecta usuario y token sin pasar por el backend
     ...(import.meta.env.DEV
       ? {
-          /* v8 ignore next 5 */
+          /* v8 ignore next 6 */
           _setDevSession(mockUser: typeof user.value, mockToken: string) {
             user.value = mockUser
             token.value = mockToken
+            tokenMemory.set(mockToken)
           },
         }
       : {}),

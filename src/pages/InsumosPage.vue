@@ -1,259 +1,243 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div>
-      <!-- Encabezado -->
-      <div class="row items-center q-mb-lg">
-        <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Insumos</div>
-          <div class="text-body2" style="color: var(--text-secondary)">
-            Catálogo de insumos (materia prima) de la sucursal.
-          </div>
-        </div>
-        <q-space />
+  <q-page class="page-content list-page">
+    <PageHeader title="Insumos" subtitle="Materia prima, presentaciones y existencias.">
+      <template #actions>
         <q-btn
+          unelevated
           color="primary"
           icon="add"
           label="Nuevo Insumo"
-          unelevated
-          no-caps
           :disable="!authStore.currentBranchId"
-          style="border-radius: 8px; font-weight: 600"
           @click="abrirCrear"
         />
-      </div>
+      </template>
+    </PageHeader>
 
-      <!-- Sin sucursal activa -->
-      <q-banner
-        v-if="!authStore.currentBranchId"
-        dense
-        rounded
-        class="bg-orange-1 text-orange-9 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="info" color="orange-9" /></template>
-        No hay una sucursal activa en la sesión.
-      </q-banner>
-
-      <!-- Error -->
-      <q-banner
-        v-if="store.error"
-        dense
-        rounded
-        class="bg-red-1 text-red-8 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="error_outline" color="negative" /></template>
-        {{ store.error }}
-        <template #action>
-          <q-btn flat dense no-caps label="Reintentar" @click="cargar" />
-        </template>
-      </q-banner>
-
-      <!-- Filtros -->
-      <div class="row q-col-gutter-sm items-center q-mb-md">
-        <div class="col-12 col-sm-4">
-          <q-input v-model="busqueda" dense outlined clearable placeholder="Buscar por nombre...">
-            <template #prepend><q-icon name="search" /></template>
-          </q-input>
-        </div>
-        <div class="col-auto">
-          <q-toggle v-model="soloBajoMinimo" label="Solo bajo mínimo" dense />
-        </div>
-        <div class="col-auto">
-          <q-toggle v-model="soloActivos" label="Solo activos" dense />
-        </div>
-      </div>
-
-      <!-- Tabla -->
-      <q-card flat bordered style="border-radius: 12px; overflow: hidden">
-        <q-table
-          :rows="insumosFiltrados"
-          :columns="columns"
-          row-key="id"
-          flat
-          :loading="store.loading"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="No hay insumos registrados"
-          class="fec-table"
-        >
-          <template #body-cell-unidad_base_id="props">
-            <q-td :props="props">{{ codigoUnidad(props.row.unidad_base_id) }}</q-td>
-          </template>
-
-          <template #body-cell-stock_actual="props">
-            <q-td :props="props">
-              <span :class="{ 'text-negative text-weight-bold': bajoMinimo(props.row) }">
-                {{ Number(props.row.stock_actual) }}
-              </span>
-            </q-td>
-          </template>
-
-          <template #body-cell-rinde_para="props">
-            <q-td :props="props">
-              <template v-if="estimacion(props.row)">
-                <span
-                  :class="{ 'text-negative text-weight-bold': estimacion(props.row)!.min === 0 }"
-                >
-                  ≈ {{ estimacion(props.row)!.min }} {{ estimacion(props.row)!.producto }}
-                </span>
-                <q-tooltip v-if="estimacion(props.row)!.desglose.length" anchor="top middle">
-                  <div v-for="d in estimacion(props.row)!.desglose" :key="d.producto">
-                    {{ d.producto }}: ≈ {{ d.unidades }}
-                  </div>
-                </q-tooltip>
-              </template>
-              <span v-else class="text-grey-6">—</span>
-            </q-td>
-          </template>
-
-          <template #body-cell-costo_unitario="props">
-            <q-td :props="props">
-              {{
-                props.row.costo_unitario ? `$${Number(props.row.costo_unitario).toFixed(2)}` : '—'
-              }}
-            </q-td>
-          </template>
-
-          <template #body-cell-proveedor_principal_id="props">
-            <q-td :props="props">{{ nombreProveedor(props.row.proveedor_principal_id) }}</q-td>
-          </template>
-
-          <template #body-cell-activo="props">
-            <q-td :props="props">
-              <EstadoBadge
-                :tono="props.row.activo ? 'verde' : 'rojo'"
-                :label="props.row.activo ? 'Activo' : 'Inactivo'"
-              />
-            </q-td>
-          </template>
-
-          <template #body-cell-actions="props">
-            <q-td :props="props" class="text-right">
-              <q-btn
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
-                :disable="!props.row.activo"
-                @click="abrirAjuste(props.row)"
-              >
-                <span class="material-symbols-outlined">tune</span>
-                <q-tooltip>Ajustar stock</q-tooltip>
-              </q-btn>
-              <q-btn
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
-                @click="abrirEditar(props.row)"
-              >
-                <span class="material-symbols-outlined">edit</span>
-                <q-tooltip>Editar</q-tooltip>
-              </q-btn>
-              <q-btn
-                flat
-                dense
-                color="grey-8"
-                size="sm"
-                class="action-btn q-mr-xs"
-                :disable="!props.row.activo"
-                @click="confirmarEliminar(props.row)"
-              >
-                <span class="material-symbols-outlined">delete_outline</span>
-                <q-tooltip>Eliminar</q-tooltip>
-              </q-btn>
-              <q-btn flat dense color="grey-8" size="sm" class="action-btn">
-                <span class="material-symbols-outlined">more_vert</span>
-                <q-menu anchor="bottom right" self="top right">
-                  <q-list dense style="min-width: 160px">
-                    <q-item v-close-popup clickable @click="abrirKardex(props.row)">
-                      <q-item-section avatar>
-                        <span class="material-symbols-outlined">history</span>
-                      </q-item-section>
-                      <q-item-section>Kardex</q-item-section>
-                    </q-item>
-                    <q-item v-close-popup clickable @click="abrirPresentaciones(props.row)">
-                      <q-item-section avatar>
-                        <span class="material-symbols-outlined">view_module</span>
-                      </q-item-section>
-                      <q-item-section>Presentaciones</q-item-section>
-                    </q-item>
-                  </q-list>
-                </q-menu>
-              </q-btn>
-            </q-td>
-          </template>
-        </q-table>
-      </q-card>
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
-    <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
-    <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 460px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">
-            {{ editando ? 'Editar Insumo' : 'Nuevo Insumo' }}
-          </div>
-        </q-card-section>
+    <div v-if="totalBajoMinimo > 0" class="list-page__note list-page__note--warn">
+      <q-icon name="warning" size="19px" />
+      {{ totalBajoMinimo }} {{ totalBajoMinimo === 1 ? 'insumo está' : 'insumos están' }} por debajo
+      del mínimo. Revisa el Reporte de Stock para generar la compra.
+    </div>
 
-        <q-separator />
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtro"
+      :filters="FILTROS"
+      search-placeholder="Buscar insumo"
+      :count="`${insumosFiltrados.length} insumos`"
+    >
+      <StateBlock
+        v-if="store.error"
+        variant="error"
+        :body="store.error"
+        action-label="Reintentar"
+        @action="cargar"
+      />
+      <q-table
+        v-else
+        :rows="insumosFiltrados"
+        :columns="columns"
+        row-key="id"
+        flat
+        :loading="store.loading"
+        :rows-per-page-options="[10, 25, 50]"
+      >
+        <template #body-cell-nombre="props">
+          <q-td :props="props" class="text-weight-bold">{{ props.row.nombre }}</q-td>
+        </template>
+        <template #body-cell-unidad_base_id="props">
+          <q-td :props="props">{{ codigoUnidad(props.row.unidad_base_id) }}</q-td>
+        </template>
+        <template #body-cell-stock_actual="props">
+          <q-td :props="props">
+            <div class="stock-bar" :class="{ 'stock-bar--low': bajoMinimo(props.row) }">
+              <div class="stock-bar__track">
+                <div class="stock-bar__fill" :style="{ width: `${pctStock(props.row)}%` }" />
+              </div>
+              <span class="stock-bar__value">
+                {{ Number(props.row.stock_actual) }} {{ codigoUnidad(props.row.unidad_base_id) }}
+              </span>
+            </div>
+          </q-td>
+        </template>
+        <template #body-cell-rinde_para="props">
+          <q-td :props="props" class="cell-muted">
+            <template v-if="estimacion(props.row)">
+              <span :class="{ 'text-negative text-weight-bold': estimacion(props.row)!.min === 0 }">
+                ≈ {{ estimacion(props.row)!.min }} {{ estimacion(props.row)!.producto }}
+              </span>
+              <q-tooltip v-if="estimacion(props.row)!.desglose.length" anchor="top middle">
+                <div v-for="d in estimacion(props.row)!.desglose" :key="d.producto">
+                  {{ d.producto }}: ≈ {{ d.unidades }}
+                </div>
+              </q-tooltip>
+            </template>
+            <template v-else>—</template>
+          </q-td>
+        </template>
+        <template #body-cell-stock_minimo="props">
+          <q-td :props="props">{{ Number(props.row.stock_minimo) }}</q-td>
+        </template>
+        <template #body-cell-costo_unitario="props">
+          <q-td :props="props" class="text-weight-bold">
+            {{ props.row.costo_unitario ? formatMXN(Number(props.row.costo_unitario)) : '—' }}
+          </q-td>
+        </template>
+        <template #body-cell-proveedor_principal_id="props">
+          <q-td :props="props" class="cell-muted">{{
+            nombreProveedor(props.row.proveedor_principal_id)
+          }}</q-td>
+        </template>
+        <template #body-cell-activo="props">
+          <q-td :props="props">
+            <StatusBadge
+              :tone="!props.row.activo ? 'off' : bajoMinimo(props.row) ? 'bad' : 'ok'"
+              :label="
+                !props.row.activo ? 'Inactivo' : bajoMinimo(props.row) ? 'Bajo mínimo' : 'Activo'
+              "
+            />
+          </q-td>
+        </template>
+        <template #body-cell-actions="props">
+          <q-td :props="props">
+            <q-btn
+              flat
+              round
+              dense
+              icon="history"
+              class="action-btn"
+              aria-label="Kardex"
+              @click="abrirKardex(props.row)"
+            >
+              <q-tooltip>Kardex</q-tooltip>
+            </q-btn>
+            <q-btn
+              flat
+              round
+              dense
+              icon="tune"
+              class="action-btn"
+              aria-label="Ajustar stock"
+              :disable="!props.row.activo"
+              @click="abrirAjuste(props.row)"
+            >
+              <q-tooltip>Ajustar stock</q-tooltip>
+            </q-btn>
+            <q-btn flat round dense icon="more_vert" class="action-btn" aria-label="Más acciones">
+              <q-menu anchor="bottom right" self="top right">
+                <q-list dense style="min-width: 180px">
+                  <q-item v-close-popup clickable @click="abrirEditar(props.row)">
+                    <q-item-section avatar><q-icon name="edit" size="19px" /></q-item-section>
+                    <q-item-section>Editar</q-item-section>
+                  </q-item>
+                  <q-item
+                    v-close-popup
+                    clickable
+                    class="text-negative"
+                    :disable="!props.row.activo"
+                    @click="confirmarEliminar(props.row)"
+                  >
+                    <q-item-section avatar><q-icon name="delete" size="19px" /></q-item-section>
+                    <q-item-section>Eliminar</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
+          </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="filtrando ? 'no-results' : 'empty'"
+            :title="filtrando ? undefined : 'No hay insumos registrados'"
+            :body="filtrando ? undefined : 'Agrega la materia prima que usan tus recetas.'"
+            :action-label="filtrando ? 'Limpiar filtros' : 'Nuevo Insumo'"
+            @action="filtrando ? ((busqueda = ''), (filtro = 'todos')) : abrirCrear()"
+          />
+        </template>
+      </q-table>
+    </DataTableCard>
 
-        <q-card-section class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">NOMBRE</div>
-            <q-input
-              ref="nombreRef"
-              v-model="formDialog.nombre"
+    <BaseDialog
+      v-model="dialogOpen"
+      :title="editando ? 'Editar insumo' : 'Nuevo insumo'"
+      :subtitle="editando ? editando.nombre : 'Define unidad base y existencias mínimas.'"
+      icon="inventory_2"
+      tone="blue"
+      :width="600"
+      persistent
+    >
+      <div class="dlg-stack">
+        <div>
+          <div class="field-label">Nombre</div>
+          <q-input
+            ref="nombreRef"
+            v-model="formDialog.nombre"
+            dense
+            outlined
+            autofocus
+            placeholder="Ej. Harina de trigo"
+            :rules="[(v) => !!v || 'El nombre es requerido']"
+          />
+        </div>
+        <div>
+          <div class="field-label">Descripción (opcional)</div>
+          <q-input v-model="formDialog.descripcion" dense outlined placeholder="Detalle breve" />
+        </div>
+
+        <div class="row q-col-gutter-md">
+          <div class="col">
+            <div class="field-label">UNIDAD BASE (stock)</div>
+            <q-select
+              v-model="formDialog.unidad_base_id"
               dense
               outlined
-              autofocus
-              placeholder="Ej. Harina de trigo"
-              :rules="[(v) => !!v || 'El nombre es requerido']"
+              emit-value
+              map-options
+              :disable="!!editando"
+              :options="unidadOptions"
+              :rules="[(v) => !!v || 'Requerido']"
             />
           </div>
-          <div>
-            <div class="field-label">DESCRIPCIÓN (opcional)</div>
-            <q-input v-model="formDialog.descripcion" dense outlined placeholder="Detalle breve" />
+          <div class="col">
+            <div class="field-label">Unidad de compra</div>
+            <q-select
+              v-model="formDialog.unidad_compra_id"
+              dense
+              outlined
+              emit-value
+              map-options
+              :disable="!!editando"
+              :options="unidadOptions"
+              :rules="[(v) => !!v || 'Requerido']"
+            />
           </div>
+        </div>
+        <div v-if="editando" class="text-caption text-grey-7">
+          La unidad no se puede cambiar una vez creado el insumo.
+        </div>
 
-          <div class="row q-col-gutter-md">
-            <div class="col">
-              <div class="field-label">UNIDAD BASE (stock)</div>
-              <q-select
-                v-model="formDialog.unidad_base_id"
-                dense
-                outlined
-                emit-value
-                map-options
-                :disable="!!editando"
-                :options="unidadOptions"
-                :rules="[(v) => !!v || 'Requerido']"
-              />
-            </div>
-            <div class="col">
-              <div class="field-label">UNIDAD DE COMPRA</div>
-              <q-select
-                v-model="formDialog.unidad_compra_id"
-                dense
-                outlined
-                emit-value
-                map-options
-                :disable="!!editando"
-                :options="unidadOptions"
-                :rules="[(v) => !!v || 'Requerido']"
-              />
-            </div>
-          </div>
-          <div v-if="editando" class="text-caption text-grey-7">
-            La unidad no se puede cambiar una vez creado el insumo.
-          </div>
+        <div v-if="!editando">
+          <div class="field-label">Stock inicial</div>
+          <q-input
+            v-model.number="formDialog.stock_inicial"
+            dense
+            outlined
+            type="number"
+            min="0"
+            step="0.001"
+          />
+        </div>
 
-          <div v-if="!editando">
-            <div class="field-label">STOCK INICIAL</div>
+        <div class="row q-col-gutter-md">
+          <div class="col">
+            <div class="field-label">Stock mínimo</div>
             <q-input
-              v-model.number="formDialog.stock_inicial"
+              v-model.number="formDialog.stock_minimo"
               dense
               outlined
               type="number"
@@ -261,273 +245,79 @@
               step="0.001"
             />
           </div>
-
-          <div class="row q-col-gutter-md">
-            <div class="col">
-              <div class="field-label">STOCK MÍNIMO</div>
-              <q-input
-                v-model.number="formDialog.stock_minimo"
-                dense
-                outlined
-                type="number"
-                min="0"
-                step="0.001"
-              />
-            </div>
-            <div class="col">
-              <div class="field-label">COSTO UNITARIO (opcional)</div>
-              <q-input
-                v-model.number="formDialog.costo_unitario"
-                dense
-                outlined
-                type="number"
-                min="0"
-                step="0.01"
-                prefix="$"
-              />
-            </div>
-          </div>
-
-          <div class="row q-col-gutter-md">
-            <div class="col">
-              <div class="field-label">PUNTO DE REORDEN (opcional)</div>
-              <q-input
-                v-model.number="formDialog.punto_reorden"
-                dense
-                outlined
-                type="number"
-                min="0"
-                step="0.001"
-                hint="Nivel al que conviene volver a pedir"
-              />
-            </div>
-            <div class="col">
-              <div class="field-label">STOCK MÁXIMO (opcional)</div>
-              <q-input
-                v-model.number="formDialog.stock_maximo"
-                dense
-                outlined
-                type="number"
-                min="0"
-                step="0.001"
-                hint="Referencia para sugerir cuánto comprar"
-              />
-            </div>
-          </div>
-
-          <div>
-            <div class="field-label">PROVEEDOR PRINCIPAL (opcional)</div>
-            <q-select
-              v-model="formDialog.proveedor_principal_id"
-              dense
-              outlined
-              emit-value
-              map-options
-              clearable
-              :options="proveedorOptions"
-            />
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            :label="editando ? 'Guardar cambios' : 'Crear insumo'"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            @click="guardar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ── Dialog Confirmar Eliminar ──────────────────────────────────────── -->
-    <q-dialog v-model="dialogEliminar">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">Eliminar insumo</div>
-          <div class="q-mt-sm text-body2 text-grey-8">
-            ¿Estás seguro de que deseas eliminar
-            <strong>{{ filaEliminar?.nombre }}</strong
-            >? Esta acción no se puede deshacer.
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="negative"
-            label="Eliminar"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="eliminando"
-            @click="ejecutarEliminar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ── Dialog Ajustar Stock ───────────────────────────────────────────── -->
-    <q-dialog v-model="dialogAjuste">
-      <q-card style="min-width: 400px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Ajustar stock de {{ insumoAjuste?.nombre }}</div>
-          <div class="text-body2 text-grey-7">
-            Stock actual: {{ insumoAjuste ? Number(insumoAjuste.stock_actual) : 0 }}
-            {{ insumoAjuste ? codigoUnidad(insumoAjuste.unidad_base_id) : '' }}
-          </div>
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section class="q-gutter-md q-pt-md">
-          <q-btn-toggle
-            v-model="modoAjuste"
-            spread
-            no-caps
-            dense
-            unelevated
-            toggle-color="primary"
-            :options="[
-              { label: 'Ajuste manual', value: 'manual' },
-              { label: 'Conteo físico', value: 'conteo' },
-            ]"
-          />
-
-          <template v-if="modoAjuste === 'manual'">
-            <div>
-              <div class="field-label">TIPO DE AJUSTE</div>
-              <q-select
-                v-model="formAjuste.tipo"
-                dense
-                outlined
-                emit-value
-                map-options
-                :options="TIPO_AJUSTE_OPTIONS"
-              />
-            </div>
-            <div>
-              <div class="field-label">CANTIDAD</div>
-              <q-input
-                v-model.number="formAjuste.cantidad"
-                dense
-                outlined
-                type="number"
-                min="0"
-                step="0.001"
-              />
-            </div>
-          </template>
-
-          <template v-else>
-            <div>
-              <div class="field-label">
-                STOCK REAL CONTADO ({{
-                  insumoAjuste ? codigoUnidad(insumoAjuste.unidad_base_id) : ''
-                }})
-              </div>
-              <q-input
-                v-model.number="formConteo.stock_contado"
-                dense
-                outlined
-                type="number"
-                min="0"
-                step="0.001"
-              />
-            </div>
-            <q-banner v-if="insumoAjuste" dense rounded class="bg-blue-1 text-blue-9">
-              <template #avatar><q-icon name="calculate" color="blue-9" /></template>
-              <template v-if="deltaConteo === 0">Coincide con el sistema, no hay ajuste.</template>
-              <template v-else-if="deltaConteo > 0">
-                Entrada de <strong>+{{ deltaConteo }}</strong>
-                {{ codigoUnidad(insumoAjuste.unidad_base_id) }} (sobra stock).
-              </template>
-              <template v-else>
-                Merma de <strong>{{ deltaConteo }}</strong>
-                {{ codigoUnidad(insumoAjuste.unidad_base_id) }} (falta stock).
-              </template>
-            </q-banner>
-          </template>
-
-          <div>
-            <div class="field-label">NOTAS (opcional)</div>
+          <div class="col">
+            <div class="field-label">Costo unitario (opcional)</div>
             <q-input
-              v-model="formAjuste.notas"
+              v-model.number="formDialog.costo_unitario"
               dense
               outlined
-              type="textarea"
-              rows="2"
-              placeholder="Ej. conteo físico, producto vencido..."
+              type="number"
+              min="0"
+              step="0.01"
+              prefix="$"
             />
           </div>
-        </q-card-section>
+        </div>
 
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarAjuste" />
-          <q-btn
-            v-if="modoAjuste === 'manual'"
-            unelevated
-            no-caps
-            color="primary"
-            label="Registrar ajuste"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardandoAjuste"
-            :disable="!formAjuste.cantidad"
-            @click="guardarAjuste"
-          />
-          <q-btn
-            v-else
-            unelevated
-            no-caps
-            color="primary"
-            label="Aplicar conteo"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardandoAjuste"
-            :disable="deltaConteo === 0"
-            @click="guardarConteo"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ── Dialog Presentaciones ──────────────────────────────────────────── -->
-    <q-dialog v-model="dialogPresentaciones">
-      <q-card style="min-width: 480px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">
-            Presentaciones de {{ insumoPresentaciones?.nombre }}
+        <div class="row q-col-gutter-md">
+          <div class="col">
+            <div class="field-label">Punto de reorden (opcional)</div>
+            <q-input
+              v-model.number="formDialog.punto_reorden"
+              dense
+              outlined
+              type="number"
+              min="0"
+              step="0.001"
+              hint="Nivel al que conviene volver a pedir"
+            />
           </div>
-          <div class="text-body2 text-grey-7">
-            Empaques de compra propios de este insumo (ej. "Paquete (8 pz)"), expresados en
-            {{ insumoPresentaciones ? codigoUnidad(insumoPresentaciones.unidad_base_id) : '' }}.
+          <div class="col">
+            <div class="field-label">Stock máximo (opcional)</div>
+            <q-input
+              v-model.number="formDialog.stock_maximo"
+              dense
+              outlined
+              type="number"
+              min="0"
+              step="0.001"
+              hint="Referencia para sugerir cuánto comprar"
+            />
           </div>
-        </q-card-section>
+        </div>
 
-        <q-separator />
+        <div>
+          <div class="field-label">Proveedor principal (opcional)</div>
+          <q-select
+            v-model="formDialog.proveedor_principal_id"
+            dense
+            outlined
+            emit-value
+            map-options
+            clearable
+            :options="proveedorOptions"
+          />
+        </div>
 
-        <q-card-section>
+        <div v-if="editando" class="dlg-section">
+          <div class="dlg-section__title"><q-icon name="category" size="19px" />Presentaciones</div>
+
           <q-banner
             v-if="presentacionesStore.error"
             dense
             rounded
-            class="bg-red-1 text-red-8 q-mb-md"
+            class="bg-red-1 text-red-8 q-mb-sm"
             style="border-radius: 10px"
           >
             {{ presentacionesStore.error }}
           </q-banner>
 
-          <q-list v-if="presentacionesActivas.length" separator>
+          <q-list v-if="presentacionesActivas.length" separator bordered class="rounded-borders">
             <q-item v-for="item in presentacionesActivas" :key="item.id">
               <q-item-section>
                 <q-item-label>{{ item.nombre }}</q-item-label>
                 <q-item-label caption>
-                  {{ Number(item.equivalencia_base) }}
-                  {{
-                    insumoPresentaciones ? codigoUnidad(insumoPresentaciones.unidad_base_id) : ''
-                  }}
+                  {{ Number(item.equivalencia_base) }} {{ codigoUnidad(editando.unidad_base_id) }}
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
@@ -548,14 +338,10 @@
           <div v-else class="text-body2 text-grey-7 q-py-sm">
             Este insumo todavía no tiene presentaciones registradas.
           </div>
-        </q-card-section>
 
-        <q-separator />
-
-        <q-card-section class="q-gutter-md">
-          <div class="row q-col-gutter-sm items-start">
+          <div class="row q-col-gutter-sm items-start q-mt-sm">
             <div class="col-7">
-              <div class="field-label">NOMBRE</div>
+              <div class="field-label">Nombre</div>
               <q-input
                 v-model="formPresentacion.nombre"
                 dense
@@ -564,7 +350,7 @@
               />
             </div>
             <div class="col-5">
-              <div class="field-label">EQUIVALENCIA</div>
+              <div class="field-label">Equivalencia</div>
               <q-input
                 v-model.number="formPresentacion.equivalencia_base"
                 dense
@@ -580,27 +366,190 @@
             no-caps
             color="primary"
             label="Agregar presentación"
+            class="q-mt-sm"
             style="border-radius: 8px; font-weight: 600"
             :loading="guardandoPresentacion"
             :disable="!formPresentacion.nombre.trim() || !formPresentacion.equivalencia_base"
             @click="guardarPresentacion"
           />
-        </q-card-section>
+        </div>
+      </div>
 
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+      <template #footer>
+        <q-btn outline label="Cancelar" @click="cerrarDialog" />
+        <q-btn
+          unelevated
+          no-caps
+          color="primary"
+          :label="editando ? 'Guardar cambios' : 'Crear insumo'"
+          :loading="guardando"
+          @click="guardar"
+        />
+      </template>
+    </BaseDialog>
+
+    <BaseDialog
+      v-model="dialogEliminar"
+      :title="'Eliminar insumo'"
+      :subtitle="filaEliminar?.nombre"
+      icon="delete"
+      tone="red"
+      :width="460"
+    >
+      <div class="dlg-stack">
+        <div class="q-mt-sm text-body2 text-grey-8">
+          ¿Estás seguro de que deseas eliminar
+          <strong>{{ filaEliminar?.nombre }}</strong
+          >? Esta acción no se puede deshacer.
+        </div>
+      </div>
+
+      <template #footer>
+        <q-btn v-close-popup outline label="Cancelar" />
+        <q-btn
+          unelevated
+          no-caps
+          color="negative"
+          label="Eliminar"
+          :loading="eliminando"
+          @click="ejecutarEliminar"
+        />
+      </template>
+    </BaseDialog>
+
+    <BaseDialog
+      v-model="dialogAjuste"
+      :title="'Registrar ajuste'"
+      :subtitle="
+        insumoAjuste
+          ? `${insumoAjuste.nombre} · stock actual ${Number(insumoAjuste.stock_actual)}`
+          : ''
+      "
+      icon="tune"
+      tone="amber"
+      :width="520"
+    >
+      <div class="dlg-stack">
+        <q-btn-toggle
+          v-model="modoAjuste"
+          spread
+          no-caps
+          dense
+          unelevated
+          toggle-color="primary"
+          :options="[
+            { label: 'Ajuste manual', value: 'manual' },
+            { label: 'Conteo físico', value: 'conteo' },
+          ]"
+        />
+
+        <template v-if="modoAjuste === 'manual'">
+          <div>
+            <div class="field-label">Tipo de ajuste</div>
+            <q-select
+              v-model="formAjuste.tipo"
+              dense
+              outlined
+              emit-value
+              map-options
+              :options="TIPO_AJUSTE_OPTIONS"
+            />
+          </div>
+          <div>
+            <div class="field-label">Cantidad</div>
+            <q-input
+              v-model.number="formAjuste.cantidad"
+              dense
+              outlined
+              type="number"
+              min="0"
+              step="0.001"
+            />
+          </div>
+        </template>
+
+        <template v-else>
+          <div>
+            <div class="field-label">
+              STOCK REAL CONTADO ({{
+                insumoAjuste ? codigoUnidad(insumoAjuste.unidad_base_id) : ''
+              }})
+            </div>
+            <q-input
+              v-model.number="formConteo.stock_contado"
+              dense
+              outlined
+              type="number"
+              min="0"
+              step="0.001"
+            />
+          </div>
+          <q-banner v-if="insumoAjuste" dense rounded class="bg-blue-1 text-blue-9">
+            <template #avatar><q-icon name="calculate" color="blue-9" /></template>
+            <template v-if="deltaConteo === 0">Coincide con el sistema, no hay ajuste.</template>
+            <template v-else-if="deltaConteo > 0">
+              Entrada de <strong>+{{ deltaConteo }}</strong>
+              {{ codigoUnidad(insumoAjuste.unidad_base_id) }} (sobra stock).
+            </template>
+            <template v-else>
+              Merma de <strong>{{ deltaConteo }}</strong>
+              {{ codigoUnidad(insumoAjuste.unidad_base_id) }} (falta stock).
+            </template>
+          </q-banner>
+        </template>
+
+        <div>
+          <div class="field-label">Notas (opcional)</div>
+          <q-input
+            v-model="formAjuste.notas"
+            dense
+            outlined
+            type="textarea"
+            rows="2"
+            placeholder="Ej. conteo físico, producto vencido..."
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <q-btn outline label="Cancelar" @click="cerrarAjuste" />
+        <q-btn
+          v-if="modoAjuste === 'manual'"
+          unelevated
+          no-caps
+          color="primary"
+          label="Registrar ajuste"
+          :loading="guardandoAjuste"
+          :disable="!formAjuste.cantidad"
+          @click="guardarAjuste"
+        />
+        <q-btn
+          v-else
+          unelevated
+          no-caps
+          color="primary"
+          label="Aplicar conteo"
+          :loading="guardandoAjuste"
+          :disable="deltaConteo === 0"
+          @click="guardarConteo"
+        />
+      </template>
+    </BaseDialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/ui/PageHeader.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
+import { formatMXN } from '@/utils/formatoMoneda'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
-import EstadoBadge from '@/components/shared/EstadoBadge.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useInsumosStore } from '@/stores/insumos'
 import { useProveedoresStore } from '@/stores/proveedores'
@@ -655,19 +604,36 @@ const nombreProveedor = (proveedorId: string | null): string => {
 
 const bajoMinimo = (row: Insumo): boolean => Number(row.stock_actual) < Number(row.stock_minimo)
 
+type FiltroInsumo = 'todos' | 'bajo' | 'inactivos'
+const FILTROS: FilterChip<FiltroInsumo>[] = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Bajo mínimo', value: 'bajo' },
+  { label: 'Inactivos', value: 'inactivos' },
+]
+const filtro = ref<FiltroInsumo | null>('todos')
 const busqueda = ref('')
-const soloBajoMinimo = ref(false)
-const soloActivos = ref(false)
+const filtrando = computed(() => !!busqueda.value || filtro.value !== 'todos')
 
 const insumosFiltrados = computed(() => {
   const t = (busqueda.value ?? '').trim().toLowerCase()
   return store.insumos.filter((i) => {
     if (t && !i.nombre.toLowerCase().includes(t)) return false
-    if (soloActivos.value && !i.activo) return false
-    if (soloBajoMinimo.value && !bajoMinimo(i)) return false
+    if (filtro.value === 'inactivos') return !i.activo
+    if (filtro.value === 'bajo') return i.activo && bajoMinimo(i)
     return true
   })
 })
+
+const totalBajoMinimo = computed(
+  () => store.insumos.filter((i) => i.activo && bajoMinimo(i)).length,
+)
+
+// Barra de stock: proporción respecto al doble del mínimo (llena = holgado).
+const pctStock = (row: Insumo) => {
+  const min = Number(row.stock_minimo) || 0
+  if (min <= 0) return 100
+  return Math.min(100, Math.round((Number(row.stock_actual) / (min * 2)) * 100))
+}
 
 // "Rinde para": cuántas unidades de cada producto A/B cubre el stock actual del
 // insumo. La celda muestra el producto de menor rendimiento; el tooltip, el
@@ -681,20 +647,20 @@ const TIPO_AJUSTE_OPTIONS: Array<{ label: string; value: TipoMovimientoManual }>
 ]
 
 const columns: QTableColumn[] = [
-  { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
-  { name: 'unidad_base_id', label: 'UNIDAD', field: 'unidad_base_id', align: 'left' },
-  { name: 'stock_actual', label: 'STOCK', field: 'stock_actual', align: 'left', sortable: true },
-  { name: 'rinde_para', label: 'RINDE PARA', field: 'id', align: 'left' },
-  { name: 'stock_minimo', label: 'MÍNIMO', field: 'stock_minimo', align: 'left' },
-  { name: 'costo_unitario', label: 'COSTO', field: 'costo_unitario', align: 'left' },
+  { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
+  { name: 'unidad_base_id', label: 'Unidad', field: 'unidad_base_id', align: 'left' },
+  { name: 'stock_actual', label: 'Stock', field: 'stock_actual', align: 'left', sortable: true },
+  { name: 'rinde_para', label: 'Rinde para (estimado)', field: 'id', align: 'left' },
+  { name: 'stock_minimo', label: 'Mínimo', field: 'stock_minimo', align: 'right' },
+  { name: 'costo_unitario', label: 'Costo', field: 'costo_unitario', align: 'right' },
   {
     name: 'proveedor_principal_id',
-    label: 'PROVEEDOR',
+    label: 'Proveedor',
     field: 'proveedor_principal_id',
     align: 'left',
   },
-  { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
-  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+  { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 
 // ── Estado del dialog ─────────────────────────────────────────────────────────
@@ -739,7 +705,9 @@ const abrirEditar = (row: Insumo) => {
     costo_unitario: row.costo_unitario ? Number(row.costo_unitario) : null,
     proveedor_principal_id: row.proveedor_principal_id,
   }
+  formPresentacion.value = { nombre: '', equivalencia_base: 0 }
   dialogOpen.value = true
+  presentacionesStore.cargarPorInsumo(row.id)
 }
 
 const cerrarDialog = () => {
@@ -927,10 +895,8 @@ const guardarConteo = async () => {
   }
 }
 
-// ── Presentaciones ────────────────────────────────────────────────────────────
+// ── Presentaciones (sección dentro del diálogo de insumo) ─────────────────────
 
-const dialogPresentaciones = ref(false)
-const insumoPresentaciones = ref<Insumo | null>(null)
 const guardandoPresentacion = ref(false)
 
 const formPresentacion = ref({
@@ -940,23 +906,16 @@ const formPresentacion = ref({
 
 const presentacionesActivas = computed(() => presentacionesStore.items.filter((p) => p.activo))
 
-const abrirPresentaciones = (row: Insumo) => {
-  insumoPresentaciones.value = row
-  formPresentacion.value = { nombre: '', equivalencia_base: 0 }
-  dialogPresentaciones.value = true
-  presentacionesStore.cargarPorInsumo(row.id)
-}
-
 const guardarPresentacion = async () => {
   if (
-    !insumoPresentaciones.value ||
+    !editando.value ||
     !formPresentacion.value.nombre.trim() ||
     !formPresentacion.value.equivalencia_base
   )
     return
   guardandoPresentacion.value = true
   try {
-    await presentacionesStore.crear(insumoPresentaciones.value.id, {
+    await presentacionesStore.crear(editando.value.id, {
       nombre: formPresentacion.value.nombre.trim(),
       equivalencia_base: String(formPresentacion.value.equivalencia_base),
     })
@@ -974,9 +933,9 @@ const guardarPresentacion = async () => {
 }
 
 const quitarPresentacion = async (presentacionId: string) => {
-  if (!insumoPresentaciones.value) return
+  if (!editando.value) return
   try {
-    await presentacionesStore.eliminar(insumoPresentaciones.value.id, presentacionId)
+    await presentacionesStore.eliminar(editando.value.id, presentacionId)
     $q.notify({ type: 'positive', message: 'Presentación eliminada', position: 'top-right' })
   } catch (err) {
     $q.notify({
@@ -988,4 +947,35 @@ const quitarPresentacion = async (presentacionId: string) => {
 }
 </script>
 
-<style scoped></style>
+<style scoped lang="scss">
+.stock-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+
+  &__track {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #eef1f5;
+    overflow: hidden;
+  }
+
+  &__fill {
+    height: 100%;
+    background: var(--q-primary);
+  }
+
+  &__value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-body);
+    white-space: nowrap;
+  }
+
+  &--low &__fill {
+    background: var(--tone-bad-dot);
+  }
+}
+</style>

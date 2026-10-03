@@ -1,17 +1,7 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="width: 100%; max-width: 1800px; margin: 0 auto">
-      <!-- Page Title -->
-      <div class="q-mb-xl text-left q-px-sm">
-        <h1 style="font-size: 2rem; font-weight: 800; color: var(--text-primary); margin: 0 0 8px">
-          Nueva Reservación
-        </h1>
-        <p style="font-size: 1.1rem; color: var(--text-secondary); margin: 0">
-          Configura los detalles del evento y confirma la disponibilidad.
-        </p>
-      </div>
-
-      <div class="row q-col-gutter-xl">
+  <q-page class="page-content nueva-res">
+    <div>
+      <div class="row q-col-gutter-lg">
         <!-- LEFT COLUMN -->
         <div class="col-12 col-md-8 col-lg-9">
           <q-stepper
@@ -32,11 +22,11 @@
 
                 <div class="row q-gutter-md">
                   <div class="col">
-                    <div class="field-label">NOMBRE COMPLETO</div>
+                    <div class="field-label">Nombre completo</div>
                     <q-input v-model="form.nombre" dense outlined placeholder="Ej. Juan Perez" />
                   </div>
                   <div class="col">
-                    <div class="field-label">TELÉFONO</div>
+                    <div class="field-label">Teléfono</div>
                     <q-input
                       v-model="form.telefono"
                       dense
@@ -47,7 +37,7 @@
                 </div>
 
                 <div class="q-mt-md">
-                  <div class="field-label">CORREO ELECTRÓNICO</div>
+                  <div class="field-label">Correo electrónico</div>
                   <q-input
                     v-model="form.email"
                     dense
@@ -59,7 +49,7 @@
 
                 <div class="row q-gutter-md q-mt-sm">
                   <div class="col-4">
-                    <div class="field-label">NÚMERO DE NIÑOS</div>
+                    <div class="field-label">Número de niños</div>
                     <q-input v-model.number="form.ninos" dense outlined type="number" min="1" />
                     <!-- Aviso, no bloqueo: la sucursal puede conseguir pulseras
                          extra o prestarlas, así que la decisión es del staff. -->
@@ -72,43 +62,44 @@
                     </div>
                   </div>
                   <div class="col">
-                    <div class="field-label">TIPO DE EVENTO</div>
-                    <q-select
-                      v-model="form.tipoEvento"
-                      dense
-                      outlined
-                      :options="tiposEventoOptions"
-                      :loading="tiposEventoStore.loading"
-                      emit-value
-                      map-options
-                      placeholder="Selecciona un tipo"
-                      :error="!!tiposEventoStore.error"
-                      :error-message="tiposEventoStore.error ?? undefined"
-                      no-error-icon
+                    <div class="field-label">Tipo de evento</div>
+                    <div v-if="tiposEventoStore.loading" class="tipo-evento-chips">
+                      <q-spinner size="20px" color="primary" />
+                    </div>
+                    <div
+                      v-else-if="tiposEventoOptions.length"
+                      class="tipo-evento-chips"
+                      role="radiogroup"
+                      aria-label="Tipo de evento"
                     >
-                      <template
-                        v-if="!tiposEventoStore.loading && !tiposEventoOptions.length"
-                        #no-option
+                      <q-chip
+                        v-for="opt in tiposEventoOptions"
+                        :key="opt.value"
+                        clickable
+                        :selected="form.tipoEvento === opt.value"
+                        :color="form.tipoEvento === opt.value ? 'primary' : undefined"
+                        :text-color="form.tipoEvento === opt.value ? 'white' : undefined"
+                        :outline="form.tipoEvento !== opt.value"
+                        @click="form.tipoEvento = opt.value"
                       >
-                        <q-item>
-                          <q-item-section class="text-grey-6 text-caption">
-                            <span v-if="tiposEventoStore.error">
-                              Error al cargar.
-                              <q-btn
-                                flat
-                                dense
-                                no-caps
-                                size="sm"
-                                color="primary"
-                                label="Reintentar"
-                                @click.stop="tiposEventoStore.cargar()"
-                              />
-                            </span>
-                            <span v-else>No hay tipos de evento configurados.</span>
-                          </q-item-section>
-                        </q-item>
-                      </template>
-                    </q-select>
+                        {{ opt.label }}
+                      </q-chip>
+                    </div>
+                    <div v-else class="text-grey-6 text-caption">
+                      <span v-if="tiposEventoStore.error">
+                        {{ tiposEventoStore.error }}
+                        <q-btn
+                          flat
+                          dense
+                          no-caps
+                          size="sm"
+                          color="primary"
+                          label="Reintentar"
+                          @click="tiposEventoStore.cargar()"
+                        />
+                      </span>
+                      <span v-else>No hay tipos de evento configurados.</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -157,11 +148,12 @@
                           class="booking-calendar__day"
                           :class="{
                             'booking-calendar__day--selected':
-                              day.day === form.selectedDay && !day.isOtherMonth,
+                              day.date === form.selectedDate && !day.isOtherMonth,
                             'booking-calendar__day--today': day.isToday,
                             'booking-calendar__day--booked': day.isBooked,
                             'booking-calendar__day--other-month': day.isOtherMonth,
-                            'booking-calendar__day--disabled': day.isOtherMonth || day.day === '',
+                            'booking-calendar__day--disabled':
+                              day.isOtherMonth || day.day === '' || day.isPast,
                           }"
                           @click="handleDayClick(day)"
                         >
@@ -173,29 +165,21 @@
 
                   <div class="col-12 col-md-5 column q-gutter-md">
                     <div>
-                      <div class="field-label">FECHA SELECCIONADA</div>
+                      <div class="field-label">Fecha seleccionada</div>
                       <div class="selected-date-display">
                         <q-icon name="event" size="16px" />
                         {{ selectedDateLabel }}
                       </div>
                     </div>
                     <div>
-                      <div class="field-label">HORARIO DEL EVENTO</div>
+                      <div class="field-label">Horario del evento</div>
                       <div class="row q-gutter-sm">
                         <div class="col">
-                          <div
-                            style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px"
-                          >
-                            HORA DE INICIO
-                          </div>
+                          <div class="field-label">Hora de inicio</div>
                           <q-input v-model="form.horaInicio" dense outlined type="time" />
                         </div>
                         <div class="col">
-                          <div
-                            style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px"
-                          >
-                            HORA DE FIN
-                          </div>
+                          <div class="field-label">Hora de fin</div>
                           <q-input v-model="form.horaFin" dense outlined type="time" />
                         </div>
                       </div>
@@ -206,12 +190,43 @@
                       >
                         La hora de fin debe ser mayor a la hora de inicio.
                       </div>
+                      <div
+                        v-if="eventoFueraDeHorario"
+                        class="text-warning q-mt-xs"
+                        style="font-size: 0.75rem"
+                      >
+                        El evento queda fuera del horario de operación de la sucursal ({{
+                          horarioSucursal?.apertura
+                        }}–{{ horarioSucursal?.cierre }}).
+                      </div>
                     </div>
                     <div>
-                      <div class="field-label">HORA SELECCIONADA</div>
+                      <div class="field-label">Hora seleccionada</div>
                       <div class="time-slot-display">
                         <q-icon name="access_time" size="16px" />
                         {{ timeSlotLabel }}
+                      </div>
+                    </div>
+                    <div v-if="form.selectedDate">
+                      <div class="field-label">Disponibilidad del día</div>
+                      <div v-if="resStore.disponibilidadLoading" class="text-caption text-grey-6">
+                        <q-spinner size="14px" class="q-mr-xs" />Consultando bloques...
+                      </div>
+                      <div v-else class="bloques-disponibilidad">
+                        <button
+                          v-for="bloque in bloquesDisponibilidad"
+                          :key="bloque.hora_inicio"
+                          type="button"
+                          class="bloque-chip"
+                          :class="{
+                            'bloque-chip--ocupado': bloque.ocupado,
+                            'bloque-chip--libre': !bloque.ocupado,
+                          }"
+                          :disabled="bloque.ocupado"
+                          @click="seleccionarBloque(bloque)"
+                        >
+                          {{ bloque.hora_inicio.slice(0, 5) }}–{{ bloque.hora_fin.slice(0, 5) }}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -262,6 +277,7 @@
                     <div v-if="pkg.id === paqueteMasContratadoId" class="package-card__badge">
                       Más contratado
                     </div>
+                    <div v-else-if="pkg.destacado" class="package-card__badge">Destacado</div>
                     <div class="package-card__name">{{ pkg.nombre }}</div>
                     <div class="package-card__capacity">
                       De {{ pkg.min_invitados }} a {{ pkg.max_invitados }} invitados
@@ -536,10 +552,7 @@
 
               <!-- Formulario de pago (oculto tras registrar) -->
               <template v-if="!pagoRegistrado">
-                <div
-                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-lg"
-                  style="border: 1px solid var(--border-color)"
-                >
+                <div class="res-block">
                   <div class="row justify-between q-mb-xs">
                     <span class="text-grey-7">Total de la reservación</span>
                     <span style="font-weight: 700">{{ totalAmount }}</span>
@@ -556,7 +569,7 @@
                   <div class="field-label">PORCENTAJE A CUBRIR</div>
                   <div class="anticipo-opciones">
                     <button
-                      v-for="opcion in OPCIONES_ANTICIPO"
+                      v-for="opcion in opcionesAnticipo"
                       :key="opcion"
                       type="button"
                       class="anticipo-chip"
@@ -568,6 +581,9 @@
                         fmt(montoPorPorcentaje(opcion))
                       }}</span>
                       <span v-if="opcion === 100" class="anticipo-chip__nota">Liquida todo</span>
+                      <span v-else-if="opcion === porcentajePaquete" class="anticipo-chip__nota">
+                        Sugerido
+                      </span>
                       <span v-else-if="opcion === PORCENTAJE_MINIMO" class="anticipo-chip__nota">
                         Mínimo
                       </span>
@@ -576,7 +592,7 @@
                 </div>
 
                 <div class="q-mb-lg">
-                  <div class="field-label">MONTO DEL ANTICIPO</div>
+                  <div class="field-label">Monto del anticipo</div>
                   <q-input
                     v-model.number="anticipoIngresado"
                     dense
@@ -663,10 +679,7 @@
                 </p>
 
                 <!-- Bloque: Cliente -->
-                <div
-                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
-                  style="border: 1px solid var(--border-color)"
-                >
+                <div class="res-block">
                   <div class="resumen-section-title">Cliente</div>
                   <div class="resumen-row">
                     <span>Nombre</span><span>{{ form.nombre || '—' }}</span>
@@ -680,10 +693,7 @@
                 </div>
 
                 <!-- Bloque: Evento -->
-                <div
-                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
-                  style="border: 1px solid var(--border-color)"
-                >
+                <div class="res-block">
                   <div class="resumen-section-title">Evento</div>
                   <div class="resumen-row">
                     <span>Tipo</span><span>{{ tipoEventoNombre }}</span>
@@ -700,10 +710,7 @@
                 </div>
 
                 <!-- Bloque: Paquete y Extras -->
-                <div
-                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-md"
-                  style="border: 1px solid var(--border-color)"
-                >
+                <div class="res-block">
                   <div class="resumen-section-title">Paquete y Extras</div>
                   <div class="resumen-row">
                     <span>Paquete</span><span>{{ selectedPackageName || '—' }}</span>
@@ -739,10 +746,7 @@
                 </div>
 
                 <!-- Bloque: Pago -->
-                <div
-                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-lg"
-                  style="border: 1px solid var(--border-color)"
-                >
+                <div class="res-block">
                   <div class="resumen-section-title">Pago</div>
                   <div class="resumen-row">
                     <span>Total</span><span style="font-weight: 700">{{ totalAmount }}</span>
@@ -763,10 +767,7 @@
                 </div>
 
                 <!-- Términos -->
-                <div
-                  class="q-pa-md bg-white rounded-borders shadow-1 q-mb-lg"
-                  style="border: 1px solid var(--border-color)"
-                >
+                <div class="res-block">
                   <q-checkbox v-model="form.termsAccepted" dense style="align-items: flex-start">
                     <span
                       style="font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary)"
@@ -924,6 +925,7 @@
       v-model="modalPagoAbierto"
       :total-to-pay="anticipoIngresado"
       :metodos-pago="metodosPagoStore.activos"
+      :permitir-lealtad="false"
       @pago-exitoso="onPagoExitoso"
     />
   </q-page>
@@ -932,6 +934,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { format as formatDate, parseISO, startOfDay, isBefore } from 'date-fns'
 import { useQuasar } from 'quasar'
 import { usePaquetesStore } from '@/stores/paquetes'
 import type { Paquetes } from '@/types/paquetes'
@@ -942,17 +945,16 @@ import { useExtrasStore } from '@/stores/extras'
 import { useProductosStore } from '@/stores/productos'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
 import { useReservacionesStore } from '@/stores/reservaciones'
+import type { BloqueDisponibilidad } from '@/types/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
-import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
-import { useTurnoCajaStore } from '@/stores/turnoCaja'
-import { useReservacionExtrasStore } from '@/stores/reservacion_extras'
-import { useReservacionProductosStore } from '@/stores/reservacion_productos'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
 import { horasFacturables } from '@/utils/horario'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { resolverMetodoPagoId } from '@/utils/pagos'
 import { pulserasApi } from '@/api/pulserasApi'
+import { branchService } from '@/services/branchService'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -963,19 +965,10 @@ const tiposEventoStore = useTiposEventoStore()
 const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
 const authStore = useAuthStore()
-const pagosStore = usePagosReservacionesStore()
-const turno = useTurnoCajaStore()
-const reservacionExtrasStore = useReservacionExtrasStore()
-const reservacionProductosStore = useReservacionProductosStore()
 
 onMounted(() => {
-  // Se valida al entrar, no hasta el paso de pago: si el cajero no tiene turno
-  // abierto no tiene sentido dejarlo llenar todo el formulario para enterarse
-  // hasta el final. Se redirige de inmediato, sin bloquear con un panel.
-  if (!turno.estaOperando) {
-    router.push('/pos/cierre')
-    return
-  }
+  // La validación de turno (y la espera de su carga async) ya la hace el
+  // guard de ruta (`requiresTurno`, ver router/guards.ts) antes de entrar aquí.
   // Métodos de pago es un catálogo global por diseño: se carga siempre.
   metodosPagoStore.cargar()
 
@@ -997,6 +990,20 @@ onMounted(() => {
       inventarioPulseras.value = null
     })
   resStore.cargar(authStore.currentBranchId)
+
+  // Horario de operación de la sucursal, para avisar (no bloquear) cuando el
+  // evento quede fuera de ese horario.
+  branchService
+    .getBranch(authStore.currentBranchId)
+    .then((b) => {
+      horarioSucursal.value = {
+        apertura: b.horaApertura.slice(0, 5),
+        cierre: b.horaCierre.slice(0, 5),
+      }
+    })
+    .catch(() => {
+      horarioSucursal.value = null
+    })
 })
 
 interface BookingCalendarDay {
@@ -1004,6 +1011,9 @@ interface BookingCalendarDay {
   isToday: boolean
   isBooked: boolean
   isOtherMonth: boolean
+  isPast: boolean
+  /** Fecha completa 'YYYY-MM-DD' del día; vacío cuando es relleno de otro mes. */
+  date: string
 }
 
 const step = ref(1)
@@ -1014,7 +1024,7 @@ const form = ref({
   email: '',
   ninos: 20,
   tipoEvento: null as string | null,
-  selectedDay: null as number | null,
+  selectedDate: null as string | null,
   horaInicio: '15:00',
   horaFin: '18:00',
   selectedPackage: null as string | null,
@@ -1059,12 +1069,24 @@ const horarioValido = computed(
     !!form.value.horaInicio && !!form.value.horaFin && form.value.horaFin > form.value.horaInicio,
 )
 
+/** Horario de operación de la sucursal actual ("HH:mm"), para el aviso de
+ * evento fuera de horario. null mientras no se cargue o si falla. */
+const horarioSucursal = ref<{ apertura: string; cierre: string } | null>(null)
+
+/** Aviso, no bloqueo: si el evento cae fuera del horario de operación de la
+ * sucursal. */
+const eventoFueraDeHorario = computed(() => {
+  const horario = horarioSucursal.value
+  if (!horario || !form.value.horaInicio || !form.value.horaFin) return false
+  return form.value.horaInicio < horario.apertura || form.value.horaFin > horario.cierre
+})
+
 const paso1Valido = computed(
   () =>
     form.value.nombre.trim().length > 0 &&
     form.value.telefono.trim().length > 0 &&
     !!form.value.tipoEvento &&
-    form.value.selectedDay !== null &&
+    form.value.selectedDate !== null &&
     horarioValido.value,
 )
 
@@ -1094,15 +1116,25 @@ const bookedDays = computed(() => {
 
 const daysOfWeek = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 
+const inicioHoy = startOfDay(today)
+
 const bookingCalendarDays = computed((): BookingCalendarDay[] => {
   const days: BookingCalendarDay[] = []
   const firstDay = new Date(currentYear.value, currentMonth.value, 1).getDay()
   const daysInMonth = new Date(currentYear.value, currentMonth.value + 1, 0).getDate()
 
   for (let i = 0; i < firstDay; i++) {
-    days.push({ day: '', isToday: false, isBooked: false, isOtherMonth: true })
+    days.push({
+      day: '',
+      isToday: false,
+      isBooked: false,
+      isOtherMonth: true,
+      isPast: false,
+      date: '',
+    })
   }
   for (let d = 1; d <= daysInMonth; d++) {
+    const fecha = new Date(currentYear.value, currentMonth.value, d)
     days.push({
       day: d,
       isToday:
@@ -1111,6 +1143,8 @@ const bookingCalendarDays = computed((): BookingCalendarDay[] => {
         currentYear.value === today.getFullYear(),
       isBooked: bookedDays.value.includes(d),
       isOtherMonth: false,
+      isPast: isBefore(fecha, inicioHoy),
+      date: formatDate(fecha, 'yyyy-MM-dd'),
     })
   }
   return days
@@ -1134,15 +1168,16 @@ const nextMonth = () => {
 }
 
 const handleDayClick = (day: BookingCalendarDay) => {
-  if (!day.isOtherMonth && day.day !== '') form.value.selectedDay = day.day as number
+  if (!day.isOtherMonth && day.day !== '' && !day.isPast) form.value.selectedDate = day.date
 }
 
 const selectedDateLabel = computed(() => {
-  if (!form.value.selectedDay) return 'Sin seleccionar'
-  return new Date(currentYear.value, currentMonth.value, form.value.selectedDay).toLocaleDateString(
-    'es-MX',
-    { day: 'numeric', month: 'long', year: 'numeric' },
-  )
+  if (!form.value.selectedDate) return 'Sin seleccionar'
+  return parseISO(form.value.selectedDate).toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
 })
 
 const timeSlotLabel = computed(() => {
@@ -1154,6 +1189,28 @@ const timeSlotLabel = computed(() => {
   }
   return `${toTime12(form.value.horaInicio)} – ${toTime12(form.value.horaFin)}`
 })
+
+// ── Disponibilidad por bloque de horario ────────────────────────────────────
+// Reemplaza al antiguo cálculo de "horas libres" en el front: ahora el
+// backend es quien sabe qué bloques ya tienen una reservación encima.
+
+const bloquesDisponibilidad = computed(() => resStore.disponibilidad?.bloques ?? [])
+
+watch(
+  () => [form.value.selectedDate, authStore.currentBranchId] as const,
+  ([fecha, sucursalId]) => {
+    if (fecha && sucursalId) void resStore.cargarDisponibilidad(sucursalId, fecha)
+  },
+  { immediate: true },
+)
+
+/** Al elegir un bloque libre, precarga el horario del evento con su rango
+ * -- el cajero puede seguir ajustándolo a mano después. */
+const seleccionarBloque = (bloque: BloqueDisponibilidad) => {
+  if (bloque.ocupado) return
+  form.value.horaInicio = bloque.hora_inicio.slice(0, 5)
+  form.value.horaFin = bloque.hora_fin.slice(0, 5)
+}
 
 // ── Paquetes ──────────────────────────────────────────────────────────────────
 
@@ -1278,7 +1335,12 @@ const metodosPagoResumen = computed(() => {
 
 // Pre-rellena el anticipo al llegar al step 3
 watch(step, (s) => {
-  if (s === 3 && !pagoRegistrado.value) anticipoIngresado.value = advanceNum.value
+  if (s === 3 && !pagoRegistrado.value) {
+    anticipoIngresado.value =
+      porcentajePaquete.value !== null
+        ? montoPorPorcentaje(porcentajePaquete.value)
+        : advanceNum.value
+  }
 })
 
 const abrirModalPago = () => {
@@ -1401,8 +1463,24 @@ const advanceNum = computed(() => montoPorPorcentaje(PORCENTAJE_MINIMO))
  * guardarse aparte para que editar el campo a mano no deje una opción marcada que
  * ya no refleja lo que se va a cobrar.
  */
+/**
+ * Anticipo sugerido del paquete elegido (`anticipo_porcentaje`). Solo cuenta si
+ * respeta el piso del negocio; uno menor no se ofrece ni se pre-rellena.
+ */
+const porcentajePaquete = computed(() => {
+  const pct = Math.round(Number(selectedPkg.value?.anticipo_porcentaje ?? NaN))
+  return Number.isFinite(pct) && pct >= PORCENTAJE_MINIMO && pct <= 100 ? pct : null
+})
+
+const opcionesAnticipo = computed<number[]>(() => {
+  const opciones = new Set<number>(OPCIONES_ANTICIPO)
+  if (porcentajePaquete.value !== null) opciones.add(porcentajePaquete.value)
+  return [...opciones].sort((a, b) => a - b)
+})
+
 const porcentajeSeleccionado = computed(
-  () => OPCIONES_ANTICIPO.find((p) => montoPorPorcentaje(p) === anticipoIngresado.value) ?? null,
+  () =>
+    opcionesAnticipo.value.find((p) => montoPorPorcentaje(p) === anticipoIngresado.value) ?? null,
 )
 
 const aplicarPorcentaje = (porcentaje: number) => {
@@ -1484,6 +1562,11 @@ function conceptosTicket(): TicketConcepto[] {
 const irAListaReservaciones = () => router.push({ name: 'eventos-reservaciones' })
 
 const confirmarReservacion = async () => {
+  // Único bloqueo de doble clic: ya no hace falta recordar si una reservación
+  // quedó creada a medias (QA #10) porque POST /reservaciones/completa es
+  // atómico -- o se crea todo, o no se crea nada.
+  if (confirmando.value) return
+
   const sucursalId = authStore.currentBranchId
   if (!sucursalId) {
     $q.notify({
@@ -1494,10 +1577,7 @@ const confirmarReservacion = async () => {
     return
   }
 
-  const d = form.value.selectedDay
-  const fecha = d
-    ? `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    : null
+  const fecha = form.value.selectedDate
 
   if (
     !form.value.nombre.trim() ||
@@ -1526,81 +1606,102 @@ const confirmarReservacion = async () => {
   const telefonoLimpio = form.value.telefono.replace(/\D/g, '').slice(-10)
 
   confirmando.value = true
+
+  // Se resuelve y valida todo lo que dependa del catálogo ANTES de crear la
+  // reservación: si algo falla aquí no se crea nada.
+  let metodosPagoIds: string[]
   try {
-    const nuevaReservacion = await resStore.crearReservacion({
-      sucursal_id: sucursalId,
-      tipo_evento_id: form.value.tipoEvento!,
-      paquete_id: form.value.selectedPackage!,
-      nombre_cliente: form.value.nombre,
-      email_cliente: form.value.email || null,
-      telefono_cliente: telefonoLimpio,
-      fecha_evento: fecha,
-      hora_inicio: form.value.horaInicio,
-      hora_fin: form.value.horaFin,
-      numero_personas: form.value.ninos,
-      precio_base: String(packagePriceNum.value),
-      precio_extras: String(extraServicesNum.value),
-      // La columna conserva su nombre en reservaciones por compatibilidad con
-      // los eventos ya levantados; ahora almacena el total de pulseras.
-      precio_personas_extra: String(precioPulserasNum.value),
-      horas_reservadas: horasSeleccionadas.value,
-      precio_horas: '0',
-      precio_productos: String(productosAdicionalesNum.value),
-      descuento: '0',
-      precio_total: String(totalNum.value),
-      anticipo: String(montoPagado.value),
-      estado: 'confirmada',
-    })
-
+    metodosPagoIds = pagosAplicados.value.map((pago) =>
+      resolverMetodoPagoId(pago.method, metodosPagoStore.activos),
+    )
     for (const extraId of selectedExtraIds.value) {
-      const extra = extrasStore.activos.find((e) => e.id === extraId)
-      if (!extra) continue
-      await reservacionExtrasStore.crearReservacionExtra({
-        reservacion_id: nuevaReservacion.id,
-        extra_id: extra.id,
-        cantidad: 1,
-        precio_unitario: extra.precio,
-      })
+      if (!extrasStore.activos.some((e) => e.id === extraId)) {
+        throw new Error('Un extra seleccionado ya no está disponible.')
+      }
     }
-
     for (const item of productosAdicionales.value) {
-      await reservacionProductosStore.crearReservacionProducto({
-        reservacion_id: nuevaReservacion.id,
+      if (!productosStore.productos.some((p) => p.id === item.producto_id)) {
+        throw new Error('Un producto adicional seleccionado ya no está disponible.')
+      }
+    }
+  } catch (err: unknown) {
+    $q.notify({
+      type: 'negative',
+      message: mensajeDeError(err, 'No se pudo validar la reservación'),
+      position: 'top-right',
+      timeout: 6000,
+    })
+    confirmando.value = false
+    return
+  }
+
+  // QA #10: un solo POST atómico -- reservación, extras, productos y pagos
+  // se crean (o fallan) juntos en una transacción del backend, así que ya no
+  // hace falta recordar un id a medio camino para reintentar.
+  try {
+    const resultado = await resStore.crearReservacionCompleta({
+      reservacion: {
+        sucursal_id: sucursalId,
+        tipo_evento_id: form.value.tipoEvento!,
+        paquete_id: form.value.selectedPackage!,
+        nombre_cliente: form.value.nombre,
+        email_cliente: form.value.email || null,
+        telefono_cliente: telefonoLimpio,
+        fecha_evento: fecha,
+        hora_inicio: form.value.horaInicio,
+        hora_fin: form.value.horaFin,
+        numero_personas: form.value.ninos,
+        precio_base: String(packagePriceNum.value),
+        precio_extras: String(extraServicesNum.value),
+        // La columna conserva su nombre en reservaciones por compatibilidad con
+        // los eventos ya levantados; ahora almacena el total de pulseras.
+        precio_personas_extra: String(precioPulserasNum.value),
+        horas_reservadas: horasSeleccionadas.value,
+        precio_horas: '0',
+        precio_productos: String(productosAdicionalesNum.value),
+        descuento: '0',
+        precio_total: String(totalNum.value),
+        anticipo: String(montoPagado.value),
+        estado: 'confirmada',
+      },
+      extras: selectedExtraIds.value
+        .map((extraId) => extrasStore.activos.find((e) => e.id === extraId))
+        .filter((extra): extra is NonNullable<typeof extra> => !!extra)
+        .map((extra) => ({ extra_id: extra.id, cantidad: 1, precio_unitario: extra.precio })),
+      productos: productosAdicionales.value.map((item) => ({
         producto_id: item.producto_id,
         cantidad: item.cantidad,
         precio_unitario: String(precioUnitarioProducto(item.producto_id)),
         notas: item.notas || null,
-      })
-    }
+      })),
+      // Los ids de método de pago ya se resolvieron y validaron antes de
+      // crear la reservación.
+      pagos: pagosAplicados.value.map((pago, i) => ({
+        metodo_pago_id: metodosPagoIds[i]!,
+        monto: String(pago.amount),
+        notas: pago.cardType
+          ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
+          : 'Anticipo registrado al confirmar reservación',
+        tipo: 'anticipo',
+      })),
+      ...(cambioDevuelto.value > 0 ? { cambio: String(cambioDevuelto.value) } : {}),
+    })
 
-    if (pagosAplicados.value.length > 0) {
-      const resultadoPago = await pagosStore.completarPagosReservacion({
-        reservacion_id: nuevaReservacion.id,
-        pagos: pagosAplicados.value.map((pago) => ({
-          metodo_pago_id: resolverMetodoPagoId(pago.method, metodosPagoStore.activos),
-          monto: String(pago.amount),
-          notas: pago.cardType
-            ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
-            : 'Anticipo registrado al confirmar reservación',
-        })),
-        ...(cambioDevuelto.value > 0 ? { cambio: String(cambioDevuelto.value) } : {}),
+    if (resultado.advertencia_efectivo) {
+      $q.notify({
+        type: 'warning',
+        message: 'No hay suficiente efectivo en caja',
+        caption: resultado.advertencia_efectivo,
+        position: 'top-right',
+        timeout: 6000,
       })
-      if (resultadoPago.advertencia_efectivo) {
-        $q.notify({
-          type: 'warning',
-          message: 'No hay suficiente efectivo en caja',
-          caption: resultadoPago.advertencia_efectivo,
-          position: 'top-right',
-          timeout: 6000,
-        })
-      }
     }
 
     // Se arma el ticket aquí, con los valores que se acaban de cobrar, en vez de
     // navegar de inmediato: así el cajero puede imprimirle el comprobante al
     // cliente sin perder la pantalla ni tener que buscar la reservación.
     ticket.value = {
-      folio: nuevaReservacion.id,
+      folio: resultado.reservacion.folio ?? resultado.reservacion.id,
       sucursal: authStore.currentBranchName ?? 'Sucursal',
       clienteNombre: form.value.nombre,
       clienteTelefono: telefonoLimpio,
@@ -1624,41 +1725,58 @@ const confirmarReservacion = async () => {
   } catch (err: unknown) {
     const apiErr = err as { message?: string; statusCode?: number }
     const msg = apiErr?.message || 'Error al guardar la reservación'
-    $q.notify({ type: 'negative', message: msg, position: 'top-right', timeout: 6000 })
     console.error('[confirmarReservacion]', err)
+    // Nada quedó persistido (transacción atómica): no hay a dónde redirigir,
+    // solo reintentar.
+    $q.notify({ type: 'negative', message: msg, position: 'top-right', timeout: 6000 })
   } finally {
     confirmando.value = false
   }
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .sticky-payment {
   position: sticky;
   top: 24px;
 }
 
+.res-block {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
 .resumen-section-title {
-  font-size: 0.65rem;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--q-primary);
-  margin-bottom: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
 }
 
 .resumen-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 0;
-  font-size: 0.875rem;
-  border-bottom: 1px solid var(--border-color);
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--border-soft);
   color: var(--text-secondary);
-}
 
-.resumen-row:last-child {
-  border-bottom: none;
+  span:last-child {
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: right;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
 }
 
 .aviso-pulseras {
@@ -1671,6 +1789,39 @@ const confirmarReservacion = async () => {
   color: #a35200;
 }
 
+/* ── Bloques de disponibilidad ────────────────────────────────────────────── */
+.bloques-disponibilidad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bloque-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+
+  &--libre {
+    border-color: var(--tone-ok-dot);
+    color: var(--tone-ok-fg);
+    background: var(--tone-ok-bg);
+  }
+
+  &--ocupado {
+    border-color: var(--tone-bad-dot);
+    color: var(--tone-bad-fg);
+    background: var(--tone-bad-bg);
+    cursor: not-allowed;
+    opacity: 0.8;
+  }
+}
+
 /* ── Confirmación con ticket ──────────────────────────────────────────────── */
 .ticket-exito {
   display: flex;
@@ -1678,18 +1829,18 @@ const confirmarReservacion = async () => {
   gap: 12px;
   padding: 14px 16px;
   border-radius: 10px;
-  background: rgba(63, 168, 52, 0.12);
-  border: 1px solid rgba(63, 168, 52, 0.35);
+  background: var(--tone-ok-bg);
+  border: 1px solid var(--tone-ok-dot);
 }
 
 .ticket-exito__titulo {
   font-weight: 700;
-  color: #2e7d32;
+  color: var(--tone-ok-fg);
 }
 
 .ticket-exito__nota {
   font-size: 0.85rem;
-  color: #2e7d32;
+  color: var(--tone-ok-fg);
 }
 
 /* ── Opciones de anticipo ──────────────────────────────────────────────────
@@ -1751,5 +1902,13 @@ const confirmarReservacion = async () => {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.tipo-evento-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
 }
 </style>

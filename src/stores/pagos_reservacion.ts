@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { pagosReservacionApi } from '@/api/pagosReservacionApi'
 import type {
   Pagos_reservacion,
@@ -27,7 +28,7 @@ export const usePagosReservacionesStore = defineStore('pagos_reservacion', {
       try {
         this.pagos_reservacion = await pagosReservacionApi.listar()
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar pagos'
+        this.error = mensajeDeError(error, 'Error al cargar pagos')
       } finally {
         this.loading = false
       }
@@ -38,7 +39,7 @@ export const usePagosReservacionesStore = defineStore('pagos_reservacion', {
       try {
         this.pagos_reservacion = await pagosReservacionApi.listarPorReservacion(reservacion_id)
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar pagos'
+        this.error = mensajeDeError(error, 'Error al cargar pagos')
       } finally {
         this.loading = false
       }

@@ -1,29 +1,28 @@
 <template>
-  <div v-if="visibleMethods.length > 0" class="grid-methods">
+  <div
+    v-if="visibleMethods.length > 0"
+    class="methods"
+    role="radiogroup"
+    aria-label="Método de pago"
+  >
     <button
       v-for="method in visibleMethods"
       :key="method.valor"
-      class="method-btn"
-      :class="{ active: modelValue === method.valor }"
+      type="button"
+      role="radio"
+      class="methods__btn"
+      :class="{ 'methods__btn--on': modelValue === method.valor }"
+      :aria-checked="modelValue === method.valor"
       @click="$emit('update:modelValue', method.valor)"
     >
-      <q-icon
-        :name="method.icon"
-        size="24px"
-        :color="modelValue === method.valor ? 'primary' : method.color"
-      />
-      <span
-        class="method-label"
-        :class="{ 'text-primary text-weight-bold': modelValue === method.valor }"
-      >
-        {{ method.nombre }}
-      </span>
+      <q-icon :name="method.icon" size="20px" />
+      <span>{{ method.nombre }}</span>
     </button>
   </div>
-  <q-banner v-else dense rounded class="bg-orange-1 text-orange-9 q-mb-md" style="font-size: 12px">
-    <template #avatar><q-icon name="warning" color="warning" /></template>
+  <div v-else class="methods__empty">
+    <q-icon name="warning" size="19px" />
     Esta sucursal no tiene métodos de pago activos. Configúralos en Catálogo &gt; Métodos de Pago.
-  </q-banner>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -50,35 +49,58 @@ const visibleMethods = computed(() =>
 )
 </script>
 
-<style scoped>
-.grid-methods {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.method-btn {
-  height: 76px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+<style scoped lang="scss">
+.methods {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.method-btn:hover {
-  background: var(--bg-main);
-}
-.method-btn.active {
-  border: 2px solid #025fe0;
-  background: rgba(2, 95, 224, 0.08);
-}
-.method-label {
-  font-size: 14px;
-  color: var(--text-secondary);
+  gap: 8px;
+
+  &__btn {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text-body);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+
+    .q-icon {
+      color: var(--text-secondary);
+    }
+
+    &:hover {
+      background: var(--bg-subtle);
+    }
+
+    &--on,
+    &--on:hover {
+      border: 1.5px solid var(--q-primary);
+      background: var(--tone-info-bg);
+      color: var(--q-primary);
+
+      .q-icon {
+        color: var(--q-primary);
+      }
+    }
+  }
+
+  &__empty {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--tone-warn-bg);
+    color: var(--tone-warn-fg);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
 }
 </style>

@@ -1,15 +1,122 @@
+<template>
+  <article class="stay" :class="`stay--${status.tone}`">
+    <div class="stay__top">
+      <span class="stay__badge">{{ status.label }}</span>
+      <span class="stay__band"><q-icon name="sensors" size="15px" />{{ child.pulsera }}</span>
+    </div>
+    <button type="button" class="stay__who" @click="showDetails = true">
+      <span class="stay__name">{{ child.nino }}</span>
+      <span class="stay__tutor">{{ child.tutor }} · {{ child.parentesco }}</span>
+    </button>
+    <div class="stay__figure">
+      <span class="stay__time">{{ tiempo }}</span>
+      <span class="stay__entry">Entró {{ horaEntrada }}</span>
+    </div>
+    <div v-if="child.status === 'excedido' && child.cargoExtra > 0" class="stay__extra">
+      Cargo extra: ${{ child.cargoExtra.toFixed(2) }}
+    </div>
+    <div
+      class="stay__bar"
+      role="progressbar"
+      :aria-valuenow="child.progressPercent"
+      aria-valuemin="0"
+      aria-valuemax="100"
+    >
+      <div class="stay__bar-fill" :style="{ width: `${child.progressPercent}%` }" />
+    </div>
+    <div class="stay__actions">
+      <a :href="telefonoHref" class="stay__icon-btn" :aria-label="`Llamar a ${child.tutor}`">
+        <q-icon name="call" size="19px" />
+      </a>
+      <button
+        type="button"
+        class="stay__icon-btn"
+        aria-label="Ver fotos del registro"
+        @click="showFotos = true"
+      >
+        <q-icon name="photo_library" size="19px" />
+      </button>
+      <button type="button" class="stay__checkout" @click="handleCheckout">
+        <q-icon name="logout" size="19px" />Checkout
+      </button>
+    </div>
+
+    <BaseDialog
+      v-model="showDetails"
+      :title="child.nino"
+      :subtitle="`Pulsera ${child.pulsera} · entró ${horaEntrada} · ${tiempo}${child.status === 'excedido' ? ' excedido' : ' restantes'}`"
+      icon="face"
+      :tone="
+        child.status === 'excedido' ? 'red' : child.status === 'por_expirar' ? 'amber' : 'green'
+      "
+      :width="520"
+      secondary-label="Cerrar"
+      primary-label="Ir a checkout"
+      @confirm="irACheckoutDesdeDetalle"
+    >
+      <section class="detail">
+        <span class="detail__title">Tutores</span>
+        <div class="detail__grid">
+          <label class="detail__field">
+            <span class="field-label">Tutor</span>
+            <q-input
+              :model-value="`${child.tutor} · ${child.parentesco}`"
+              outlined
+              dense
+              readonly
+            />
+          </label>
+          <label class="detail__field">
+            <span class="field-label">Teléfono</span>
+            <q-input :model-value="formatTelefono(child.telefono)" outlined dense readonly>
+              <template #append>
+                <a :href="telefonoHref" class="detail__call" aria-label="Llamar">
+                  <q-icon name="call" size="18px" />
+                </a>
+              </template>
+            </q-input>
+          </label>
+          <label class="detail__field detail__field--full">
+            <span class="field-label">Segundo tutor</span>
+            <q-input
+              :model-value="child.nombreSegundoTutor || 'Sin segundo tutor'"
+              outlined
+              dense
+              readonly
+            />
+          </label>
+        </div>
+      </section>
+      <section class="detail">
+        <span class="detail__title">Notas</span>
+        <p class="detail__notes">{{ child.notas || 'Sin notas registradas.' }}</p>
+      </section>
+      <section class="detail">
+        <span class="detail__title">Fotos del registro</span>
+        <button type="button" class="detail__photos" @click="showFotos = true">
+          <q-icon name="photo_library" size="24px" />
+          <span>Ver INE y fotos de llegada</span>
+        </button>
+      </section>
+    </BaseDialog>
+
+    <FotosRegistroDialog
+      v-model="showFotos"
+      :registro-id="child.registroId"
+      :titulo="child.nino"
+      :subtitulo="`Registro ${horaEntrada} · ${child.tutor} (${child.parentesco})`"
+    />
+  </article>
+</template>
+
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { ActiveChild } from '@/stores/accessControl'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
-import { fetchFotoIneUrl, fetchFotosLlegadaUrls } from '@/api/onboardingClient'
-
-const MAX_TUTOR_NAME_LENGTH = 28
-const MAX_CHILD_NAME_LENGTH = 18
-const TRUNCATED_LENGTH_TUTOR = 25
-const TRUNCATED_LENGTH_CHILD = 15
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import FotosRegistroDialog from './FotosRegistroDialog.vue'
 
 const props = defineProps<{ child: ActiveChild }>()
 const store = useAccessControlStore()
@@ -17,51 +124,39 @@ const turno = useTurnoCajaStore()
 const router = useRouter()
 
 const showDetails = ref(false)
+const showFotos = ref(false)
 
-function openDetails() {
-  showDetails.value = true
-}
+const STATUS = {
+  activo: { label: 'Activo', tone: 'ok' },
+  por_expirar: { label: 'Por expirar', tone: 'warn' },
+  excedido: { label: 'Excedido', tone: 'bad' },
+} as const
 
-function closeDetails() {
-  showDetails.value = false
-}
+const status = computed(() => STATUS[props.child.status])
 
-const statusConfig = computed(() => {
-  switch (props.child.status) {
-    case 'activo':
-      return {
-        label: 'ACTIVO',
-        barColor: 'bg-green-6',
-        borderColor: 'border-activo',
-        headerBg: 'bg-green-1',
-        textColor: 'text-green-9',
-      }
-    case 'por_expirar':
-      return {
-        label: 'POR EXPIRAR',
-        barColor: 'bg-orange-6',
-        borderColor: 'border-expirar',
-        headerBg: 'bg-orange-1',
-        textColor: 'text-orange-9',
-      }
-    case 'excedido':
-      return {
-        label: 'EXCEDIDO',
-        barColor: 'bg-red-6',
-        borderColor: 'border-excedido',
-        headerBg: 'bg-red-1',
-        textColor: 'text-red-9',
-      }
-    default:
-      return {
-        label: 'DESCONOCIDO',
-        barColor: 'bg-grey-6',
-        borderColor: 'border-grey',
-        headerBg: 'bg-grey-1',
-        textColor: 'text-grey-9',
-      }
-  }
+// Cifra principal: minutos excedidos (+) o restantes.
+const tiempo = computed(() => {
+  const m = Math.abs(props.child.minutosRestantes)
+  const texto =
+    m >= 60
+      ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`
+      : `${String(m).padStart(2, '0')} min`
+  return props.child.status === 'excedido' ? `+${texto}` : texto
 })
+
+// El DTO ya trae la hora de entrada real (ver B2 #1); antes se derivaba de
+// minutosTranscurridos, una aproximación que se iba desviando con el tiempo.
+const horaEntrada = computed(() => {
+  const d = new Date(props.child.horaEntrada)
+  return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+})
+
+const telefonoHref = computed(() => `tel:${props.child.telefono.replace(/\D/g, '')}`)
+
+function irACheckoutDesdeDetalle() {
+  showDetails.value = false
+  handleCheckout()
+}
 
 function handleCheckout() {
   if (!turno.estaOperando) {
@@ -81,448 +176,243 @@ function formatTelefono(telefono: string) {
 
   return telefono
 }
-
-function truncateName(nombre: string, maxLength: number, truncatedLength: number): string {
-  if (nombre.length <= maxLength) return nombre
-  return nombre.slice(0, truncatedLength) + '...'
-}
-
-const fotoIneUrl = ref<string | null>(null)
-const fotosLlegadaUrls = ref<string[]>([])
-
-const showFotosDialog = ref(false)
-const fotoIneError = ref(false)
-const fotoLlegadaError = ref(false)
-
-function revokeFotoUrls() {
-  if (fotoIneUrl.value) URL.revokeObjectURL(fotoIneUrl.value)
-  fotosLlegadaUrls.value.forEach((url) => URL.revokeObjectURL(url))
-  fotoIneUrl.value = null
-  fotosLlegadaUrls.value = []
-}
-
-async function openFotosDialog() {
-  showFotosDialog.value = true
-  fotoIneError.value = false
-  fotoLlegadaError.value = false
-
-  try {
-    fotoIneUrl.value = await fetchFotoIneUrl(props.child.registroId)
-  } catch {
-    fotoIneError.value = true
-  }
-
-  try {
-    fotosLlegadaUrls.value = await fetchFotosLlegadaUrls(props.child.registroId)
-  } catch {
-    fotoLlegadaError.value = true
-  }
-}
-
-function closeFotosDialog() {
-  showFotosDialog.value = false
-}
 </script>
-
-<template>
-  <div class="card-slot">
-    <transition name="swap" mode="out-in">
-      <!-- CARA FRONTAL -->
-      <q-card
-        v-if="!showDetails"
-        key="front"
-        flat
-        bordered
-        class="kds-card"
-        :class="statusConfig?.borderColor"
-      >
-        <div class="status-bar" :class="statusConfig?.barColor"></div>
-
-        <div
-          class="q-pa-md q-pl-xl"
-          :class="statusConfig?.headerBg"
-          style="border-bottom: 1px solid #f1f1f1; position: relative"
-        >
-          <div style="padding-right: 30px">
-            <span
-              class="text-caption text-weight-bold block text-uppercase tracking-wider"
-              :class="statusConfig?.textColor"
-              style="font-size: 11px"
-            >
-              {{ statusConfig?.label }}
-            </span>
-            <div class="text-h6 text-weight-bolder text-dark q-mt-xs" style="line-height: 1.2">
-              {{ truncateName(child.nino, MAX_CHILD_NAME_LENGTH, TRUNCATED_LENGTH_CHILD) }}
-            </div>
-            <div class="row items-center text-caption text-grey-7 q-mt-xs">
-              <q-icon name="person_outline" size="14px" class="q-mr-xs" />
-              {{ truncateName(child.tutor, MAX_TUTOR_NAME_LENGTH, TRUNCATED_LENGTH_TUTOR) }}
-            </div>
-            <div class="row items-center text-caption text-grey-7 q-mt-xs">
-              <span>{{ child.parentesco }}</span>
-
-              <q-icon name="phone" size="14px" class="q-ml-md q-mr-xs" />
-
-              <span>{{ formatTelefono(child.telefono) }}</span>
-            </div>
-          </div>
-
-          <div style="position: absolute; top: 12px; right: 12px">
-            <q-btn
-              flat
-              round
-              dense
-              icon="info"
-              size="sm"
-              :color="statusConfig?.textColor.replace('text-', '')"
-              @click="openDetails"
-            />
-          </div>
-        </div>
-
-        <div class="column q-pa-lg q-pl-xl bg-white card-body">
-          <div>
-            <div class="row q-col-gutter-lg q-mb-md">
-              <div class="col-6">
-                <div class="info-label">PULSERA</div>
-                <div class="row items-center info-value">
-                  <q-icon name="badge" size="14px" class="q-mr-xs text-grey-6" />
-                  {{ child.pulsera }}
-                </div>
-              </div>
-
-              <div class="col-6">
-                <div class="info-label">TIEMPO</div>
-                <div class="info-value" :class="statusConfig?.textColor">
-                  {{ store.formatMinutosLabel(child) }}
-                </div>
-              </div>
-            </div>
-
-            <q-linear-progress
-              :value="child.progressPercent / 100"
-              :color="statusConfig?.barColor.replace('bg-', '')"
-              track-color="grey-3"
-              size="8px"
-              rounded
-            />
-          </div>
-
-          <q-btn
-            unelevated
-            color="primary"
-            label="Checkout"
-            no-caps
-            class="q-mt-lg full-width"
-            @click="handleCheckout"
-          />
-        </div>
-      </q-card>
-
-      <!-- DETALLES -->
-      <q-card v-else key="back" flat bordered class="kds-card" :class="statusConfig?.borderColor">
-        <div class="status-bar" :class="statusConfig?.barColor"></div>
-
-        <div
-          class="q-pa-md q-pl-xl"
-          :class="statusConfig?.headerBg"
-          style="border-bottom: 1px solid #f1f1f1; position: relative"
-        >
-          <div class="text-subtitle2 text-weight-bold text-dark" style="padding-right: 30px">
-            Detalles
-          </div>
-          <div style="position: absolute; top: 12px; right: 12px">
-            <q-btn flat round dense icon="close" size="sm" color="grey-8" @click="closeDetails" />
-          </div>
-        </div>
-
-        <div class="column q-pa-lg q-pl-xl bg-white card-body">
-          <div class="info-label q-mb-xs">SEGUNDO TUTOR</div>
-          <div v-if="child.nombreSegundoTutor" class="text-body2 text-dark q-mb-md">
-            {{
-              truncateName(child.nombreSegundoTutor, MAX_TUTOR_NAME_LENGTH, TRUNCATED_LENGTH_TUTOR)
-            }}
-          </div>
-          <div v-else class="text-body2 text-dark q-mb-md">Sin segundo tutor</div>
-
-          <div class="info-label q-mb-xs">NOTAS</div>
-          <div v-if="child.notas" class="notas-box q-mb-md">
-            <span class="text-body2 text-dark">{{ child.notas }}</span>
-          </div>
-          <div v-else class="text-caption text-grey-5 q-mb-md">Sin notas registradas.</div>
-          <q-separator class="q-mb-md" />
-          <div class="info-label q-mb-sm">FOTOS DEL REGISTRO</div>
-          <q-btn
-            outline
-            color="primary"
-            icon="photo_library"
-            label="Ver fotos"
-            no-caps
-            dense
-            class="full-width"
-            @click="openFotosDialog"
-          />
-        </div>
-      </q-card>
-    </transition>
-
-    <!-- Dialog de fotos a pantalla completa -->
-    <q-dialog
-      v-model="showFotosDialog"
-      maximized
-      transition-show="fade"
-      transition-hide="fade"
-      @hide="revokeFotoUrls"
-    >
-      <q-card class="fotos-dialog-card">
-        <q-btn
-          flat
-          round
-          dense
-          icon="close"
-          size="lg"
-          color="white"
-          class="fotos-close-btn"
-          @click="closeFotosDialog"
-        />
-
-        <!-- Dialog de fotos a pantalla completa en una sola columna grande -->
-        <q-dialog
-          v-model="showFotosDialog"
-          maximized
-          transition-show="fade"
-          transition-hide="fade"
-          @hide="revokeFotoUrls"
-        >
-          <q-card class="fotos-dialog-card">
-            <q-btn
-              flat
-              round
-              dense
-              icon="close"
-              size="lg"
-              color="white"
-              class="fotos-close-btn"
-              @click="closeFotosDialog"
-            />
-
-            <div class="fotos-dialog-content">
-              <div class="text-h4 text-weight-bold text-white text-center q-mb-xl">
-                {{ truncateName(child.nino, MAX_CHILD_NAME_LENGTH, TRUNCATED_LENGTH_CHILD) }}
-              </div>
-
-              <!-- SECCIÓN INE -->
-              <div class="foto-block q-mb-xl">
-                <div class="text-h6 text-weight-bold text-white text-center q-mb-md">
-                  INE / Identificación
-                </div>
-                <div v-if="fotoIneError" class="fotos-dialog-img-error">
-                  <q-icon name="broken_image" size="64px" color="grey-5" />
-                  <div class="text-body1 text-grey-5 q-mt-sm">No disponible</div>
-                </div>
-                <div v-else-if="!fotoIneUrl" class="fotos-dialog-img-error">
-                  <q-spinner color="white" size="56px" />
-                </div>
-                <div v-else class="fotos-dialog-img-wrap">
-                  <img :src="fotoIneUrl" class="fotos-dialog-img" @error="fotoIneError = true" />
-                </div>
-              </div>
-
-              <!-- SECCIÓN FOTOS DE LLEGADA -->
-              <div class="foto-block">
-                <div class="text-h6 text-weight-bold text-white text-center q-mb-md">
-                  Fotos de Llegada
-                </div>
-                <div v-if="fotoLlegadaError" class="fotos-dialog-img-error">
-                  <q-icon name="broken_image" size="64px" color="grey-5" />
-                  <div class="text-body1 text-grey-5 q-mt-sm">No disponible</div>
-                </div>
-                <div v-else-if="!fotosLlegadaUrls.length" class="fotos-dialog-img-error">
-                  <q-spinner color="white" size="56px" />
-                </div>
-                <div v-else class="column q-gutter-y-xl">
-                  <div
-                    v-for="(url, index) in fotosLlegadaUrls"
-                    :key="index"
-                    class="fotos-dialog-img-wrap"
-                  >
-                    <img :src="url" class="fotos-dialog-img" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </q-card>
-        </q-dialog>
-      </q-card>
-    </q-dialog>
-  </div>
-</template>
-
-<style scoped>
-.card-slot {
-  width: 120%;
-  height: 360px;
-  position: relative;
-}
-
-.kds-card {
-  border-radius: 12px;
-  position: relative;
-  overflow: hidden;
-  background-color: #ffffff;
-  width: 100%;
-  height: 100%;
+<style scoped lang="scss">
+.stay {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
   display: flex;
   flex-direction: column;
+  gap: 10px;
+
+  --fg: var(--tone-ok-fg);
+  --bg: var(--tone-ok-bg);
+  --bar: var(--tone-ok-dot);
+
+  &--warn {
+    border-color: #fbe2b0;
+    --fg: var(--tone-warn-fg);
+    --bg: #fff4d6;
+    --bar: var(--tone-warn-dot);
+  }
+
+  &--bad {
+    border-color: #f5c2c2;
+    --fg: var(--tone-bad-fg);
+    --bg: var(--tone-bad-bg);
+    --bar: var(--tone-bad-dot);
+  }
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__badge {
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  &__band {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-body);
+  }
+
+  &__who {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover .stay__name {
+      color: var(--q-primary);
+    }
+  }
+
+  &__name {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__tutor {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__figure {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  &__time {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__entry {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__extra {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--tone-bad-fg);
+  }
+
+  &__bar {
+    height: 6px;
+    border-radius: 3px;
+    background: #eef1f5;
+    overflow: hidden;
+  }
+
+  &__bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--bar);
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  &__icon-btn {
+    width: 40px;
+    height: 38px;
+    flex-shrink: 0;
+    border: 1px solid var(--border-input);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text-body);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    text-decoration: none;
+
+    &:hover {
+      background: var(--bg-subtle);
+    }
+  }
+
+  &__checkout {
+    flex: 1;
+    height: 38px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  &--warn &__checkout {
+    background: var(--q-primary);
+    color: #fff;
+  }
+
+  &--bad &__checkout {
+    background: var(--tone-bad-dot);
+    color: #fff;
+  }
 }
 
-.card-body {
-  flex: 1;
+.detail {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-}
+  gap: 10px;
 
-.border-activo {
-  border-left: 6px solid #21ba45;
-}
+  &__title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
 
-.border-expirar {
-  border-left: 6px solid #fd8b00;
-}
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
 
-.border-excedido {
-  border-left: 6px solid #e0353a;
-}
+  &__field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 
-.status-bar {
-  width: 6px;
-  height: 100%;
-  position: absolute;
-  left: 0;
-  top: 0;
-  z-index: 1;
-}
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
 
-.info-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: #9e9e9e;
-  text-transform: uppercase;
-}
+  &__call {
+    color: var(--q-primary);
+    display: flex;
+    text-decoration: none;
+  }
 
-.info-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: #424242;
-}
+  &__notes {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border-input);
+    border-radius: 10px;
+    min-height: 60px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+  }
 
-.notas-box {
-  background: #fff8ed;
-  border: 1px solid #ffe4b5;
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex;
-  align-items: flex-start;
-}
+  &__photos {
+    height: 72px;
+    border: 1px dashed #cbd2de;
+    border-radius: 12px;
+    background: repeating-linear-gradient(135deg, #f5f7fb 0 8px, #eef1f6 8px 16px);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
 
-.foto-thumb-wrap {
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #e0e0e0;
-  height: 90px;
-}
-
-.foto-thumb {
-  width: 100%;
-  height: 90px;
-  object-fit: cover;
-}
-
-.foto-thumb-error {
-  height: 90px;
-  border-radius: 8px;
-  border: 1px dashed #e0e0e0;
-  background: #fafafa;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Transición */
-.swap-enter-active,
-.swap-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-
-.swap-enter-from {
-  opacity: 0;
-  transform: scale(0.97);
-}
-
-.swap-leave-to {
-  opacity: 0;
-  transform: scale(0.97);
-}
-
-.fotos-dialog-card {
-  background: rgba(18, 18, 18, 0.98);
-  width: 100%;
-  height: 100%;
-  overflow-y: auto;
-  padding: 80px 20px 60px 20px;
-}
-
-.fotos-close-btn {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.fotos-dialog-content {
-  width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.foto-section {
-  width: 100%;
-}
-
-.fotos-dialog-img-wrap {
-  width: 100%;
-  min-height: 550px;
-  max-height: 80vh;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.fotos-dialog-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
-
-.fotos-dialog-img-error {
-  width: 100%;
-  height: 550px;
-  border-radius: 16px;
-  border: 2px dashed rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.03);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+    &:hover {
+      color: var(--q-primary);
+    }
+  }
 }
 </style>

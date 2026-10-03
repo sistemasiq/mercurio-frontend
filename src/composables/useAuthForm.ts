@@ -3,7 +3,8 @@ import { Notify } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
 import { inactivityTimer } from '@/utils/inactivityTimer'
-import type { LoginRequest, ApiError } from '@/types/auth'
+import { mensajeDeError } from '@/utils/errorHandler'
+import type { LoginRequest } from '@/types/auth'
 
 export function useAuthForm() {
   const auth = useAuthStore()
@@ -48,7 +49,7 @@ export function useAuthForm() {
     } catch (err) {
       Notify.create({
         type: 'negative',
-        message: (err as ApiError).message ?? auth.error ?? 'Error al iniciar sesión.',
+        message: mensajeDeError(err, auth.error ?? 'Error al iniciar sesión.'),
         icon: 'error',
       })
     }
@@ -61,7 +62,7 @@ export function useAuthForm() {
     } catch (err) {
       Notify.create({
         type: 'negative',
-        message: (err as ApiError).message ?? auth.error ?? 'Error al iniciar sesión.',
+        message: mensajeDeError(err, auth.error ?? 'Error al iniciar sesión.'),
         icon: 'error',
       })
     }

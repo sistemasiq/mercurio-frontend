@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { metodosPagoApi } from '@/api/metodosPagoApi'
 import type { MetodosPago, MetodosPagoUpdate } from '@/types/metodos_pago'
 
@@ -24,7 +25,7 @@ export const useMetodosPagoStore = defineStore('metodos_pago', {
       try {
         this.metodos = await metodosPagoApi.listar()
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar métodos de pago'
+        this.error = mensajeDeError(error, 'Error al cargar métodos de pago')
       } finally {
         this.loading = false
       }

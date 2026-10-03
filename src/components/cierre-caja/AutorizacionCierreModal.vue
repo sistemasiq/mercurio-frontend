@@ -1,342 +1,248 @@
 <template>
-  <q-dialog
-    v-model="turno.mostrarDialogAutorizacion"
-    persistent
-    maximized
-    class="rs-dialog-backdrop"
-  >
-    <div class="rs-audit-modal">
-      <!-- ── Header del Modal ── -->
-      <div class="rs-modal-header">
-        <div>
-          <h2 class="rs-modal-title">
-            Autorización de Cierre
-            <span class="rs-modal-code"
-              >#CRT-{{ turno.turnoId ? turno.turnoId.slice(-6).toUpperCase() : '1042' }}</span
-            >
-          </h2>
-          <p class="rs-modal-sub">
-            Cajero: <strong>{{ turno.cajeroNombre || 'Cajero' }}</strong> • Terminal:
-            <strong>{{ turno.terminal || 'CAJA 01' }}</strong> • Sucursal:
-            <strong>{{ turno.sucursalNombre || 'Centro' }}</strong>
-          </p>
+  <q-dialog v-model="turno.mostrarDialogAutorizacion" persistent>
+    <q-card class="arqueo">
+      <header class="arqueo__head">
+        <span class="arqueo__icon"><q-icon name="fact_check" size="22px" /></span>
+        <div class="arqueo__titles">
+          <span class="arqueo__title">
+            Resultado del arqueo
+            <span v-if="turno.turnoId" class="code-chip">
+              #{{ turno.turnoId.slice(-6).toUpperCase() }}
+            </span>
+          </span>
+          <span class="arqueo__subtitle">
+            {{ turno.cajeroNombre }} · {{ turno.terminal }} · {{ turno.sucursalNombre }}
+          </span>
         </div>
-      </div>
+      </header>
 
-      <!-- ── Body del Modal (2 columnas) ── -->
-      <div class="rs-modal-body">
-        <div class="rs-grid-columns">
-          <!-- Columna Izquierda: Comparativo por método y Declaración del Cajero -->
-          <div class="rs-col-left">
-            <!-- Contexto del turno: fondo, retiros, y cada método de pago que tuvo
-                 movimientos en el corte — así el cajero/admin ve de un vistazo cómo se
-                 arma el total del sistema (fondo + métodos - retiros) antes de cotejarlo
-                 contra el papel físico (billetes, baucher de tarjeta, cupones, etc.). -->
-            <div class="rs-card-box">
-              <h3 class="rs-box-title">Contexto del Turno</h3>
-              <div class="rs-detail-list">
-                <div class="rs-detail-row">
-                  <span class="rs-detail-label">Fondo Inicial</span>
-                  <span class="rs-detail-val"
-                    >+${{
-                      (turno.fondoInicial || 0).toLocaleString('es-MX', {
-                        minimumFractionDigits: 2,
-                      })
-                    }}</span
-                  >
-                </div>
-                <div v-if="(turno.totalRetiros || 0) > 0" class="rs-detail-row text-negative">
-                  <span class="rs-detail-label flex items-center">
-                    <q-icon name="remove_circle" size="16px" class="q-mr-xs" /> Retiros Parciales
-                  </span>
-                  <span class="rs-detail-val"
-                    >-${{
-                      (turno.totalRetiros || 0).toLocaleString('es-MX', {
-                        minimumFractionDigits: 2,
-                      })
-                    }}</span
-                  >
-                </div>
-                <div v-if="(turno.totalIngresos || 0) > 0" class="rs-detail-row text-positive">
-                  <span class="rs-detail-label flex items-center">
-                    <q-icon name="add_circle" size="16px" class="q-mr-xs" /> Ingresos de Efectivo
-                  </span>
-                  <span class="rs-detail-val"
-                    >+${{
-                      (turno.totalIngresos || 0).toLocaleString('es-MX', {
-                        minimumFractionDigits: 2,
-                      })
-                    }}</span
-                  >
-                </div>
-                <div
-                  v-for="fila in turno.balancePorMetodo"
-                  :key="'ctx-' + fila.metodo"
-                  class="rs-detail-row text-positive"
-                >
-                  <span class="rs-detail-label flex items-center">
-                    <q-icon name="add_circle" size="16px" class="q-mr-xs" /> {{ fila.label }}
-                  </span>
-                  <span class="rs-detail-val"
-                    >+${{
-                      fila.esperado.toLocaleString('es-MX', { minimumFractionDigits: 2 })
-                    }}</span
-                  >
-                </div>
+      <div class="arqueo__body">
+        <div class="arqueo__col">
+          <div class="arqueo-table">
+            <div class="arqueo-table__head"><span>Método</span><span>Diferencia</span></div>
+            <div
+              v-for="fila in turno.balancePorMetodo"
+              :key="fila.metodo"
+              class="arqueo-table__row"
+            >
+              <div class="arqueo-table__info">
+                <span class="arqueo-table__name">{{ fila.label }}</span>
+                <span class="arqueo-table__meta">
+                  Esperado {{ fmt(fila.esperado) }} · Declarado {{ fmt(fila.declarado) }}
+                </span>
               </div>
+              <span class="arqueo-table__diff" :class="claseDiferencia(fila.diferencia)">
+                {{ signo(fila.diferencia) }}{{ fmt(fila.diferencia) }}
+              </span>
             </div>
-
-            <!-- Comparativo por Método de Pago: Sistema vs. lo que reportó el Cajero -->
-            <div class="rs-card-box">
-              <h3 class="rs-box-title">Comparativo por Método de Pago</h3>
-              <div class="rs-table-wrap">
-                <table class="rs-balance-table">
-                  <thead>
-                    <tr>
-                      <th>Método</th>
-                      <th class="text-right">Sistema</th>
-                      <th class="text-right">Cajero</th>
-                      <th class="text-right">Diferencia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="fila in turno.balancePorMetodo" :key="fila.metodo">
-                      <td class="text-capitalize">{{ fila.label }}</td>
-                      <td class="text-right">
-                        ${{ fila.esperado.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
-                      </td>
-                      <td class="text-right">
-                        ${{ fila.declarado.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
-                      </td>
-                      <td class="text-right" :class="claseDiferenciaFila(fila.diferencia)">
-                        {{ fila.diferencia > 0 ? '+' : fila.diferencia < 0 ? '-' : '' }}${{
-                          Math.abs(fila.diferencia).toLocaleString('es-MX', {
-                            minimumFractionDigits: 2,
-                          })
-                        }}
-                      </td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr class="rs-balance-total-row">
-                      <td class="font-bold">Total</td>
-                      <td class="text-right font-bold">
-                        ${{
-                          totalesPorMetodo.esperado.toLocaleString('es-MX', {
-                            minimumFractionDigits: 2,
-                          })
-                        }}
-                      </td>
-                      <td class="text-right font-bold">
-                        ${{
-                          totalesPorMetodo.declarado.toLocaleString('es-MX', {
-                            minimumFractionDigits: 2,
-                          })
-                        }}
-                      </td>
-                      <td
-                        class="text-right"
-                        :class="claseDiferenciaFila(totalesPorMetodo.diferencia)"
-                      >
-                        {{
-                          totalesPorMetodo.diferencia > 0
-                            ? '+'
-                            : totalesPorMetodo.diferencia < 0
-                              ? '-'
-                              : ''
-                        }}${{
-                          Math.abs(totalesPorMetodo.diferencia).toLocaleString('es-MX', {
-                            minimumFractionDigits: 2,
-                          })
-                        }}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+            <div
+              v-if="turno.balancePorMetodo.length"
+              class="arqueo-table__row arqueo-table__row--total"
+            >
+              <div class="arqueo-table__info">
+                <span class="arqueo-table__name">Total por métodos</span>
+                <span class="arqueo-table__meta">
+                  Esperado {{ fmt(totalesPorMetodo.esperado) }} · Declarado
+                  {{ fmt(totalesPorMetodo.declarado) }}
+                </span>
               </div>
-              <p class="rs-table-hint">
-                Comparativo informativo por método de pago — el resumen general de abajo suma todos
-                los métodos, ya que cada uno representa dinero real del sistema.
-              </p>
+              <span class="arqueo-table__diff" :class="claseDiferencia(totalesPorMetodo.diferencia)">
+                {{ signo(totalesPorMetodo.diferencia) }}{{ fmt(totalesPorMetodo.diferencia) }}
+              </span>
             </div>
+          </div>
+          <p v-if="turno.balancePorMetodo.length" class="arqueo-table__hint">
+            Comparativo informativo por método de pago — el resumen general de abajo suma todos
+            los métodos, ya que cada uno representa dinero real del sistema.
+          </p>
 
-            <!-- Resumen de cuadre (todos los métodos de pago, todos son dinero) -->
-            <div class="rs-card-box rs-card-box--cashier">
-              <h3 class="rs-box-title">Cuadre General de Caja</h3>
-              <div class="rs-detail-list">
-                <div class="rs-detail-row rs-detail-diff">
-                  <span class="rs-diff-label">Diferencia Neta</span>
-                  <span :class="diffClass" class="rs-diff-val">
-                    {{ signoDiferencia }}${{
-                      Math.abs(turno.diferenciaNeta).toLocaleString('es-MX', {
-                        minimumFractionDigits: 2,
-                      })
-                    }}
-                  </span>
-                </div>
-
-                <!-- Tag de estado de diferencia -->
-                <div v-if="turno.diferenciaNeta < 0" class="rs-diff-badge rs-diff-badge--negative">
-                  <q-icon name="warning" size="16px" class="q-mr-xs" />
-                  Faltante reportado. Requiere autorización para proceder con el depósito.
-                </div>
-                <div
-                  v-else-if="turno.diferenciaNeta > 0"
-                  class="rs-diff-badge rs-diff-badge--positive"
-                >
-                  <q-icon name="arrow_upward" size="16px" class="q-mr-xs" />
-                  Sobrante reportado. Requiere autorización para proceder con el depósito.
-                </div>
-                <div v-else class="rs-diff-badge rs-diff-badge--exact">
-                  <q-icon name="check_circle" size="16px" class="q-mr-xs" />
-                  Cuadre perfecto de caja sin discrepancias.
-                </div>
-              </div>
+          <dl class="arqueo-totals">
+            <div>
+              <dt>Fondo inicial</dt>
+              <dd>{{ fmt(turno.fondoInicial || 0) }}</dd>
             </div>
+            <div v-if="(turno.totalRetiros || 0) > 0">
+              <dt>Retiros parciales</dt>
+              <dd>−{{ fmt(turno.totalRetiros) }}</dd>
+            </div>
+            <div v-if="(turno.totalIngresos || 0) > 0">
+              <dt>Ingresos de efectivo</dt>
+              <dd>+{{ fmt(turno.totalIngresos) }}</dd>
+            </div>
+            <div>
+              <dt>Total esperado</dt>
+              <dd>{{ fmt(turno.totalEsperado) }}</dd>
+            </div>
+            <div>
+              <dt>Total declarado</dt>
+              <dd>{{ fmt(turno.totalDeclarado) }}</dd>
+            </div>
+            <div class="arqueo-totals__net">
+              <dt>Diferencia neta</dt>
+              <dd :class="claseDiferencia(turno.diferenciaNeta)">
+                {{ signo(turno.diferenciaNeta) }}{{ fmt(turno.diferenciaNeta) }}
+              </dd>
+            </div>
+          </dl>
 
-            <!-- Observaciones de Cierre (opcionales, sin importar si hay diferencia) -->
-            <div class="rs-card-box">
-              <label class="rs-box-title block mb-2">Observaciones de Cierre (opcional)</label>
-              <textarea
-                v-model="observacionesModal"
-                rows="3"
-                class="rs-textarea"
-                placeholder="Ingrese comentarios, discrepancias o notas adicionales sobre el turno (opcional)..."
+          <div
+            class="arqueo-callout"
+            :class="
+              turno.diferenciaNeta < 0
+                ? 'arqueo-callout--bad'
+                : turno.diferenciaNeta > 0
+                  ? 'arqueo-callout--info'
+                  : 'arqueo-callout--ok'
+            "
+          >
+            <q-icon :name="turno.diferenciaNeta === 0 ? 'check_circle' : 'warning'" size="19px" />
+            <span v-if="turno.diferenciaNeta < 0">Faltante reportado. Requiere autorización.</span>
+            <span v-else-if="turno.diferenciaNeta > 0"
+              >Sobrante reportado. Requiere autorización.</span
+            >
+            <span v-else>Cuadre perfecto, sin discrepancias.</span>
+          </div>
+
+          <label class="arqueo__field">
+            <span class="field-label">Observaciones de cierre</span>
+            <q-input
+              v-model="observacionesModal"
+              outlined
+              type="textarea"
+              rows="2"
+              :placeholder="turno.hayDiferencias ? 'Obligatorio' : 'Opcional'"
+              :hint="turno.hayDiferencias ? 'Obligatorio cuando hay diferencias' : undefined"
+            />
+          </label>
+        </div>
+
+        <div class="arqueo__col arqueo__col--pins">
+          <div class="pin-box" :class="{ 'pin-box--ok': pinCajeroConfirmado }">
+            <span class="pin-box__title">PIN del cajero</span>
+            <span class="pin-box__text">
+              {{ turno.cajeroNombre || 'Cajero' }} declara su conformidad con el corte.
+            </span>
+            <div class="pin-box__row">
+              <q-input
+                v-model="pinCajero"
+                type="password"
+                maxlength="4"
+                outlined
+                dense
+                placeholder="••••"
+                aria-label="PIN del cajero"
+                input-class="pin-box__input"
+                :disable="pinCajeroConfirmado || cargandoPinCajero"
+                @keydown="filtrarTeclaEntero"
+                @keyup.enter="confirmarPinCajero"
+              />
+              <q-btn
+                :unelevated="!pinCajeroConfirmado"
+                :flat="pinCajeroConfirmado"
+                :color="pinCajeroConfirmado ? 'positive' : 'primary'"
+                :icon="pinCajeroConfirmado ? 'check_circle' : undefined"
+                :label="pinCajeroConfirmado ? 'Verificado' : 'Verificar'"
+                :loading="cargandoPinCajero"
+                :disable="pinCajero.length !== 4 || pinCajeroConfirmado"
+                @click="confirmarPinCajero"
               />
             </div>
           </div>
 
-          <!-- Columna Derecha: PINs de Confirmación (Consulta Real en BD) -->
-          <div class="rs-col-right space-y-4">
-            <!-- Bloque PIN Cajero -->
-            <div class="rs-card-box">
-              <h3 class="rs-box-title">PIN del Cajero</h3>
-              <p class="rs-box-sub">
-                Tu PIN es tu declaración de conformidad y responsabilidad sobre este corte de caja.
-              </p>
-              <div class="q-mb-sm">
-                <input
-                  v-model="pinCajero"
-                  type="password"
-                  inputmode="numeric"
-                  autocomplete="off"
-                  maxlength="4"
-                  class="rs-pin-input"
-                  placeholder="####"
-                  :disabled="pinCajeroConfirmado || cargandoPinCajero"
-                  @keydown="filtrarTeclaEntero"
-                  @keyup.enter="confirmarPinCajero"
-                />
-              </div>
-              <button
-                type="button"
-                class="rs-btn-confirm-pin"
-                :class="{ 'rs-btn-confirm-pin--active': pinCajeroConfirmado }"
-                :disabled="pinCajero.length !== 4 || pinCajeroConfirmado || cargandoPinCajero"
-                @click="confirmarPinCajero"
-              >
-                <q-spinner-dots v-if="cargandoPinCajero" size="16px" class="q-mr-xs" />
-                <q-icon
-                  v-else-if="pinCajeroConfirmado"
-                  name="check_circle"
-                  size="16px"
-                  class="q-mr-xs"
-                />
-                {{
-                  pinCajeroConfirmado ? '✓ PIN del Cajero Verificado (BD)' : 'Confirmar PIN Cajero'
-                }}
-              </button>
-              <div class="text-xs text-grey-7 text-center border-top-line pt-2">
-                Cajero: <strong>{{ turno.cajeroNombre || 'Cajero' }}</strong>
-              </div>
-            </div>
-
-            <!-- Bloque PIN Administrador de Sucursal -->
-            <div class="rs-card-box">
-              <h3 class="rs-box-title">PIN del Administrador de Sucursal</h3>
-              <p class="rs-box-sub">
-                Tu PIN como Administrador de Sucursal autoriza este cierre y genera el documento
-                oficial de auditoría.
-              </p>
-              <div class="q-mb-sm">
-                <input
-                  v-model="pinAdmin"
-                  type="password"
-                  inputmode="numeric"
-                  autocomplete="off"
-                  maxlength="4"
-                  class="rs-pin-input"
-                  placeholder="####"
-                  :disabled="pinAdminConfirmado || cargandoPinAdmin"
-                  @keydown="filtrarTeclaEntero"
-                  @keyup.enter="confirmarPinAdmin"
-                />
-              </div>
-              <button
-                type="button"
-                class="rs-btn-confirm-pin"
-                :class="{ 'rs-btn-confirm-pin--active': pinAdminConfirmado }"
-                :disabled="pinAdmin.length !== 4 || pinAdminConfirmado || cargandoPinAdmin"
+          <div class="pin-box" :class="{ 'pin-box--ok': pinAdminConfirmado }">
+            <span class="pin-box__title">PIN del administrador de sucursal</span>
+            <span class="pin-box__text">
+              {{ turno.adminNombre || 'El administrador' }} autoriza el cierre y genera el
+              comprobante.
+            </span>
+            <div class="pin-box__row">
+              <q-input
+                v-model="pinAdmin"
+                type="password"
+                maxlength="4"
+                outlined
+                dense
+                placeholder="••••"
+                aria-label="PIN del administrador"
+                input-class="pin-box__input"
+                :disable="pinAdminConfirmado || cargandoPinAdmin"
+                @keydown="filtrarTeclaEntero"
+                @keyup.enter="confirmarPinAdmin"
+              />
+              <q-btn
+                :unelevated="!pinAdminConfirmado"
+                :flat="pinAdminConfirmado"
+                :color="pinAdminConfirmado ? 'positive' : 'primary'"
+                :icon="pinAdminConfirmado ? 'check_circle' : undefined"
+                :label="pinAdminConfirmado ? 'Verificado' : 'Verificar'"
+                :loading="cargandoPinAdmin"
+                :disable="pinAdmin.length !== 4 || pinAdminConfirmado"
                 @click="confirmarPinAdmin"
-              >
-                <q-spinner-dots v-if="cargandoPinAdmin" size="16px" class="q-mr-xs" />
-                <q-icon
-                  v-else-if="pinAdminConfirmado"
-                  name="check_circle"
-                  size="16px"
-                  class="q-mr-xs"
-                />
-                {{
-                  pinAdminConfirmado
-                    ? '✓ PIN del Administrador Verificado (BD)'
-                    : 'Confirmar PIN Administrador'
-                }}
-              </button>
-              <div class="text-xs text-grey-7 text-center border-top-line pt-2">
-                Administrador de Sucursal:
-                <strong>{{ turno.adminNombre || 'Administrador General' }}</strong>
-              </div>
+              />
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ── Footer del Modal: Dos botones hermanitos juntos a la derecha ── -->
-      <div class="rs-modal-footer row justify-end q-gutter-md">
+      <footer class="arqueo__foot">
         <q-btn
-          unelevated
-          no-caps
+          outline
           color="negative"
-          class="rs-btn-extraordinario"
-          label="Cierre Extraordinario"
           icon="warning"
+          label="Cierre extraordinario"
           :loading="cargandoProceso"
           :disable="!pinAdminConfirmado"
           @click="ejecutarCierreExtraordinario"
         />
-
         <q-btn
           unelevated
-          no-caps
           color="primary"
-          class="rs-btn-autorizar"
-          label="Autorizar Cierre"
-          icon-right="lock"
+          label="Autorizar cierre y descargar PDF"
+          class="arqueo__confirm"
           :loading="cargandoProceso"
-          :disable="!pinCajeroConfirmado || !pinAdminConfirmado"
+          :disable="!pinCajeroConfirmado || !pinAdminConfirmado || faltanObservaciones"
           @click="ejecutarAutorizacionCierre"
         />
-      </div>
-    </div>
+      </footer>
+    </q-card>
   </q-dialog>
+
+  <BaseDialog
+    v-model="dialogExtraordinario"
+    title="Cierre extraordinario"
+    subtitle="El cajero no está presente para cerrar su turno"
+    icon="warning"
+    tone="red"
+    :width="500"
+    persistent
+    danger
+    primary-label="Sí, ejecutar cierre extraordinario"
+    :loading="cargandoProceso"
+    @confirm="confirmarExtraordinario"
+  >
+    El administrador cerrará el turno con el conteo capturado. Quedará registrado como cierre
+    extraordinario en el historial de arqueos.
+    <label class="arqueo__field">
+      <span class="field-label">Motivo</span>
+      <q-input
+        v-model="observacionesModal"
+        outlined
+        type="textarea"
+        rows="2"
+        placeholder="Motivo del cierre extraordinario"
+      />
+    </label>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 import { turnoCajaService } from '@/services/turnoCajaService'
+import { mensajeDeError } from '@/utils/errorHandler'
 import { filtrarTeclaEntero } from '@/utils/validacionNumerica'
 
 const $q = useQuasar()
@@ -352,20 +258,40 @@ const cargandoPinCajero = ref(false)
 const cargandoPinAdmin = ref(false)
 const cargandoProceso = ref(false)
 
+// Con diferencias en el arqueo las observaciones son obligatorias (auditoría).
+const faltanObservaciones = computed(() => turno.hayDiferencias && !observacionesModal.value.trim())
+
+// El modal nunca se desmonta mientras se esté en CierreCajaPage, así que su estado
+// local sobrevive entre cierres: se reinicia cada vez que se abre.
+// Tokens de un solo uso que el backend emite al validar cada PIN; /confirmar los exige.
+const tokenPinCajero = ref<string | null>(null)
+const tokenPinAdmin = ref<string | null>(null)
+
+function resetearFormulario() {
+  pinCajero.value = ''
+  pinAdmin.value = ''
+  pinCajeroConfirmado.value = false
+  pinAdminConfirmado.value = false
+  tokenPinCajero.value = null
+  tokenPinAdmin.value = null
+  observacionesModal.value = ''
+}
+
+watch(
+  () => turno.mostrarDialogAutorizacion,
+  (abierto) => {
+    if (abierto) resetearFormulario()
+  },
+)
+
 // El backend (RevisionAdminResponse) ya entrega el total esperado/declarado y la
 // diferencia real de EFECTIVO — no hace falta recalcularlos ni usar valores de respaldo.
 
-const signoDiferencia = computed(() => {
-  if (turno.diferenciaNeta > 0) return '+'
-  if (turno.diferenciaNeta < 0) return '-'
-  return ''
-})
-
-const diffClass = computed(() => {
-  if (turno.diferenciaNeta < 0) return 'text-negative font-bold'
-  if (turno.diferenciaNeta > 0) return 'text-primary font-bold'
-  return 'text-positive font-bold'
-})
+function claseDiferencia(diferencia: number): string {
+  if (diferencia < 0) return 'arqueo--bad'
+  if (diferencia > 0) return 'arqueo--info'
+  return 'arqueo--ok'
+}
 
 // Suma de todos los métodos de pago (efectivo, tarjeta, etc.) del comparativo --
 // distinta de turno.totalEsperado/totalDeclarado, que el backend calcula solo
@@ -378,19 +304,17 @@ const totalesPorMetodo = computed(() => {
   return { esperado, declarado, diferencia: declarado - esperado }
 })
 
-function claseDiferenciaFila(diferencia: number): string {
-  if (diferencia < 0) return 'text-negative font-bold'
-  if (diferencia > 0) return 'text-primary font-bold'
-  return 'text-positive'
-}
-
 async function confirmarPinCajero() {
   if (pinCajero.value.length !== 4 || !turno.turnoId) return
   cargandoPinCajero.value = true
   try {
-    const ok = await turnoCajaService.validarPinCajero(turno.turnoId, pinCajero.value)
+    const { ok, tokenPin } = await turnoCajaService.validarPinCajero(
+      turno.turnoId,
+      pinCajero.value,
+    )
     if (ok) {
       pinCajeroConfirmado.value = true
+      tokenPinCajero.value = tokenPin
       $q.notify({
         type: 'positive',
         position: 'top',
@@ -400,12 +324,13 @@ async function confirmarPinCajero() {
     }
   } catch (err) {
     pinCajeroConfirmado.value = false
+    tokenPinCajero.value = null
     pinCajero.value = ''
     $q.notify({
       type: 'negative',
       position: 'top',
       icon: 'error',
-      message: (err as Error).message || 'El PIN del Cajero es incorrecto.',
+      message: mensajeDeError(err, 'El PIN del Cajero es incorrecto.'),
     })
   } finally {
     cargandoPinCajero.value = false
@@ -418,9 +343,14 @@ async function confirmarPinAdmin() {
   try {
     const adminEmail =
       turno.adminEmail || turno.credencialesAdmin.email || turno.adminNombre || 'admin'
-    const ok = await turnoCajaService.validarPinAdmin(turno.turnoId, adminEmail, pinAdmin.value)
+    const { ok, tokenPin } = await turnoCajaService.validarPinAdmin(
+      turno.turnoId,
+      adminEmail,
+      pinAdmin.value,
+    )
     if (ok) {
       pinAdminConfirmado.value = true
+      tokenPinAdmin.value = tokenPin
       $q.notify({
         type: 'positive',
         position: 'top',
@@ -430,12 +360,13 @@ async function confirmarPinAdmin() {
     }
   } catch (err) {
     pinAdminConfirmado.value = false
+    tokenPinAdmin.value = null
     pinAdmin.value = ''
     $q.notify({
       type: 'negative',
       position: 'top',
       icon: 'error',
-      message: (err as Error).message || 'El PIN del Administrador es incorrecto.',
+      message: mensajeDeError(err, 'El PIN del Administrador es incorrecto.'),
     })
   } finally {
     cargandoPinAdmin.value = false
@@ -447,19 +378,47 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
   try {
     const obsText = observacionesModal.value.trim()
 
-    const arqueoId = await turno.confirmarCierre(obsText, esExtraordinario)
-    if (!arqueoId) {
-      throw new Error(turno.error || 'No se pudo confirmar el cierre de caja.')
+    const resultado = await turno.confirmarCierre(obsText, esExtraordinario, {
+      cajero: tokenPinCajero.value,
+      admin: tokenPinAdmin.value,
+    })
+    if (!resultado.ok) {
+      // El backend rechazó el cierre (el store ya notificó el error): el turno sigue
+      // abierto, así que se conserva el diálogo y no se reinicia el ciclo ni se redirige.
+      return
     }
     turno.mostrarDialogAutorizacion = false
 
-    // Intentar descarga automática de PDF del arqueo
-    if (arqueoId) {
-      try {
-        await turnoCajaService.descargarPdfArqueo(arqueoId, `arqueo_${arqueoId.slice(-8)}.pdf`)
-      } catch (err) {
-        console.warn('No se pudo descargar el PDF automáticamente:', err)
-      }
+    // Intentar descarga automática del PDF con el id del arqueo (no el del turno).
+    const descargarComprobante = () =>
+      turnoCajaService.descargarPdfArqueo(
+        resultado.arqueoId,
+        `arqueo_${resultado.arqueoId.slice(-8)}.pdf`,
+      )
+    let descargado = true
+    try {
+      await descargarComprobante()
+    } catch (err) {
+      descargado = false
+      $q.notify({
+        type: 'warning',
+        position: 'top',
+        icon: 'warning',
+        timeout: 0,
+        message: `No se pudo descargar el comprobante automáticamente: ${mensajeDeError(err, 'error desconocido')}`,
+        actions: [
+          {
+            label: 'Descargar comprobante',
+            color: 'white',
+            handler: () => {
+              descargarComprobante().catch((e: Error) =>
+                $q.notify({ type: 'negative', position: 'top', message: e.message }),
+              )
+            },
+          },
+          { label: 'Cerrar', color: 'white' },
+        ],
+      })
     }
 
     $q.notify({
@@ -468,7 +427,9 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
       icon: 'check_circle',
       message: esExtraordinario
         ? 'Cierre extraordinario registrado con éxito en la base de datos. Redirigiendo a apertura de caja...'
-        : 'Cierre de caja autorizado correctamente. Se ha descargado el comprobante PDF.',
+        : descargado
+          ? 'Cierre de caja autorizado correctamente. Se ha descargado el comprobante PDF.'
+          : 'Cierre de caja autorizado correctamente.',
     })
 
     // Tras confirmar (normal o extraordinario), se limpia el turno y se regresa
@@ -479,12 +440,23 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
     $q.notify({
       type: 'negative',
       position: 'top',
-      message: (err as Error).message || 'Error al procesar el cierre de caja en la base de datos',
+      message: mensajeDeError(err, 'Error al procesar el cierre de caja en la base de datos'),
     })
   } finally {
     cargandoProceso.value = false
   }
 }
+
+const dialogExtraordinario = ref(false)
+
+async function confirmarExtraordinario() {
+  dialogExtraordinario.value = false
+  await finalizarYDescargarPDF(true)
+}
+
+const fmt = (n: number) =>
+  `$${Math.abs(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const signo = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '')
 
 async function ejecutarAutorizacionCierre() {
   if (!pinCajeroConfirmado.value || !pinAdminConfirmado.value) {
@@ -494,6 +466,16 @@ async function ejecutarAutorizacionCierre() {
       icon: 'warning',
       message:
         'Es obligatorio que tanto el Cajero como el Administrador confirmen sus PINs contra la BD.',
+    })
+    return
+  }
+
+  if (faltanObservaciones.value) {
+    $q.notify({
+      type: 'warning',
+      position: 'top',
+      icon: 'warning',
+      message: 'Las observaciones son obligatorias cuando el arqueo tiene diferencias.',
     })
     return
   }
@@ -513,315 +495,270 @@ async function ejecutarCierreExtraordinario() {
     return
   }
 
-  $q.dialog({
-    title: 'Cierre Extraordinario',
-    message:
-      '¿Confirmas realizar un cierre extraordinario sin la presencia/PIN del cajero? El Administrador asume la responsabilidad.',
-    cancel: true,
-    persistent: true,
-    ok: {
-      color: 'negative',
-      label: 'Sí, Ejecutar Cierre Extraordinario',
-    },
-  }).onOk(async () => {
-    await finalizarYDescargarPDF(true)
-  })
+  dialogExtraordinario.value = true
 }
 </script>
 
-<style scoped>
-.rs-dialog-backdrop {
-  background: rgba(11, 28, 48, 0.65);
-  backdrop-filter: blur(6px);
-}
-
-.rs-audit-modal {
-  background: var(--bg-card);
-  border-radius: 12px;
-  max-width: 900px;
-  width: 90vw;
-  margin: 32px auto;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+<style scoped lang="scss">
+.arqueo {
+  width: 860px;
+  max-width: 96vw;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 64px);
   overflow: hidden;
-  border: 1px solid var(--border-color);
-}
 
-.rs-modal-header {
-  padding: 24px 32px;
-  background: var(--bg-main);
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 22px 24px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
 
-.rs-modal-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-}
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--tone-warn-bg);
+    color: var(--tone-warn-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
 
-.rs-modal-code {
-  color: var(--text-secondary);
-  font-size: 15px;
-  font-weight: 500;
-  margin-left: 8px;
-}
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
 
-.rs-modal-sub {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: 4px 0 0 0;
-}
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
 
-.rs-modal-body {
-  padding: 32px;
-  overflow-y: auto;
-  flex: 1;
-  background: var(--bg-main);
-}
+  &__subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
 
-.rs-grid-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
+  &__body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 20px;
+    padding: 20px 24px;
 
-@media (max-width: 768px) {
-  .rs-grid-columns {
-    grid-template-columns: 1fr;
+    @media (max-width: 760px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    margin-top: 4px;
+  }
+
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-subtle);
+
+    :deep(.q-btn) {
+      min-height: 44px;
+    }
+  }
+
+  &__confirm {
+    font-weight: 800;
   }
 }
 
-.rs-card-box {
-  background: var(--bg-card);
+.arqueo--bad {
+  color: var(--tone-bad-fg) !important;
+}
+.arqueo--info {
+  color: var(--tone-info-fg) !important;
+}
+.arqueo--ok {
+  color: var(--tone-ok-fg) !important;
+}
+
+.arqueo-table {
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 20px;
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-bottom: 1px solid #f1f3f7;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+
+    &--total {
+      background: var(--bg-subtle);
+      font-weight: 800;
+    }
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: capitalize;
+  }
+
+  &__meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__diff {
+    font-size: 13.5px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__hint {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
 }
 
-.rs-card-box--cashier {
-  border-left: 4px solid #dc2626;
-}
-
-.rs-box-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 16px 0;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--bg-main);
-}
-
-.rs-box-sub {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-}
-
-.rs-pin-input {
-  width: 100%;
-  height: 48px;
-  text-align: center;
-  font-size: 24px;
-  letter-spacing: 0.8em;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-card);
-  outline: none;
-}
-.rs-pin-input:focus {
-  border-color: #025fe0;
-}
-
-.rs-btn-confirm-pin {
-  width: 100%;
-  background: #025fe0;
-  color: var(--bg-card);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  margin-bottom: 12px;
-  transition:
-    background 0.2s ease,
-    opacity 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.rs-btn-confirm-pin:hover:not(:disabled) {
-  opacity: 0.9;
-}
-.rs-btn-confirm-pin:disabled {
-  background: var(--text-muted);
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-.rs-btn-confirm-pin--active {
-  background: #3fa834 !important;
-  color: var(--bg-card) !important;
-}
-
-.border-top-line {
-  border-top: 1px solid var(--bg-main);
-}
-
-.rs-detail-list {
+.arqueo-totals {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f6f8fc;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13.5px;
+    color: #475569;
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__net {
+    font-size: 20px !important;
+    font-weight: 800;
+    color: var(--text-strong) !important;
+  }
 }
 
-.rs-detail-row {
+.arqueo-callout {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
-.rs-detail-label {
-  color: var(--text-secondary);
-}
-
-.rs-detail-val {
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
   font-weight: 600;
+
+  &--bad {
+    background: var(--tone-bad-bg);
+    color: var(--tone-bad-fg);
+  }
+  &--info {
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+  }
+  &--ok {
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
+  }
 }
 
-.rs-detail-total {
-  padding-top: 12px;
-  margin-top: 4px;
-  border-top: 1px dashed var(--border-color);
-}
-
-.rs-total-label {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.rs-total-val {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.rs-detail-diff {
-  padding-top: 12px;
-  border-top: 1px solid var(--border-color);
-}
-
-.rs-table-wrap {
-  overflow-x: auto;
-}
-.rs-balance-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.rs-balance-table th {
-  text-align: left;
-  padding: 8px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-color);
-}
-.rs-balance-table td {
-  padding: 10px;
-  border-bottom: 1px solid var(--bg-main);
-  color: var(--text-primary);
-}
-.rs-balance-table tr:last-child td {
-  border-bottom: none;
-}
-.rs-balance-total-row td {
-  border-top: 2px solid var(--border-color);
-  padding-top: 10px;
-}
-.rs-table-hint {
-  margin: 10px 0 0;
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.rs-diff-val {
-  font-size: 18px;
-}
-
-.rs-diff-badge {
-  font-size: 12px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  margin-top: 12px;
+.pin-box {
   display: flex;
-  align-items: center;
-}
-
-.rs-diff-badge--negative {
-  background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
-  border: 1px solid rgba(220, 38, 38, 0.3);
-}
-
-.rs-diff-badge--positive {
-  background: rgba(2, 95, 224, 0.08);
-  color: #025fe0;
-  border: 1px solid rgba(2, 95, 224, 0.3);
-}
-
-.rs-diff-badge--exact {
-  background: rgba(63, 168, 52, 0.1);
-  color: #3fa834;
-  border: 1px solid rgba(63, 168, 52, 0.3);
-}
-
-.rs-textarea {
-  width: 100%;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 13px;
-  color: var(--text-primary);
-  outline: none;
-}
-.rs-textarea:focus {
-  border-color: #025fe0;
-}
+  border-radius: 12px;
 
-.rs-modal-footer {
-  padding: 20px 32px;
-  background: var(--bg-card);
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
+  &--ok {
+    border-color: #b9e2b2;
+    background: #f5fbf4;
+  }
 
-.rs-btn-extraordinario {
-  font-family: 'Inter', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 10px 24px;
-  border-radius: 8px;
-}
+  &__title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
 
-.rs-btn-autorizar {
-  font-family: 'Inter', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 10px 24px;
-  border-radius: 8px;
+  &__text {
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+  }
+
+  &__row {
+    display: flex;
+    gap: 8px;
+
+    .q-input {
+      flex: 1;
+    }
+  }
+
+  :deep(.pin-box__input) {
+    letter-spacing: 0.4em;
+    font-weight: 800;
+    text-align: center;
+  }
 }
 </style>

@@ -1,10 +1,37 @@
 <script setup lang="ts">
 import { useRegistrationStore } from '@/stores/registration'
+import { useAuthStore } from '@/stores/auth'
+import { useLealtadStore } from '@/stores/lealtad'
 import { allowOnlyLettersKeydown } from '@/utils/validators'
 import { DB_LIMITS } from '@/utils/constants'
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 
 const store = useRegistrationStore()
+const authStore = useAuthStore()
+const lealtadStore = useLealtadStore()
+
+// Saldo de puntos del tutor por celular, consultado en cuanto captura los
+// 10 dígitos (igual que el PaymentModal, pero aquí se muestra desde antes
+// del cobro, ya que Registro conoce el teléfono desde el primer paso).
+const saldoLealtad = ref<number | null>(null)
+
+watch(
+  () => store.tutor.phone,
+  async (phone) => {
+    saldoLealtad.value = null
+    const celular = (phone ?? '').replace(/\D/g, '')
+    if (celular.length !== 10 || !authStore.currentBranchId) return
+    try {
+      const { saldo } = await lealtadStore.cargarSaldo(authStore.currentBranchId, celular)
+      // Respuesta tardía: el teléfono ya cambió mientras se consultaba.
+      if (store.tutor.phone.replace(/\D/g, '') !== celular) return
+      saldoLealtad.value = saldo
+    } catch {
+      // 404 = cliente sin cuenta de puntos todavía: no es un error que avisar.
+      saldoLealtad.value = null
+    }
+  },
+)
 
 const RELATIONSHIP_OPTIONS = [
   'Padre / Madre',
@@ -29,6 +56,8 @@ const cameraActive = ref(false)
 const videoRef = ref<HTMLVideoElement | null>(null)
 let streamInstance: MediaStream | null = null
 let currentPhotoTarget: 'ine' | 'arrival' | null = null
+// Token de intento: invalida los getUserMedia que resuelvan tras stopCamera/desmontaje.
+let intento = 0
 
 const currentArrivalOriginalIndex = computed(() => {
   const total = store.tutor.arrivalPhotos.length
@@ -44,27 +73,36 @@ const currentArrivalPhotoUrl = computed(() => {
 async function startCamera(target: 'ine' | 'arrival') {
   if (store.isLocked) return
 
+  // Libera cualquier stream previo e invalida intentos pendientes.
+  stopCamera()
+  const intentoActual = ++intento
   currentPhotoTarget = target
   cameraActive.value = true
 
   setTimeout(async () => {
+    if (intentoActual !== intento) return
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 1280, height: 720, facingMode: target === 'ine' ? 'environment' : 'user' },
         audio: false,
       })
+      if (!cameraActive.value || intentoActual !== intento) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
       streamInstance = stream
       if (videoRef.value) {
         videoRef.value.srcObject = stream
       }
     } catch (err) {
       console.error('Error al acceder a la cámara web:', err)
-      cameraActive.value = false
+      if (intentoActual === intento) cameraActive.value = false
     }
   }, 100)
 }
 
 function stopCamera() {
+  intento++
   if (streamInstance) {
     streamInstance.getTracks().forEach((track) => track.stop())
     streamInstance = null
@@ -199,6 +237,9 @@ onBeforeUnmount(() => {
               (val) => val.length === 10 || 'El teléfono debe tener exactamente 10 dígitos',
             ]"
           />
+          <span v-if="saldoLealtad !== null && saldoLealtad > 0" class="text-caption text-positive">
+            Cliente frecuente · {{ saldoLealtad }} pts
+          </span>
         </div>
       </div>
 
@@ -358,14 +399,16 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Tiempo Estimado -->
+      <!-- Tiempo Estimado: en modo evento lo define el evento (solo lectura);
+           en modo normal cada niño elige el suyo (ver ChildCard), este
+           selector solo precarga el tiempo de los niños que se agreguen. -->
       <q-select
         :model-value="store.isEventoMode ? store.horasEvento : store.tutor.estimatedTime"
         :options="TIME_OPTIONS"
-        label="Tiempo Estimado"
+        :label="store.isEventoMode ? 'Tiempo Estimado' : 'Tiempo por defecto para niños nuevos'"
         outlined
         dense
-        :readonly="store.isLocked"
+        :readonly="store.isLocked || store.isEventoMode"
         @update:model-value="store.tutor.estimatedTime = $event"
       />
 
@@ -491,20 +534,20 @@ onBeforeUnmount(() => {
 }
 
 .photo-capture-box {
-  border: 2px dashed #025fe0;
-  border-radius: 8px;
+  border: 1px dashed #cbd2de;
+  border-radius: 12px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 90px;
-  background: rgba(2, 95, 224, 0.06);
-  transition: background 0.2s;
+  background: repeating-linear-gradient(135deg, #f5f7fb 0 8px, #eef1f6 8px 16px);
+  transition: border-color 0.2s;
 }
 
 .photo-capture-box:hover:not(.photo-capture-disabled) {
-  background: rgba(2, 95, 224, 0.12);
+  border-color: var(--q-primary);
 }
 
 .photo-capture-disabled {

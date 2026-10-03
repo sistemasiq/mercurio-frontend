@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
 import {
   listarMovimientosPorInsumo,
   registrarConteoFisico,
@@ -29,7 +30,7 @@ export const useMovimientosInventarioStore = defineStore('movimientosInventario'
       try {
         this.items = await listarMovimientosPorInsumo(insumoId, desde, hasta)
       } catch (error: unknown) {
-        this.error = (error as Error).message ?? 'Error al cargar los movimientos'
+        this.error = mensajeDeError(error, 'Error al cargar los movimientos')
       } finally {
         this.loading = false
       }

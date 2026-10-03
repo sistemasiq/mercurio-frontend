@@ -37,6 +37,8 @@ export interface AbrirTurnoPayload {
   cajaId?: string
   /** Solo relevante para AdministradorSistema, que no tiene sucursal propia en el JWT. */
   sucursalId?: string
+  /** PIN del cajero (o su contraseña, si aún no tiene PIN configurado). */
+  pin?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -68,8 +70,8 @@ export interface DesgloseEfectivo {
 /** Una fila del formulario de declaración de métodos. `metodo` es el nombre real
  *  del catálogo de la BD (metodos_pago.nombre) — no hay claves fijas. */
 export interface FilaMetodoPago {
-  /** ID local (generado en frontend) para key de v-for */
-  id: number
+  /** ID local único (UUID generado en frontend) para key de v-for */
+  id: string
   metodo: string
   monto: number | null
   /** 'sistema': detectado automáticamente por tener movimientos reales en el turno (nombre fijo).
@@ -116,7 +118,16 @@ export interface TurnoActivoResponse {
   totalVentas: number // solo visible para el admin post-BALANCE_REVELADO
   totalRetiros: number
   totalIngresos: number
+  /** "Vendido en turno": numero de tickets y total vendido, visibles mientras
+   * el turno está abierto. Sin desglose por método ni efectivo esperado
+   * (el conteo sigue siendo a ciegas). */
+  numeroVentas: number
+  totalVendido: number
   movimientos: MovimientoTurno[]
+  /** Solo poblado por el backend cuando estado === 'BALANCE_REVELADO' (QA #8). */
+  adminEmail?: string | null
+  /** Solo poblado por el backend cuando estado === 'BALANCE_REVELADO' (QA #8). */
+  balancePorMetodo?: FilaBalance[]
 }
 
 // ---------------------------------------------------------------------------
@@ -163,6 +174,15 @@ export interface ConfirmarCierrePayload {
   turnoId: string
   observaciones: string
   tipoCierre?: TipoCierre
+  /** Tokens de un solo uso emitidos al validar cada PIN (doble firma, QA #14). */
+  tokenPinCajero?: string | null
+  tokenPinAdmin?: string | null
+}
+
+/** Resultado de validar un PIN: el backend emite un token de un solo uso (5 min). */
+export interface ResultadoValidacionPin {
+  ok: boolean
+  tokenPin: string | null
 }
 
 export interface ConfirmarCierreResponse {
@@ -171,6 +191,18 @@ export interface ConfirmarCierreResponse {
   pdfUrl: string | null
   mensaje: string
 }
+
+/** Resultado de `confirmarCierre` del store: nunca lanza, el consumidor debe revisar `ok`. */
+export type ResultadoCierre =
+  { ok: true; pdfUrl: string | null; arqueoId: string } | { ok: false; error: string }
+
+/**
+ * Resultado de `cargarTurnoActivo` del store. Nunca lanza.
+ * - `{ ok: true, hayTurno: true }`: turno cargado.
+ * - `{ ok: true, hayTurno: false }`: el backend confirmó (404) que no hay turno.
+ * - `{ ok: false, error }`: la carga falló (red, 5xx, 403...); se conserva el estado previo.
+ */
+export type ResultadoCargaTurno = { ok: true; hayTurno: boolean } | { ok: false; error: string }
 
 // ---------------------------------------------------------------------------
 // Retiros parciales (RN-RET)
@@ -254,6 +286,15 @@ export interface HistorialArqueosResponse {
   total: number
   page: number
   pageSize: number
+}
+
+// KPIs agregados de TODO el periodo filtrado (no solo la página cargada).
+export interface ResumenHistorialArqueos {
+  totalArqueos: number
+  totalDeclarado: number
+  totalEsperado: number
+  diferenciaNeta: number
+  arqueosConDiferencia: number
 }
 
 export interface DetalleArqueo extends ArqueoResumen {

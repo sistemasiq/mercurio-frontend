@@ -3,6 +3,7 @@ import { resolveErrorMessage } from '@/utils/errorHandler'
 import { downloadBlob } from '@/utils/downloadBlob'
 import type { ApiError } from '@/types/auth'
 import type {
+  ResultadoValidacionPin,
   TurnoActivoResponse,
   AbrirTurnoPayload,
   ConteoPayload,
@@ -12,6 +13,7 @@ import type {
   ConfirmarCierreResponse,
   FiltrosHistorial,
   HistorialArqueosResponse,
+  ResumenHistorialArqueos,
   DetalleArqueo,
   IngresoEfectivoPayload,
   IngresoEfectivoResponse,
@@ -173,19 +175,23 @@ export const turnoCajaService = {
     }
   },
 
-  async validarPinCajero(turnoId: string, pin: string): Promise<boolean> {
+  async validarPinCajero(turnoId: string, pin: string): Promise<ResultadoValidacionPin> {
     try {
       const resp = await turnoCajaApi.validarPinCajero(turnoId, pin)
-      return resp.ok
+      return { ok: resp.ok, tokenPin: resp.token_pin ?? null }
     } catch (err) {
       throw new Error(toMensajeError(err), { cause: err })
     }
   },
 
-  async validarPinAdmin(turnoId: string, adminEmail: string, pin: string): Promise<boolean> {
+  async validarPinAdmin(
+    turnoId: string,
+    adminEmail: string,
+    pin: string,
+  ): Promise<ResultadoValidacionPin> {
     try {
       const resp = await turnoCajaApi.validarPinAdmin(turnoId, adminEmail, pin)
-      return resp.ok
+      return { ok: resp.ok, tokenPin: resp.token_pin ?? null }
     } catch (err) {
       throw new Error(toMensajeError(err), { cause: err })
     }
@@ -220,6 +226,35 @@ export const turnoCajaService = {
   async listarHistorial(filtros: FiltrosHistorial = {}): Promise<HistorialArqueosResponse> {
     try {
       return await turnoCajaApi.listarHistorial(filtros)
+    } catch (err) {
+      throw new Error(toMensajeError(err), { cause: err })
+    }
+  },
+
+  /**
+   * KPIs agregados de todo el periodo filtrado del historial de arqueos
+   * (no solo la página que se está mostrando).
+   */
+  async resumenHistorial(
+    filtros: Omit<FiltrosHistorial, 'page' | 'pageSize'> = {},
+  ): Promise<ResumenHistorialArqueos> {
+    try {
+      return await turnoCajaApi.resumenHistorial(filtros)
+    } catch (err) {
+      throw new Error(toMensajeError(err), { cause: err })
+    }
+  },
+
+  /**
+   * Descarga el historial de arqueos (con los mismos filtros aplicados) como CSV.
+   */
+  async exportarHistorial(
+    filtros: Omit<FiltrosHistorial, 'page' | 'pageSize'> = {},
+    nombreArchivo = 'historial_arqueos.csv',
+  ): Promise<void> {
+    try {
+      const blob = await turnoCajaApi.exportarHistorial(filtros)
+      downloadBlob(blob, nombreArchivo)
     } catch (err) {
       throw new Error(toMensajeError(err), { cause: err })
     }

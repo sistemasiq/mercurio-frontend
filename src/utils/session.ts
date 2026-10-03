@@ -1,18 +1,19 @@
 import type { StoredSession, User } from '@/types/auth'
-import { decodeToken } from '@/utils/tokenUtils'
+import { tokenMemory } from '@/utils/tokenMemory'
 
 const SESSION_KEY = 'auth_session'
 const VIEWING_BRANCH_KEY = 'auth_viewing_branch'
 
+// C3 (cierra lo parcial de B8/QA #32): el access token ya no se guarda aquí
+// -- vive solo en memoria (ver utils/tokenMemory.ts) y se pierde al recargar
+// la página. El refresh token tampoco: vive en la cookie HttpOnly que puso
+// el backend (ver api/axiosClient.ts, authApi.refresh()). Este storage ya
+// no puede entregar ningún token a un XSS; solo conserva el usuario (dato
+// no sensible) para poder mostrar la sesión cacheada mientras
+// `authStore.restoreSession()` confirma con el backend vía esa cookie.
 export const sessionStorage = {
-  save(token: string, refreshToken: string, user: User): void {
-    const payload = decodeToken(token)
-    const session: StoredSession = {
-      token,
-      tokenExpiry: payload?.exp ? payload.exp * 1000 : 0,
-      refreshToken,
-      user,
-    }
+  save(user: User): void {
+    const session: StoredSession = { user }
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
   },
 
@@ -30,6 +31,7 @@ export const sessionStorage = {
   clear(): void {
     localStorage.removeItem(SESSION_KEY)
     localStorage.removeItem(VIEWING_BRANCH_KEY)
+    tokenMemory.clear()
   },
 }
 

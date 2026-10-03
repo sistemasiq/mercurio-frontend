@@ -1,37 +1,42 @@
 <template>
-  <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
-    <q-card style="min-width: 320px; border-radius: 12px">
-      <q-card-section>
-        <div class="text-h6 text-weight-bold">Notas especiales</div>
-        <div class="text-grey-6 text-caption">{{ item?.producto.nombre }}</div>
-      </q-card-section>
-      <q-card-section>
-        <q-input
-          v-model="localNotas"
-          outlined
-          autofocus
-          placeholder="Ej: Sin cebolla, extra salsa..."
-          type="textarea"
-          rows="3"
-        />
-      </q-card-section>
-      <q-card-actions align="right">
-        <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
-        <q-btn
-          unelevated
-          no-caps
-          label="Guardar"
-          color="primary"
-          style="border-radius: 8px; font-weight: 600"
-          @click="guardar"
-        />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
+  <BaseDialog
+    :model-value="modelValue"
+    title="Notas especiales"
+    :subtitle="item?.producto.nombre"
+    icon="edit_note"
+    :width="460"
+    @update:model-value="$emit('update:modelValue', $event)"
+    @confirm="guardar"
+  >
+    <q-input
+      v-model="localNotas"
+      outlined
+      autofocus
+      placeholder="Ej: Sin cebolla, extra salsa…"
+      type="textarea"
+      rows="3"
+    />
+    <div class="note-suggest">
+      <span class="field-label">Sugerencias</span>
+      <div class="note-suggest__chips">
+        <button
+          v-for="s in SUGERENCIAS"
+          :key="s"
+          type="button"
+          class="note-suggest__chip"
+          :class="{ 'note-suggest__chip--on': tieneSugerencia(s) }"
+          @click="alternarSugerencia(s)"
+        >
+          {{ s }}
+        </button>
+      </div>
+    </div>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 import type { ItemTicket } from './TicketItem.vue'
 
 const props = defineProps<{
@@ -44,6 +49,8 @@ const emit = defineEmits<{
   (e: 'guardar', item: ItemTicket, notas: string): void
 }>()
 
+const SUGERENCIAS = ['Sin cebolla', 'Sin catsup', 'Extra queso', 'Para llevar']
+
 const localNotas = ref('')
 
 watch(
@@ -53,6 +60,24 @@ watch(
   },
 )
 
+function partes(): string[] {
+  return localNotas.value
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)
+}
+
+function tieneSugerencia(s: string): boolean {
+  return partes().some((p) => p.toLowerCase() === s.toLowerCase())
+}
+
+function alternarSugerencia(s: string): void {
+  const actuales = partes()
+  localNotas.value = tieneSugerencia(s)
+    ? actuales.filter((p) => p.toLowerCase() !== s.toLowerCase()).join(', ')
+    : [...actuales, s].join(', ')
+}
+
 const guardar = () => {
   if (props.item) {
     emit('guardar', props.item, localNotas.value)
@@ -60,3 +85,35 @@ const guardar = () => {
   emit('update:modelValue', false)
 }
 </script>
+
+<style scoped lang="scss">
+.note-suggest {
+  display: flex;
+  flex-direction: column;
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  &__chip {
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 9px;
+    border: 1px solid var(--border-input);
+    background: #fff;
+    color: var(--text-body);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+
+    &--on {
+      background: var(--tone-info-bg);
+      border-color: var(--q-primary);
+      color: var(--q-primary);
+    }
+  }
+}
+</style>

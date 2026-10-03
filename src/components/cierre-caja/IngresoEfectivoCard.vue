@@ -1,26 +1,24 @@
 <template>
-  <div class="ie-wrap">
-    <button type="button" class="ie-volver" @click="$emit('volver')">
+  <div class="ingreso-view">
+    <button type="button" class="ingreso-view__volver" @click="emit('volver')">
       <q-icon name="arrow_back" size="18px" />
-      VOLVER A OPERACIONES
+      Volver a operaciones
     </button>
 
-    <div class="ie-card">
-      <div class="ie-header">
-        <div class="ie-icon-badge">
-          <q-icon name="payments" size="24px" color="primary" />
+    <div class="ingreso-card">
+      <header class="ingreso-card__head">
+        <span class="ingreso-card__icon"><q-icon name="payments" size="22px" /></span>
+        <div class="ingreso-card__titles">
+          <h2 class="ingreso-card__title">Ingreso de efectivo</h2>
+          <span class="ingreso-card__subtitle">
+            Agrega dinero físico a la caja actual (reposición de cambio, fondo adicional, etc.)
+          </span>
         </div>
-        <div>
-          <h2 class="ie-title">Registrar Ingreso de Efectivo</h2>
-          <p class="ie-subtitle">
-            Agregar dinero físico a la caja actual (reposición de cambio, fondo adicional, etc.).
-          </p>
-        </div>
-      </div>
+      </header>
 
-      <div class="ie-body">
-        <div class="form-group">
-          <label class="field-label">Monto a ingresar *</label>
+      <div class="ingreso-form">
+        <div class="ingreso-form__field">
+          <span class="field-label">Monto a ingresar</span>
           <q-input
             v-model.number="monto"
             type="text"
@@ -29,35 +27,31 @@
             dense
             prefix="$"
             placeholder="0.00"
-            input-class="text-right text-h6"
+            autofocus
             :rules="[reglaDecimal]"
+            hide-bottom-space
             @keydown="filtrarTeclaDecimal"
           />
         </div>
       </div>
 
-      <div class="ie-footer">
+      <div class="ingreso-form__callout">
+        <q-icon name="info" size="19px" />
+        El ingreso afectará de inmediato el saldo esperado en caja. No se contará como venta.
+      </div>
+
+      <footer class="ingreso-card__foot">
         <q-btn
           unelevated
-          no-caps
           color="primary"
-          size="lg"
-          class="ie-btn-registrar"
           icon="save"
           label="Registrar ingreso"
+          class="ingreso-card__submit"
           :loading="turno.cargando"
           :disable="!puedeRegistrar"
           @click="registrar"
         />
-      </div>
-    </div>
-
-    <div class="ie-info-banner">
-      <q-icon name="info" size="18px" color="primary" class="q-mr-sm" />
-      <span
-        >El ingreso de efectivo afectará inmediatamente el saldo esperado en caja. No se contará
-        como venta.</span
-      >
+      </footer>
     </div>
   </div>
 </template>
@@ -94,97 +88,116 @@ async function registrar() {
 }
 </script>
 
-<style scoped>
-.ie-wrap {
+<style scoped lang="scss">
+.ingreso-view {
   max-width: 620px;
   margin: 0 auto;
-}
-
-.ie-volver {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 8px 0;
-  margin-bottom: 16px;
-}
-.ie-volver:hover {
-  color: #025fe0;
+  flex-direction: column;
+  gap: 14px;
+
+  &__volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    padding: 6px 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--q-primary);
+    }
+  }
 }
 
-.ie-card {
-  background: var(--bg-card);
+.ingreso-card {
+  background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 22px 24px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-subtle);
+  }
+
+  &__submit {
+    min-height: 42px;
+    padding: 0 18px;
+    font-weight: 800;
+  }
 }
 
-.ie-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 28px;
-  border-bottom: 1px solid var(--bg-main);
-}
+.ingreso-form {
+  padding: 20px 24px;
 
-.ie-icon-badge {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: rgba(2, 95, 224, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+  &__field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
 
-.ie-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px 0;
-}
-
-.ie-subtitle {
-  font-size: 13.5px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.ie-body {
-  padding: 28px;
-}
-
-.ie-footer {
-  padding: 20px 28px;
-  border-top: 1px solid var(--bg-main);
-  background: var(--bg-main);
-}
-
-.ie-btn-registrar {
-  width: 100%;
-  border-radius: 8px;
-  font-weight: 700;
-}
-
-.ie-info-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  margin-top: 16px;
-  padding: 14px 18px;
-  background: rgba(2, 95, 224, 0.06);
-  border: 1px solid rgba(2, 95, 224, 0.2);
-  border-radius: 12px;
-  font-size: 13px;
-  color: var(--text-secondary);
+  &__callout {
+    display: flex;
+    gap: 10px;
+    margin: 0 24px 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
 }
 </style>

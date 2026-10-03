@@ -1,9 +1,52 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { ApiError } from '@/types/auth'
 import type { Tutor, NinoActivo, PadresAuthState } from '@/types/padres'
 import { padresApi } from '@/api/padresApi'
+import { mensajeDeError } from '@/utils/errorHandler'
 
-const STORAGE_KEY = 'padres_registro_id'
+// QA #31: el backend ahora canjea el código una sola vez por `/padres/auth`
+// y entrega un token de sesión corto (2h, scope PadreVisor) que el polling
+// usa via Authorization: Bearer (GET /padres/ninos-activos), sin volver a
+// mandar el código. Por eso aquí se persiste el TOKEN (no el código) en
+// sessionStorage: un F5 ya no saca al padre (sobrevive a la recarga, pero no
+// a cerrar la pestaña, que es lo que se busca -- no es una credencial de
+// larga duración como el código). Un 401/403 del polling revoca la sesión.
+const SESSION_KEY = 'padresAuth:sesion'
+
+interface PadresSesionPersistida {
+  token: string
+  tokenType: string
+  expiresIn: number
+  issuedAt: number
+  tutor: Tutor
+}
+
+function persistirSesion(data: PadresSesionPersistida): void {
+  try {
+    window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(data))
+  } catch {
+    // Sin sessionStorage disponible: la sesión solo vive en memoria.
+  }
+}
+
+function cargarSesionPersistida(): PadresSesionPersistida | null {
+  try {
+    const raw = window.sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as PadresSesionPersistida
+  } catch {
+    return null
+  }
+}
+
+function limpiarSesionPersistida(): void {
+  try {
+    window.sessionStorage.removeItem(SESSION_KEY)
+  } catch {
+    // nada que limpiar
+  }
+}
 
 export const usePadresAuthStore = defineStore('padresAuth', () => {
   const token = ref<PadresAuthState['token']>(null)
@@ -13,6 +56,7 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
   const ninosActivos = ref<PadresAuthState['ninosActivos']>([])
   const loading = ref(false)
   const error = ref<PadresAuthState['error']>(null)
+  let issuedAt: number | null = null
 
   const isAuthenticated = computed(() => {
     if (!token.value) return false
@@ -21,9 +65,8 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
 
   function _isTokenExpired(): boolean {
     if (!expiresIn.value) return false
-    const savedAt = sessionStorage.getItem(`${STORAGE_KEY}_ts`)
-    if (!savedAt) return false
-    const elapsed = (Date.now() - Number(savedAt)) / 1000
+    if (!issuedAt) return false
+    const elapsed = (Date.now() - issuedAt) / 1000
     return elapsed > expiresIn.value
   }
 
@@ -39,20 +82,6 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
 
   const allChildren = computed<NinoActivo[]>(() => ninosActivos.value)
 
-  function _persistKey(newKey: string): void {
-    sessionStorage.setItem(STORAGE_KEY, newKey)
-    sessionStorage.setItem(`${STORAGE_KEY}_ts`, String(Date.now()))
-  }
-
-  function _clearPersistedKey(): void {
-    sessionStorage.removeItem(STORAGE_KEY)
-    sessionStorage.removeItem(`${STORAGE_KEY}_ts`)
-  }
-
-  function _loadPersistedKey(): string | null {
-    return sessionStorage.getItem(STORAGE_KEY)
-  }
-
   async function loginConCode(rawCode: string): Promise<void> {
     loading.value = true
     error.value = null
@@ -65,47 +94,73 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
       expiresIn.value = data.expires_in
       tutor.value = data.tutor
       ninosActivos.value = data.ninosActivos
+      issuedAt = Date.now()
 
-      _persistKey(rawCode)
+      persistirSesion({
+        token: data.token,
+        tokenType: data.token_type,
+        expiresIn: data.expires_in,
+        issuedAt,
+        tutor: data.tutor,
+      })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al iniciar sesión'
-      error.value = message
+      error.value = mensajeDeError(err, 'Error al iniciar sesión')
       throw err
     } finally {
       loading.value = false
     }
   }
 
+  /** Restaura la sesión guardada (sobrevive a un F5) con el token, sin
+   * volver a canjear el código -- pide el estado actual de los niños. */
   async function restoreOrFetchSession(): Promise<boolean> {
-    const savedCode = _loadPersistedKey()
-    if (!savedCode) return false
+    const sesion = cargarSesionPersistida()
+    if (!sesion) return false
+
+    token.value = sesion.token
+    tokenType.value = sesion.tokenType
+    expiresIn.value = sesion.expiresIn
+    tutor.value = sesion.tutor
+    issuedAt = sesion.issuedAt
+
     if (_isTokenExpired()) {
-      _clearPersistedKey()
+      logout()
       return false
     }
 
     try {
-      await loginConCode(savedCode)
+      const data = await padresApi.ninosActivos(sesion.token)
+      ninosActivos.value = data.ninosActivos
       return true
-    } catch {
-      _clearPersistedKey()
-      return false
+    } catch (err) {
+      const statusCode = (err as Partial<ApiError> | null)?.statusCode
+      if (statusCode === 401 || statusCode === 403) {
+        logout()
+        return false
+      }
+      // Error transitorio (red, 5xx): la sesión se mantiene restaurada, el
+      // próximo polling reintenta.
+      return true
     }
   }
 
   async function refrescarNinos(): Promise<void> {
-    const savedCode = _loadPersistedKey()
-    if (!savedCode) return
+    if (!token.value) return
     if (_isTokenExpired()) {
       logout()
       return
     }
     try {
-      const data = await padresApi.loginConCode(savedCode)
+      const data = await padresApi.ninosActivos(token.value)
       ninosActivos.value = data.ninosActivos
-      tutor.value = data.tutor
-    } catch {
-      // Si falla, no hacemos logout automáticamente — el polling lo manejará
+    } catch (err) {
+      const statusCode = (err as Partial<ApiError> | null)?.statusCode
+      // El token se revocó o expiró en el backend: no hay nada que el
+      // polling pueda reintentar, así que se propaga para que quien llama
+      // (refrescarSesion en el dashboard) cierre la sesión.
+      if (statusCode === 401 || statusCode === 403) throw err
+      // Cualquier otro error (red, 5xx) es transitorio — el próximo tick
+      // del polling reintenta solo.
     }
   }
 
@@ -116,7 +171,8 @@ export const usePadresAuthStore = defineStore('padresAuth', () => {
     tutor.value = null
     ninosActivos.value = []
     error.value = null
-    _clearPersistedKey()
+    issuedAt = null
+    limpiarSesionPersistida()
   }
 
   function clearError(): void {

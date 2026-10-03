@@ -1,318 +1,38 @@
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useQuasar } from 'quasar'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSucursalesStore } from '@/stores/sucursales'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useAlertasInventarioStore } from '@/stores/alertasInventario'
-import { getInitials, getAvatarColor } from '@/utils/avatar'
+import { useShellIndicadoresStore } from '@/stores/shellIndicadores'
+import { useReservacionesStore } from '@/stores/reservaciones'
+import AppSidebar from '@/components/layout/AppSidebar.vue'
+import AppTopbar from '@/components/layout/AppTopbar.vue'
+import CommandPalette from '@/components/layout/CommandPalette.vue'
 
-interface NavItem {
-  label: string
-  icon: string
-  routeName: string
-  permission?: string
-}
-
-interface NavGroup {
-  label: string | null
-  items: NavItem[]
-}
-
+const $q = useQuasar()
+const route = useRoute()
 const auth = useAuthStore()
 const turno = useTurnoCajaStore()
 const sucursalesStore = useSucursalesStore()
 const alertasInventario = useAlertasInventarioStore()
-const router = useRouter()
-const route = useRoute()
+const shellIndicadores = useShellIndicadoresStore()
+const reservacionesStore = useReservacionesStore()
 
-const leftOpen = ref(true)
+// Debajo de este ancho el sidebar pasa a overlay y se abre desde el Topbar.
+const DRAWER_BREAKPOINT = 1024
+const drawerOpen = ref(window.innerWidth >= DRAWER_BREAKPOINT)
+const isOverlay = computed(() => $q.screen.width < DRAWER_BREAKPOINT)
 
-const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed'
-const sidebarCollapsed = ref(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1')
-
-watch(sidebarCollapsed, (collapsed) => {
-  localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0')
-})
-
-function toggleSidebar(): void {
-  sidebarCollapsed.value = !sidebarCollapsed.value
-}
-
-// El Administrador de sucursal no opera la caja directamente (apertura/cierre/venta) —
-// solo el AdministradorSistema y el Cajero. Su única vista de este módulo es el historial.
-const esAdminDeSucursal = computed(
-  () => auth.hasRole('Administrador') && !auth.hasRole('AdministradorSistema'),
+// En modo overlay, cerrar el menú al navegar.
+watch(
+  () => route.fullPath,
+  () => {
+    if (isOverlay.value) drawerOpen.value = false
+  },
 )
-
-const navGroups = computed<NavGroup[]>(() => [
-  {
-    label: null,
-    items: [{ label: 'Inicio', icon: 'home', routeName: 'home' }],
-  },
-  {
-    label: 'OPERACIÓN',
-    items: [
-      ...(esAdminDeSucursal.value
-        ? []
-        : [
-            {
-              label: 'Caja (POS)',
-              icon: 'point_of_sale',
-              routeName: 'pos-caja',
-              permission: 'pos:acceder',
-            },
-            {
-              label: 'Apertura y Cierre',
-              icon: 'key',
-              routeName: 'pos-cierre',
-              permission: 'pos:acceder',
-            },
-          ]),
-      {
-        label: 'Historial de Arqueos',
-        icon: 'receipt_long',
-        routeName: 'pos-historial-arqueos',
-        permission: 'turnos_caja:historial',
-      },
-      {
-        label: 'Historial de Ventas',
-        icon: 'receipt',
-        routeName: 'pos-historial',
-        permission: 'restaurante:registrar_pago',
-      },
-      {
-        label: 'Cocina',
-        icon: 'restaurant',
-        routeName: 'pos-cocina',
-        permission: 'restaurante:gestionar_cocina',
-      },
-      {
-        label: 'Control de Acceso',
-        icon: 'badge',
-        routeName: 'estancias-control-acceso',
-        permission: 'estancias:ver_activos',
-      },
-      {
-        label: 'Pulseras',
-        icon: 'sensors',
-        routeName: 'estancias-pulseras',
-        permission: 'pulseras:listar',
-      },
-    ],
-  },
-  {
-    label: 'EVENTOS',
-    items: [
-      {
-        label: 'Resumen',
-        icon: 'dashboard',
-        routeName: 'eventos-resumen',
-        permission: 'reservaciones:listar',
-      },
-      {
-        label: 'Reservaciones',
-        icon: 'event_note',
-        routeName: 'eventos-reservaciones',
-        permission: 'reservaciones:listar',
-      },
-      {
-        label: 'Calendario',
-        icon: 'calendar_today',
-        routeName: 'eventos-calendario',
-        permission: 'reservaciones:listar',
-      },
-      {
-        label: 'Pagos',
-        icon: 'payment',
-        routeName: 'eventos-pagos',
-        permission: 'reservaciones:gestionar_pagos',
-      },
-    ],
-  },
-  {
-    label: 'CATÁLOGO',
-    items: [
-      {
-        label: 'Extras',
-        icon: 'add_box',
-        routeName: 'extras-listar',
-        // :crear (no :listar): esta pantalla administra el catálogo. Cajero
-        // tiene :listar solo para leerlo al hacer una reservación, no debe
-        // ver esta sección de gestión.
-        permission: 'extras:crear',
-      },
-      {
-        label: 'Paquetes',
-        icon: 'card_giftcard',
-        routeName: 'paquetes-listar',
-        permission: 'paquetes:crear',
-      },
-      {
-        label: 'Tipos de Evento',
-        icon: 'category',
-        routeName: 'tipos-evento-listar',
-        permission: 'tipos_evento:crear',
-      },
-      {
-        label: 'Métodos de Pago',
-        icon: 'credit_card',
-        routeName: 'metodos-pago-listar',
-        permission: 'metodos_pago:crear',
-      },
-    ],
-  },
-  {
-    label: 'INVENTARIO',
-    items: [
-      {
-        label: 'Productos',
-        icon: 'liquor',
-        routeName: 'productos-listar',
-        permission: 'inventario:gestionar_productos',
-      },
-      {
-        label: 'Insumos',
-        icon: 'inventory_2',
-        routeName: 'insumos-listar',
-        permission: 'inventario:gestionar_insumos',
-      },
-      {
-        label: 'Proveedores',
-        icon: 'local_shipping',
-        routeName: 'proveedores-listar',
-        permission: 'inventario:gestionar_proveedores',
-      },
-      {
-        label: 'Compras',
-        icon: 'shopping_cart',
-        routeName: 'compras-listar',
-        permission: 'inventario:gestionar_compras',
-      },
-      {
-        label: 'Reporte de Stock',
-        icon: 'bar_chart',
-        routeName: 'reportes-inventario',
-        permission: 'reportes:inventario',
-      },
-      {
-        label: 'Costo de Ventas',
-        icon: 'request_quote',
-        routeName: 'reportes-inventario-cogs',
-        permission: 'reportes:inventario',
-      },
-    ],
-  },
-  {
-    label: 'LEALTAD',
-    items: [
-      {
-        label: 'Configuración',
-        icon: 'loyalty',
-        routeName: 'lealtad-configuracion',
-        permission: 'lealtad:gestionar_configuracion',
-      },
-      {
-        label: 'Kardex',
-        icon: 'history',
-        routeName: 'lealtad-kardex',
-        permission: 'lealtad:ver_saldo',
-      },
-      {
-        label: 'Reporte',
-        icon: 'insights',
-        routeName: 'lealtad-reporte',
-        permission: 'lealtad:ver_reporte',
-      },
-    ],
-  },
-  {
-    label: 'ADMINISTRACIÓN',
-    items: [
-      {
-        label: 'Sucursales',
-        icon: 'store',
-        routeName: 'sucursales-listar',
-        permission: 'sucursales:listar',
-      },
-      {
-        label: 'Usuarios',
-        icon: 'group',
-        routeName: 'usuarios-listar',
-        permission: 'usuarios:listar',
-      },
-      {
-        label: 'Roles',
-        icon: 'admin_panel_settings',
-        routeName: 'roles-listar',
-        permission: 'permisos:ver',
-      },
-      {
-        label: 'Horarios',
-        icon: 'schedule',
-        routeName: 'admin-horarios',
-        permission: 'horarios:listar',
-      },
-      {
-        label: 'Cajas',
-        icon: 'point_of_sale',
-        routeName: 'admin-cajas',
-        permission: 'cajas:crear',
-      },
-      {
-        label: 'Reportes',
-        icon: 'analytics',
-        routeName: 'reportes-dashboard',
-        permission: 'reportes:dashboard',
-      },
-    ],
-  },
-])
-
-function isVisible(item: NavItem): boolean {
-  return !item.permission || auth.hasPermission(item.permission)
-}
-
-const visibleGroups = computed(() =>
-  navGroups.value
-    .map((group) => ({ ...group, items: group.items.filter(isVisible) }))
-    .filter((group) => group.items.length > 0),
-)
-
-const userInitials = computed(() => getInitials(auth.currentUser?.name ?? ''))
-const userColor = computed(() => getAvatarColor(auth.currentUser?.name ?? ''))
-const userName = computed(() => auth.currentUser?.name ?? auth.currentUser?.email ?? '')
-const userRole = computed(() => auth.primaryRole ?? '')
-const branchName = computed(() => auth.currentBranchName ?? '')
-
-// ── Selector de sucursal para AdministradorSistema ──────────────────────────
-// No tiene sucursal propia; este selector le permite "pararse" en una para
-// ver sus catálogos/listados (reservaciones, inventario, etc.) sin tener que
-// cerrar sesión y volver a entrar como si fuera de esa sucursal.
-const sucursalOptions = computed(() =>
-  sucursalesStore.activas.map((s) => ({ label: s.nombre, value: s.id })),
-)
-
-function onSucursalVistaChange(sucursalId: string | null): void {
-  auth.setViewingBranch(sucursalId)
-}
-
-// Estado de apertura de caja visible en cualquier pantalla, no solo dentro del
-// módulo de caja — solo aplica al Cajero, que es a quien RN-CIE-001 bloquea de
-// vender/cobrar (comandas, check-in/checkout, eventos) sin turno OPERANDO.
-const mostrarEstadoTurno = computed(() => auth.hasRole('Cajero'))
-
-const estadoTurnoInfo = computed(() => {
-  if (turno.estaOperando) {
-    return { label: 'Caja Abierta', clase: 'estado-turno--abierta', icon: 'lock_open' }
-  }
-  if (turno.sinTurno) {
-    return { label: 'Sin Apertura de Caja', clase: 'estado-turno--cerrada', icon: 'lock' }
-  }
-  // EN_CONTEO / ESPERANDO_REVISION / BALANCE_REVELADO / CERRADO: hay un turno,
-  // pero tampoco se puede vender mientras no vuelva a OPERANDO.
-  return { label: 'En Corte de Caja', clase: 'estado-turno--corte', icon: 'hourglass_empty' }
-})
 
 const INTERVALO_ALERTAS_MS = 3 * 60 * 1000
 let alertasIntervalId: ReturnType<typeof setInterval> | undefined
@@ -323,19 +43,60 @@ const refrescarAlertasInventario = (avisar = true) => {
   }
 }
 
+// Contadores del Sidebar (Cocina y Control de Acceso): polling cada 30 s,
+// independiente de qué pantalla esté montada. Cada uno solo se pide si el
+// usuario tiene el permiso del módulo.
+const INTERVALO_INDICADORES_MS = 30 * 1000
+let indicadoresIntervalId: ReturnType<typeof setInterval> | undefined
+const abortIndicadoresComandas = new AbortController()
+let notifIntervalId: ReturnType<typeof setInterval> | undefined
+
+const refrescarIndicadoresSidebar = () => {
+  if (auth.hasPermission('restaurante:gestionar_cocina')) {
+    void shellIndicadores.refrescarComandas(abortIndicadoresComandas.signal)
+  }
+  if (auth.hasPermission('estancias:ver_activos') && auth.currentBranchId) {
+    void shellIndicadores.refrescarNinosActivos(auth.currentBranchId)
+  }
+}
+
+// Centro de notificaciones (campana): necesita el catálogo de reservaciones
+// disponible fuera de Inicio/Calendario para listar "eventos de hoy por
+// iniciar" desde cualquier pantalla.
+const refrescarReservacionesParaNotificaciones = () => {
+  if (auth.hasPermission('reservaciones:listar') && auth.currentBranchId) {
+    void reservacionesStore.cargar(auth.currentBranchId)
+  }
+}
+
 onMounted(() => {
-  if (mostrarEstadoTurno.value) {
-    turno.cargarTurnoActivo()
+  // Hipótesis de roles (Bug QA #13): el turno aplica a cualquier usuario que
+  // pueda cobrar, no solo al Cajero — un Administrador con
+  // "reservaciones:gestionar_pagos" también necesita saber si hay turno
+  // abierto antes de registrar un pago. Se usa el memo del store
+  // (`asegurarTurnoCargado`) en vez de `cargarTurnoActivo` directo para
+  // compartir la misma carga con el guard de ruta.
+  if (auth.hasPermission('pos:acceder') || auth.hasPermission('reservaciones:gestionar_pagos')) {
+    void turno.asegurarTurnoCargado()
   }
   if (auth.isSistema) {
     sucursalesStore.cargar()
   }
   refrescarAlertasInventario(false)
   alertasIntervalId = setInterval(() => refrescarAlertasInventario(true), INTERVALO_ALERTAS_MS)
+
+  refrescarIndicadoresSidebar()
+  indicadoresIntervalId = setInterval(refrescarIndicadoresSidebar, INTERVALO_INDICADORES_MS)
+
+  refrescarReservacionesParaNotificaciones()
+  notifIntervalId = setInterval(refrescarReservacionesParaNotificaciones, INTERVALO_ALERTAS_MS)
 })
 
 onBeforeUnmount(() => {
   if (alertasIntervalId) clearInterval(alertasIntervalId)
+  if (indicadoresIntervalId) clearInterval(indicadoresIntervalId)
+  if (notifIntervalId) clearInterval(notifIntervalId)
+  abortIndicadoresComandas.abort()
 })
 
 watch(
@@ -343,426 +104,59 @@ watch(
   () => {
     alertasInventario.limpiar()
     refrescarAlertasInventario(false)
+    shellIndicadores.limpiar()
+    refrescarIndicadoresSidebar()
+    refrescarReservacionesParaNotificaciones()
   },
 )
-
-function isActive(routeName: string): boolean {
-  return route.name === routeName
-}
-
-function badgeCount(routeName: string): number {
-  if (routeName === 'insumos-listar' || routeName === 'reportes-inventario') {
-    return alertasInventario.totalAlertas
-  }
-  return 0
-}
-
-async function handleLogout(): Promise<void> {
-  await auth.logout()
-  router.push({ name: 'login' })
-}
 </script>
 
 <template>
-  <q-layout view="hHh LpR fFf">
-    <!-- ── Sidebar ─────────────────────────────────────────── -->
+  <q-layout view="lHh LpR fFf">
     <q-drawer
-      v-model="leftOpen"
+      v-model="drawerOpen"
       side="left"
-      :width="230"
-      :mini="sidebarCollapsed"
-      :mini-width="64"
-      :breakpoint="0"
+      :width="248"
+      :breakpoint="DRAWER_BREAKPOINT"
       show-if-above
-      class="sb-drawer"
-      :class="{ 'sb-drawer--collapsed': sidebarCollapsed }"
+      bordered
+      class="app-drawer"
     >
-      <div class="sb-root">
-        <!-- Nav -->
-        <div class="sb-nav-scroll">
-          <template v-for="group in visibleGroups" :key="group.label ?? 'root'">
-            <div v-if="group.label && !sidebarCollapsed" class="sb-section-label">
-              {{ group.label }}
-            </div>
-            <q-list class="sb-nav" padding>
-              <q-item
-                v-for="item in group.items"
-                :key="item.routeName"
-                v-ripple
-                clickable
-                class="sb-item"
-                :class="{ 'sb-item--active': isActive(item.routeName) }"
-                @click="router.push({ name: item.routeName })"
-              >
-                <q-item-section avatar>
-                  <q-icon :name="item.icon" size="18px" />
-                  <q-badge v-if="badgeCount(item.routeName) > 0" color="negative" floating rounded>
-                    {{ badgeCount(item.routeName) }}
-                  </q-badge>
-                </q-item-section>
-                <q-item-section v-if="!sidebarCollapsed">{{ item.label }}</q-item-section>
-                <q-tooltip v-if="sidebarCollapsed" anchor="center right" self="center left">
-                  {{ item.label }}
-                </q-tooltip>
-              </q-item>
-            </q-list>
-          </template>
-        </div>
-
-        <!-- Colapsar/expandir -->
-        <div class="sb-collapse-toggle">
-          <q-btn
-            flat
-            dense
-            round
-            :icon="sidebarCollapsed ? 'chevron_right' : 'chevron_left'"
-            size="sm"
-            class="sb-collapse-btn"
-            :aria-label="sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'"
-            @click="toggleSidebar"
-          >
-            <q-tooltip anchor="center right" self="center left">
-              {{ sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú' }}
-            </q-tooltip>
-          </q-btn>
-        </div>
-      </div>
+      <AppSidebar />
     </q-drawer>
 
-    <!-- ── Header ─────────────────────────────────────────── -->
     <q-header class="app-header">
-      <q-toolbar class="app-toolbar">
-        <q-toolbar-title class="header-brand">
-          <img src="/woow-kids-mascot.png" alt="Woow Kids" class="header-brand-img" />
-          Woow Kids
-        </q-toolbar-title>
-
-        <q-space />
-
-        <div class="header-actions">
-          <q-select
-            v-if="auth.isSistema"
-            :model-value="auth.viewingBranchId"
-            :options="sucursalOptions"
-            option-label="label"
-            option-value="value"
-            emit-value
-            map-options
-            clearable
-            dense
-            outlined
-            options-dense
-            behavior="menu"
-            placeholder="Ver todas las sucursales"
-            class="header-branch-select"
-            @update:model-value="onSucursalVistaChange"
-          >
-            <template #prepend>
-              <q-icon name="store" size="18px" />
-            </template>
-          </q-select>
-          <div v-else-if="branchName" class="header-branch">
-            <q-icon name="store" size="18px" />
-            <span>{{ branchName }}</span>
-          </div>
-
-          <div v-if="mostrarEstadoTurno" class="header-branch" :class="estadoTurnoInfo.clase">
-            <q-icon :name="estadoTurnoInfo.icon" size="18px" />
-            <span>{{ estadoTurnoInfo.label }}</span>
-          </div>
-
-          <div class="header-divider" />
-
-          <div class="header-user">
-            <div class="header-avatar" :style="{ background: userColor }">
-              {{ userInitials }}
-            </div>
-            <div class="header-user-info">
-              <div class="header-user-name">{{ userName }}</div>
-              <div class="header-user-role">{{ userRole }}</div>
-            </div>
-          </div>
-
-          <q-btn
-            flat
-            round
-            dense
-            class="header-action-btn header-action-btn--logout"
-            aria-label="Cerrar sesión"
-            title="Cerrar sesión"
-            @click="handleLogout"
-          >
-            <q-icon name="logout" size="20px" />
-          </q-btn>
-        </div>
-      </q-toolbar>
+      <AppTopbar :show-menu-button="isOverlay" @toggle-menu="drawerOpen = !drawerOpen" />
     </q-header>
 
-    <!-- ── Contenido ──────────────────────────────────────── -->
     <q-page-container class="page-bg">
       <!-- key por sucursal: la mayoría de las páginas piden sus datos una sola
            vez en onMounted. Cuando AdministradorSistema cambia de sucursal en
-           el selector del header, esto fuerza a Vue a destruir y volver a
+           el selector del sidebar, esto fuerza a Vue a destruir y volver a
            montar la página activa (vuelve a correr onMounted) en vez de
            necesitar un refresh manual del navegador. -->
       <router-view :key="auth.currentBranchId ?? 'todas'" />
     </q-page-container>
+
+    <CommandPalette />
   </q-layout>
 </template>
 
 <style scoped>
-/* ── Sidebar ─────────────────────────────────────────────── */
-.sb-drawer :deep(.q-drawer) {
-  background: var(--bg-card) !important;
-  border-right: 1px solid var(--border-color) !important;
-  box-shadow: none !important;
+.app-drawer :deep(.q-drawer) {
+  background: #fff;
 }
 
-.sb-root {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+.app-drawer :deep(.q-drawer--bordered) {
+  border-right-color: var(--border-color);
 }
 
-.sb-drawer :deep(.q-drawer) {
-  transition: width 0.15s ease;
-}
-
-.sb-collapse-toggle {
-  flex-shrink: 0;
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px;
-  border-top: 1px solid var(--border-color);
-}
-
-.sb-drawer--collapsed .sb-collapse-toggle {
-  justify-content: center;
-}
-
-.sb-collapse-btn {
-  color: var(--text-muted) !important;
-}
-
-.sb-collapse-btn:hover {
-  color: var(--text-primary) !important;
-  background: var(--bg-main) !important;
-}
-
-.sb-nav-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding-top: 8px;
-}
-
-.sb-section-label {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.08em;
-  padding: 16px 20px 6px;
-}
-
-.sb-nav {
-  padding: 0 8px !important;
-}
-
-.sb-item {
-  border-radius: 8px !important;
-  margin-bottom: 2px;
-  min-height: 40px !important;
-  padding: 0 10px !important;
-  color: var(--text-secondary) !important;
-  font-size: 13.5px !important;
-  font-weight: 500 !important;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-
-.sb-item :deep(.q-icon) {
-  color: var(--text-muted) !important;
-  transition: color 0.12s;
-}
-
-.sb-item:hover {
-  background: var(--bg-main) !important;
-  color: var(--text-primary) !important;
-}
-
-.sb-item:hover :deep(.q-icon) {
-  color: var(--text-secondary) !important;
-}
-
-.sb-item--active {
-  background: rgba(2, 95, 224, 0.08) !important;
-  color: #025fe0 !important;
-  font-weight: 600 !important;
-  border-left: 3px solid #025fe0;
-  padding-left: 7px !important;
-}
-
-.sb-item--active :deep(.q-icon) {
-  color: #025fe0 !important;
-}
-
-.sb-drawer--collapsed .sb-item {
-  justify-content: center;
-  padding: 0 !important;
-}
-
-.sb-drawer--collapsed .sb-item--active {
-  border-left: none;
-  border-radius: 8px !important;
-}
-
-.sb-drawer--collapsed .sb-item :deep(.q-item__section--avatar) {
-  min-width: 0;
-  padding: 0;
-}
-
-/* ── Header ─────────────────────────────────────────────── */
 .app-header {
-  background: var(--bg-card) !important;
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
-  color: var(--text-primary) !important;
-}
-
-.app-toolbar {
-  min-height: 54px;
-  padding: 0 20px;
-}
-
-.header-brand {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 700;
+  background: #fff;
   color: var(--text-primary);
-  flex: 0 0 auto;
-  gap: 8px;
+  box-shadow: none;
 }
 
-.header-brand-img {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  object-fit: cover;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.header-branch {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: var(--bg-main);
-  color: var(--text-secondary);
-  font-size: 12.5px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.header-branch-select {
-  width: 220px;
-  font-size: 12.5px;
-}
-
-.header-branch-select :deep(.q-field__control) {
-  min-height: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--bg-main);
-}
-
-.header-branch-select :deep(.q-field__marginal) {
-  height: 32px;
-}
-
-.estado-turno--abierta {
-  background: rgba(63, 168, 52, 0.12);
-  color: #3fa834;
-}
-
-.estado-turno--cerrada {
-  background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
-}
-
-.estado-turno--corte {
-  background: rgba(255, 193, 7, 0.16);
-  color: #b45309;
-}
-
-.header-action-btn {
-  color: var(--text-secondary) !important;
-  transition:
-    color 0.12s,
-    background 0.12s;
-}
-
-.header-action-btn:hover {
-  color: var(--text-primary) !important;
-  background: var(--bg-main) !important;
-}
-
-.header-action-btn--logout:hover {
-  color: #dc2626 !important;
-  background: rgba(220, 38, 38, 0.08) !important;
-}
-
-.header-divider {
-  width: 1px;
-  height: 24px;
-  background: var(--border-color);
-  margin: 0 8px;
-  flex-shrink: 0;
-}
-
-.header-user {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  cursor: default;
-}
-
-.header-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.header-user-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.header-user-role {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  line-height: 1.2;
-}
-
-/* ── Page container ──────────────────────────────────────── */
 .page-bg {
   background: var(--bg-main);
 }

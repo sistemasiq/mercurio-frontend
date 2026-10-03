@@ -1,0 +1,80 @@
+name: Release
+
+# Al llegar commits a main: corre el CI completo, calcula la versión con
+# Conventional Commits, crea el tag vX.Y.Z y publica la imagen en GHCR con ese
+# tag y con "latest".
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Tag y publicación
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      IMAGEN: ghcr.io/${{ github.repository_owner }}/woowkids-frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calcular versión
+        id: version
+        run: |
+          version=$(bash .github/scripts/siguiente_version.sh)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ -z "$version" ]; then
+            echo "Sin commits nuevos desde el último tag: no hay release."
+          else
+            echo "Siguiente versión: $version"
+          fi
+
+      - name: Crear tag
+        if: steps.version.outputs.version != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.version }}" -m "Release ${{ steps.version.outputs.version }}"
+          git push origin "${{ steps.version.outputs.version }}"
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.version.outputs.version != ''
+      - uses: docker/login-action@v3
+        if: steps.version.outputs.version != ''
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        if: steps.version.outputs.version != ''
+        with:
+          context: .
+          push: true
+          build-args: |
+            VITE_API_BASE_URL=/api
+            VITE_APP_TITLE=Woow Kids
+          tags: |
+            ${{ env.IMAGEN }}:${{ steps.version.outputs.version }}
+            ${{ env.IMAGEN }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: GitHub Release
+        if: steps.version.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "${{ steps.version.outputs.version }}" --generate-notes --verify-tag

@@ -11,6 +11,7 @@ import type {
   ConfirmarCierreResponse,
   FiltrosHistorial,
   HistorialArqueosResponse,
+  ResumenHistorialArqueos,
   DetalleArqueo,
   IngresoEfectivoPayload,
   IngresoEfectivoResponse,
@@ -44,10 +45,15 @@ function mapTurnoActivo(raw: any): TurnoActivoResponse {
     totalVentas: Number(raw.total_ventas ?? 0),
     totalRetiros: Number(raw.total_retiros ?? 0),
     totalIngresos: Number(raw.total_ingresos ?? 0),
+    numeroVentas: Number(raw.numero_ventas ?? 0),
+    totalVendido: Number(raw.total_vendido ?? 0),
     movimientos: (raw.movimientos ?? []).map(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (m: any) => ({ metodo: m.metodo, totalVentas: Number(m.total_ventas) }),
     ),
+    // QA #8: solo vienen poblados cuando estado === 'BALANCE_REVELADO'.
+    adminEmail: raw.admin_email ?? null,
+    balancePorMetodo: mapBalancePorMetodo(raw.balance_por_metodo),
   }
 }
 
@@ -141,6 +147,7 @@ export const turnoCajaApi = {
       observaciones_apertura: payload.observacionesApertura,
       turno_id: payload.turnoId,
       sucursal_id: payload.sucursalId,
+      pin: payload.pin,
     }
     const { data } = await apiClient.post(`${BASE}/abrir`, body)
     return mapTurnoActivo(data)
@@ -215,7 +222,10 @@ export const turnoCajaApi = {
     return mapRevisionAdmin(data)
   },
 
-  async validarPinCajero(turnoId: string, pin: string): Promise<{ ok: boolean; mensaje: string }> {
+  async validarPinCajero(
+    turnoId: string,
+    pin: string,
+  ): Promise<{ ok: boolean; mensaje: string; token_pin?: string | null }> {
     const { data } = await apiClient.post(`${BASE}/validar-pin-cajero`, { turno_id: turnoId, pin })
     return data
   },
@@ -224,7 +234,7 @@ export const turnoCajaApi = {
     turnoId: string,
     adminEmail: string,
     pin: string,
-  ): Promise<{ ok: boolean; mensaje: string }> {
+  ): Promise<{ ok: boolean; mensaje: string; token_pin?: string | null }> {
     const { data } = await apiClient.post(`${BASE}/validar-pin-admin`, {
       turno_id: turnoId,
       admin_email: adminEmail,
@@ -243,6 +253,8 @@ export const turnoCajaApi = {
       turno_id: payload.turnoId,
       observaciones: payload.observaciones,
       tipo_cierre: payload.tipoCierre ?? 'NORMAL',
+      token_pin_cajero: payload.tokenPinCajero ?? null,
+      token_pin_admin: payload.tokenPinAdmin ?? null,
     })
     return {
       arqueoId: data.arqueo_id,
@@ -322,6 +334,49 @@ export const turnoCajaApi = {
       page: data.page,
       pageSize: data.page_size,
     }
+  },
+
+  /**
+   * GET /turnos-caja/historial/resumen
+   * KPIs agregados de todo el periodo filtrado (no solo la página cargada).
+   */
+  async resumenHistorial(
+    filtros: Omit<FiltrosHistorial, 'page' | 'pageSize'> = {},
+  ): Promise<ResumenHistorialArqueos> {
+    const params: Record<string, string> = {}
+    if (filtros.sucursalId) params.sucursal_id = filtros.sucursalId
+    if (filtros.cajeroId) params.cajero_id = filtros.cajeroId
+    if (filtros.fechaDesde) params.fecha_desde = filtros.fechaDesde
+    if (filtros.fechaHasta) params.fecha_hasta = filtros.fechaHasta
+
+    const { data } = await apiClient.get(`${BASE}/historial/resumen`, { params })
+    return {
+      totalArqueos: data.total_arqueos,
+      totalDeclarado: Number(data.total_declarado),
+      totalEsperado: Number(data.total_esperado),
+      diferenciaNeta: Number(data.diferencia_neta),
+      arqueosConDiferencia: data.arqueos_con_diferencia,
+    }
+  },
+
+  /**
+   * GET /turnos-caja/historial/export
+   * Mismos filtros que `listarHistorial`, sin paginar, como descarga CSV.
+   */
+  async exportarHistorial(
+    filtros: Omit<FiltrosHistorial, 'page' | 'pageSize'> = {},
+  ): Promise<Blob> {
+    const params: Record<string, string> = {}
+    if (filtros.sucursalId) params.sucursal_id = filtros.sucursalId
+    if (filtros.cajeroId) params.cajero_id = filtros.cajeroId
+    if (filtros.fechaDesde) params.fecha_desde = filtros.fechaDesde
+    if (filtros.fechaHasta) params.fecha_hasta = filtros.fechaHasta
+
+    const { data } = await apiClient.get(`${BASE}/historial/export`, {
+      params,
+      responseType: 'blob',
+    })
+    return data as Blob
   },
 
   /**

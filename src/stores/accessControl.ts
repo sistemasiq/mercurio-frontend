@@ -58,10 +58,10 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     const minutosTranscurridos = item.minutosTranscurridos + elapsedMinutes
 
     const minutosRestantes = item.minutosPagados - minutosTranscurridos
-    const progressPercent = Math.min(
-      100,
-      Math.round((minutosTranscurridos / item.minutosPagados) * 100),
-    )
+    const progressPercent =
+      item.minutosPagados > 0
+        ? Math.min(100, Math.max(0, Math.round((minutosTranscurridos / item.minutosPagados) * 100)))
+        : 100
 
     let status: StayStatus = 'activo'
     if (minutosRestantes < 0) {
@@ -105,14 +105,12 @@ export const useAccessControlStore = defineStore('accessControl', () => {
     // Las pulseras alimentan el indicador de disponibilidad y el selector de
     // registro; requieren un permiso aparte (pulseras:listar) y no deben
     // bloquear la lista de activos.
-    if (puedeVerPulseras.value) {
-      try {
-        pulserasDisponibles.value = await fetchPulseras(authStore.currentBranchId)
-      } catch (err) {
-        console.error(err)
-      }
-    } else {
+    // Ambas ramas se capturan: el polling no debe producir rechazos sin manejar.
+    try {
       pulserasDisponibles.value = await fetchPulseras(authStore.currentBranchId)
+    } catch (err) {
+      if (puedeVerPulseras.value) error.value ??= 'No se pudo cargar la lista de pulseras.'
+      console.error(err)
     }
   }
 

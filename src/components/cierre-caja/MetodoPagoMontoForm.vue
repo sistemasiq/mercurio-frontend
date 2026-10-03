@@ -1,85 +1,74 @@
 <template>
-  <div class="rs-form-block">
-    <span class="rs-block-label">BLOQUE B: MÉTODOS DE PAGO</span>
-
-    <div class="rs-metodo-list">
-      <div v-for="(fila, idx) in modelValue" :key="fila.id" class="rs-metodo-fila">
-        <!-- Icono + nombre (fijo, no editable — viene del sistema o se eligió al agregar) -->
-        <div class="rs-metodo-info">
-          <q-icon
-            :name="fila.origen === 'sistema' ? 'point_of_sale' : 'confirmation_number'"
-            color="primary"
-            size="20px"
-            class="q-mr-xs"
-          />
-          <span class="rs-metodo-nombre">{{ fila.metodo }}</span>
-          <span v-if="fila.origen === 'sistema'" class="rs-tag-sistema"
-            >registrado en el sistema</span
-          >
-        </div>
-
-        <!-- Input con prefijo $ -->
-        <div class="rs-monto-wrap">
-          <span class="rs-monto-prefix">$</span>
+  <section class="methods-card">
+    <header class="methods-card__head">
+      <h3 class="methods-card__title">Otros métodos</h3>
+    </header>
+    <div class="methods-card__body">
+      <div v-for="(fila, idx) in modelValue" :key="fila.id" class="methods-card__field">
+        <span class="field-label">
+          {{ fila.metodo }}
+          <span v-if="fila.origen === 'sistema'" class="methods-card__tag">con ventas</span>
+        </span>
+        <div class="methods-card__input-row">
           <q-input
             v-model.number="fila.monto"
             type="text"
             inputmode="decimal"
-            dense
             outlined
+            dense
+            prefix="$"
             placeholder="0.00"
-            class="rs-monto-input"
-            input-class="text-right"
+            class="methods-card__input"
+            :aria-label="`Monto ${fila.metodo}`"
             :readonly="readonly"
             :disable="readonly"
             :rules="[reglaDecimal]"
-            :class="{ 'rs-input--readonly': readonly }"
+            hide-bottom-space
             @keydown="filtrarTeclaDecimal"
           />
+          <q-btn
+            v-if="!readonly && fila.origen === 'manual'"
+            flat
+            round
+            dense
+            icon="delete"
+            class="action-btn"
+            aria-label="Quitar método"
+            @click="eliminarFila(idx)"
+          />
         </div>
-
-        <!-- Eliminar (solo filas manuales, en modo edición) -->
-        <q-btn
-          v-if="!readonly && fila.origen === 'manual'"
-          flat
-          round
-          dense
-          icon="delete_outline"
-          size="sm"
-          class="rs-btn-delete"
-          @click="eliminarFila(idx)"
-        />
-        <div v-else-if="!readonly" class="rs-btn-delete-spacer" />
       </div>
 
-      <div v-if="modelValue.length === 0" class="rs-sin-metodos">
-        No se registraron movimientos con métodos de pago en este turno.
-      </div>
+      <p v-if="modelValue.length === 0" class="methods-card__empty">
+        No se registraron movimientos con otros métodos de pago en este turno.
+      </p>
 
-      <!-- Agregar método de pago del catálogo real -->
       <q-select
         v-if="!readonly"
         v-model="metodoSeleccionado"
         :options="opcionesDisponibles"
         option-label="nombre"
         option-value="id"
-        label="Agregar método de pago…"
+        display-value="Agregar método de pago…"
+        class="methods-card__add"
         dense
         outlined
         emit-value
         map-options
         clearable
-        class="rs-select-agregar"
         :loading="metodosPagoStore.loading"
         no-options-label="No hay más métodos disponibles en el catálogo"
         @update:model-value="agregarFila"
       >
-        <template #prepend>
-          <q-icon name="add_circle" color="primary" size="18px" />
-        </template>
+        <template #prepend><q-icon name="add" size="19px" /></template>
       </q-select>
+
+      <div class="methods-card__callout">
+        <q-icon name="visibility_off" size="19px" />
+        Conteo ciego: el total esperado se muestra al enviar.
+      </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -125,15 +114,13 @@ const opcionesDisponibles = computed(() => {
   return disponibles
 })
 
-let nextId = 1
-
 function agregarFila(metodoId: string | null) {
   if (!metodoId) return
   const metodo = metodosPagoStore.activos.find((m) => m.id === metodoId)
   if (!metodo) return
 
   modelValue.value.push({
-    id: nextId++,
+    id: crypto.randomUUID(),
     metodo: metodo.nombre,
     monto: null,
     origen: 'manual',
@@ -146,136 +133,78 @@ function eliminarFila(idx: number) {
 }
 </script>
 
-<style scoped>
-/* ── Contenedor ─────────────────────────────────────────────────────── */
-.rs-form-block {
-  position: relative;
+<style scoped lang="scss">
+.methods-card {
+  background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 24px;
-  background: var(--bg-card);
-  box-shadow: 0 2px 10px -4px rgba(0, 0, 0, 0.05);
-}
-
-/* ── Etiqueta flotante ─────────────────────────────────────────────── */
-.rs-block-label {
-  position: absolute;
-  top: -11px;
-  left: 16px;
-  background: var(--bg-card);
-  padding: 0 8px;
-  color: #025fe0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* ── Lista de filas ─────────────────────────────────────────────────── */
-.rs-metodo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 8px;
-  max-width: 600px;
-}
-
-/* ── Fila de método ─────────────────────────────────────────────────── */
-.rs-metodo-fila {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: var(--bg-main);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 10px 14px;
-}
-
-/* ── Info del método (icono + nombre) ────────────────────────────────── */
-.rs-metodo-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-.rs-metodo-nombre {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  white-space: nowrap;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  text-overflow: ellipsis;
-}
-.rs-tag-sistema {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #3fa834;
-  background: rgba(63, 168, 52, 0.12);
-  border-radius: 999px;
-  padding: 2px 8px;
-  flex-shrink: 0;
-}
-.rs-sin-metodos {
-  font-size: 13px;
-  color: var(--text-muted);
-  padding: 8px 4px;
-}
 
-/* ── Input de monto con prefijo ──────────────────────────────────────── */
-.rs-monto-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  flex-shrink: 0;
-}
-.rs-monto-prefix {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin-right: 2px;
-}
-.rs-monto-input {
-  width: 120px;
-}
-.rs-monto-input :deep(.q-field__control) {
-  background: var(--bg-card);
-  border-radius: 8px;
-}
-.rs-monto-input :deep(.q-field--focused .q-field__control:before) {
-  border-color: #025fe0 !important;
-}
-.rs-monto-input :deep(.q-field--focused .q-field__control) {
-  box-shadow: 0 0 0 2px rgba(2, 95, 224, 0.12);
-}
-.rs-monto-input :deep(input) {
-  text-align: right;
-  font-size: 14px;
-}
-.rs-input--readonly :deep(.q-field__control) {
-  background: rgba(2, 95, 224, 0.06);
-}
+  &__head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-soft);
+  }
 
-/* ── Botón eliminar ─────────────────────────────────────────────────── */
-.rs-btn-delete {
-  color: var(--text-muted) !important;
-  flex-shrink: 0;
-}
-.rs-btn-delete:hover {
-  color: #dc2626 !important;
-}
-.rs-btn-delete-spacer {
-  width: 32px;
-  flex-shrink: 0;
-}
+  &__title {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
 
-/* ── Select de agregar ──────────────────────────────────────────────── */
-.rs-select-agregar {
-  margin-top: 4px;
-}
-.rs-select-agregar :deep(.q-field__control) {
-  border-radius: 8px;
+  &__body {
+    padding: 16px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__tag {
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+
+  &__input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__input {
+    flex: 1;
+  }
+
+  &__add :deep(.q-field__native) {
+    color: var(--text-secondary);
+  }
+
+  &__empty {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__callout {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
 }
 </style>

@@ -1,287 +1,190 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div ref="resumenRef" style="max-width: 1200px; margin: 0 auto">
-      <!-- Banner error -->
-      <q-banner
-        v-if="error"
-        dense
-        rounded
-        class="bg-red-1 text-red-8 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="error_outline" color="negative" /></template>
-        {{ error }}
-        <template #action>
-          <q-btn flat dense no-caps label="Reintentar" @click="cargarTodo" />
-        </template>
-      </q-banner>
-
-      <div v-if="cargando" class="row justify-center q-pa-xl">
-        <q-spinner color="primary" size="3em" />
+  <q-page class="page-content cierre-ev">
+    <div ref="resumenRef">
+      <div v-if="error" class="list-page__note list-page__note--bad">
+        <q-icon name="error" size="19px" />{{ error }}
+        <q-btn flat dense label="Reintentar" class="q-ml-auto" @click="cargarTodo" />
       </div>
 
+      <div v-if="cargando" class="cierre-ev__loading"><q-spinner color="primary" size="40px" /></div>
+
       <template v-else-if="reservacion">
-        <!-- Encabezado -->
-        <div class="row items-start q-mb-lg">
-          <div>
-            <div class="row items-center q-gutter-x-xs text-primary text-weight-bold text-caption">
-              <q-icon name="event_available" size="xs" />
-              <span style="letter-spacing: 0.5px">CIERRE DE EVENTO</span>
-            </div>
-            <div class="text-h4 text-weight-bold q-mt-xs" style="color: var(--text-primary)">
-              {{ tituloEvento }}
-            </div>
-            <div class="row items-center q-gutter-sm q-mt-sm">
-              <q-badge
-                :color="yaCerrado ? 'positive' : 'orange'"
-                :label="yaCerrado ? 'CERRADO' : 'PENDIENTE DE CIERRE'"
-                style="font-size: 0.72rem; padding: 5px 10px; border-radius: 20px"
-              />
-              <span class="text-caption text-grey-7">
-                <q-icon name="tag" size="xs" /> ID: {{ eventoId }}
-              </span>
-            </div>
-          </div>
-          <q-space />
-          <q-btn
-            outline
-            no-caps
-            color="primary"
-            icon="print"
-            label="Imprimir Resumen"
-            :loading="imprimiendoResumen"
-            style="border-radius: 8px; font-weight: 600"
-            @click="imprimirResumen"
-          />
-        </div>
+        <PageHeader
+          :title="`Cierre · ${tituloEvento}`"
+          back-label="Reservaciones"
+          :back-to="{ name: 'eventos-reservaciones' }"
+        >
+          <template #subtitle>
+            <template v-if="reservacion.folio">{{ reservacion.folio }} · </template>
+            {{ fmtFechaEvento }} · {{ duracionEvento
+            }}<template v-if="paquete"> · {{ paquete.nombre }}</template>
+            ·
+            <StatusBadge
+              :tone="yaCerrado ? 'ok' : 'warn'"
+              :label="yaCerrado ? 'Cerrado' : 'Pendiente de cierre'"
+            />
+          </template>
+          <template #actions>
+            <q-btn
+              outline
+              icon="print"
+              label="Imprimir resumen"
+              :loading="imprimiendoResumen"
+              @click="imprimirResumen"
+            />
+          </template>
+        </PageHeader>
 
-        <div class="row q-col-gutter-lg">
-          <!-- Columna izquierda -->
-          <div class="col-12 col-md-8">
-            <q-card flat bordered class="q-mb-md" style="border-radius: 12px">
-              <q-card-section>
-                <div class="row items-center q-gutter-x-xs text-weight-bold q-mb-md">
-                  <q-icon name="info" color="primary" />
-                  <span class="text-subtitle1">Resumen del Evento</span>
-                </div>
-                <div class="row q-col-gutter-md">
-                  <div class="col-6">
-                    <div class="field-label">FECHA</div>
-                    <div class="text-body1 text-weight-medium">{{ fmtFechaEvento }}</div>
-                  </div>
-                  <div class="col-6">
-                    <div class="field-label">DURACIÓN</div>
-                    <div class="text-body1 text-weight-medium">{{ duracionEvento }}</div>
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
+        <div class="cierre-ev__grid">
+          <div class="cierre-ev__main">
+            <section class="charges-card">
+              <header class="charges-card__head">
+                <h2 class="charges-card__title">Cargos del evento</h2>
+              </header>
 
-            <q-card flat bordered style="border-radius: 12px; overflow: hidden">
-              <div class="section-header">DETALLES DE FACTURACIÓN</div>
-
-              <div v-if="paquete" class="billing-row">
-                <q-avatar color="blue-1" text-color="primary" icon="star" size="42px" />
-                <div class="col">
-                  <div class="text-subtitle1 text-weight-bold">{{ paquete.nombre }}</div>
-                  <div class="text-caption text-grey-7">{{ paquete.descripcion }}</div>
+              <div v-if="paquete" class="charge">
+                <span class="charge__tag charge__tag--pkg">Paquete</span>
+                <div class="charge__info">
+                  <span class="charge__name">{{ paquete.nombre }}</span>
+                  <span v-if="paquete.descripcion" class="charge__meta">{{
+                    paquete.descripcion
+                  }}</span>
                 </div>
-                <div class="text-subtitle1 text-weight-bold">{{ fmt(packagePriceNum) }}</div>
+                <span class="charge__amount">{{ fmt(packagePriceNum) }}</span>
               </div>
 
-              <div v-if="precioHorasNum > 0" class="billing-row">
-                <q-avatar color="grey-2" text-color="grey-8" icon="schedule" size="36px" />
-                <div class="col">
-                  <div class="text-body1 text-weight-medium">
-                    Horas del evento ({{ duracionEvento }})
-                  </div>
+              <div v-if="precioHorasNum > 0" class="charge">
+                <span class="charge__tag">Horas</span>
+                <div class="charge__info">
+                  <span class="charge__name">Horas del evento</span>
+                  <span class="charge__meta">{{ duracionEvento }}</span>
                 </div>
-                <div class="text-body1 text-weight-bold">{{ fmt(precioHorasNum) }}</div>
+                <span class="charge__amount">{{ fmt(precioHorasNum) }}</span>
               </div>
 
-              <div v-if="precioPersonasExtraNum > 0" class="billing-row">
-                <q-avatar color="grey-2" text-color="grey-8" icon="group_add" size="36px" />
-                <div class="col">
-                  <div class="text-body1 text-weight-medium">Personas extra</div>
-                </div>
-                <div class="text-body1 text-weight-bold">{{ fmt(precioPersonasExtraNum) }}</div>
+              <div v-if="precioPersonasExtraNum > 0" class="charge">
+                <span class="charge__tag">Personas</span>
+                <div class="charge__info"><span class="charge__name">Personas extra</span></div>
+                <span class="charge__amount">{{ fmt(precioPersonasExtraNum) }}</span>
               </div>
 
-              <template v-if="extrasDetallados.length">
-                <div class="section-subheader">SERVICIOS ADICIONALES</div>
-                <div v-for="extra in extrasDetallados" :key="extra.id" class="billing-row">
-                  <q-avatar color="grey-2" text-color="grey-8" icon="inventory_2" size="36px" />
-                  <div class="col">
-                    <div class="text-body1 text-weight-medium">
-                      {{ extra.nombre
-                      }}<span v-if="extra.cantidad > 1"> (x{{ extra.cantidad }})</span>
-                    </div>
-                  </div>
-                  <div class="text-body1 text-weight-bold">{{ fmt(extra.subtotal) }}</div>
+              <div v-for="extra in extrasDetallados" :key="extra.id" class="charge">
+                <span class="charge__tag charge__tag--extra">Extra</span>
+                <div class="charge__info">
+                  <span class="charge__name">
+                    {{ extra.nombre
+                    }}<template v-if="extra.cantidad > 1"> × {{ extra.cantidad }}</template>
+                  </span>
                 </div>
-              </template>
-              <div v-else class="q-pa-md text-caption text-grey-6">Sin servicios adicionales</div>
+                <span class="charge__amount">{{ fmt(extra.subtotal) }}</span>
+              </div>
 
-              <template v-if="productosDetallados.length">
-                <div class="section-subheader">PRODUCTOS ADICIONALES</div>
-                <div v-for="producto in productosDetallados" :key="producto.id" class="billing-row">
-                  <q-avatar color="grey-2" text-color="grey-8" icon="restaurant" size="36px" />
-                  <div class="col">
-                    <div class="text-body1 text-weight-medium">
-                      {{ producto.nombre }} (x{{ producto.cantidad }})
-                    </div>
-                    <div v-if="producto.notas" class="text-caption text-grey-6">
-                      {{ producto.notas }}
-                    </div>
-                  </div>
-                  <div class="text-body1 text-weight-bold">{{ fmt(producto.subtotal) }}</div>
+              <div v-for="producto in productosDetallados" :key="producto.id" class="charge">
+                <span class="charge__tag">Consumo</span>
+                <div class="charge__info">
+                  <span class="charge__name">{{ producto.nombre }} × {{ producto.cantidad }}</span>
+                  <span v-if="producto.notas" class="charge__meta">{{ producto.notas }}</span>
                 </div>
-              </template>
-            </q-card>
+                <span class="charge__amount">{{ fmt(producto.subtotal) }}</span>
+              </div>
 
-            <q-card flat bordered class="q-mt-md" style="border-radius: 12px">
-              <q-card-section>
-                <div class="row items-center q-gutter-x-xs text-weight-bold q-mb-sm">
-                  <q-icon name="edit_note" color="primary" />
-                  <span class="text-subtitle1">Notas de Cierre</span>
-                </div>
+              <p
+                v-if="!extrasDetallados.length && !productosDetallados.length"
+                class="charges-card__empty"
+              >
+                Sin extras ni consumos adicionales.
+              </p>
+            </section>
+
+            <section class="notes-card">
+              <label class="notes-card__field">
+                <span class="field-label">Notas de cierre</span>
                 <q-input
                   v-model="closingNotes"
                   type="textarea"
                   outlined
                   rows="3"
                   :disable="yaCerrado"
-                  placeholder="Agrega observaciones finales o incidencias del evento..."
+                  placeholder="Observaciones finales o incidencias del evento…"
                 />
-              </q-card-section>
-            </q-card>
+              </label>
+            </section>
           </div>
 
-          <!-- Columna derecha -->
-          <div class="col-12 col-md-4">
-            <q-card flat bordered style="border-radius: 12px; overflow: hidden">
-              <div class="balance-header">
-                <div class="text-caption" style="letter-spacing: 0.5px; opacity: 0.85">
-                  SALDO TOTAL PENDIENTE
-                </div>
-                <div class="text-h4 text-weight-bold">{{ fmt(saldoPendiente) }}</div>
-              </div>
+          <aside class="settle">
+            <h2 class="settle__title">Liquidación</h2>
+            <div class="settle__line">
+              <span>Paquete</span><span>{{ fmt(packagePriceNum) }}</span>
+            </div>
+            <div v-if="precioHorasNum > 0" class="settle__line">
+              <span>Horas del evento</span><span>{{ fmt(precioHorasNum) }}</span>
+            </div>
+            <div v-if="precioPersonasExtraNum > 0" class="settle__line">
+              <span>Personas extra</span><span>{{ fmt(precioPersonasExtraNum) }}</span>
+            </div>
+            <div v-if="extrasDetallados.length" class="settle__line">
+              <span>Extras</span><span>{{ fmt(extrasTotalNum) }}</span>
+            </div>
+            <div v-if="productosDetallados.length" class="settle__line">
+              <span>Consumos</span><span>{{ fmt(productosTotalNum) }}</span>
+            </div>
+            <div class="settle__line settle__line--total">
+              <span>Total del evento</span><span>{{ fmt(totalNum) }}</span>
+            </div>
+            <div
+              v-for="pago in pagosDetallados"
+              :key="pago.id"
+              class="settle__line settle__line--paid"
+            >
+              <span>{{ pago.metodo }} · {{ fmtFechaCorta(pago.fecha) }}</span>
+              <span>−{{ fmt(pago.monto) }}</span>
+            </div>
 
-              <q-card-section>
-                <div class="row justify-between text-body2 text-grey-8 q-mb-xs">
-                  <span>Paquete{{ paquete ? ` (${paquete.nombre})` : '' }}</span>
-                  <span>{{ fmt(packagePriceNum) }}</span>
-                </div>
+            <div class="settle__spacer" />
 
-                <div
-                  v-if="precioHorasNum > 0"
-                  class="row justify-between text-body2 text-grey-8 q-mb-xs"
-                >
-                  <span>Horas del evento</span>
-                  <span>{{ fmt(precioHorasNum) }}</span>
-                </div>
+            <div class="settle__due" :class="{ 'settle__due--ok': !tieneSaldo }">
+              <span class="settle__due-label">Saldo por cobrar</span>
+              <span class="settle__due-value">{{ fmt(saldoPendiente) }}</span>
+            </div>
 
-                <div
-                  v-if="precioPersonasExtraNum > 0"
-                  class="row justify-between text-body2 text-grey-8 q-mb-xs"
-                >
-                  <span>Personas extra</span>
-                  <span>{{ fmt(precioPersonasExtraNum) }}</span>
-                </div>
-
-                <div
-                  v-if="extrasDetallados.length"
-                  class="row justify-between text-body2 text-grey-8 q-mb-xs"
-                >
-                  <span>Servicios Extras</span>
-                  <span>{{ fmt(extrasTotalNum) }}</span>
-                </div>
-
-                <div
-                  v-if="productosDetallados.length"
-                  class="row justify-between text-body2 text-grey-8 q-mb-xs"
-                >
-                  <span>Productos Adicionales</span>
-                  <span>{{ fmt(productosTotalNum) }}</span>
-                </div>
-
-                <div class="row justify-between text-subtitle1 text-weight-bold q-mt-sm">
-                  <span>Total del Evento</span>
-                  <span>{{ fmt(totalNum) }}</span>
-                </div>
-
-                <div v-if="pagosDetallados.length" class="advances-box q-mt-md">
-                  <div class="field-label q-mb-xs">
-                    <q-icon name="account_balance_wallet" size="14px" /> ANTICIPOS RECIBIDOS
-                  </div>
-                  <div
-                    v-for="pago in pagosDetallados"
-                    :key="pago.id"
-                    class="row justify-between items-center text-body2 q-py-xs"
-                  >
-                    <span class="text-grey-8"
-                      >{{ pago.metodo }} ({{ fmtFechaCorta(pago.fecha) }})</span
-                    >
-                    <span class="text-positive text-weight-medium">-{{ fmt(pago.monto) }}</span>
-                  </div>
-                </div>
-
-                <q-btn
-                  v-if="!yaCerrado"
-                  class="full-width q-mt-md"
-                  color="warning"
-                  text-color="white"
-                  unelevated
-                  no-caps
-                  icon="point_of_sale"
-                  label="Procesar Pago"
-                  style="border-radius: 8px; height: 44px; font-weight: 700"
-                  :loading="procesandoPago"
-                  :disable="saldoPendiente <= 0"
-                  @click="abrirModalPago"
-                />
-
-                <q-banner
-                  v-if="!yaCerrado && saldoPendiente > 0"
-                  dense
-                  rounded
-                  class="bg-red-1 text-red-8 q-mt-md"
-                  style="border-radius: 10px"
-                >
-                  <template #avatar><q-icon name="warning" color="negative" /></template>
-                  <div class="text-weight-bold">No se puede cerrar el evento</div>
-                  <div class="text-caption">
-                    Saldo pendiente: debe ser $0.00 para cerrar el evento. Liquida los
-                    {{ fmt(saldoPendiente) }} restantes antes de finalizar.
-                  </div>
-                </q-banner>
-
-                <q-btn
-                  class="full-width q-mt-md"
-                  color="primary"
-                  unelevated
-                  no-caps
-                  :icon="yaCerrado ? 'check_circle' : 'lock'"
-                  :label="yaCerrado ? 'Evento Cerrado' : 'Finalizar y Cerrar Evento'"
-                  style="border-radius: 8px; height: 44px; font-weight: 700"
-                  :loading="finalizando"
-                  :disable="yaCerrado || saldoPendiente > 0"
-                  @click="finalizarEvento"
-                />
-                <div class="text-caption text-grey-6 text-center q-mt-sm">
-                  El cierre generará la factura final para el cliente.
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
+            <q-btn
+              v-if="!yaCerrado && tieneSaldo"
+              unelevated
+              color="primary"
+              label="Procesar pago"
+              class="settle__cta"
+              :loading="procesandoPago"
+              @click="abrirModalPago"
+            />
+            <q-btn
+              unelevated
+              :color="yaCerrado || tieneSaldo ? 'grey-4' : 'positive'"
+              :text-color="yaCerrado || tieneSaldo ? 'grey-7' : 'white'"
+              :icon="yaCerrado ? 'check_circle' : 'lock'"
+              :label="yaCerrado ? 'Evento cerrado' : 'Finalizar y cerrar evento'"
+              class="settle__cta"
+              :loading="finalizando"
+              :disable="yaCerrado || tieneSaldo"
+              @click="finalizarEvento"
+            />
+            <span v-if="!yaCerrado && tieneSaldo" class="settle__hint">
+              Liquida el saldo para poder cerrar el evento.
+            </span>
+            <span v-else-if="!yaCerrado" class="settle__hint">
+              El cierre generará la factura final para el cliente.
+            </span>
+          </aside>
         </div>
       </template>
     </div>
 
     <PaymentModal
       v-model="modalPagoAbierto"
+      titulo="Cobrar saldo del evento"
+      :subtitulo="tituloEvento"
       :total-to-pay="saldoPendiente"
       :metodos-pago="metodosPagoStore.activos"
+      :permitir-lealtad="false"
       @pago-exitoso="onPagoExitoso"
     />
   </q-page>
@@ -296,6 +199,8 @@ import { pagosReservacionApi } from '@/api/pagosReservacionApi'
 import { reservacionExtrasApi } from '@/api/reservacionExtrasApi'
 import { reservacionProductosApi } from '@/api/reservacionProductosApi'
 import { usePaquetesStore } from '@/stores/paquetes'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { useExtrasStore } from '@/stores/extras'
 import { useProductosStore } from '@/stores/productos'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
@@ -308,6 +213,8 @@ import type { Reservacion_extras } from '@/types/reservacion_extras'
 import type { Reservacion_productos } from '@/types/reservacion_productos'
 import type { AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
+import { redondear2, TOLERANCIA_MONTO } from '@/utils/dinero'
+import { mensajeDeError } from '@/utils/errorHandler'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import { horasFacturables } from '@/utils/horario'
 import { printTicketElement } from '@/utils/ticketPrinting'
@@ -406,8 +313,6 @@ const duracionEvento = computed(() => {
   return `${horas} ${horas === 1 ? 'Hora' : 'Horas'}`
 })
 
-const eventoId = computed(() => reservacion.value?.id ?? '—')
-
 const tipoEventoNombre = computed(
   () => tiposEventoStore.tipos.find((t) => t.id === reservacion.value?.tipo_evento_id)?.nombre,
 )
@@ -481,7 +386,10 @@ const pagosDetallados = computed(() =>
 )
 
 const totalPagado = computed(() => pagos.value.reduce((sum, p) => sum + parseFloat(p.monto), 0))
-const saldoPendiente = computed(() => Math.max(0, totalNum.value - totalPagado.value))
+const saldoPendiente = computed(() =>
+  Math.max(0, redondear2(redondear2(totalNum.value) - redondear2(totalPagado.value))),
+)
+const tieneSaldo = computed(() => saldoPendiente.value > TOLERANCIA_MONTO)
 
 // ── Procesar pago ────────────────────────────────────────────────────────────
 
@@ -512,15 +420,15 @@ const onPagoExitoso = async (
   const saldoAntes = saldoPendiente.value
 
   // El modal entrega lo que el cliente ENTREGÓ; descontarCambio() lo ajusta a
-  // lo que de verdad se queda en caja antes de guardarlo, porque el excedente
-  // se le devolvió como cambio y no es ingreso del evento (mismo ajuste que
-  // hace PagosPage.vue — sin él, un pago en efectivo con cambio se guardaba
-  // completo y descuadraba el corte de caja).
+  // lo que de verdad se queda en caja. Solo se usa para descartar un cobro vacío:
+  // el endpoint atómico recibe los montos entregados y el `cambio` aparte.
   const aplicados = descontarCambio(pagosAplicados, saldoAntes)
   if (!aplicados.length) return
 
   procesandoPago.value = true
   try {
+    // `completar` registra todos los pagos en una sola transacción (Bug QA #11):
+    // ya no hay fallo parcial que deje pagos sueltos.
     const resultado = await pagosReservacionApi.completar({
       reservacion_id: reservacion.value.id,
       pagos: pagosAplicados.map((pago) => ({
@@ -542,15 +450,17 @@ const onPagoExitoso = async (
         timeout: 6000,
       })
     }
-    await cargarTodo()
   } catch (err: unknown) {
     $q.notify({
       type: 'negative',
-      message: (err as Error).message || 'Error al registrar el pago',
+      message: mensajeDeError(err, 'Error al registrar el pago'),
       position: 'top-right',
     })
   } finally {
     procesandoPago.value = false
+    // Siempre se recarga: el saldo en pantalla debe reflejar lo que quedó en el
+    // servidor, haya salido bien o no.
+    await cargarTodo()
   }
 }
 
@@ -559,7 +469,7 @@ const onPagoExitoso = async (
 const finalizando = ref(false)
 
 const finalizarEvento = async () => {
-  if (!reservacion.value || saldoPendiente.value > 0) return
+  if (!reservacion.value || tieneSaldo.value) return
   finalizando.value = true
   try {
     reservacion.value = await reservacionesApi.actualizar(reservacion.value.id, {
@@ -590,47 +500,227 @@ async function imprimirResumen() {
 }
 </script>
 
-<style scoped>
-.section-header {
-  padding: 12px 16px;
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  color: var(--text-secondary);
-  background: var(--bg-main);
-  border-bottom: 1px solid var(--border-color);
+<style scoped lang="scss">
+.cierre-ev {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  &__loading {
+    display: flex;
+    justify-content: center;
+    padding: 64px 0;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 414px;
+    gap: 18px;
+    align-items: stretch;
+
+    @media (max-width: 1100px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
 }
 
-.section-subheader {
-  padding: 10px 16px 4px;
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  color: var(--text-secondary);
+.charges-card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+
+  &__head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__empty {
+    margin: 0;
+    padding: 16px 20px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
 }
 
-.billing-row {
+.charge {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-color);
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f1f3f7;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &__tag {
+    width: 88px;
+    flex-shrink: 0;
+    padding: 4px 0;
+    border-radius: 6px;
+    background: var(--bg-muted);
+    color: var(--text-body);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-transform: uppercase;
+
+    &--pkg {
+      background: var(--tone-info-bg);
+      color: var(--tone-info-fg);
+    }
+
+    &--extra {
+      background: var(--tone-pink-bg);
+      color: var(--tone-pink-fg);
+    }
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  &__meta {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__amount {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+  }
 }
 
-.billing-row:last-child {
-  border-bottom: none;
-}
-
-.balance-header {
-  background: var(--q-primary);
-  color: white;
+.notes-card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   padding: 18px 20px;
-  text-align: center;
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+  }
 }
 
-.advances-box {
-  background: var(--bg-main);
-  border-radius: 10px;
-  padding: 10px 12px;
+.settle {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__title {
+    margin: 0 0 6px;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__line {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+
+    span:last-child {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    &--total {
+      padding-top: 12px;
+      margin-top: 4px;
+      border-top: 1px solid var(--border-soft);
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    &--paid,
+    &--paid span:last-child {
+      color: var(--tone-ok-fg);
+      font-weight: 700;
+    }
+  }
+
+  &__spacer {
+    flex: 1;
+    min-height: 16px;
+  }
+
+  &__due {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 16px;
+    border-radius: 12px;
+    background: #fff1d6;
+    color: var(--tone-warn-fg);
+
+    &--ok {
+      background: var(--tone-ok-bg);
+      color: var(--tone-ok-fg);
+    }
+  }
+
+  &__due-label {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  &__due-value {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__cta {
+    width: 100%;
+    min-height: 50px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  &__hint {
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
 }
 </style>

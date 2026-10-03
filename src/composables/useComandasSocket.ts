@@ -1,5 +1,6 @@
 import { onBeforeUnmount, ref } from 'vue'
-import { sessionStorage } from '@/utils/session'
+import { tokenMemory } from '@/utils/tokenMemory'
+import { authApi } from '@/api/authApi'
 import type { ComandaWsMessage } from '@/types/comanda'
 
 export type EstadoSocket = 'conectando' | 'conectado' | 'reconectando' | 'caido'
@@ -9,9 +10,23 @@ const MAX_INTENTOS_TOTALES = 20
 const BACKOFF_INICIAL_MS = 1000
 const BACKOFF_MAX_MS = 30000
 
-function construirUrlWs(): string | null {
-  const token = sessionStorage.load()?.token
+/**
+ * QA #32: antes de cada conexión/reconexión se pide un ticket efímero de un
+ * solo uso (POST /auth/ws-ticket) para no exponer el JWT crudo en la URL del
+ * WebSocket. Si el backend todavía no lo soporta (o la petición falla), cae
+ * al JWT crudo (?token=...) -- el backend sigue aceptándolo mientras
+ * settings.WS_ACEPTA_JWT siga activo.
+ */
+async function construirUrlWs(): Promise<string | null> {
+  const token = tokenMemory.get()
   if (!token) return null
+
+  let ticket: string | null = null
+  try {
+    ticket = (await authApi.wsTicket()).ticket
+  } catch {
+    // Sin ticket disponible: se usa el JWT crudo como respaldo.
+  }
 
   const base = import.meta.env.VITE_API_BASE_URL as string
   const protocolo = window.location.protocol === 'https:' ? 'wss' : 'ws'
@@ -28,7 +43,10 @@ function construirUrlWs(): string | null {
   }
 
   const basePath = path.endsWith('/') ? path.slice(0, -1) : path
-  return `${origen}${basePath}/comandas/ws?token=${encodeURIComponent(token)}`
+  const query = ticket
+    ? `ticket=${encodeURIComponent(ticket)}`
+    : `token=${encodeURIComponent(token)}`
+  return `${origen}${basePath}/comandas/ws?${query}`
 }
 
 /**
@@ -63,7 +81,7 @@ export function useComandasSocket(onMessage: (msg: ComandaWsMessage) => void) {
     reconectarTimeout = setTimeout(conectar, espera)
   }
 
-  function conectar() {
+  async function conectar() {
     if (cerradoManualmente) return
 
     if (socket) {
@@ -73,7 +91,8 @@ export function useComandasSocket(onMessage: (msg: ComandaWsMessage) => void) {
       socket = null
     }
 
-    const url = construirUrlWs()
+    const url = await construirUrlWs()
+    if (cerradoManualmente) return
     if (!url) {
       estado.value = 'caido'
       return

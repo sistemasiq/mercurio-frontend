@@ -1,17 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import {
-  postOnboarding,
-  fetchMetodoPagoPorDefecto,
-  type OnboardingDetalle,
-  type OnboardingPago,
-} from '@/api/onboardingClient'
+import { postOnboarding, type OnboardingDetalle, type OnboardingPago } from '@/api/onboardingClient'
 import { productosApi } from '@/api/productosApi'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { reservacionesApi } from '@/api/reservacionesApi'
+import { horasFacturables } from '@/utils/horario'
 import type { EventoDelDia } from '@/types/reservaciones'
 import type { PrecioEstancia, TramoEstancia } from '@/types/producto'
+import { redondear2, TOLERANCIA_MONTO } from '@/utils/dinero'
 
 export interface Child {
   id: string
@@ -20,6 +17,9 @@ export interface Child {
   notes: string
   rfidBracelet: string
   saved: boolean
+  // Tiempo de juego de este niño (independiente del de sus hermanos en el
+  // mismo registro). En modo evento se ignora: todos usan horasEvento.
+  estimatedTime: string
 }
 
 export interface TutorData {
@@ -73,10 +73,10 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   const productoBase = ref<PrecioEstancia | null>(null)
   const pulseras = computed(() => accessControlStore.pulserasDisponibles)
-  const metodoPagoId = ref<string | null>(null)
   const pagosFromModal = ref<OnboardingPago[]>([])
   const cambioFromModal = ref(0)
   const puntosARedimirValue = ref(0)
+  const descuentoPuntosValue = ref(0)
   const isLoadingCatalog = ref(false)
   const isSubmitting = ref(false)
   const submitError = ref<string | null>(null)
@@ -96,6 +96,9 @@ export const useRegistrationStore = defineStore('registration', () => {
       notes: '',
       rfidBracelet: '',
       saved: false,
+      // Arranca con el tiempo que tenga capturado el tutor en ese momento;
+      // cada niño puede cambiarlo después sin afectar a los demás.
+      estimatedTime: tutor.value.estimatedTime,
     }
   }
 
@@ -144,15 +147,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
   }
 
-  async function loadMetodoPago() {
-    try {
-      metodoPagoId.value = await fetchMetodoPagoPorDefecto()
-    } catch (err) {
-      submitError.value = 'No se pudo cargar el método de pago.'
-      console.error(err)
-    }
-  }
-
   async function cargarEventoProximo() {
     if (!authStore.currentBranchId) return
     isLoadingEvento.value = true
@@ -192,17 +186,20 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   const savedChildren = computed(() => children.value.filter((c) => c.saved))
+  // Tiempo por defecto para niños nuevos (ver createChild); ya no determina
+  // el precio total, que ahora se calcula por niño (ver hoursForChild).
   const hours = computed(() => HOUR_OPTIONS[tutor.value.estimatedTime] ?? 1)
 
-  // ── Cálculo de tarifa por tramos ──────────────────────────────────────────
+  // ── Cálculo de tarifa por tramos, por niño ────────────────────────────────
+  // Cada niño puede contratar un tiempo distinto (B2 #4); en modo evento
+  // todos usan horasEvento (el tiempo lo define el evento, no el selector).
 
-  const tramoAplicable = computed<TramoEstancia | null>(() => {
+  function tramoFor(horasSolicitadas: number): TramoEstancia | null {
     if (!productoBase.value?.config_estancia?.length) return null
-    const h = hours.value
 
     // Primero buscar tramo exacto
     const tramoExacto = productoBase.value.config_estancia.find(
-      (tramo) => h >= tramo.min_horas && h <= tramo.max_horas,
+      (tramo) => horasSolicitadas >= tramo.min_horas && horasSolicitadas <= tramo.max_horas,
     )
 
     if (tramoExacto) return tramoExacto
@@ -213,20 +210,29 @@ export const useRegistrationStore = defineStore('registration', () => {
     )
 
     return tramoMasBajo ?? null
-  })
+  }
 
   const tieneTarifaValida = computed(() => {
     if (modo.value === 'evento') return true
-    return tramoAplicable.value !== null
+    return (productoBase.value?.config_estancia?.length ?? 0) > 0
   })
 
-  const pricePerChild = computed(() => {
+  function hoursForChild(child: Child): number {
+    if (modo.value === 'evento') return HOUR_OPTIONS[horasEvento.value] ?? 1
+    return HOUR_OPTIONS[child.estimatedTime] ?? 1
+  }
+
+  function priceForChild(child: Child): number {
     if (modo.value === 'evento') return 0
-    if (!tramoAplicable.value) return 0
-    return Number(tramoAplicable.value.precio) * hours.value
-  })
+    const horasChild = hoursForChild(child)
+    const tramo = tramoFor(horasChild)
+    if (!tramo) return 0
+    return Number(tramo.precio) * horasChild
+  }
 
-  const total = computed(() => savedChildren.value.length * pricePerChild.value)
+  const total = computed(() =>
+    savedChildren.value.reduce((suma, child) => suma + priceForChild(child), 0),
+  )
 
   const usedBracelets = computed(() => children.value.map((c) => c.rfidBracelet).filter(Boolean))
 
@@ -246,16 +252,15 @@ export const useRegistrationStore = defineStore('registration', () => {
     return eventoSeleccionado.value.numero_personas - savedChildren.value.length
   })
 
+  // Regla: horas facturables (hora iniciada cuenta completa, cruza medianoche),
+  // acotadas al rango del selector de tiempo (1 a 5 hr).
   const horasEvento = computed(() => {
     if (!eventoSeleccionado.value) return '1 hr'
-    const inicio = eventoSeleccionado.value.hora_inicio
-    const fin = eventoSeleccionado.value.hora_fin
-    const [hInicio] = inicio.split(':').map(Number)
-    const [hFin] = fin.split(':').map(Number)
-    const diff = hFin - hInicio
-    if (diff <= 0) return '1 hr'
-    if (diff > 5) return '5 hr'
-    return `${diff} hr`
+    const horas = horasFacturables(
+      eventoSeleccionado.value.hora_inicio,
+      eventoSeleccionado.value.hora_fin,
+    )
+    return `${Math.min(5, horas)} hr`
   })
 
   const maxChildrenAllowed = computed(() => {
@@ -333,19 +338,27 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
 
     if (!tieneTarifaValida.value) {
-      motivos.push(`No existe tarifa configurada para ${hours.value} hora(s) de estancia.`)
+      motivos.push('No hay tarifas de estancia configuradas.')
     }
 
     return motivos
   })
 
-  async function proceedToRFID(pagos?: OnboardingPago[], cambio?: number, puntosARedimir?: number) {
+  async function proceedToRFID(
+    pagos?: OnboardingPago[],
+    cambio?: number,
+    puntosARedimir?: number,
+    descuentoPuntos?: number,
+  ) {
     if (pagos) {
       pagosFromModal.value = pagos
       cambioFromModal.value = cambio ?? 0
     }
     if (puntosARedimir) {
       puntosARedimirValue.value = puntosARedimir
+    }
+    if (descuentoPuntos) {
+      descuentoPuntosValue.value = descuentoPuntos
     }
     step.value = 'rfid'
   }
@@ -361,7 +374,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
 
     if (!tieneTarifaValida.value) {
-      submitError.value = `No hay un precio configurado para ${hours.value} hora(s).`
+      submitError.value = 'No hay un precio de estancia configurado para esta sucursal.'
       return
     }
 
@@ -370,13 +383,25 @@ export const useRegistrationStore = defineStore('registration', () => {
       return
     }
 
-    if (!esEvento && !metodoPagoId.value) {
-      metodoPagoId.value = 'b827363b-6453-40e4-9536-f7a004711f91'
-    }
-
     if (!authStore.currentBranchId) {
       submitError.value = 'No hay una sucursal activa en la sesión.'
       return
+    }
+
+    if (!esEvento) {
+      // Los pagos (puede venir vacío si los puntos cubren todo) más el
+      // descuento por puntos deben cuadrar exactamente con el total: si no,
+      // no se envía nada al backend (evita cobros fantasma o dobles).
+      // En efectivo el monto es lo entregado; el cambio se descuenta para cuadrar.
+      const sumaPagos =
+        pagosFromModal.value.reduce((acc, p) => acc + p.monto, 0) - cambioFromModal.value
+      const cuadra =
+        Math.abs(redondear2(sumaPagos + descuentoPuntosValue.value) - redondear2(total.value)) <=
+        TOLERANCIA_MONTO
+      if (!cuadra) {
+        submitError.value = 'Los pagos capturados no cubren el total del registro. Vuelve a cobrar.'
+        return
+      }
     }
 
     isSubmitting.value = true
@@ -385,7 +410,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     const detalles: OnboardingDetalle[] = savedChildren.value.map((child) => ({
       nino: { nombreCompleto: child.name, edad: child.age ?? 0, notas: child.notes },
       productoId: productoBase.value!.id,
-      cantidad: hours.value,
+      cantidad: hoursForChild(child),
       pulseraId: child.rfidBracelet,
     }))
 
@@ -398,11 +423,7 @@ export const useRegistrationStore = defineStore('registration', () => {
       nombreSegundoTutor: tutor.value.secondaryGuardian || null,
       parentesco: tutor.value.relationship,
       detalles,
-      pagos: esEvento
-        ? []
-        : pagosFromModal.value.length > 0
-          ? pagosFromModal.value
-          : [{ metodoPagoId: metodoPagoId.value!, monto: total.value }],
+      pagos: esEvento ? [] : pagosFromModal.value,
       cambio: cambioFromModal.value > 0 ? cambioFromModal.value : undefined,
       reservacionId: esEvento ? eventoSeleccionado.value!.id : null,
       puntosARedimir: puntosARedimirValue.value,
@@ -449,6 +470,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     pagosFromModal.value = []
     cambioFromModal.value = 0
     puntosARedimirValue.value = 0
+    descuentoPuntosValue.value = 0
     tutor.value = {
       fullName: '',
       relationship: 'Padre / Madre',
@@ -489,9 +511,9 @@ export const useRegistrationStore = defineStore('registration', () => {
     advertenciaEfectivoFromServer,
     savedChildren,
     hours,
-    tramoAplicable,
     tieneTarifaValida,
-    pricePerChild,
+    hoursForChild,
+    priceForChild,
     total,
     usedBracelets,
     availableBraceletsForChild,
@@ -509,7 +531,6 @@ export const useRegistrationStore = defineStore('registration', () => {
     completeRegistration,
     reset,
     loadProductos,
-    loadMetodoPago,
     cargarEventoProximo,
     cambiarModo,
     seleccionarEvento,

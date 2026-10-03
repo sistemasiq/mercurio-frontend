@@ -34,9 +34,14 @@ export interface ProductoBase {
   imagen: string | null
   sucursal_id: string
   descripcion: string | null
+  /** Código interno o SKU, único por sucursal. */
+  codigo?: string | null
   es_combo: boolean
   productos_combo?: ComboItemCreate[]
   config_estancia?: TramoEstancia[]
+  /** Unidades estimadas que se pueden preparar con el stock actual de la
+   * receta (mínimo de stock_actual / cantidad). Null si no tiene receta. */
+  disponible_estimado?: number | null
 }
 
 export interface Producto extends Omit<ProductoBase, 'precio_unitario'> {
@@ -45,6 +50,8 @@ export interface Producto extends Omit<ProductoBase, 'precio_unitario'> {
 
 export interface ProductoAdmin extends ProductoBase {
   activo: boolean
+  /** Suma de cantidad × costo unitario de los insumos de la receta. Null si no tiene receta. */
+  costo_receta?: string | null
   creado?: string | null
   creado_por?: string | null
   modificado?: string | null
@@ -58,6 +65,7 @@ export interface ProductoCreate {
   tipo: TipoProducto
   sucursal_id: string
   descripcion?: string | null
+  codigo?: string | null
   imagen?: string | null
   es_combo?: boolean
   productos_combo?: ComboItemCreate[] | null
@@ -69,6 +77,7 @@ export interface ProductoUpdate {
   precio_unitario?: string
   tipo?: TipoProducto
   descripcion?: string | null
+  codigo?: string | null
   imagen?: string | null
   activo?: boolean
   es_combo?: boolean

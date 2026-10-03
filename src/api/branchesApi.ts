@@ -1,10 +1,21 @@
 import { apiClient } from './axiosClient'
-import type { Branch, CreateBranchPayload, UpdateBranchPayload } from '@/types/branch'
+import type {
+  Branch,
+  CreateBranchPayload,
+  IndicadoresSucursal,
+  UpdateBranchPayload,
+} from '@/types/branch'
 
 interface BackendBranchResponse {
   id: string
   nombre: string
   direccion: string | null
+  ciudad: string | null
+  estado: string | null
+  codigo_postal: string | null
+  zona_horaria: string
+  hora_apertura: string
+  hora_cierre: string
   telefono: string | null
   correo: string | null
   clave: string | null
@@ -24,6 +35,12 @@ function mapBranch(raw: BackendBranchResponse): Branch {
     id: raw.id,
     nombre: raw.nombre,
     direccion: raw.direccion,
+    ciudad: raw.ciudad,
+    estado: raw.estado,
+    codigoPostal: raw.codigo_postal,
+    zonaHoraria: raw.zona_horaria,
+    horaApertura: raw.hora_apertura,
+    horaCierre: raw.hora_cierre,
     telefono: raw.telefono,
     correo: raw.correo,
     clave: raw.clave,
@@ -65,5 +82,28 @@ export const branchesApi = {
 
   async restore(id: string): Promise<void> {
     await apiClient.patch(`/sucursales/${id}/reactivate`)
+  },
+
+  async getIndicadores(id: string, desde: string, hasta: string): Promise<IndicadoresSucursal> {
+    const { data } = await apiClient.get<{
+      ventas: number
+      ninos_atendidos: number
+      eventos: number
+      cajas_abiertas: number
+    }>(`/sucursales/${id}/indicadores`, { params: { desde, hasta } })
+    return {
+      ventas: data.ventas,
+      ninosAtendidos: data.ninos_atendidos,
+      eventos: data.eventos,
+      cajasAbiertas: data.cajas_abiertas,
+    }
+  },
+
+  async exportarIndicadores(id: string, desde: string, hasta: string): Promise<Blob> {
+    const { data } = await apiClient.get(`/sucursales/${id}/indicadores/export`, {
+      params: { desde, hasta },
+      responseType: 'blob',
+    })
+    return data as Blob
   },
 }

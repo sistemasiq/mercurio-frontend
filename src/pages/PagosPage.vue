@@ -1,191 +1,195 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 1100px; margin: 0 auto">
-      <!-- Encabezado -->
-      <div class="row items-center q-mb-lg">
-        <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Pagos</div>
-          <div class="text-body2" style="color: var(--text-secondary)">
-            Historial de pagos y anticipos por reservación.
-          </div>
-        </div>
-        <q-space />
+  <q-page class="page-content list-page">
+    <PageHeader title="Pagos" subtitle="Anticipos y liquidaciones de reservaciones.">
+      <template #actions>
         <q-btn
+          unelevated
           color="primary"
           icon="add"
           label="Registrar Pago"
-          unelevated
-          no-caps
           :disable="!authStore.currentBranchId"
-          style="border-radius: 8px; font-weight: 600"
           @click="abrirDialog"
         />
-      </div>
+      </template>
+    </PageHeader>
 
-      <!-- Sin sucursal activa -->
-      <q-banner
-        v-if="!authStore.currentBranchId"
-        dense
-        rounded
-        class="bg-orange-1 text-orange-9 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="info" color="orange-9" /></template>
-        No hay una sucursal activa en la sesión.
-      </q-banner>
-
-      <!-- Banner error -->
-      <q-banner
-        v-if="pagosStore.error"
-        dense
-        rounded
-        class="bg-red-1 text-red-8 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="error_outline" color="negative" /></template>
-        {{ pagosStore.error }}
-        <template #action
-          ><q-btn flat dense no-caps label="Reintentar" @click="pagosStore.cargar()"
-        /></template>
-      </q-banner>
-
-      <!-- Tabla -->
-      <q-card flat bordered style="border-radius: 12px; overflow: hidden">
-        <q-table
-          :rows="filas"
-          :columns="columns"
-          row-key="id"
-          flat
-          :loading="pagosStore.loading || resStore.loading"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="No hay pagos registrados"
-          class="fec-table"
-        >
-          <template #body-cell-monto="props">
-            <q-td :props="props">
-              <span class="text-positive" style="font-weight: 700">{{
-                fmt(parseFloat(props.row.monto))
-              }}</span>
-            </q-td>
-          </template>
-
-          <template #body-cell-total="props">
-            <q-td :props="props">
-              {{ props.row.total ? fmt(props.row.total) : '—' }}
-            </q-td>
-          </template>
-
-          <template #body-cell-restante="props">
-            <q-td :props="props">
-              <span
-                :class="props.row.restante > 0 ? 'text-negative' : 'text-positive'"
-                style="font-weight: 700"
-              >
-                {{ fmt(props.row.restante) }}
-              </span>
-            </q-td>
-          </template>
-
-          <template #body-cell-estado_pago="props">
-            <q-td :props="props">
-              <q-badge
-                :color="props.row.estado_pago === 'pagado' ? 'positive' : 'warning'"
-                :label="props.row.estado_pago === 'pagado' ? 'Pagado' : 'Pendiente'"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
-              />
-            </q-td>
-          </template>
-
-          <template #body-cell-fecha_pago="props">
-            <q-td :props="props">
-              {{ fmtFecha(props.row.fecha_pago) }}
-            </q-td>
-          </template>
-        </q-table>
-      </q-card>
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
-    <!-- ── Dialog Registrar Pago ───────────────────────────────────────────── -->
-    <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 440px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Registrar Pago</div>
-        </q-card-section>
-        <q-separator />
+    <div class="kpi-row">
+      <KpiCard
+        label="Cobrado este mes"
+        :value="fmt(cobradoMes)"
+        :note="`${pagosMes.length} pagos`"
+      />
+      <KpiCard
+        label="Por cobrar"
+        :value="fmt(porCobrar)"
+        :note="`${reservacionesPorCobrar.length} eventos`"
+        note-tone="warn"
+      />
+      <KpiCard label="Pagos registrados" :value="pagosStore.pagos_reservacion.length" />
+      <KpiCard
+        label="Anticipos"
+        :value="fmt(totalAnticipos)"
+        :note="`${anticipos.length} anticipos`"
+      />
+    </div>
 
-        <q-card-section class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">RESERVACIÓN</div>
-            <q-select
-              v-model="form.reservacion_id"
-              dense
-              outlined
-              :options="reservacionOptions"
-              emit-value
-              map-options
-              placeholder="Selecciona una reservación"
-              :loading="resStore.loading"
-              use-input
-              input-debounce="0"
-              no-options-label="No hay reservaciones con adeudo"
-              @filter="filtrarReservaciones"
-            >
-              <template #option="scope">
-                <q-item v-bind="scope.itemProps">
-                  <q-item-section>
-                    <q-item-label>{{ scope.opt.label }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-item-label caption class="text-negative text-weight-medium">
-                      Debe {{ fmt(scope.opt.saldo) }}
-                    </q-item-label>
-                  </q-item-section>
-                </q-item>
-              </template>
-            </q-select>
-
-            <!-- Saldo de la reservación elegida: evita tener que ir a buscarlo
-                 a la tabla antes de capturar el monto. -->
-            <div
-              v-if="saldoSeleccionado !== null"
-              class="saldo-box"
-              :class="{ 'saldo-box--liquidado': saldoSeleccionado <= 0 }"
-            >
-              <q-icon :name="saldoSeleccionado > 0 ? 'account_balance_wallet' : 'check_circle'" />
-              <span v-if="saldoSeleccionado > 0">
-                Saldo pendiente: <strong>{{ fmt(saldoSeleccionado) }}</strong>
-              </span>
-              <span v-else> Este evento ya está liquidado. No hay nada por cobrar. </span>
-            </div>
-          </div>
-          <div>
-            <div class="field-label">NOTAS (opcional)</div>
-            <q-input
-              v-model="form.notas"
-              dense
-              outlined
-              type="textarea"
-              rows="2"
-              placeholder="Observaciones del pago"
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtro"
+      search-placeholder="Buscar folio, cliente o evento"
+      :filters="FILTROS"
+      :count="`${filasVisibles.length} pagos`"
+    >
+      <StateBlock
+        v-if="pagosStore.error"
+        variant="error"
+        :body="pagosStore.error"
+        action-label="Reintentar"
+        @action="pagosStore.cargar()"
+      />
+      <q-table
+        v-else
+        :rows="filasVisibles"
+        :columns="columns"
+        row-key="id"
+        flat
+        :loading="pagosStore.loading || resStore.loading"
+        :rows-per-page-options="[10, 25, 50]"
+      >
+        <template #body-cell-cliente="props">
+          <q-td :props="props" class="text-weight-bold">{{ props.row.cliente }}</q-td>
+        </template>
+        <template #body-cell-evento="props">
+          <q-td :props="props" class="cell-muted">{{ props.row.evento }}</q-td>
+        </template>
+        <template #body-cell-monto="props">
+          <q-td :props="props" class="text-weight-bold">{{
+            fmt(parseFloat(props.row.monto))
+          }}</q-td>
+        </template>
+        <template #body-cell-total="props">
+          <q-td :props="props" class="text-weight-bold">
+            {{ props.row.total ? fmt(props.row.total) : '—' }}
+          </q-td>
+        </template>
+        <template #body-cell-restante="props">
+          <q-td
+            :props="props"
+            class="text-weight-bold"
+            :class="{ 'saldo--due': props.row.restante > 0 }"
+          >
+            {{ fmt(props.row.restante) }}
+          </q-td>
+        </template>
+        <template #body-cell-estado_pago="props">
+          <q-td :props="props">
+            <StatusBadge
+              :tone="props.row.estado_pago === 'pagado' ? 'ok' : 'warn'"
+              :label="props.row.estado_pago === 'pagado' ? 'Liquidado' : 'Parcial'"
             />
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="dialogOpen = false" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            label="Continuar al cobro"
-            icon-right="point_of_sale"
-            style="border-radius: 8px; font-weight: 600"
-            :disable="!form.reservacion_id || (saldoSeleccionado ?? 0) <= 0"
-            @click="abrirCobro"
+          </q-td>
+        </template>
+        <template #body-cell-tipo="props">
+          <q-td :props="props">
+            <StatusBadge :tone="TONO_TIPO[props.row.tipo]" :label="LABEL_TIPO[props.row.tipo]" />
+          </q-td>
+        </template>
+        <template #body-cell-fecha_pago="props">
+          <q-td :props="props">
+            {{ fmtFecha(props.row.fecha_pago) }}
+            <q-tooltip v-if="props.row.notas">{{ props.row.notas }}</q-tooltip>
+          </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="busqueda || filtro !== 'todos' ? 'no-results' : 'empty'"
+            :title="busqueda || filtro !== 'todos' ? undefined : 'No hay pagos registrados'"
+            :body="
+              busqueda || filtro !== 'todos'
+                ? undefined
+                : 'Registra el primer pago de una reservación.'
+            "
           />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+        </template>
+      </q-table>
+    </DataTableCard>
+
+    <BaseDialog
+      v-model="dialogOpen"
+      title="Registrar pago"
+      subtitle="Abono a una reservación existente"
+      icon="payments"
+      tone="green"
+      :width="560"
+      persistent
+      primary-label="Continuar al cobro"
+      :primary-disabled="!form.reservacion_id || (saldoSeleccionado ?? 0) <= 0"
+      @confirm="abrirCobro"
+    >
+      <div class="pago-form">
+        <label class="pago-form__field pago-form__field--full">
+          <span class="field-label">Reservación</span>
+          <q-select
+            v-model="form.reservacion_id"
+            dense
+            outlined
+            :options="reservacionOptions"
+            emit-value
+            map-options
+            placeholder="Busca una reservación"
+            :loading="resStore.loading"
+            use-input
+            input-debounce="0"
+            no-options-label="No hay reservaciones con adeudo"
+            @filter="filtrarReservaciones"
+          >
+            <template #append><q-icon name="search" size="19px" /></template>
+            <template #option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.label }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-item-label caption class="text-negative text-weight-medium">
+                    Debe {{ fmt(scope.opt.saldo) }}
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+
+          <!-- Saldo de la reservación elegida: evita tener que ir a buscarlo
+               a la tabla antes de iniciar el cobro. -->
+          <div
+            v-if="saldoSeleccionado !== null"
+            class="saldo-box"
+            :class="{ 'saldo-box--liquidado': saldoSeleccionado <= 0 }"
+          >
+            <q-icon :name="saldoSeleccionado > 0 ? 'account_balance_wallet' : 'check_circle'" />
+            <span v-if="saldoSeleccionado > 0">
+              Saldo pendiente: <strong>{{ fmt(saldoSeleccionado) }}</strong>
+            </span>
+            <span v-else>Este evento ya está liquidado. No hay nada por cobrar.</span>
+          </div>
+        </label>
+        <label class="pago-form__field pago-form__field--full">
+          <span class="field-label">Notas</span>
+          <q-input
+            v-model="form.notas"
+            dense
+            outlined
+            type="textarea"
+            rows="2"
+            placeholder="Referencia, autorización u observaciones (opcional)"
+          />
+        </label>
+      </div>
+    </BaseDialog>
 
     <!-- Cobro multimodal: el mismo componente que usa el asistente de
          reservación y la caja, para que el cobro de un evento se capture igual
@@ -194,6 +198,7 @@
       v-model="modalCobroAbierto"
       :total-to-pay="saldoSeleccionado ?? 0"
       :metodos-pago="metodosPagoStore.activos"
+      :permitir-lealtad="false"
       @pago-exitoso="onCobroExitoso"
     />
 
@@ -215,6 +220,13 @@ import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
 import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import KpiCard from '@/components/ui/KpiCard.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
 import type { AppliedPayment } from '@/types/payments'
 import type { TicketPagoEventoProps } from '@/types/ticketPagoEvento'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
@@ -242,7 +254,7 @@ onMounted(() => {
 
   if (!authStore.currentBranchId) return
   pagosStore.cargar()
-  if (!resStore.reservaciones.length) resStore.cargar(authStore.currentBranchId)
+  resStore.cargar(authStore.currentBranchId)
   tiposEventoStore.cargar()
 })
 
@@ -262,16 +274,71 @@ const fmtFecha = (iso: string) =>
 // ── Tabla ─────────────────────────────────────────────────────────────────────
 
 const columns: QTableColumn[] = [
-  { name: 'cliente', label: 'CLIENTE', field: 'cliente', align: 'left', sortable: true },
-  { name: 'evento', label: 'EVENTO', field: 'evento', align: 'left' },
-  { name: 'metodo', label: 'MÉTODO DE PAGO', field: 'metodo', align: 'left' },
-  { name: 'monto', label: 'PAGO', field: 'monto', align: 'left', sortable: true },
-  { name: 'total', label: 'TOTAL', field: 'total', align: 'left', sortable: true },
-  { name: 'restante', label: 'RESTANTE', field: 'restante', align: 'left', sortable: true },
-  { name: 'estado_pago', label: 'ESTADO', field: 'estado_pago', align: 'left' },
-  { name: 'fecha_pago', label: 'FECHA', field: 'fecha_pago', align: 'left', sortable: true },
-  { name: 'notas', label: 'NOTAS', field: 'notas', align: 'left' },
+  { name: 'cliente', label: 'Cliente', field: 'cliente', align: 'left', sortable: true },
+  { name: 'evento', label: 'Evento', field: 'evento', align: 'left' },
+  { name: 'tipo', label: 'Tipo', field: 'tipo', align: 'left' },
+  { name: 'metodo', label: 'Método', field: 'metodo', align: 'left' },
+  { name: 'monto', label: 'Pago', field: 'monto', align: 'right', sortable: true },
+  { name: 'total', label: 'Total', field: 'total', align: 'right', sortable: true },
+  { name: 'restante', label: 'Restante', field: 'restante', align: 'right', sortable: true },
+  { name: 'estado_pago', label: 'Estado', field: 'estado_pago', align: 'left' },
+  { name: 'fecha_pago', label: 'Fecha', field: 'fecha_pago', align: 'left', sortable: true },
 ]
+
+const LABEL_TIPO: Record<string, string> = {
+  anticipo: 'Anticipo',
+  pago: 'Pago',
+  liquidacion: 'Liquidación',
+}
+const TONO_TIPO: Record<string, 'ok' | 'warn' | 'info'> = {
+  anticipo: 'info',
+  pago: 'warn',
+  liquidacion: 'ok',
+}
+
+// ── Filtros y KPIs ────────────────────────────────────────────────────────────
+
+type Filtro = 'todos' | 'pagado' | 'pendiente' | 'anticipo'
+const FILTROS: FilterChip<Filtro>[] = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Liquidados', value: 'pagado' },
+  { label: 'Parciales', value: 'pendiente' },
+  { label: 'Anticipos', value: 'anticipo' },
+]
+const filtro = ref<Filtro | null>('todos')
+const busqueda = ref('')
+
+const filasVisibles = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  return filas.value
+    .filter((f) => {
+      if (filtro.value === 'todos') return true
+      if (filtro.value === 'anticipo') return f.tipo === 'anticipo'
+      return f.estado_pago === filtro.value
+    })
+    .filter((f) => !q || `${f.folio ?? ''} ${f.cliente} ${f.evento}`.toLowerCase().includes(q))
+})
+
+const anticipos = computed(() =>
+  pagosStore.pagos_reservacion.filter((p) => p.tipo === 'anticipo'),
+)
+const totalAnticipos = computed(() => anticipos.value.reduce((s, p) => s + parseFloat(p.monto), 0))
+
+const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+const pagosMes = computed(() =>
+  pagosStore.pagos_reservacion.filter((p) => new Date(p.fecha_pago) >= inicioMes),
+)
+const cobradoMes = computed(() => pagosMes.value.reduce((s, p) => s + parseFloat(p.monto), 0))
+const reservacionesPorCobrar = computed(() => {
+  const ids = new Set(filas.value.filter((f) => f.restante > 0).map((f) => f.reservacion_id))
+  return [...ids]
+})
+const porCobrar = computed(() =>
+  reservacionesPorCobrar.value.reduce(
+    (s, id) => s + (filas.value.find((f) => f.reservacion_id === id)?.restante ?? 0),
+    0,
+  ),
+)
 
 // Total pagado por reservacion (suma de todos los pagos registrados)
 const pagosPorReservacion = computed(() => {
@@ -294,6 +361,7 @@ const filas = computed(() =>
 
     return {
       ...p,
+      folio: res?.folio ?? null,
       cliente: res
         ? `${res.nombre_cliente}${res.apellidos_cliente ? ' ' + res.apellidos_cliente : ''}`.trim()
         : p.reservacion_id.slice(0, 8) + '…',
@@ -439,7 +507,7 @@ const onCobroExitoso = async (pagos: AppliedPayment[]) => {
       const totalEvento = parseFloat(res.precio_total)
       const tipoEvento = tiposEventoStore.activos.find((t) => t.id === res.tipo_evento_id)?.nombre
       ticketData.value = {
-        folio: res.id,
+        folio: res.folio ?? res.id,
         sucursal: authStore.currentBranchName ?? 'Sucursal',
         clienteNombre:
           `${res.nombre_cliente}${res.apellidos_cliente ? ' ' + res.apellidos_cliente : ''}`.trim(),
@@ -477,7 +545,27 @@ const onCobroExitoso = async (pagos: AppliedPayment[]) => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+.saldo--due {
+  color: var(--tone-bad-fg);
+}
+
+.pago-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
 .saldo-box {
   display: flex;
   align-items: center;
@@ -485,15 +573,13 @@ const onCobroExitoso = async (pagos: AppliedPayment[]) => {
   margin-top: 8px;
   padding: 8px 12px;
   border-radius: 8px;
-  font-size: 0.85rem;
-  background: rgba(2, 95, 224, 0.08);
-  color: var(--q-primary);
-}
+  font-size: 13px;
+  background: var(--tone-info-bg);
+  color: var(--tone-info-fg);
 
-.saldo-box--liquidado {
-  background: rgba(63, 168, 52, 0.12);
-  color: #2e7d32;
+  &--liquidado {
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
+  }
 }
-
-/* El cambio es la cifra que el cajero tiene que sacar del cajón: se destaca. */
 </style>

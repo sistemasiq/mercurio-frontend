@@ -9,12 +9,16 @@ export interface DetalleProducto {
   importe: number
   notas_especiales: string | null
   nombre_combo_padre: string | null
+  // Id de la instancia de combo a la que pertenece el hijo (puede faltar en órdenes viejas)
+  id_combo_padre?: string | null
 }
 
 export interface MetodoPagoDetalle {
   metodo_pago_nombre: string
   monto: number
   notas_pago: string | null
+  /** Últimos 4 dígitos de la tarjeta, opcionales (B9 B.1). */
+  ultimos4?: string | null
 }
 
 export interface DetalleOrden {
@@ -31,12 +35,36 @@ export interface DetalleOrden {
   comanda_id: string | null
   ticket_numero: string | null
   nombre_cliente: string | null
+  /** Puntos de lealtad ganados por esta venta; null si no aplica (B9 B.3). */
+  puntos_ganados?: number | null
+  /** Mesa del pedido, opcional (B9 B.2; solo aplica a comandas). */
+  mesa?: string | null
 }
 
 export interface Estadisticas {
   total_ventas: number
   total_ordenes: number
   ticket_promedio: number
+}
+
+export interface FiltrosHistorialVentas {
+  fechaInicio?: string
+  fechaFin?: string
+  cajaId?: string
+  metodoPagoId?: string
+}
+
+function construirParams(
+  filtro: string,
+  estado: string,
+  extra?: FiltrosHistorialVentas,
+): Record<string, string> {
+  const params: Record<string, string> = { filtro, estado }
+  if (extra?.fechaInicio) params.fecha_inicio = extra.fechaInicio
+  if (extra?.fechaFin) params.fecha_fin = extra.fechaFin
+  if (extra?.cajaId) params.caja_id = extra.cajaId
+  if (extra?.metodoPagoId) params.metodo_pago_id = extra.metodoPagoId
+  return params
 }
 
 export const historialApi = {
@@ -46,15 +74,24 @@ export const historialApi = {
     signal?: AbortSignal,
     fechaInicio?: string,
     fechaFin?: string,
+    cajaId?: string,
+    metodoPagoId?: string,
   ): Promise<ITransaccion[]> {
-    const params: Record<string, string> = { filtro, estado }
-    if (fechaInicio) params.fecha_inicio = fechaInicio
-    if (fechaFin) params.fecha_fin = fechaFin
+    const params = construirParams(filtro, estado, { fechaInicio, fechaFin, cajaId, metodoPagoId })
     const { data } = await apiClient.get<ITransaccion[]>('/pagos/historial', {
       params,
       signal,
     })
     return data
+  },
+
+  async exportar(filtro: string, estado: string, extra?: FiltrosHistorialVentas): Promise<Blob> {
+    const params = construirParams(filtro, estado, extra)
+    const { data } = await apiClient.get('/pagos/historial/export', {
+      params,
+      responseType: 'blob',
+    })
+    return data as Blob
   },
 
   async getDetalle(

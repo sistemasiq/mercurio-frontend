@@ -1,50 +1,28 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div class="row items-center q-mb-lg">
-      <div>
-        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Reservaciones</div>
-        <div class="text-body2" style="color: var(--text-secondary)">
-          Reservaciones de eventos de la sucursal.
-        </div>
-      </div>
-      <q-space />
-      <q-btn
-        color="primary"
-        icon="add"
-        label="Nueva Reservación"
-        unelevated
-        no-caps
-        style="border-radius: 8px; font-weight: 600"
-        @click="irANuevaReservacion"
-      />
+  <q-page class="page-content list-page">
+    <PageHeader title="Reservaciones" subtitle="Todas las reservaciones de la sucursal.">
+      <template #actions>
+        <q-btn
+          unelevated
+          color="primary"
+          icon="add"
+          label="Nueva Reservación"
+          @click="irANuevaReservacion"
+        />
+      </template>
+    </PageHeader>
+
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
-    <!-- Sin sucursal activa -->
-    <q-banner
-      v-if="!authStore.currentBranchId"
-      dense
-      rounded
-      class="bg-orange-1 text-orange-9 q-mb-md"
-      style="border-radius: 10px"
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtro"
+      search-placeholder="Buscar folio, cliente o festejado"
+      :filters="FILTROS"
+      :count="`${reservacionesFiltradas.length} reservaciones`"
     >
-      <template #avatar><q-icon name="info" color="orange-9" /></template>
-      No hay una sucursal activa en la sesión.
-    </q-banner>
-
-    <q-card flat bordered style="border-radius: 12px; overflow: hidden">
-      <div class="row items-center q-pa-md">
-        <q-select
-          v-model="filtroEstado"
-          :options="opcionesEstado"
-          emit-value
-          map-options
-          dense
-          outlined
-          label="Estado"
-          style="min-width: 220px"
-        />
-      </div>
-      <q-separator />
       <q-table
         :rows="reservacionesFiltradas"
         :columns="columns"
@@ -52,14 +30,55 @@
         flat
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
-        no-data-label="No hay reservaciones registradas"
-        class="fec-table"
       >
+        <template #body-cell-folio="props">
+          <q-td :props="props" class="cell-muted">
+            {{ props.row.folio ?? props.row.id.slice(0, 8) }}
+          </q-td>
+        </template>
+        <template #body-cell-cliente="props">
+          <q-td :props="props">
+            <span class="text-weight-bold">
+              {{ props.row.nombre_cliente }} {{ props.row.apellidos_cliente ?? '' }}
+            </span>
+            <span v-if="props.row.nombre_festejado" class="cell-sub">
+              {{ props.row.nombre_festejado
+              }}<template v-if="props.row.edad_festejado">
+                · cumple {{ props.row.edad_festejado }}</template
+              >
+            </span>
+          </q-td>
+        </template>
+        <template #body-cell-fecha_evento="props">
+          <q-td :props="props">
+            <span class="text-weight-bold">{{ etiquetaFecha(props.row.fecha_evento) }}</span>
+            <span class="cell-sub">
+              {{ props.row.hora_inicio.slice(0, 5) }} – {{ props.row.hora_fin.slice(0, 5) }}
+            </span>
+          </q-td>
+        </template>
+        <template #body-cell-paquete="props">
+          <q-td :props="props">{{ nombrePaquete(props.row.paquete_id) }}</q-td>
+        </template>
+        <template #body-cell-precio_total="props">
+          <q-td :props="props" class="text-weight-bold">
+            {{ formatMXN(Number(props.row.precio_total)) }}
+          </q-td>
+        </template>
+        <template #body-cell-saldo_pendiente="props">
+          <q-td
+            :props="props"
+            class="text-weight-bold"
+            :class="{ 'saldo--due': Number(props.row.saldo_pendiente) > 0 }"
+          >
+            {{ formatMXN(Number(props.row.saldo_pendiente)) }}
+          </q-td>
+        </template>
         <template #body-cell-estado="props">
           <q-td :props="props">
-            <q-badge
-              :color="estadoColor(props.row.estado)"
-              :label="estadoLabel(props.row.estado)"
+            <StatusBadge
+              :tone="estadoTonoReservacion(props.row.estado)"
+              :label="estadoLabelReservacion(props.row.estado)"
             />
           </q-td>
         </template>
@@ -71,12 +90,12 @@
                    reservación se cancela sola si sigue debiendo. -->
               <q-btn
                 flat
-                dense
                 round
-                size="sm"
-                color="primary"
+                dense
                 icon="more_time"
+                class="action-btn"
                 :disable="!esEditable(props.row)"
+                aria-label="Agregar horas"
                 @click="abrirAgregarHoras(props.row)"
               >
                 <q-tooltip>{{ motivoBloqueo(props.row) || 'Agregar horas al evento' }}</q-tooltip>
@@ -84,12 +103,12 @@
 
               <q-btn
                 flat
-                dense
                 round
-                size="sm"
-                color="primary"
+                dense
                 icon="tune"
+                class="action-btn"
                 :disable="!esEditable(props.row)"
+                aria-label="Personalizar"
                 @click="abrirPersonalizar(props.row)"
               >
                 <q-tooltip>{{ motivoBloqueo(props.row) || 'Personalizar el evento' }}</q-tooltip>
@@ -116,20 +135,33 @@
             </div>
           </q-td>
         </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="busqueda || filtro !== 'todas' ? 'no-results' : 'empty'"
+            :title="busqueda || filtro !== 'todas' ? undefined : 'No hay reservaciones registradas'"
+            :body="busqueda || filtro !== 'todas' ? undefined : 'Crea la primera reservación.'"
+          />
+        </template>
       </q-table>
-    </q-card>
+    </DataTableCard>
 
     <!-- ── Agregar horas ──────────────────────────────────────────────────── -->
-    <q-dialog v-model="dialogHoras" persistent>
-      <q-card style="min-width: 420px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Agregar horas al evento</div>
-          <div class="text-caption text-grey-7">{{ seleccionada?.nombre_cliente }}</div>
-        </q-card-section>
-        <q-separator />
-
-        <q-card-section class="q-pt-md">
-          <div class="field-label">HORAS ADICIONALES</div>
+    <BaseDialog
+      v-model="dialogHoras"
+      title="Agregar horas al evento"
+      :subtitle="seleccionada?.nombre_cliente"
+      icon="more_time"
+      :width="460"
+      persistent
+      :primary-label="(desgloseHoras?.ajuste ?? 0) < 0 ? 'Quitar horas' : 'Agregar horas'"
+      :loading="guardando"
+      :primary-disabled="!horasExtra || desgloseHoras?.anticipoExcede"
+      @confirm="confirmarAgregarHoras"
+    >
+      <div class="dlg-stack">
+        <div>
+          <div class="field-label">Horas adicionales</div>
           <q-input
             v-model.number="horasExtra"
             dense
@@ -245,94 +277,67 @@
               precio. Defínela en el catálogo de Paquetes si debe cobrarse.
             </span>
           </div>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="dialogHoras = false" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            :label="(desgloseHoras?.ajuste ?? 0) < 0 ? 'Quitar horas' : 'Agregar horas'"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            :disable="!horasExtra || desgloseHoras?.anticipoExcede"
-            @click="confirmarAgregarHoras"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+        </div>
+      </div>
+    </BaseDialog>
 
     <!-- ── Personalizar evento ────────────────────────────────────────────── -->
-    <q-dialog v-model="dialogPersonalizar" persistent>
-      <q-card style="min-width: 420px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Personalizar evento</div>
-          <div class="text-caption text-grey-7">
-            {{ seleccionada?.nombre_cliente }} · {{ seleccionada?.fecha_evento }}
-          </div>
-        </q-card-section>
-        <q-separator />
-
-        <q-card-section class="q-pt-md q-gutter-md">
-          <div>
-            <div class="field-label">NÚMERO DE INVITADOS</div>
-            <q-input v-model.number="invitadosEdit" dense outlined type="number" min="1" />
-            <div v-if="fueraDeRango" class="aviso-inline q-mt-xs">
-              <q-icon name="warning" size="16px" />
-              <span>
-                El paquete cubre de {{ paqueteDe(seleccionada)?.min_invitados }} a
-                {{ paqueteDe(seleccionada)?.max_invitados }} invitados.
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <div class="field-label">DURACIÓN (HORAS)</div>
-            <q-input v-model.number="horasEdit" dense outlined type="number" min="1" max="12" />
-          </div>
-
-          <div v-if="previewPersonalizar" class="preview-box">
-            <div class="preview-box__fila">
-              <span>Pulseras</span>
-              <span class="preview-box__valor">
-                {{ fmt(Number(previewPersonalizar.precio_personas_extra)) }}
-              </span>
-            </div>
-            <div class="preview-box__fila preview-box__fila--total">
-              <span>Total</span>
-              <span class="preview-box__valor">
-                {{ fmt(previewPersonalizar.totalAnterior) }} →
-                {{ fmt(Number(previewPersonalizar.precio_total)) }}
-              </span>
-            </div>
-          </div>
-
-          <div v-if="previewPersonalizar?.anticipoExcede" class="aviso-inline aviso-inline--error">
-            <q-icon name="error_outline" size="16px" />
+    <BaseDialog
+      v-model="dialogPersonalizar"
+      title="Personalizar evento"
+      :subtitle="`${seleccionada?.nombre_cliente ?? ''} · ${seleccionada?.fecha_evento ?? ''}`"
+      icon="tune"
+      :width="460"
+      persistent
+      primary-label="Guardar cambios"
+      :loading="guardando"
+      :primary-disabled="!previewPersonalizar || previewPersonalizar.anticipoExcede"
+      @confirm="confirmarPersonalizar"
+    >
+      <div class="dlg-stack">
+        <div>
+          <div class="field-label">Número de invitados</div>
+          <q-input v-model.number="invitadosEdit" dense outlined type="number" min="1" />
+          <div v-if="fueraDeRango" class="aviso-inline q-mt-xs">
+            <q-icon name="warning" size="16px" />
             <span>
-              El nuevo total quedaría por debajo de los
-              {{ fmt(Number(seleccionada?.anticipo ?? 0)) }} ya pagados. Reduce menos el evento o
-              devuelve la diferencia antes de bajarlo.
+              El paquete cubre de {{ paqueteDe(seleccionada)?.min_invitados }} a
+              {{ paqueteDe(seleccionada)?.max_invitados }} invitados.
             </span>
           </div>
-        </q-card-section>
+        </div>
 
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="dialogPersonalizar = false" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            label="Guardar cambios"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            :disable="!previewPersonalizar || previewPersonalizar.anticipoExcede"
-            @click="confirmarPersonalizar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+        <div>
+          <div class="field-label">Duración (horas)</div>
+          <q-input v-model.number="horasEdit" dense outlined type="number" min="1" max="12" />
+        </div>
+
+        <div v-if="previewPersonalizar" class="preview-box">
+          <div class="preview-box__fila">
+            <span>Pulseras</span>
+            <span class="preview-box__valor">
+              {{ fmt(Number(previewPersonalizar.precio_personas_extra)) }}
+            </span>
+          </div>
+          <div class="preview-box__fila preview-box__fila--total">
+            <span>Total</span>
+            <span class="preview-box__valor">
+              {{ fmt(previewPersonalizar.totalAnterior) }} →
+              {{ fmt(Number(previewPersonalizar.precio_total)) }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="previewPersonalizar?.anticipoExcede" class="aviso-inline aviso-inline--error">
+          <q-icon name="error_outline" size="16px" />
+          <span>
+            El nuevo total quedaría por debajo de los
+            {{ fmt(Number(seleccionada?.anticipo ?? 0)) }} ya pagados. Reduce menos el evento o
+            devuelve la diferencia antes de bajarlo.
+          </span>
+        </div>
+      </div>
+    </BaseDialog>
   </q-page>
 </template>
 
@@ -341,12 +346,19 @@ import { onMounted, ref, computed } from 'vue'
 import type { QTableColumn } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useReservacionesStore } from '@/stores/reservaciones'
-import { useAuthStore } from '@/stores/auth'
-import { useNuevaReservacion } from '@/composables/useNuevaReservacion'
-import { estadoColorReservacion, estadoLabelReservacion } from '@/utils/estadoReservacion'
 import { usePaquetesStore } from '@/stores/paquetes'
-import { useQuasar } from 'quasar'
+import { useAuthStore } from '@/stores/auth'
+import { estadoLabelReservacion, estadoTonoReservacion } from '@/utils/estadoReservacion'
+import { formatMXN } from '@/utils/formatoMoneda'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
 import type { Reservaciones, ReservacionesUpdate } from '@/types/reservaciones'
+import { useNuevaReservacion } from '@/composables/useNuevaReservacion'
+import { useQuasar } from 'quasar'
 import {
   dentroDePlazo,
   fechaLimiteLiquidacion,
@@ -356,9 +368,9 @@ import {
 
 const router = useRouter()
 const store = useReservacionesStore()
+const paquetesStore = usePaquetesStore()
 const authStore = useAuthStore()
 const irANuevaReservacion = useNuevaReservacion()
-const paquetesStore = usePaquetesStore()
 const $q = useQuasar()
 
 onMounted(() => {
@@ -387,7 +399,7 @@ const esEditable = (r: Reservaciones): boolean =>
 /** Explica por qué está bloqueado, para que el botón gris no sea un misterio. */
 const motivoBloqueo = (r: Reservaciones): string => {
   if (!['pendiente', 'confirmada'].includes(r.estado)) {
-    return `No se puede modificar: la reservación está ${estadoLabel(r.estado).toLowerCase()}.`
+    return `No se puede modificar: la reservación está ${estadoLabelReservacion(r.estado).toLowerCase()}.`
   }
   if (!dentroDePlazo(r.fecha_evento)) {
     const limite = fechaLimiteLiquidacion(r.fecha_evento).toLocaleDateString('es-MX')
@@ -553,41 +565,96 @@ const confirmarPersonalizar = async () => {
   )
 }
 
-const opcionesEstado = [
-  { label: 'Todos', value: 'todos' },
-  { label: 'Pendiente', value: 'pendiente' },
-  { label: 'Confirmada', value: 'confirmada' },
-  { label: 'En curso', value: 'en_curso' },
-  { label: 'Completada', value: 'completada' },
-  { label: 'Cancelada', value: 'cancelada' },
+type Filtro = 'proximas' | 'pendientes' | 'confirmadas' | 'cerradas' | 'canceladas' | 'todas'
+const FILTROS: FilterChip<Filtro>[] = [
+  { label: 'Próximas', value: 'proximas' },
+  { label: 'Pendientes de pago', value: 'pendientes' },
+  { label: 'Confirmadas', value: 'confirmadas' },
+  { label: 'Cerradas', value: 'cerradas' },
+  { label: 'Canceladas', value: 'canceladas' },
+  { label: 'Todas', value: 'todas' },
 ]
+const filtro = ref<Filtro | null>('proximas')
+const busqueda = ref('')
 
-const filtroEstado = ref('todos')
+const hoyISO = new Date().toLocaleDateString('en-CA')
 
-const reservacionesFiltradas = computed(() =>
-  filtroEstado.value === 'todos'
-    ? store.reservaciones
-    : store.reservaciones.filter((r) => r.estado === filtroEstado.value),
-)
+function cumpleFiltro(r: Reservaciones): boolean {
+  switch (filtro.value) {
+    case 'proximas':
+      return r.fecha_evento.slice(0, 10) >= hoyISO && r.estado !== 'cancelada'
+    case 'pendientes':
+      return Number(r.saldo_pendiente) > 0 && r.estado !== 'cancelada'
+    case 'confirmadas':
+      return r.estado === 'confirmada'
+    case 'cerradas':
+      return r.estado === 'completada'
+    case 'canceladas':
+      return r.estado === 'cancelada'
+    default:
+      return true
+  }
+}
 
-const estadoLabel = estadoLabelReservacion
-const estadoColor = estadoColorReservacion
+const reservacionesFiltradas = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  return store.reservaciones
+    .filter(cumpleFiltro)
+    .filter(
+      (r) =>
+        !q ||
+        `${r.folio ?? ''} ${r.nombre_cliente} ${r.apellidos_cliente ?? ''} ${r.nombre_festejado ?? ''}`
+          .toLowerCase()
+          .includes(q),
+    )
+    .sort((a, b) =>
+      `${a.fecha_evento}${a.hora_inicio}`.localeCompare(`${b.fecha_evento}${b.hora_inicio}`),
+    )
+})
+
+function nombrePaquete(id: string): string {
+  return paquetesStore.paquetes.find((p) => p.id === id)?.nombre ?? '—'
+}
+
+function etiquetaFecha(fecha: string): string {
+  const [y, m, d] = fecha.slice(0, 10).split('-').map(Number)
+  const dia = new Date(y!, m! - 1, d)
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const diff = Math.round((dia.getTime() - hoy.getTime()) / 86400000)
+  if (diff === 0) return 'Hoy'
+  if (diff === 1) return 'Mañana'
+  const texto = dia.toLocaleDateString('es-MX', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+  return texto.charAt(0).toUpperCase() + texto.slice(1).replace('.', '')
+}
 
 const columns: QTableColumn[] = [
+  { name: 'folio', label: 'Folio', field: 'folio', align: 'left', sortable: true },
   {
-    name: 'nombre_cliente',
-    label: 'CLIENTE',
+    name: 'cliente',
+    label: 'Cliente / festejado',
     field: 'nombre_cliente',
     align: 'left',
     sortable: true,
   },
-  { name: 'fecha_evento', label: 'FECHA', field: 'fecha_evento', align: 'left', sortable: true },
-  { name: 'estado', label: 'ESTADO', field: 'estado', align: 'left', sortable: true },
-  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+  { name: 'fecha_evento', label: 'Fecha', field: 'fecha_evento', align: 'left', sortable: true },
+  { name: 'paquete', label: 'Paquete', field: 'paquete_id', align: 'left' },
+  { name: 'precio_total', label: 'Total', field: 'precio_total', align: 'right' },
+  { name: 'saldo_pendiente', label: 'Saldo', field: 'saldo_pendiente', align: 'right' },
+  { name: 'estado', label: 'Estado', field: 'estado', align: 'left', sortable: true },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+.saldo--due {
+  color: var(--tone-bad-fg);
+}
+
 .acciones-fila {
   display: flex;
   align-items: center;
@@ -674,11 +741,11 @@ const columns: QTableColumn[] = [
 }
 
 .valor--suma {
-  color: #1b7f3b;
+  color: var(--tone-ok-fg);
 }
 
 .valor--resta {
-  color: #b3261e;
+  color: var(--tone-bad-fg);
 }
 
 .aviso-inline {
@@ -687,14 +754,10 @@ const columns: QTableColumn[] = [
   gap: 6px;
   font-size: 0.78rem;
   line-height: 1.35;
-  color: #a35200;
+  color: var(--tone-warn-fg);
 }
 
 .aviso-inline--error {
-  color: #b3261e;
-}
-
-.aviso-inline--error {
-  color: var(--q-negative, #c10015);
+  color: var(--tone-bad-fg);
 }
 </style>

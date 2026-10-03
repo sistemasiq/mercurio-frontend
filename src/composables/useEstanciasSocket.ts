@@ -1,16 +1,35 @@
 import { onBeforeUnmount, ref } from 'vue'
-import { sessionStorage } from '@/utils/session'
+import { tokenMemory } from '@/utils/tokenMemory'
+import { authApi } from '@/api/authApi'
 import type { EstanciaWsMessage } from '@/types/estancia'
 
 export type EstadoSocket = 'conectando' | 'conectado' | 'reconectando' | 'caido'
 
 const MAX_INTENTOS_ANTES_DE_FALLBACK = 5
+// Tope total de reintentos (mismo criterio que useComandasSocket).
+const MAX_INTENTOS_TOTALES = 20
+// Cierres por autenticacion/politica: reintentar con el mismo token no sirve.
+const CODIGOS_SIN_REINTENTO = [1008, 4401]
 const BACKOFF_INICIAL_MS = 1000
 const BACKOFF_MAX_MS = 30000
 
-function construirUrlWs(): string | null {
-  const token = sessionStorage.load()?.token
+/**
+ * QA #32: antes de cada conexión/reconexión se pide un ticket efímero de un
+ * solo uso (POST /auth/ws-ticket) para no exponer el JWT crudo en la URL del
+ * WebSocket. Si el backend todavía no lo soporta (o la petición falla), cae
+ * al JWT crudo (?token=...) -- el backend sigue aceptándolo mientras
+ * settings.WS_ACEPTA_JWT siga activo.
+ */
+async function construirUrlWs(): Promise<string | null> {
+  const token = tokenMemory.get()
   if (!token) return null
+
+  let ticket: string | null = null
+  try {
+    ticket = (await authApi.wsTicket()).ticket
+  } catch {
+    // Sin ticket disponible: se usa el JWT crudo como respaldo.
+  }
 
   const base = import.meta.env.VITE_API_BASE_URL as string
   const protocolo = window.location.protocol === 'https:' ? 'wss' : 'ws'
@@ -27,7 +46,10 @@ function construirUrlWs(): string | null {
   }
 
   const basePath = path.endsWith('/') ? path.slice(0, -1) : path
-  return `${origen}${basePath}/estancias/ws?token=${encodeURIComponent(token)}`
+  const query = ticket
+    ? `ticket=${encodeURIComponent(ticket)}`
+    : `token=${encodeURIComponent(token)}`
+  return `${origen}${basePath}/estancias/ws?${query}`
 }
 
 export function useEstanciasSocket(onMessage: (msg: EstanciaWsMessage) => void) {
@@ -46,16 +68,21 @@ export function useEstanciasSocket(onMessage: (msg: EstanciaWsMessage) => void) 
 
   function programarReconexion() {
     intentos++
+    if (intentos > MAX_INTENTOS_TOTALES) {
+      estado.value = 'caido'
+      return
+    }
     estado.value = intentos > MAX_INTENTOS_ANTES_DE_FALLBACK ? 'caido' : 'reconectando'
     const espera = Math.min(BACKOFF_INICIAL_MS * 2 ** Math.min(intentos - 1, 10), BACKOFF_MAX_MS)
     limpiarTimeout()
     reconectarTimeout = setTimeout(conectar, espera)
   }
 
-  function conectar() {
+  async function conectar() {
     if (cerradoManualmente) return
 
-    const url = construirUrlWs()
+    const url = await construirUrlWs()
+    if (cerradoManualmente) return
     if (!url) {
       estado.value = 'caido'
       return
@@ -77,8 +104,13 @@ export function useEstanciasSocket(onMessage: (msg: EstanciaWsMessage) => void) 
       }
     }
 
-    socket.onclose = () => {
-      if (!cerradoManualmente) programarReconexion()
+    socket.onclose = (event: CloseEvent) => {
+      if (cerradoManualmente) return
+      if (CODIGOS_SIN_REINTENTO.includes(event.code)) {
+        estado.value = 'caido'
+        return
+      }
+      programarReconexion()
     }
 
     socket.onerror = () => {

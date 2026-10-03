@@ -1,205 +1,153 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div>
-      <!-- Encabezado -->
-      <div class="row items-center q-mb-lg">
-        <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
-            Reporte de Stock
-          </div>
-          <div class="text-body2" style="color: var(--text-secondary)">
-            Resumen del estado del inventario de la sucursal.
-          </div>
-        </div>
-        <q-space />
+  <q-page class="page-content list-page">
+    <PageHeader
+      title="Reporte de Stock"
+      subtitle="Insumos por debajo de su mínimo o punto de reorden."
+    >
+      <template #actions>
+        <q-btn outline icon="download" label="Exportar" :loading="exportando" @click="exportar" />
         <q-btn
           v-if="insumosParaReponer.length > 0"
-          color="primary"
-          icon="shopping_cart_checkout"
-          label="Generar orden de compra"
           unelevated
-          no-caps
-          style="border-radius: 8px; font-weight: 600"
+          color="primary"
+          icon="add_shopping_cart"
+          label="Generar orden de compra"
           @click="dialogGenerar = true"
         />
-      </div>
+      </template>
+    </PageHeader>
 
-      <!-- Sin sucursal activa -->
-      <q-banner
-        v-if="!authStore.currentBranchId"
-        dense
-        rounded
-        class="bg-orange-1 text-orange-9 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="info" color="orange-9" /></template>
-        No hay una sucursal activa en la sesión.
-      </q-banner>
-
-      <!-- KPIs -->
-      <div class="kpi-row q-mb-lg">
-        <div class="stat-card">
-          <div class="stat-card__icon stat-card__icon--blue">
-            <q-icon name="inventory_2" size="20px" />
-          </div>
-          <div class="stat-card__value">{{ insumosActivos.length }}</div>
-          <div class="stat-card__label">Insumos activos</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-card__icon stat-card__icon--orange">
-            <q-icon name="warning" size="20px" />
-          </div>
-          <div class="stat-card__value">{{ criticos.length }}</div>
-          <div class="stat-card__label">Bajo mínimo</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-card__icon stat-card__icon--orange">
-            <q-icon name="notification_important" size="20px" />
-          </div>
-          <div class="stat-card__value">{{ porReordenar.length }}</div>
-          <div class="stat-card__label">Por reordenar</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-card__icon stat-card__icon--green">
-            <q-icon name="payments" size="20px" />
-          </div>
-          <div class="stat-card__value">${{ valorInventario.toFixed(2) }}</div>
-          <div class="stat-card__label">Valor de inventario</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-card__icon stat-card__icon--blue">
-            <q-icon name="shopping_cart" size="20px" />
-          </div>
-          <div class="stat-card__value">{{ comprasPendientes.length }}</div>
-          <div class="stat-card__label">Compras pendientes</div>
-        </div>
-      </div>
-
-      <!-- Insumos bajo mínimo -->
-      <div class="text-subtitle1 text-weight-bold q-mb-sm" style="color: var(--text-primary)">
-        Insumos bajo mínimo
-      </div>
-      <q-card flat bordered class="q-mb-lg" style="border-radius: 12px; overflow: hidden">
-        <q-table
-          :rows="criticos"
-          :columns="columns"
-          row-key="id"
-          flat
-          :loading="loading"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="Ningún insumo está por debajo de su stock mínimo"
-          class="fec-table"
-        >
-          <template #body-cell-stock_actual="props">
-            <q-td :props="props" class="text-negative text-weight-bold">
-              {{ Number(props.row.stock_actual) }} {{ codigoUnidad(props.row.unidad_base_id) }}
-            </q-td>
-          </template>
-          <template #body-cell-umbral="props">
-            <q-td :props="props">
-              {{ Number(props.row.stock_minimo) }} {{ codigoUnidad(props.row.unidad_base_id) }}
-            </q-td>
-          </template>
-          <template #body-cell-deficit="props">
-            <q-td :props="props">
-              {{ (Number(props.row.stock_minimo) - Number(props.row.stock_actual)).toFixed(3) }}
-              {{ codigoUnidad(props.row.unidad_base_id) }}
-            </q-td>
-          </template>
-        </q-table>
-      </q-card>
-
-      <!-- Insumos por reordenar -->
-      <div class="text-subtitle1 text-weight-bold q-mb-sm" style="color: var(--text-primary)">
-        Por reordenar (bajo el punto de reorden, aún sobre el mínimo)
-      </div>
-      <q-card flat bordered style="border-radius: 12px; overflow: hidden">
-        <q-table
-          :rows="porReordenar"
-          :columns="columns"
-          row-key="id"
-          flat
-          :loading="loading"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="Ningún insumo está bajo su punto de reorden"
-          class="fec-table"
-        >
-          <template #body-cell-stock_actual="props">
-            <q-td :props="props" class="text-orange-9 text-weight-bold">
-              {{ Number(props.row.stock_actual) }} {{ codigoUnidad(props.row.unidad_base_id) }}
-            </q-td>
-          </template>
-          <template #body-cell-umbral="props">
-            <q-td :props="props">
-              {{ Number(props.row.punto_reorden ?? props.row.stock_minimo) }}
-              {{ codigoUnidad(props.row.unidad_base_id) }}
-            </q-td>
-          </template>
-          <template #body-cell-deficit="props">
-            <q-td :props="props">
-              {{
-                (
-                  Number(props.row.punto_reorden ?? props.row.stock_minimo) -
-                  Number(props.row.stock_actual)
-                ).toFixed(3)
-              }}
-              {{ codigoUnidad(props.row.unidad_base_id) }}
-            </q-td>
-          </template>
-        </q-table>
-      </q-card>
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
-    <!-- ── Dialog Generar orden de compra ─────────────────────────────────── -->
-    <q-dialog v-model="dialogGenerar">
-      <q-card style="min-width: 460px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Generar orden de compra</div>
-          <div class="text-body2 text-grey-7">
-            Se crea un borrador por proveedor con los insumos por reponer y una cantidad sugerida
-            (hasta el stock máximo / punto de reorden).
+    <div class="kpi-row">
+      <KpiCard
+        label="Insumos bajo mínimo"
+        :value="criticos.length"
+        :note="`de ${insumosActivos.length}`"
+        note-tone="bad"
+      />
+      <KpiCard label="Por reordenar" :value="porReordenar.length" note-tone="warn" />
+      <KpiCard
+        label="Valor del inventario"
+        :value="formatMXN(valorInventario)"
+        note="costo unitario"
+      />
+      <KpiCard label="Compras pendientes" :value="comprasPendientes.length" />
+    </div>
+
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="vista"
+      search-placeholder="Buscar insumo"
+      :filters="VISTAS"
+      :count="`${filas.length} alertas`"
+    >
+      <q-table
+        :rows="filas"
+        :columns="columns"
+        row-key="id"
+        flat
+        :loading="loading"
+        :rows-per-page-options="[10, 25, 50]"
+      >
+        <template #body-cell-nombre="props">
+          <q-td :props="props" class="text-weight-bold">{{ props.row.nombre }}</q-td>
+        </template>
+        <template #body-cell-stock_actual="props">
+          <q-td :props="props">
+            <div
+              class="stock-bar"
+              :class="vista === 'reordenar' ? 'stock-bar--warn' : 'stock-bar--bad'"
+            >
+              <div class="stock-bar__track">
+                <div class="stock-bar__fill" :style="{ width: `${pctUmbral(props.row)}%` }" />
+              </div>
+              <span class="stock-bar__value">
+                {{ Number(props.row.stock_actual) }} {{ codigoUnidad(props.row.unidad_base_id) }}
+              </span>
+            </div>
+          </q-td>
+        </template>
+        <template #body-cell-umbral="props">
+          <q-td :props="props">
+            {{ umbral(props.row) }} {{ codigoUnidad(props.row.unidad_base_id) }}
+          </q-td>
+        </template>
+        <template #body-cell-deficit="props">
+          <q-td :props="props" class="deficit">
+            {{ Number((umbral(props.row) - Number(props.row.stock_actual)).toFixed(3)) }}
+            {{ codigoUnidad(props.row.unidad_base_id) }}
+          </q-td>
+        </template>
+        <template #body-cell-proveedor="props">
+          <q-td :props="props" class="cell-muted">
+            {{ nombreProveedor(props.row.proveedor_principal_id) }}
+          </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            variant="empty"
+            title="Sin alertas"
+            :body="
+              vista === 'reordenar'
+                ? 'Ningún insumo está bajo su punto de reorden.'
+                : 'Ningún insumo está por debajo de su stock mínimo.'
+            "
+          />
+        </template>
+      </q-table>
+    </DataTableCard>
+
+    <BaseDialog
+      v-model="dialogGenerar"
+      title="Generar orden de compra"
+      subtitle="Se crea un borrador por proveedor con la cantidad sugerida."
+      icon="add_shopping_cart"
+      :width="560"
+    >
+      <div class="gen-list">
+        <div class="gen-list__head"><span>Proveedor</span><span>Insumos</span></div>
+        <p v-if="!gruposPorProveedor.length" class="gen-list__empty">No hay insumos por reponer.</p>
+        <div v-for="g in gruposPorProveedor" :key="g.proveedorId ?? 'sin'" class="gen-list__row">
+          <div class="gen-list__info">
+            <span class="gen-list__name">{{ g.proveedorNombre }}</span>
+            <span class="gen-list__meta">
+              {{ g.insumos.map((i) => i.nombre).join(' · ') }}
+            </span>
           </div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section>
-          <q-list v-if="gruposPorProveedor.length" separator>
-            <q-item v-for="g in gruposPorProveedor" :key="g.proveedorId ?? 'sin'">
-              <q-item-section>
-                <q-item-label>{{ g.proveedorNombre }}</q-item-label>
-                <q-item-label caption>{{ g.insumos.length }} insumo(s) por reponer</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-btn
-                  v-if="g.proveedorId"
-                  unelevated
-                  no-caps
-                  dense
-                  color="primary"
-                  label="Generar"
-                  style="border-radius: 8px"
-                  @click="generarOrden(g)"
-                />
-                <q-badge v-else color="grey-5">Sin proveedor principal</q-badge>
-              </q-item-section>
-            </q-item>
-          </q-list>
-          <div v-else class="text-body2 text-grey-7 q-py-sm">No hay insumos por reponer.</div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cerrar" color="grey-7" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+          <q-btn
+            v-if="g.proveedorId"
+            unelevated
+            dense
+            color="primary"
+            label="Generar"
+            class="gen-list__btn"
+            @click="generarOrden(g)"
+          />
+          <span v-else class="gen-list__none">Sin proveedor principal</span>
+        </div>
+      </div>
+      <template #footer>
+        <q-btn v-close-popup outline label="Cerrar" />
+      </template>
+    </BaseDialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/ui/PageHeader.vue'
+import KpiCard from '@/components/ui/KpiCard.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
+import { formatMXN } from '@/utils/formatoMoneda'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useInsumosStore } from '@/stores/insumos'
@@ -207,9 +155,12 @@ import { useProveedoresStore } from '@/stores/proveedores'
 import { useComprasStore, type LineaPrefill } from '@/stores/compras'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { useAlertasInventarioStore } from '@/stores/alertasInventario'
+import { exportarReporteStock } from '@/services/insumoService'
+import { mensajeDeError } from '@/utils/errorHandler'
 import type { Insumo } from '@/types/insumo'
 
 const router = useRouter()
+const $q = useQuasar()
 const authStore = useAuthStore()
 const insumosStore = useInsumosStore()
 const proveedoresStore = useProveedoresStore()
@@ -219,6 +170,19 @@ const alertas = useAlertasInventarioStore()
 
 const loading = ref(false)
 const dialogGenerar = ref(false)
+const exportando = ref(false)
+
+async function exportar() {
+  if (!authStore.currentBranchId) return
+  exportando.value = true
+  try {
+    await exportarReporteStock(authStore.currentBranchId)
+  } catch (err) {
+    $q.notify({ type: 'negative', message: mensajeDeError(err, 'No se pudo exportar el reporte.') })
+  } finally {
+    exportando.value = false
+  }
+}
 
 onMounted(async () => {
   if (!authStore.currentBranchId) return
@@ -295,10 +259,144 @@ const generarOrden = (grupo: GrupoProveedor) => {
   router.push({ name: 'compras-listar' })
 }
 
+type Vista = 'criticos' | 'reordenar'
+const VISTAS: FilterChip<Vista>[] = [
+  { label: 'Bajo mínimo', value: 'criticos' },
+  { label: 'Por reordenar', value: 'reordenar' },
+]
+const vista = ref<Vista | null>('criticos')
+const busqueda = ref('')
+
+const filas = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  const base = vista.value === 'reordenar' ? porReordenar.value : criticos.value
+  return base.filter((i) => !q || i.nombre.toLowerCase().includes(q))
+})
+
+// Umbral de la vista: mínimo para críticos, punto de reorden para el resto.
+const umbral = (row: Insumo) =>
+  vista.value === 'reordenar'
+    ? Number(row.punto_reorden ?? row.stock_minimo)
+    : Number(row.stock_minimo)
+const pctUmbral = (row: Insumo) => {
+  const u = umbral(row)
+  return u > 0 ? Math.min(100, Math.round((Number(row.stock_actual) / u) * 100)) : 0
+}
+const nombreProveedor = (id: string | null) =>
+  proveedoresStore.proveedores.find((p) => p.id === id)?.nombre ?? '—'
+
 const columns: QTableColumn[] = [
-  { name: 'nombre', label: 'INSUMO', field: 'nombre', align: 'left', sortable: true },
-  { name: 'stock_actual', label: 'STOCK ACTUAL', field: 'stock_actual', align: 'left' },
-  { name: 'umbral', label: 'UMBRAL', field: 'id', align: 'left' },
-  { name: 'deficit', label: 'DÉFICIT', field: 'id', align: 'left' },
+  { name: 'nombre', label: 'Insumo', field: 'nombre', align: 'left', sortable: true },
+  { name: 'stock_actual', label: 'Stock actual', field: 'stock_actual', align: 'left' },
+  { name: 'umbral', label: 'Umbral', field: 'id', align: 'right' },
+  { name: 'deficit', label: 'Déficit', field: 'id', align: 'right' },
+  { name: 'proveedor', label: 'Proveedor', field: 'proveedor_principal_id', align: 'left' },
 ]
 </script>
+
+<style scoped lang="scss">
+.stock-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 160px;
+
+  &__track {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #eef1f5;
+    overflow: hidden;
+  }
+
+  &__fill {
+    height: 100%;
+  }
+
+  &__value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-body);
+    white-space: nowrap;
+  }
+
+  &--bad &__fill {
+    background: var(--tone-bad-dot);
+  }
+
+  &--warn &__fill {
+    background: var(--tone-warn-dot);
+  }
+}
+
+.deficit {
+  color: var(--tone-bad-fg) !important;
+  font-weight: 700;
+}
+
+.gen-list {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  &__empty {
+    margin: 0;
+    padding: 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-bottom: 1px solid #f1f3f7;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  &__meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__btn {
+    padding: 0 12px;
+  }
+
+  &__none {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+}
+</style>

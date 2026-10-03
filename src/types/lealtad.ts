@@ -7,6 +7,7 @@ export interface ConfiguracionLealtad {
   otorga_puntos_comandas: boolean
   otorga_puntos_reservaciones: boolean
   otorga_puntos_checkin: boolean
+  minimo_canje: number
   creado?: string | null
   creado_por?: string | null
   modificado?: string | null
@@ -21,15 +22,23 @@ export interface ConfiguracionLealtadInput {
   otorga_puntos_comandas: boolean
   otorga_puntos_reservaciones: boolean
   otorga_puntos_checkin: boolean
+  minimo_canje: number
 }
 
 export interface SaldoPuntos {
   sucursal_id: string
   celular: string
   saldo: number
+  por_vencer: number
 }
 
 export type TipoMovimientoPuntos = 'O' | 'R' | 'C' | 'A'
+
+export interface TopClienteLealtad {
+  celular: string
+  nombre: string | null
+  puntos_otorgados: number
+}
 
 export interface ReporteLealtad {
   sucursal_id: string
@@ -38,6 +47,19 @@ export interface ReporteLealtad {
   total_caducado: number
   saldo_vigente: number
   clientes_con_saldo: number
+  top_clientes: TopClienteLealtad[]
+}
+
+export interface ClienteLealtad {
+  celular: string
+  nombre: string | null
+  saldo: number
+}
+
+export interface AjustePuntosInput {
+  celular: string
+  puntos: number
+  motivo: string
 }
 
 export interface MovimientoPuntos {
