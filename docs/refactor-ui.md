@@ -70,8 +70,6 @@ simplifican hasta que exista la fuente.
 
 ### 05 Lealtad
 
-- **KPI "Por vencer"** (kardex): el saldo ya trae `por_vencer`; falta mostrarlo.
-
 ### 06 Administración
 
 - **PIN de caja** (usuario): su semántica es una decisión de negocio
