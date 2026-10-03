@@ -90,23 +90,14 @@ simplifican hasta que exista la fuente.
 
 ### 03 Catálogo
 
-- **Duración, tipos de evento, anticipo y "destacado" del paquete** (3b.1): el
-  modelo de paquete no tiene esos campos.
-- **Duplicar paquete** (3b): no existe la acción en el backend.
-- **Conteo de paquetes por tipo de evento** (3c): no hay relación expuesta.
-- **Comisión y "solicitar referencia"** (3d.1): el método de pago solo tiene
-  nombre, descripción, tipo y activo.
+- **Tipo de evento como chips** (Nueva reservación): se conserva el selector.
 
 ### 04 Inventario
 
-- **Costo de receta y margen por producto** (4a): no hay costo de receta en el
-  listado; se ve dentro del diálogo de receta solo como insumos y cantidades.
-- **Imagen 1:1 y código del producto** (4a.1): se conserva el selector de imagen
-  existente; el producto no tiene código.
+- **Imagen 1:1 del producto** (4a.1): se conserva el selector de imagen
+  existente.
 - **Presentaciones dentro del diálogo de insumo** (4b.1): se gestionan en su
   propio diálogo.
-- **RFC y días de entrega del proveedor** (4c.1): el modelo no los tiene.
-- **IVA y folio OC en compras** (4d): las compras solo tienen total y estado.
 - **Exportar** (kardex, stock, costo de ventas): sin endpoint.
 - **KPIs de ventas, margen y merma** (4f): el reporte solo regresa costo por
   insumo.

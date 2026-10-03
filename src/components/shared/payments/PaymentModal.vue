@@ -163,6 +163,32 @@
       </div>
     </div>
   </BaseDialog>
+
+  <BaseDialog
+    v-model="mostrarModalReferencia"
+    title="Referencia del pago"
+    :subtitle="`${metodoSeleccionado} · $${referenciaMontoTemporal.toFixed(2)}`"
+    icon="receipt_long"
+    :width="440"
+    persistent
+    primary-label="Agregar pago"
+    :primary-disabled="!referenciaPago.trim()"
+    @cancel="limpiarModalReferencia"
+    @confirm="onConfirmarReferencia"
+  >
+    <div class="card-form">
+      <div class="card-form__field card-form__field--full">
+        <span class="field-label">Folio o referencia</span>
+        <q-input
+          v-model="referenciaPago"
+          outlined
+          dense
+          autofocus
+          placeholder="Ej. folio de la transferencia"
+        />
+      </div>
+    </div>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
@@ -232,6 +258,17 @@ const mostrarModalTarjeta = ref(false)
 const tarjetaMontoTemporal = ref(0)
 const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
 const tarjetaAutorizacion = ref('')
+
+// Métodos marcados con "requiere referencia" en el catálogo piden un folio
+// antes de agregarse (la tarjeta ya lo pide en su propio diálogo).
+const mostrarModalReferencia = ref(false)
+const referenciaMontoTemporal = ref(0)
+const referenciaPago = ref('')
+
+const requiereReferencia = (categoria: string): boolean => {
+  const tipo = CATEGORIAS_METODO_PAGO.find((c) => c.valor === categoria)?.tipo
+  return props.metodosPago.some((m) => m.tipo === tipo && m.requiere_referencia)
+}
 
 // Catálogo que se ofrece en el selector: sin Lealtad si el flujo no la admite.
 const metodosVisibles = computed(() =>
@@ -401,6 +438,9 @@ const iniciarAbono = (monto: number) => {
   if (esTarjeta(metodoSeleccionado.value)) {
     tarjetaMontoTemporal.value = monto
     mostrarModalTarjeta.value = true
+  } else if (!esEfectivo(metodoSeleccionado.value) && requiereReferencia(metodoSeleccionado.value)) {
+    referenciaMontoTemporal.value = monto
+    mostrarModalReferencia.value = true
   } else {
     agregarPago(monto)
   }
@@ -485,6 +525,18 @@ const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: 
     cardType,
     authCode,
   })
+}
+
+const onConfirmarReferencia = () => {
+  // La referencia viaja en `authCode`, igual que el folio del voucher de tarjeta.
+  agregarPago(referenciaMontoTemporal.value, undefined, referenciaPago.value.trim())
+  limpiarModalReferencia()
+}
+
+const limpiarModalReferencia = () => {
+  mostrarModalReferencia.value = false
+  referenciaMontoTemporal.value = 0
+  referenciaPago.value = ''
 }
 
 const limpiarModalTarjeta = () => {

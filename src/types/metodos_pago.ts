@@ -8,6 +8,10 @@ export interface MetodosPago extends AuditFields {
   nombre: string
   descripcion: string | null
   tipo: TipoMetodoPago
+  /** Comisión informativa en % (p. ej. de la terminal bancaria). Decimal como string. */
+  comision_porcentaje: string | null
+  /** Si el cobro con este método debe pedir folio o referencia en el modal de pago. */
+  requiere_referencia: boolean
   // Resuelto por el backend contra la sucursal del usuario autenticado --
   // no es un campo libre del catálogo global.
   activo: boolean
@@ -18,6 +22,8 @@ export interface MetodosPago extends AuditFields {
 export interface MetodosPagoUpdate {
   nombre?: string
   descripcion?: string
+  comision_porcentaje?: string | null
+  requiere_referencia?: boolean
 }
 
 export interface MetodosPagoActivacion {

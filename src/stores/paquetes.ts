@@ -41,6 +41,11 @@ export const usePaquetesStore = defineStore('paquetes', {
       if (idx !== -1) this.paquetes[idx] = actualizado
       return actualizado
     },
+    async duplicarPaquete(id: string) {
+      const copia = await paquetesApi.duplicar(id)
+      this.paquetes.push(copia)
+      return copia
+    },
     async eliminarPaquete(id: string) {
       await paquetesApi.eliminar(id)
       this.paquetes = this.paquetes.filter((p) => p.id !== id)

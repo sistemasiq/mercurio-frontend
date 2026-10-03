@@ -43,6 +43,7 @@
         <template #body-cell-nombre="props">
           <q-td :props="props">
             <span class="text-weight-bold">{{ props.row.nombre }}</span>
+            <span v-if="props.row.codigo" class="code-chip q-ml-sm">{{ props.row.codigo }}</span>
             <span v-if="props.row.descripcion" class="cell-sub cell-ellipsis">
               {{ props.row.descripcion }}
             </span>
@@ -62,6 +63,17 @@
             <span v-else class="text-weight-bold">{{
               formatMXN(Number(props.row.precio_unitario))
             }}</span>
+          </q-td>
+        </template>
+        <template #body-cell-costo="props">
+          <q-td :props="props">
+            <template v-if="props.row.costo_receta !== null && props.row.costo_receta !== undefined">
+              {{ formatMXN(Number(props.row.costo_receta)) }}
+              <span v-if="margenDe(props.row) !== null" class="cell-sub">
+                Margen {{ margenDe(props.row) }} %
+              </span>
+            </template>
+            <span v-else class="cell-muted">Sin receta</span>
           </q-td>
         </template>
         <template #body-cell-activo="props">
@@ -166,6 +178,17 @@
             emit-value
             map-options
             :options="TIPO_OPTIONS"
+          />
+        </div>
+
+        <div>
+          <div class="field-label">Código</div>
+          <q-input
+            v-model="formDialog.codigo"
+            dense
+            outlined
+            maxlength="50"
+            placeholder="SKU o clave interna (opcional)"
           />
         </div>
 
@@ -663,9 +686,18 @@ const columns: QTableColumn[] = [
     align: 'right',
     sortable: true,
   },
+  { name: 'costo', label: 'Costo de receta', field: 'costo_receta', align: 'right' },
   { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
+
+// Margen bruto sobre el precio de venta: (precio − costo) / precio.
+const margenDe = (row: ProductoAdmin): number | null => {
+  const precio = Number(row.precio_unitario)
+  const costo = Number(row.costo_receta)
+  if (row.tipo === 'E' || !(precio > 0) || !Number.isFinite(costo)) return null
+  return Math.round(((precio - costo) / precio) * 100)
+}
 
 const productosDisponiblesParaCombo = computed(() => {
   const yaAgregados = new Set(formDialog.value.productos_combo.map((i) => i.producto_id))
@@ -686,6 +718,7 @@ const formDialog = ref({
   tipo: 'A' as TipoProducto,
   precio_unitario: 0,
   descripcion: '',
+  codigo: '',
   productos_combo: [] as ComboItemCreate[],
   config_estancia: [] as TramoEstancia[],
 })
@@ -844,6 +877,7 @@ const abrirCrear = () => {
     tipo: 'A',
     precio_unitario: 0,
     descripcion: '',
+    codigo: '',
     productos_combo: [],
     config_estancia: [],
   }
@@ -891,6 +925,7 @@ const abrirEditar = async (row: ProductoAdmin) => {
     tipo: row.tipo,
     precio_unitario: Number(row.precio_unitario),
     descripcion: row.descripcion ?? '',
+    codigo: row.codigo ?? '',
     productos_combo: productosComboCargados,
     config_estancia: configEstanciaCargada,
   }
@@ -962,6 +997,7 @@ const guardar = async () => {
       tipo: formDialog.value.tipo,
       precio_unitario: String(formDialog.value.tipo === 'E' ? 0 : formDialog.value.precio_unitario),
       descripcion: formDialog.value.descripcion.trim() || null,
+      codigo: formDialog.value.codigo.trim() || null,
       productos_combo: formDialog.value.tipo === 'C' ? formDialog.value.productos_combo : null,
       config_estancia: formDialog.value.tipo === 'E' ? formDialog.value.config_estancia : null,
     }
