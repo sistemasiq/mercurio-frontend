@@ -1,0 +1,7 @@
+# Override: construye el backend desde el repo hermano ../BackEnd en lugar de
+# usar la imagen publicada en GHCR. Útil para probar cambios de ambos repos juntos.
+services:
+  backend:
+    build:
+      context: ${BACKEND_CONTEXT:-../BackEnd}
+    image: ghcr.io/sistemasiq/woowkids-backend:local
