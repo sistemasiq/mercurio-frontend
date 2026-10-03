@@ -10,6 +10,7 @@ import { useShellIndicadoresStore } from '@/stores/shellIndicadores'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppTopbar from '@/components/layout/AppTopbar.vue'
+import CommandPalette from '@/components/layout/CommandPalette.vue'
 
 const $q = useQuasar()
 const route = useRoute()
@@ -136,6 +137,8 @@ watch(
            necesitar un refresh manual del navegador. -->
       <router-view :key="auth.currentBranchId ?? 'todas'" />
     </q-page-container>
+
+    <CommandPalette />
   </q-layout>
 </template>
 

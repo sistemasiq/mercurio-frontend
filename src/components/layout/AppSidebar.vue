@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSucursalesStore } from '@/stores/sucursales'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useAppNavigation } from '@/composables/useAppNavigation'
+import { useCommandPalette } from '@/composables/useCommandPalette'
 import { getInitials, getAvatarColor } from '@/utils/avatar'
 import type { NavGroup } from '@/types/navigation'
 
@@ -15,6 +16,8 @@ const sucursalesStore = useSucursalesStore()
 const route = useRoute()
 const router = useRouter()
 const { visibleGroups, badgeFor } = useAppNavigation()
+const { openPalette } = useCommandPalette()
+const esMac = /mac/i.test(navigator.platform)
 
 // ── Grupos plegables ────────────────────────────────────────────────────────
 // Se abre el grupo de la ruta activa (en Inicio, Operación). El resto queda
@@ -163,6 +166,14 @@ async function handleLogout(): Promise<void> {
           </q-menu>
         </template>
       </component>
+    </div>
+
+    <div class="sb-top sb-top--search">
+      <button type="button" class="sb-search" @click="openPalette">
+        <q-icon name="search" size="17px" class="sb-search__icon" />
+        <span class="sb-search__label">Buscar o ir a…</span>
+        <kbd class="sb-search__kbd">{{ esMac ? '⌘K' : 'Ctrl K' }}</kbd>
+      </button>
     </div>
 
     <nav class="sb-nav" aria-label="Menú principal">
@@ -334,6 +345,49 @@ async function handleLogout(): Promise<void> {
 
   &__chevron {
     color: var(--text-muted);
+  }
+}
+
+.sb-top--search {
+  padding-top: 8px;
+}
+
+.sb-search {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  font: inherit;
+  text-align: left;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bg-muted);
+  }
+
+  &__icon {
+    color: var(--text-muted);
+  }
+
+  &__label {
+    flex: 1;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+
+  &__kbd {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1px 5px;
   }
 }
 
