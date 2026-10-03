@@ -1,0 +1,58 @@
+# Imagen TODO EN UNO de Woow Kids: frontend + API + PostgreSQL + MinIO en un solo
+# contenedor, con todos los datos en el volumen /data.
+#
+# No recompila nada: parte de las imágenes publicadas por los releases de
+# mercurio-frontend y mercurio-backend. Este archivo es idéntico en ambos repos;
+# cualquiera de los dos publica ghcr.io/sistemasiq/woowkids.
+#
+#   docker run -d -p 8080:80 -v woowkids_data:/data ghcr.io/sistemasiq/woowkids:latest
+#
+# Para producción a escala se recomiendan las imágenes separadas (docker-compose.yml).
+ARG FRONTEND_IMAGE=ghcr.io/sistemasiq/woowkids-frontend:latest
+ARG BACKEND_IMAGE=ghcr.io/sistemasiq/woowkids-backend:latest
+# MinIO: dl.min.io ya no distribuye binarios (410), se toma de la imagen oficial.
+# RELEASE.2025-09-07T16-13-09Z, fijada por digest (Docker Hub solo publica latest).
+ARG MINIO_IMAGE=minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+
+FROM ${FRONTEND_IMAGE} AS frontend
+FROM ${MINIO_IMAGE} AS minio
+
+FROM ${BACKEND_IMAGE}
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql nginx curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/nginx/sites-enabled/default \
+    && pip install --no-cache-dir supervisor==4.3.0
+
+COPY --from=frontend /usr/share/nginx/html /usr/share/woowkids/front
+COPY --from=minio /usr/bin/minio /usr/local/bin/minio
+COPY docker/allinone/nginx.conf /etc/nginx/conf.d/woowkids.conf
+COPY docker/allinone/supervisord.conf /etc/woowkids/supervisord.conf
+COPY docker/allinone/start.sh /etc/woowkids/start.sh
+RUN chmod +x /etc/woowkids/start.sh
+
+# Valores genéricos por defecto: cámbialos con -e al correr el contenedor.
+ENV POSTGRES_USER=admin \
+    POSTGRES_PASSWORD=admin1234 \
+    POSTGRES_DB=woowkids \
+    SECRET_KEY=woowkids-secret-key-cambiar-en-produccion \
+    MINIO_ACCESS_KEY=admin \
+    MINIO_SECRET_KEY=admin1234 \
+    MINIO_BUCKET=woowkids \
+    MINIO_ENDPOINT=127.0.0.1:9000 \
+    MINIO_SECURE=false \
+    COOKIE_SECURE=false \
+    SEED_DEMO=false \
+    ADMIN_EMAIL=admin@woowkids.com \
+    ADMIN_PASSWORD=admin1234 \
+    CORS_ORIGINS='["http://localhost:8080"]'
+
+VOLUME ["/data"]
+# 80: app y API (/api). 9001: consola de MinIO (opcional).
+EXPOSE 80 9001
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
+    CMD curl -fs http://127.0.0.1/api/openapi.json -o /dev/null || curl -fs http://127.0.0.1:8000/openapi.json -o /dev/null
+
+ENTRYPOINT ["/etc/woowkids/start.sh"]

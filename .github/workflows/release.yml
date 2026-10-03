@@ -21,6 +21,8 @@ jobs:
     name: Tag y publicación
     needs: ci
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     permissions:
       contents: write
       packages: write
@@ -87,3 +89,56 @@ jobs:
         run: |
           v="${{ steps.version.outputs.version }}"
           gh release view "$v" >/dev/null 2>&1 || gh release create "$v" --generate-notes --verify-tag
+
+  todo-en-uno:
+    name: Imagen todo en uno
+    needs: release
+    if: needs.release.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PROPIA: frontend
+      OTRA: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Requiere, una sola vez en GitHub (Package settings > Manage Actions access):
+      #   woowkids-<otra parte>: dar acceso de lectura a este repo.
+      #   woowkids: dar acceso de escritura a ambos repos.
+      - name: Versiones de cada parte
+        id: partes
+        run: |
+          owner="ghcr.io/${{ github.repository_owner }}"
+          propia="${{ needs.release.outputs.version }}"
+          # Con atestaciones la imagen es un índice: .Image puede venir por plataforma.
+          otra=$(docker buildx imagetools inspect "$owner/woowkids-$OTRA:latest" --format '{{json .Image}}' \
+            | jq -r 'if has("config") then .config.Labels["org.opencontainers.image.version"]
+                     else (to_entries[0].value.config.Labels["org.opencontainers.image.version"]) end')
+          [ -n "$otra" ] && [ "$otra" != null ] || { echo "::error::No se pudo leer la versión de woowkids-$OTRA:latest"; exit 1; }
+          if [ "$PROPIA" = frontend ]; then f="$propia"; b="$otra"; else f="$otra"; b="$propia"; fi
+          echo "frontend=$f" >> "$GITHUB_OUTPUT"
+          echo "backend=$b" >> "$GITHUB_OUTPUT"
+          echo "tag=f${f#v}-b${b#v}" >> "$GITHUB_OUTPUT"
+          echo "Todo en uno: frontend $f + backend $b"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.allinone
+          push: true
+          build-args: |
+            FRONTEND_IMAGE=ghcr.io/${{ github.repository_owner }}/woowkids-frontend:${{ steps.partes.outputs.frontend }}
+            BACKEND_IMAGE=ghcr.io/${{ github.repository_owner }}/woowkids-backend:${{ steps.partes.outputs.backend }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/woowkids:${{ steps.partes.outputs.tag }}
+            ghcr.io/${{ github.repository_owner }}/woowkids:latest
+          labels: |
+            org.opencontainers.image.title=Woow Kids (todo en uno)
+            org.opencontainers.image.version=${{ steps.partes.outputs.tag }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
