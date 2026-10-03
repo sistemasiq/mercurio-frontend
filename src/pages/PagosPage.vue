@@ -117,10 +117,9 @@
       tone="green"
       :width="560"
       persistent
-      primary-label="Registrar pago"
-      :loading="guardando"
-      :primary-disabled="!form.reservacion_id || !form.metodo_pago_id || !form.monto"
-      @confirm="guardar"
+      primary-label="Continuar al cobro"
+      :primary-disabled="!form.reservacion_id || (saldoSeleccionado ?? 0) <= 0"
+      @confirm="abrirCobro"
     >
       <div class="pago-form">
         <label class="pago-form__field pago-form__field--full">
@@ -136,27 +135,37 @@
             :loading="resStore.loading"
             use-input
             input-debounce="0"
+            no-options-label="No hay reservaciones con adeudo"
             @filter="filtrarReservaciones"
           >
             <template #append><q-icon name="search" size="19px" /></template>
+            <template #option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.label }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-item-label caption class="text-negative text-weight-medium">
+                    Debe {{ fmt(scope.opt.saldo) }}
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
           </q-select>
-        </label>
-        <label class="pago-form__field">
-          <span class="field-label">Monto</span>
-          <q-input v-model="form.monto" dense outlined type="number" prefix="$" min="1" />
-        </label>
-        <label class="pago-form__field">
-          <span class="field-label">Método de pago</span>
-          <q-select
-            v-model="form.metodo_pago_id"
-            dense
-            outlined
-            :options="metodoOptions"
-            emit-value
-            map-options
-            placeholder="Selecciona"
-            :loading="metodosPagoStore.loading"
-          />
+
+          <!-- Saldo de la reservación elegida: evita tener que ir a buscarlo
+               a la tabla antes de iniciar el cobro. -->
+          <div
+            v-if="saldoSeleccionado !== null"
+            class="saldo-box"
+            :class="{ 'saldo-box--liquidado': saldoSeleccionado <= 0 }"
+          >
+            <q-icon :name="saldoSeleccionado > 0 ? 'account_balance_wallet' : 'check_circle'" />
+            <span v-if="saldoSeleccionado > 0">
+              Saldo pendiente: <strong>{{ fmt(saldoSeleccionado) }}</strong>
+            </span>
+            <span v-else>Este evento ya está liquidado. No hay nada por cobrar.</span>
+          </div>
         </label>
         <label class="pago-form__field pago-form__field--full">
           <span class="field-label">Notas</span>
@@ -170,21 +179,22 @@
           />
         </label>
       </div>
-      <dl v-if="resumenDialog" class="pago-totals">
-        <div>
-          <dt>Total del evento</dt>
-          <dd>{{ fmt(resumenDialog.total) }}</dd>
-        </div>
-        <div>
-          <dt>Pagado</dt>
-          <dd>{{ fmt(resumenDialog.pagado) }}</dd>
-        </div>
-        <div class="pago-totals__net">
-          <dt>Restante después del pago</dt>
-          <dd>{{ fmt(resumenDialog.restante) }}</dd>
-        </div>
-      </dl>
     </BaseDialog>
+
+    <!-- Cobro multimodal: el mismo componente que usa el asistente de
+         reservación y la caja, para que el cobro de un evento se capture igual
+         en todos lados (varios métodos, teclado numérico y cálculo de cambio). -->
+    <PaymentModal
+      v-model="modalCobroAbierto"
+      :total-to-pay="saldoSeleccionado ?? 0"
+      :metodos-pago="metodosPagoStore.activos"
+      @pago-exitoso="onCobroExitoso"
+    />
+
+    <!-- Ticket del pago recién registrado -->
+    <q-dialog v-model="ticketAbierto" persistent>
+      <TicketPagoEvento v-if="ticketData" v-bind="ticketData" @close="ticketAbierto = false" />
+    </q-dialog>
   </q-page>
 </template>
 
@@ -199,7 +209,6 @@ import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
 import { useAuthStore } from '@/stores/auth'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
-import type { ApiError } from '@/types/auth'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import KpiCard from '@/components/ui/KpiCard.vue'
 import DataTableCard from '@/components/ui/DataTableCard.vue'
@@ -207,6 +216,16 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import StateBlock from '@/components/ui/StateBlock.vue'
 import BaseDialog from '@/components/ui/BaseDialog.vue'
 import type { FilterChip } from '@/types/ui'
+import type { AppliedPayment } from '@/types/payments'
+import type { TicketPagoEventoProps } from '@/types/ticketPagoEvento'
+import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
+import TicketPagoEvento from '@/components/eventos/TicketPagoEvento.vue'
+import {
+  descontarCambio,
+  resolverMetodoPagoId,
+  resumenMetodosPago,
+  totalPagado,
+} from '@/utils/pagos'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -288,16 +307,6 @@ const porCobrar = computed(() =>
   ),
 )
 
-// Resumen del diálogo para la reservación elegida.
-const resumenDialog = computed(() => {
-  const res = resStore.reservaciones.find((r) => r.id === form.value.reservacion_id)
-  if (!res) return null
-  const total = parseFloat(res.precio_total ?? '0')
-  const pagado = pagosPorReservacion.value.get(res.id) ?? 0
-  const monto = parseFloat(String(form.value.monto || 0)) || 0
-  return { total, pagado, restante: Math.max(0, total - pagado - monto) }
-})
-
 // Total pagado por reservacion (suma de todos los pagos registrados)
 const pagosPorReservacion = computed(() => {
   const map = new Map<string, number>()
@@ -338,16 +347,41 @@ const guardando = ref(false)
 
 const form = ref({
   reservacion_id: null as string | null,
-  metodo_pago_id: null as string | null,
-  monto: null as number | null,
   notas: '',
 })
 
+/** Lo que falta por cobrar de una reservación. Nunca negativo. */
+const saldoDeReservacion = (reservacionId: string): number => {
+  const res = resStore.reservaciones.find((r) => r.id === reservacionId)
+  const total = parseFloat(res?.precio_total ?? '0')
+  const pagado = pagosPorReservacion.value.get(reservacionId) ?? 0
+  return Math.max(0, total - pagado)
+}
+
+/**
+ * Reservaciones ofrecidas en el diálogo: sólo las que deben algo.
+ *
+ * Registrar un pago sobre un evento liquidado no tiene sentido —el saldo ya es
+ * cero y la BD rechazaría un anticipo mayor que el total—, así que no se
+ * ofrecen. Quien quiera consultar un evento ya pagado lo encuentra en la tabla
+ * de atrás, que sí los lista todos.
+ */
 const todasReservaciones = computed(() =>
-  resStore.reservaciones.map((r) => ({
-    label: `${r.nombre_cliente}${r.apellidos_cliente ? ' ' + r.apellidos_cliente : ''} — ${r.fecha_evento}`,
-    value: r.id,
-  })),
+  resStore.reservaciones
+    .map((r) => {
+      const nombre = `${r.nombre_cliente}${r.apellidos_cliente ? ' ' + r.apellidos_cliente : ''}`
+      return {
+        label: `${nombre} — ${r.fecha_evento}`,
+        value: r.id,
+        saldo: saldoDeReservacion(r.id),
+      }
+    })
+    .filter((o) => o.saldo > 0),
+)
+
+/** Saldo de la reservación elegida; null mientras no haya ninguna. */
+const saldoSeleccionado = computed(() =>
+  form.value.reservacion_id ? saldoDeReservacion(form.value.reservacion_id) : null,
 )
 
 const reservacionOptions = ref(todasReservaciones.value)
@@ -361,45 +395,116 @@ const filtrarReservaciones = (val: string, update: (fn: () => void) => void) => 
   })
 }
 
-const metodoOptions = computed(() =>
-  metodosPagoStore.activos.map((m) => ({ label: m.nombre, value: m.id })),
-)
-
 const abrirDialog = () => {
   // Se valida al hacer clic en "Registrar Pago", no hasta guardar: si no hay
   // turno abierto no tiene sentido dejar llenar el formulario para enterarse
   // hasta el final. Redirige de inmediato, sin bloquear ni avisar.
   if (!turno.estaOperando) {
+    // Antes navegaba en silencio y el usuario aterrizaba en otra pantalla sin
+    // saber por qué. El cobro necesita una caja abierta porque queda registrado
+    // contra la apertura de quien lo captura.
+    $q.notify({
+      type: 'warning',
+      message: 'Abre tu caja para poder registrar el pago.',
+      position: 'top-right',
+      timeout: 5000,
+    })
     router.push('/pos/cierre')
     return
   }
-  form.value = { reservacion_id: null, metodo_pago_id: null, monto: null, notas: '' }
+  form.value = { reservacion_id: null, notas: '' }
   reservacionOptions.value = todasReservaciones.value
   dialogOpen.value = true
 }
 
-const guardar = async () => {
-  if (!form.value.reservacion_id || !form.value.metodo_pago_id || !form.value.monto) return
+const modalCobroAbierto = ref(false)
+
+const abrirCobro = () => {
+  if (!form.value.reservacion_id || (saldoSeleccionado.value ?? 0) <= 0) return
+  // El diálogo se cierra para no encimarse con el modal de cobro; la reservación
+  // y las notas ya quedaron capturadas en `form`.
+  dialogOpen.value = false
+  modalCobroAbierto.value = true
+}
+
+/**
+ * Registra un pago de reservación por cada método usado en el cobro.
+ *
+ * El modal entrega lo que el cliente ENTREGÓ; descontarCambio() lo ajusta a lo
+ * que de verdad se queda en caja antes de guardarlo, porque el excedente se le
+ * devolvió como cambio y no es ingreso del evento.
+ */
+const ticketAbierto = ref(false)
+const ticketData = ref<TicketPagoEventoProps | null>(null)
+
+const onCobroExitoso = async (pagos: AppliedPayment[]) => {
+  const reservacionId = form.value.reservacion_id
+  if (!reservacionId) return
+
+  // El saldo se captura antes de resetear el formulario: es el "antes" del
+  // que dependen el acumulado y el saldo restante que muestra el ticket.
+  const saldoAntes = saldoSeleccionado.value ?? 0
+  const res = resStore.reservaciones.find((r) => r.id === reservacionId)
+  const notasForm = form.value.notas
+
+  const aplicados = descontarCambio(pagos, saldoAntes)
+  if (!aplicados.length) return
+
   guardando.value = true
   try {
-    await pagosStore.crearPagosReservacion({
-      reservacion_id: form.value.reservacion_id,
-      metodo_pago_id: form.value.metodo_pago_id,
-      monto: String(form.value.monto),
-      notas: form.value.notas || null,
-    })
-    $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
-    dialogOpen.value = false
-  } catch (err) {
-    const apiErr = err as ApiError
-    if (apiErr.code === 'TURNO_NO_ABIERTO') {
-      // El turno se cerró entre abrir el diálogo y guardar (caso raro) — mismo
-      // redirect silencioso, sin aviso.
-      dialogOpen.value = false
-      router.push('/pos/cierre')
-    } else {
-      $q.notify({ type: 'negative', message: 'Error al registrar el pago', position: 'top-right' })
+    for (const pago of aplicados) {
+      await pagosStore.crearPagosReservacion({
+        reservacion_id: reservacionId,
+        metodo_pago_id: resolverMetodoPagoId(pago.method, metodosPagoStore.activos),
+        monto: String(pago.amount),
+        notas:
+          notasForm ||
+          (pago.cardType ? `Pago (${pago.cardType} - Folio: ${pago.authCode ?? ''})` : null),
+      })
     }
+    const montoPagado = totalPagado(aplicados)
+    $q.notify({
+      type: 'positive',
+      message: `Pago registrado por ${fmt(montoPagado)}`,
+      position: 'top-right',
+    })
+
+    if (res) {
+      const totalEvento = parseFloat(res.precio_total)
+      const tipoEvento = tiposEventoStore.activos.find((t) => t.id === res.tipo_evento_id)?.nombre
+      ticketData.value = {
+        folio: res.id,
+        sucursal: authStore.currentBranchName ?? 'Sucursal',
+        clienteNombre:
+          `${res.nombre_cliente}${res.apellidos_cliente ? ' ' + res.apellidos_cliente : ''}`.trim(),
+        tipoEvento: tipoEvento ?? '—',
+        fechaEvento: new Date(`${res.fecha_evento}T00:00:00`).toLocaleDateString('es-MX', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }),
+        totalEvento,
+        montoPagado,
+        totalPagadoAcumulado: totalEvento - saldoAntes + montoPagado,
+        saldoPendiente: Math.max(0, saldoAntes - montoPagado),
+        metodosPago: resumenMetodosPago(aplicados),
+        notas: notasForm || null,
+      }
+      ticketAbierto.value = true
+    }
+
+    form.value = { reservacion_id: null, notas: '' }
+    await Promise.all([
+      pagosStore.cargar(),
+      resStore.cargar(authStore.currentBranchId ?? undefined),
+    ])
+  } catch (err: unknown) {
+    $q.notify({
+      type: 'negative',
+      message: (err as Error).message || 'No se pudo registrar el pago',
+      position: 'top-right',
+      timeout: 6000,
+    })
   } finally {
     guardando.value = false
   }
@@ -427,32 +532,20 @@ const guardar = async () => {
   }
 }
 
-.pago-totals {
-  margin: 0;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: #f6f8fc;
+.saldo-box {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--tone-info-bg);
+  color: var(--tone-info-fg);
 
-  div {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-size: 13.5px;
-    color: #475569;
-  }
-
-  dd {
-    margin: 0;
-    font-variant-numeric: tabular-nums;
-  }
-
-  &__net {
-    font-size: 18px !important;
-    font-weight: 800;
-    color: var(--text-strong) !important;
+  &--liquidado {
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
   }
 }
 </style>

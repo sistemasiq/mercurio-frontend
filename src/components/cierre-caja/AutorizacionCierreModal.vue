@@ -4,7 +4,12 @@
       <header class="arqueo__head">
         <span class="arqueo__icon"><q-icon name="fact_check" size="22px" /></span>
         <div class="arqueo__titles">
-          <span class="arqueo__title">Resultado del arqueo</span>
+          <span class="arqueo__title">
+            Resultado del arqueo
+            <span v-if="turno.turnoId" class="code-chip">
+              #{{ turno.turnoId.slice(-6).toUpperCase() }}
+            </span>
+          </span>
           <span class="arqueo__subtitle">
             {{ turno.cajeroNombre }} · {{ turno.terminal }} · {{ turno.sucursalNombre }}
           </span>
@@ -30,7 +35,26 @@
                 {{ signo(fila.diferencia) }}{{ fmt(fila.diferencia) }}
               </span>
             </div>
+            <div
+              v-if="turno.balancePorMetodo.length"
+              class="arqueo-table__row arqueo-table__row--total"
+            >
+              <div class="arqueo-table__info">
+                <span class="arqueo-table__name">Total por métodos</span>
+                <span class="arqueo-table__meta">
+                  Esperado {{ fmt(totalesPorMetodo.esperado) }} · Declarado
+                  {{ fmt(totalesPorMetodo.declarado) }}
+                </span>
+              </div>
+              <span class="arqueo-table__diff" :class="claseDiferencia(totalesPorMetodo.diferencia)">
+                {{ signo(totalesPorMetodo.diferencia) }}{{ fmt(totalesPorMetodo.diferencia) }}
+              </span>
+            </div>
           </div>
+          <p v-if="turno.balancePorMetodo.length" class="arqueo-table__hint">
+            Comparativo informativo por método de pago — el resumen general de abajo suma todos
+            los métodos, ya que cada uno representa dinero real del sistema.
+          </p>
 
           <dl class="arqueo-totals">
             <div>
@@ -40,6 +64,10 @@
             <div v-if="(turno.totalRetiros || 0) > 0">
               <dt>Retiros parciales</dt>
               <dd>−{{ fmt(turno.totalRetiros) }}</dd>
+            </div>
+            <div v-if="(turno.totalIngresos || 0) > 0">
+              <dt>Ingresos de efectivo</dt>
+              <dd>+{{ fmt(turno.totalIngresos) }}</dd>
             </div>
             <div>
               <dt>Total esperado</dt>
@@ -104,6 +132,7 @@
                 aria-label="PIN del cajero"
                 input-class="pin-box__input"
                 :disable="pinCajeroConfirmado || cargandoPinCajero"
+                @keydown="filtrarTeclaEntero"
                 @keyup.enter="confirmarPinCajero"
               />
               <q-btn
@@ -136,6 +165,7 @@
                 aria-label="PIN del administrador"
                 input-class="pin-box__input"
                 :disable="pinAdminConfirmado || cargandoPinAdmin"
+                @keydown="filtrarTeclaEntero"
                 @keyup.enter="confirmarPinAdmin"
               />
               <q-btn
@@ -205,12 +235,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import BaseDialog from '@/components/ui/BaseDialog.vue'
 import { turnoCajaService } from '@/services/turnoCajaService'
+import { filtrarTeclaEntero } from '@/utils/validacionNumerica'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -233,6 +264,17 @@ function claseDiferencia(diferencia: number): string {
   if (diferencia > 0) return 'arqueo--info'
   return 'arqueo--ok'
 }
+
+// Suma de todos los métodos de pago (efectivo, tarjeta, etc.) del comparativo --
+// distinta de turno.totalEsperado/totalDeclarado, que el backend calcula solo
+// sobre efectivo (ver comentario arriba). Este total es el que pidió el negocio
+// para ver de un vistazo si el cajero tiene una diferencia grande en algún
+// método que no sea efectivo (ej. tarjeta).
+const totalesPorMetodo = computed(() => {
+  const esperado = turno.balancePorMetodo.reduce((suma, fila) => suma + fila.esperado, 0)
+  const declarado = turno.balancePorMetodo.reduce((suma, fila) => suma + fila.declarado, 0)
+  return { esperado, declarado, diferencia: declarado - esperado }
+})
 
 async function confirmarPinCajero() {
   if (pinCajero.value.length !== 4 || !turno.turnoId) return
@@ -297,19 +339,17 @@ async function finalizarYDescargarPDF(esExtraordinario = false) {
   try {
     const obsText = observacionesModal.value.trim()
 
-    await turno.confirmarCierre(obsText, esExtraordinario)
+    const arqueoId = await turno.confirmarCierre(obsText, esExtraordinario)
+    if (!arqueoId) {
+      throw new Error(turno.error || 'No se pudo confirmar el cierre de caja.')
+    }
     turno.mostrarDialogAutorizacion = false
 
     // Intentar descarga automática de PDF del arqueo
-    if (turno.turnoId) {
-      try {
-        await turnoCajaService.descargarPdfArqueo(
-          turno.turnoId,
-          `arqueo_${turno.turnoId.slice(-8)}.pdf`,
-        )
-      } catch (err) {
-        console.warn('No se pudo descargar el PDF automáticamente:', err)
-      }
+    try {
+      await turnoCajaService.descargarPdfArqueo(arqueoId, `arqueo_${arqueoId.slice(-8)}.pdf`)
+    } catch (err) {
+      console.warn('No se pudo descargar el PDF automáticamente:', err)
     }
 
     $q.notify({
@@ -414,6 +454,9 @@ async function ejecutarCierreExtraordinario() {
   }
 
   &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 18px;
     font-weight: 800;
     color: var(--text-strong);
@@ -506,6 +549,11 @@ async function ejecutarCierreExtraordinario() {
     &:last-child {
       border-bottom: 0;
     }
+
+    &--total {
+      background: var(--bg-subtle);
+      font-weight: 800;
+    }
   }
 
   &__info {
@@ -531,6 +579,13 @@ async function ejecutarCierreExtraordinario() {
     font-size: 13.5px;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
+  }
+
+  &__hint {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
   }
 }
 

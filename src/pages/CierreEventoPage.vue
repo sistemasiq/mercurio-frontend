@@ -1,173 +1,181 @@
 <template>
   <q-page class="page-content cierre-ev">
-    <div v-if="error" class="list-page__note list-page__note--bad">
-      <q-icon name="error" size="19px" />{{ error }}
-      <q-btn flat dense label="Reintentar" class="q-ml-auto" @click="cargarTodo" />
-    </div>
-
-    <div v-if="cargando" class="cierre-ev__loading"><q-spinner color="primary" size="40px" /></div>
-
-    <template v-else-if="reservacion">
-      <PageHeader
-        :title="`Cierre · ${tituloEvento}`"
-        back-label="Reservaciones"
-        :back-to="{ name: 'eventos-reservaciones' }"
-      >
-        <template #subtitle>
-          {{ fmtFechaEvento }} · {{ duracionEvento
-          }}<template v-if="paquete"> · {{ paquete.nombre }}</template>
-          ·
-          <StatusBadge
-            :tone="yaCerrado ? 'ok' : 'warn'"
-            :label="yaCerrado ? 'Cerrado' : 'Pendiente de cierre'"
-          />
-        </template>
-        <template #actions>
-          <q-btn outline icon="print" label="Imprimir resumen" @click="imprimirResumen" />
-        </template>
-      </PageHeader>
-
-      <div class="cierre-ev__grid">
-        <div class="cierre-ev__main">
-          <section class="charges-card">
-            <header class="charges-card__head">
-              <h2 class="charges-card__title">Cargos del evento</h2>
-            </header>
-
-            <div v-if="paquete" class="charge">
-              <span class="charge__tag charge__tag--pkg">Paquete</span>
-              <div class="charge__info">
-                <span class="charge__name">{{ paquete.nombre }}</span>
-                <span v-if="paquete.descripcion" class="charge__meta">{{
-                  paquete.descripcion
-                }}</span>
-              </div>
-              <span class="charge__amount">{{ fmt(packagePriceNum) }}</span>
-            </div>
-
-            <div v-if="precioHorasNum > 0" class="charge">
-              <span class="charge__tag">Horas</span>
-              <div class="charge__info">
-                <span class="charge__name">Horas del evento</span>
-                <span class="charge__meta">{{ duracionEvento }}</span>
-              </div>
-              <span class="charge__amount">{{ fmt(precioHorasNum) }}</span>
-            </div>
-
-            <div v-if="precioPersonasExtraNum > 0" class="charge">
-              <span class="charge__tag">Personas</span>
-              <div class="charge__info"><span class="charge__name">Personas extra</span></div>
-              <span class="charge__amount">{{ fmt(precioPersonasExtraNum) }}</span>
-            </div>
-
-            <div v-for="extra in extrasDetallados" :key="extra.id" class="charge">
-              <span class="charge__tag charge__tag--extra">Extra</span>
-              <div class="charge__info">
-                <span class="charge__name">
-                  {{ extra.nombre
-                  }}<template v-if="extra.cantidad > 1"> × {{ extra.cantidad }}</template>
-                </span>
-              </div>
-              <span class="charge__amount">{{ fmt(extra.subtotal) }}</span>
-            </div>
-
-            <div v-for="producto in productosDetallados" :key="producto.id" class="charge">
-              <span class="charge__tag">Consumo</span>
-              <div class="charge__info">
-                <span class="charge__name">{{ producto.nombre }} × {{ producto.cantidad }}</span>
-                <span v-if="producto.notas" class="charge__meta">{{ producto.notas }}</span>
-              </div>
-              <span class="charge__amount">{{ fmt(producto.subtotal) }}</span>
-            </div>
-
-            <p
-              v-if="!extrasDetallados.length && !productosDetallados.length"
-              class="charges-card__empty"
-            >
-              Sin extras ni consumos adicionales.
-            </p>
-          </section>
-
-          <section class="notes-card">
-            <label class="notes-card__field">
-              <span class="field-label">Notas de cierre</span>
-              <q-input
-                v-model="closingNotes"
-                type="textarea"
-                outlined
-                rows="3"
-                :disable="yaCerrado"
-                placeholder="Observaciones finales o incidencias del evento…"
-              />
-            </label>
-          </section>
-        </div>
-
-        <aside class="settle">
-          <h2 class="settle__title">Liquidación</h2>
-          <div class="settle__line">
-            <span>Paquete</span><span>{{ fmt(packagePriceNum) }}</span>
-          </div>
-          <div v-if="precioHorasNum > 0" class="settle__line">
-            <span>Horas del evento</span><span>{{ fmt(precioHorasNum) }}</span>
-          </div>
-          <div v-if="precioPersonasExtraNum > 0" class="settle__line">
-            <span>Personas extra</span><span>{{ fmt(precioPersonasExtraNum) }}</span>
-          </div>
-          <div v-if="extrasDetallados.length" class="settle__line">
-            <span>Extras</span><span>{{ fmt(extrasTotalNum) }}</span>
-          </div>
-          <div v-if="productosDetallados.length" class="settle__line">
-            <span>Consumos</span><span>{{ fmt(productosTotalNum) }}</span>
-          </div>
-          <div class="settle__line settle__line--total">
-            <span>Total del evento</span><span>{{ fmt(totalNum) }}</span>
-          </div>
-          <div
-            v-for="pago in pagosDetallados"
-            :key="pago.id"
-            class="settle__line settle__line--paid"
-          >
-            <span>{{ pago.metodo }} · {{ fmtFechaCorta(pago.fecha) }}</span>
-            <span>−{{ fmt(pago.monto) }}</span>
-          </div>
-
-          <div class="settle__spacer" />
-
-          <div class="settle__due" :class="{ 'settle__due--ok': saldoPendiente <= 0 }">
-            <span class="settle__due-label">Saldo por cobrar</span>
-            <span class="settle__due-value">{{ fmt(saldoPendiente) }}</span>
-          </div>
-
-          <q-btn
-            v-if="!yaCerrado && saldoPendiente > 0"
-            unelevated
-            color="primary"
-            label="Procesar pago"
-            class="settle__cta"
-            :loading="procesandoPago"
-            @click="abrirModalPago"
-          />
-          <q-btn
-            unelevated
-            :color="yaCerrado || saldoPendiente > 0 ? 'grey-4' : 'positive'"
-            :text-color="yaCerrado || saldoPendiente > 0 ? 'grey-7' : 'white'"
-            :icon="yaCerrado ? 'check_circle' : 'lock'"
-            :label="yaCerrado ? 'Evento cerrado' : 'Finalizar y cerrar evento'"
-            class="settle__cta"
-            :loading="finalizando"
-            :disable="yaCerrado || saldoPendiente > 0"
-            @click="finalizarEvento"
-          />
-          <span v-if="!yaCerrado && saldoPendiente > 0" class="settle__hint">
-            Liquida el saldo para poder cerrar el evento.
-          </span>
-          <span v-else-if="!yaCerrado" class="settle__hint">
-            El cierre generará la factura final para el cliente.
-          </span>
-        </aside>
+    <div ref="resumenRef">
+      <div v-if="error" class="list-page__note list-page__note--bad">
+        <q-icon name="error" size="19px" />{{ error }}
+        <q-btn flat dense label="Reintentar" class="q-ml-auto" @click="cargarTodo" />
       </div>
-    </template>
+
+      <div v-if="cargando" class="cierre-ev__loading"><q-spinner color="primary" size="40px" /></div>
+
+      <template v-else-if="reservacion">
+        <PageHeader
+          :title="`Cierre · ${tituloEvento}`"
+          back-label="Reservaciones"
+          :back-to="{ name: 'eventos-reservaciones' }"
+        >
+          <template #subtitle>
+            {{ fmtFechaEvento }} · {{ duracionEvento
+            }}<template v-if="paquete"> · {{ paquete.nombre }}</template>
+            ·
+            <StatusBadge
+              :tone="yaCerrado ? 'ok' : 'warn'"
+              :label="yaCerrado ? 'Cerrado' : 'Pendiente de cierre'"
+            />
+          </template>
+          <template #actions>
+            <q-btn
+              outline
+              icon="print"
+              label="Imprimir resumen"
+              :loading="imprimiendoResumen"
+              @click="imprimirResumen"
+            />
+          </template>
+        </PageHeader>
+
+        <div class="cierre-ev__grid">
+          <div class="cierre-ev__main">
+            <section class="charges-card">
+              <header class="charges-card__head">
+                <h2 class="charges-card__title">Cargos del evento</h2>
+              </header>
+
+              <div v-if="paquete" class="charge">
+                <span class="charge__tag charge__tag--pkg">Paquete</span>
+                <div class="charge__info">
+                  <span class="charge__name">{{ paquete.nombre }}</span>
+                  <span v-if="paquete.descripcion" class="charge__meta">{{
+                    paquete.descripcion
+                  }}</span>
+                </div>
+                <span class="charge__amount">{{ fmt(packagePriceNum) }}</span>
+              </div>
+
+              <div v-if="precioHorasNum > 0" class="charge">
+                <span class="charge__tag">Horas</span>
+                <div class="charge__info">
+                  <span class="charge__name">Horas del evento</span>
+                  <span class="charge__meta">{{ duracionEvento }}</span>
+                </div>
+                <span class="charge__amount">{{ fmt(precioHorasNum) }}</span>
+              </div>
+
+              <div v-if="precioPersonasExtraNum > 0" class="charge">
+                <span class="charge__tag">Personas</span>
+                <div class="charge__info"><span class="charge__name">Personas extra</span></div>
+                <span class="charge__amount">{{ fmt(precioPersonasExtraNum) }}</span>
+              </div>
+
+              <div v-for="extra in extrasDetallados" :key="extra.id" class="charge">
+                <span class="charge__tag charge__tag--extra">Extra</span>
+                <div class="charge__info">
+                  <span class="charge__name">
+                    {{ extra.nombre
+                    }}<template v-if="extra.cantidad > 1"> × {{ extra.cantidad }}</template>
+                  </span>
+                </div>
+                <span class="charge__amount">{{ fmt(extra.subtotal) }}</span>
+              </div>
+
+              <div v-for="producto in productosDetallados" :key="producto.id" class="charge">
+                <span class="charge__tag">Consumo</span>
+                <div class="charge__info">
+                  <span class="charge__name">{{ producto.nombre }} × {{ producto.cantidad }}</span>
+                  <span v-if="producto.notas" class="charge__meta">{{ producto.notas }}</span>
+                </div>
+                <span class="charge__amount">{{ fmt(producto.subtotal) }}</span>
+              </div>
+
+              <p
+                v-if="!extrasDetallados.length && !productosDetallados.length"
+                class="charges-card__empty"
+              >
+                Sin extras ni consumos adicionales.
+              </p>
+            </section>
+
+            <section class="notes-card">
+              <label class="notes-card__field">
+                <span class="field-label">Notas de cierre</span>
+                <q-input
+                  v-model="closingNotes"
+                  type="textarea"
+                  outlined
+                  rows="3"
+                  :disable="yaCerrado"
+                  placeholder="Observaciones finales o incidencias del evento…"
+                />
+              </label>
+            </section>
+          </div>
+
+          <aside class="settle">
+            <h2 class="settle__title">Liquidación</h2>
+            <div class="settle__line">
+              <span>Paquete</span><span>{{ fmt(packagePriceNum) }}</span>
+            </div>
+            <div v-if="precioHorasNum > 0" class="settle__line">
+              <span>Horas del evento</span><span>{{ fmt(precioHorasNum) }}</span>
+            </div>
+            <div v-if="precioPersonasExtraNum > 0" class="settle__line">
+              <span>Personas extra</span><span>{{ fmt(precioPersonasExtraNum) }}</span>
+            </div>
+            <div v-if="extrasDetallados.length" class="settle__line">
+              <span>Extras</span><span>{{ fmt(extrasTotalNum) }}</span>
+            </div>
+            <div v-if="productosDetallados.length" class="settle__line">
+              <span>Consumos</span><span>{{ fmt(productosTotalNum) }}</span>
+            </div>
+            <div class="settle__line settle__line--total">
+              <span>Total del evento</span><span>{{ fmt(totalNum) }}</span>
+            </div>
+            <div
+              v-for="pago in pagosDetallados"
+              :key="pago.id"
+              class="settle__line settle__line--paid"
+            >
+              <span>{{ pago.metodo }} · {{ fmtFechaCorta(pago.fecha) }}</span>
+              <span>−{{ fmt(pago.monto) }}</span>
+            </div>
+
+            <div class="settle__spacer" />
+
+            <div class="settle__due" :class="{ 'settle__due--ok': saldoPendiente <= 0 }">
+              <span class="settle__due-label">Saldo por cobrar</span>
+              <span class="settle__due-value">{{ fmt(saldoPendiente) }}</span>
+            </div>
+
+            <q-btn
+              v-if="!yaCerrado && saldoPendiente > 0"
+              unelevated
+              color="primary"
+              label="Procesar pago"
+              class="settle__cta"
+              :loading="procesandoPago"
+              @click="abrirModalPago"
+            />
+            <q-btn
+              unelevated
+              :color="yaCerrado || saldoPendiente > 0 ? 'grey-4' : 'positive'"
+              :text-color="yaCerrado || saldoPendiente > 0 ? 'grey-7' : 'white'"
+              :icon="yaCerrado ? 'check_circle' : 'lock'"
+              :label="yaCerrado ? 'Evento cerrado' : 'Finalizar y cerrar evento'"
+              class="settle__cta"
+              :loading="finalizando"
+              :disable="yaCerrado || saldoPendiente > 0"
+              @click="finalizarEvento"
+            />
+            <span v-if="!yaCerrado && saldoPendiente > 0" class="settle__hint">
+              Liquida el saldo para poder cerrar el evento.
+            </span>
+            <span v-else-if="!yaCerrado" class="settle__hint">
+              El cierre generará la factura final para el cliente.
+            </span>
+          </aside>
+        </div>
+      </template>
+    </div>
 
     <PaymentModal
       v-model="modalPagoAbierto"
@@ -205,10 +213,14 @@ import type { AppliedPayment } from '@/types/payments'
 import { CATEGORIAS_METODO_PAGO } from '@/types/metodos_pago'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import { horasFacturables } from '@/utils/horario'
+import { printTicketElement } from '@/utils/ticketPrinting'
+import { descontarCambio } from '@/utils/pagos'
 
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
+const resumenRef = ref<HTMLElement | null>(null)
+const imprimiendoResumen = ref(false)
 
 const paquetesStore = usePaquetesStore()
 const extrasStore = useExtrasStore()
@@ -267,7 +279,11 @@ onMounted(() => {
   if (!authStore.currentBranchId) return
   paquetesStore.cargar(authStore.currentBranchId)
   extrasStore.cargar(authStore.currentBranchId)
-  productosStore.cargar(authStore.currentBranchId)
+  // Catálogo de cajero: cerrar un evento solo pide `reservaciones:editar`, que el
+  // Cajero sí tiene, pero /productos/admin exige `inventario:ver`, que no. Con el
+  // 403 la lista quedaba vacía y cada producto del evento se mostraba como
+  // "Producto" genérico por el fallback de nombre.
+  productosStore.cargarCatalogo()
   tiposEventoStore.cargar()
 })
 
@@ -384,21 +400,49 @@ const mapearMetodoPago = (categoriaSeleccionada: string): string => {
   return metodo.id
 }
 
-const onPagoExitoso = async (pagosAplicados: AppliedPayment[]) => {
+const onPagoExitoso = async (
+  pagosAplicados: AppliedPayment[],
+  _celularCliente: string | null,
+  _puntosARedimir: number,
+  _descuentoPuntos: number,
+  cambio: number,
+) => {
   if (!reservacion.value) return
+  // Snapshot antes de que cargarTodo() reemplace reservacion/pagos: el ticket
+  // debe mostrar el "antes" y el "después" de ESTA transacción.
+  const saldoAntes = saldoPendiente.value
+
+  // El modal entrega lo que el cliente ENTREGÓ; descontarCambio() lo ajusta a
+  // lo que de verdad se queda en caja antes de guardarlo, porque el excedente
+  // se le devolvió como cambio y no es ingreso del evento (mismo ajuste que
+  // hace PagosPage.vue — sin él, un pago en efectivo con cambio se guardaba
+  // completo y descuadraba el corte de caja).
+  const aplicados = descontarCambio(pagosAplicados, saldoAntes)
+  if (!aplicados.length) return
+
   procesandoPago.value = true
   try {
-    for (const pago of pagosAplicados) {
-      await pagosReservacionApi.crear({
-        reservacion_id: reservacion.value.id,
+    const resultado = await pagosReservacionApi.completar({
+      reservacion_id: reservacion.value.id,
+      pagos: pagosAplicados.map((pago) => ({
         metodo_pago_id: mapearMetodoPago(pago.method),
         monto: String(pago.amount),
         notas: pago.cardType
           ? `Pago (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
           : 'Pago registrado en cierre de evento',
+      })),
+      ...(cambio > 0 ? { cambio: String(cambio) } : {}),
+    })
+    $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
+    if (resultado.advertencia_efectivo) {
+      $q.notify({
+        type: 'warning',
+        message: 'No hay suficiente efectivo en caja',
+        caption: resultado.advertencia_efectivo,
+        position: 'top-right',
+        timeout: 6000,
       })
     }
-    $q.notify({ type: 'positive', message: 'Pago registrado correctamente', position: 'top-right' })
     await cargarTodo()
   } catch (err: unknown) {
     $q.notify({
@@ -431,7 +475,20 @@ const finalizarEvento = async () => {
   }
 }
 
-const imprimirResumen = () => window.print()
+async function imprimirResumen() {
+  if (!resumenRef.value || imprimiendoResumen.value) return
+  imprimiendoResumen.value = true
+  try {
+    await printTicketElement(resumenRef.value, 210)
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: (error as Error).message || 'No se pudo preparar el resumen.',
+    })
+  } finally {
+    imprimiendoResumen.value = false
+  }
+}
 </script>
 
 <style scoped lang="scss">

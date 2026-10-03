@@ -29,6 +29,11 @@
         El tutor puede escanear el QR del comprobante para ver el tiempo restante desde su teléfono.
       </div>
 
+      <div v-if="store.advertenciaEfectivoFromServer" class="reg-done__note reg-done__note--warn">
+        <q-icon name="warning" size="20px" />
+        {{ store.advertenciaEfectivoFromServer }}
+      </div>
+
       <div class="reg-done__actions">
         <q-btn
           outline
@@ -47,46 +52,70 @@
     </div>
 
     <div class="voucher-wrapper">
-      <div id="printable-voucher" class="voucher">
-        <div class="voucher__brand">
-          <span class="voucher__name">Woow Kids</span>
-          <span class="voucher__branch">{{ branchName }}</span>
-        </div>
-        <div class="voucher__line">
-          <span>FECHA</span><span>{{ formatDate() }}</span>
-        </div>
-
-        <div class="voucher__section">DATOS DEL TUTOR</div>
-        <div class="voucher__line">
-          <span>Nombre</span><span>{{ store.tutor.fullName }}</span>
-        </div>
-        <div class="voucher__line">
-          <span>Teléfono</span><span>{{ store.tutor.phone }}</span>
-        </div>
-        <div v-if="store.tutor.secondaryGuardian" class="voucher__line">
-          <span>Segundo tutor</span><span>{{ store.tutor.secondaryGuardian }}</span>
+      <div id="printable-voucher" ref="voucherRef" class="voucher">
+        <!-- Encabezado -->
+        <div class="text-center">
+          <div class="ticket-brand">Woow Kids</div>
+          <div class="ticket-sub">{{ branchName }}</div>
+          <div class="ticket-sub">Cajero: {{ cashierName }}</div>
         </div>
 
-        <div class="voucher__section">NIÑOS</div>
-        <div v-for="child in store.savedChildren" :key="child.id" class="voucher__line">
-          <span>{{ child.name.split(' ')[0] }} · {{ getBraceletLabel(child.rfidBracelet) }}</span>
-          <span>sale {{ scheduledExit() }}</span>
+        <div class="ticket-divider">--------------------------------</div>
+
+        <!-- Fecha y Tutor Compactos -->
+        <div class="ticket-row">
+          <span>Fecha:</span>
+          <span class="text-weight-bold">{{ formatDate() }}</span>
+        </div>
+        <div class="ticket-row">
+          <span>Tutor:</span>
+          <span class="text-ellipsis">{{ store.tutor.fullName }}</span>
+        </div>
+        <div v-if="store.tutor.phone" class="ticket-row">
+          <span>Tel:</span>
+          <span>{{ store.tutor.phone }}</span>
         </div>
 
-        <div class="voucher__section voucher__section--total">
-          <span>TOTAL</span><span>${{ store.total.toFixed(2) }}</span>
+        <div class="ticket-divider">--------------------------------</div>
+
+        <!-- Niños Registrados -->
+        <div class="ticket-section-title">NIÑOS REGISTRADOS</div>
+        <div
+          v-for="child in store.savedChildren"
+          :key="child.id"
+          class="ticket-row items-center q-my-xs"
+        >
+          <span class="text-weight-bold text-ellipsis">{{ child.name }}</span>
+          <span>{{ child.age }} años</span>
         </div>
 
-        <div v-if="qrCodeUrl" class="voucher__qr">
-          <img :src="qrCodeUrl" alt="QR del registro" />
+        <div class="ticket-divider">--------------------------------</div>
+
+        <!-- Salida y Pago -->
+        <div class="ticket-box q-my-xs text-center">
+          Salida Estimada: <strong>{{ scheduledExit() }}</strong>
         </div>
-        <p class="voucher__thanks">¡Gracias por visitarnos!</p>
+
+        <div class="ticket-row text-weight-bold q-mt-xs" style="font-size: 13px">
+          <span>TOTAL:</span>
+          <span>${{ Number(store.totalFromServer ?? store.total).toFixed(2) }}</span>
+        </div>
+
+        <!-- QR -->
+        <div v-if="qrCodeUrl" class="text-center q-mt-sm">
+          <img :src="qrCodeUrl" alt="QR" class="qr-code" />
+          <div class="ticket-caption">Escanea para ver tu registro</div>
+        </div>
+
+        <div class="text-center ticket-footer q-mt-xs">¡Gracias por visitarnos!</div>
       </div>
       <q-btn
         outline
         icon="print"
-        label="Imprimir comprobante"
+        :label="isPrinting ? 'Imprimiendo…' : 'Imprimir comprobante'"
         class="voucher__print print-hide"
+        :loading="isPrinting"
+        :disable="!qrCodeUrl"
         @click="printVoucher"
       />
     </div>
@@ -94,7 +123,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
+import { useQuasar } from 'quasar'
+import { printTicketElement } from '@/utils/ticketPrinting'
 import { useRegistrationStore } from '@/stores/registration'
 import { useAuthStore } from '@/stores/auth'
 import QRCode from 'qrcode'
@@ -104,29 +135,36 @@ defineEmits<{ (e: 'nuevo'): void }>()
 const store = useRegistrationStore()
 const authStore = useAuthStore()
 const qrCodeUrl = ref('')
+const voucherRef = ref<HTMLElement | null>(null)
+const isPrinting = ref(false)
+const $q = useQuasar()
+const issuedAt = new Date()
 
 const branchName = computed(() => authStore.currentBranchName || 'Sucursal')
+const cashierName = computed(() => authStore.currentUser?.name || 'Cajero')
 
-onMounted(async () => {
+async function generarQR() {
   if (store.registroId) {
     const url = `${window.location.origin}/padres/access?code=${store.registroId}`
     qrCodeUrl.value = await QRCode.toDataURL(url, {
-      width: 120,
+      width: 100,
       margin: 1,
-      errorCorrectionLevel: 'L',
+      errorCorrectionLevel: 'M',
     })
   }
-})
+}
+
+onMounted(generarQR)
 
 function formatDate() {
-  const now = new Date()
+  const now = issuedAt
   return (
     now.toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
     }) +
-    ' | ' +
+    ' ' +
     now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
   )
 }
@@ -134,7 +172,7 @@ function formatDate() {
 function scheduledExit() {
   const time = store.tutor.estimatedTime
   const hours = parseInt(time) || 8
-  const d = new Date()
+  const d = new Date(issuedAt)
   d.setHours(d.getHours() + hours)
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
@@ -144,11 +182,18 @@ const nombres = computed(() => {
   return n.length > 1 ? `${n.slice(0, -1).join(', ')} y ${n.at(-1)}` : (n[0] ?? '')
 })
 
-function printVoucher() {
-  const originalTitle = document.title
-  document.title = 'Ticket_Registro'
-  window.print()
-  document.title = originalTitle
+async function printVoucher() {
+  if (isPrinting.value) return
+  isPrinting.value = true
+  try {
+    await generarQR()
+    await nextTick()
+    await printTicketElement(voucherRef.value)
+  } catch (error) {
+    $q.notify({ type: 'negative', message: (error as Error).message })
+  } finally {
+    isPrinting.value = false
+  }
 }
 
 function getBraceletLabel(braceletId: string) {
@@ -226,6 +271,11 @@ function getBraceletLabel(braceletId: string) {
     color: var(--tone-info-fg);
     font-size: 13.5px;
     font-weight: 600;
+
+    &--warn {
+      background: var(--tone-warn-bg);
+      color: var(--tone-warn-fg);
+    }
   }
 
   &__actions {
@@ -279,137 +329,91 @@ function getBraceletLabel(braceletId: string) {
   }
 }
 
+/* Vista en pantalla del comprobante — el layout de impresión es universal (ver useTicketPrint/printTicketElement) */
 .voucher-wrapper {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 12px;
 }
 
 .voucher {
   background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 22px;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 12.5px;
-  color: var(--text-body);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  &__brand {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-bottom: 10px;
-    border-bottom: 1px dashed #cbd2de;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-  }
-
-  &__name {
-    font-size: 18px;
-    font-weight: 800;
-    color: var(--text-strong);
-  }
-
-  &__branch {
-    font-size: 12.5px;
-    color: var(--text-secondary);
-  }
-
-  &__line {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-
-    span:last-child {
-      text-align: right;
-    }
-  }
-
-  &__section {
-    margin-top: 6px;
-    padding-top: 10px;
-    border-top: 1px dashed #cbd2de;
-    font-weight: 800;
-    color: var(--text-primary);
-
-    &--total {
-      display: flex;
-      justify-content: space-between;
-    }
-  }
-
-  &__qr {
-    display: flex;
-    justify-content: center;
-    padding-top: 8px;
-
-    img {
-      width: 120px;
-      height: 120px;
-    }
-  }
-
-  &__thanks {
-    margin: 0;
-    text-align: center;
-    color: var(--text-secondary);
-  }
-
-  &__print {
-    min-height: 48px;
-  }
+  border-radius: 8px;
+  padding: 14px 10px;
+  width: 80mm;
+  max-width: none;
+  flex: none;
+  box-sizing: border-box;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  font-family: 'Courier New', Courier, monospace;
+  color: #000;
+  font-size: 11px;
+  line-height: 1.25;
 }
-</style>
 
-<style>
-@media print {
-  @page {
-    margin: 0;
-  }
+.ticket-brand {
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
 
-  body,
-  #q-app,
-  .q-layout,
-  .q-page-container,
-  .registro {
-    background: none !important;
-    background-color: white !important;
-  }
+.ticket-sub {
+  font-size: 10px;
+  color: #444;
+}
 
-  body * {
-    visibility: hidden !important;
-  }
+.ticket-divider {
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  letter-spacing: -1px;
+  color: #666;
+  margin: 4px 0;
+}
 
-  .voucher-wrapper,
-  .voucher-wrapper * {
-    visibility: visible !important;
-  }
+.ticket-section-title {
+  font-size: 10px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 2px;
+}
 
-  .voucher-wrapper {
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    display: flex !important;
-    justify-content: center !important;
-    background: none !important;
-  }
+.ticket-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
 
-  .voucher {
-    box-shadow: none !important;
-    border: none !important;
-    padding: 24px !important;
-    max-width: 100% !important;
-  }
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-  .print-hide,
-  button,
-  .q-btn {
-    display: none !important;
-  }
+.ticket-box {
+  border: 1px dashed #000;
+  padding: 4px;
+  font-size: 11px;
+}
+
+.qr-code {
+  width: 95px;
+  height: 95px;
+  display: inline-block;
+}
+
+.ticket-caption {
+  font-size: 9px;
+  color: #555;
+  margin-top: 2px;
+}
+
+.ticket-footer {
+  font-size: 10px;
+}
+
+.voucher__print {
+  min-height: 48px;
 }
 </style>

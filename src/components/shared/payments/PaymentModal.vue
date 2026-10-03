@@ -190,6 +190,7 @@ const emit = defineEmits<{
     celularCliente: string | null,
     puntosARedimir: number,
     descuentoPuntos: number,
+    cambio: number,
   ): void
 }>()
 
@@ -460,6 +461,7 @@ const finalizarPago = () => {
     celularCliente.value.length === 10 ? celularCliente.value : null,
     Math.min(puntosARedimir.value, maxPuntosRedimibles.value),
     descuentoPuntos.value,
+    cambioADevolver.value,
   )
   emit('update:modelValue', false)
   pagosAplicados.value = []

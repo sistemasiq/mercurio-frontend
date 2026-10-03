@@ -9,7 +9,10 @@
 
       <template v-else>
         <div v-for="child in store.savedChildren" :key="child.id" class="summary__line">
-          <span>{{ child.name.split(' ')[0] }} · {{ store.tutor.estimatedTime }}</span>
+          <span>
+            {{ child.name.split(' ')[0] }} · {{ store.tutor.estimatedTime }} ·
+            {{ formatPricePerHour(store.pricePerChild, store.hours) }}
+          </span>
           <span>{{ formatCurrency(store.pricePerChild) }}</span>
         </div>
         <div class="summary__total">
@@ -100,8 +103,13 @@ const $q = useQuasar()
 const mostrarModalPago = ref(false)
 const metodosPagoDisponibles = ref<MetodosPago[]>([])
 
-function formatCurrency(value: number) {
+const formatCurrency = (value: number) => {
   return `$${value.toFixed(2)}`
+}
+
+const formatPricePerHour = (pricePerChild: number, hours: number) => {
+  if (hours === 0) return formatCurrency(0)
+  return formatCurrency(pricePerChild / hours) + '/hr'
 }
 
 const cargarMetodosPago = async () => {
@@ -147,13 +155,15 @@ const onPagoExitoso = (
   pagos: AppliedPayment[],
   _celularCliente: string | null,
   puntosARedimir: number,
+  _descuentoPuntos: number,
+  cambio: number,
 ) => {
   try {
     const pagosMapeados: OnboardingPago[] = pagos.map((p) => ({
       metodoPagoId: mapearMetodoPago(p.method),
       monto: p.amount,
     }))
-    store.proceedToRFID(pagosMapeados, puntosARedimir)
+    store.proceedToRFID(pagosMapeados, cambio, puntosARedimir)
   } catch (err) {
     console.error('[OrderSummary] onPagoExitoso:', err)
     $q.notify({
