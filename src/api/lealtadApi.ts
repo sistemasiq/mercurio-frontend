@@ -1,5 +1,7 @@
 import { apiClient } from '@/api/axiosClient'
 import type {
+  AjustePuntosInput,
+  ClienteLealtad,
   ConfiguracionLealtad,
   ConfiguracionLealtadInput,
   MovimientoPuntos,
@@ -44,8 +46,26 @@ export const lealtadApi = {
     return data
   },
 
-  async obtenerReporte(sucursalId: string): Promise<ReporteLealtad> {
+  async obtenerReporte(
+    sucursalId: string,
+    desde?: string,
+    hasta?: string,
+  ): Promise<ReporteLealtad> {
     const { data } = await apiClient.get<ReporteLealtad>('/lealtad/reporte', {
+      params: { sucursal_id: sucursalId, desde, hasta },
+    })
+    return data
+  },
+
+  async buscarClientes(sucursalId: string, q: string): Promise<ClienteLealtad[]> {
+    const { data } = await apiClient.get<ClienteLealtad[]>('/lealtad/clientes', {
+      params: { sucursal_id: sucursalId, q },
+    })
+    return data
+  },
+
+  async ajustarPuntos(sucursalId: string, body: AjustePuntosInput): Promise<MovimientoPuntos> {
+    const { data } = await apiClient.post<MovimientoPuntos>('/lealtad/ajustes', body, {
       params: { sucursal_id: sucursalId },
     })
     return data

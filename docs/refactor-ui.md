@@ -55,7 +55,6 @@ simplifican hasta que exista la fuente.
 
 ### 00 Acceso
 
-- **"Tus puntos Woow"** (portal de padres): el tutor no trae saldo de lealtad.
 - **"Cargo extra"** en visita excedida: no viene en `NinoActivo`.
 - **Importe y puntos de visita finalizada**: `NinoActivo` no los trae; se
   muestra duración y pulsera.

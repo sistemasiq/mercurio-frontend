@@ -58,8 +58,14 @@
                   : 'Para acumular puntos de lealtad'
               "
             />
-            <span v-if="saldoDisponible !== null && saldoDisponible > 0" class="pay__points">
+            <span
+              v-if="saldoDisponible !== null && saldoDisponible > 0 && !debajoDelMinimoCanje"
+              class="pay__points"
+            >
               {{ saldoDisponible }} pts disponibles · ${{ valorPunto?.toFixed(2) }} c/u
+            </span>
+            <span v-else-if="debajoDelMinimoCanje" class="pay__points pay__points--warn">
+              Mínimo para canjear: {{ minimoCanje }} pts
             </span>
           </div>
 
@@ -307,8 +313,13 @@ watch(celularCliente, async (val) => {
   valorPunto.value = lealtadStore.configuracion?.valor_punto ?? null
 })
 
+const minimoCanje = computed(() => lealtadStore.configuracion?.minimo_canje ?? 0)
+const debajoDelMinimoCanje = computed(
+  () => saldoDisponible.value !== null && saldoDisponible.value < minimoCanje.value,
+)
+
 const maxPuntosRedimibles = computed(() => {
-  if (saldoDisponible.value === null || !valorPunto.value) return 0
+  if (saldoDisponible.value === null || !valorPunto.value || debajoDelMinimoCanje.value) return 0
   const maxPorTotal = Math.floor(props.totalToPay / valorPunto.value)
   return Math.max(0, Math.min(saldoDisponible.value, maxPorTotal))
 })
@@ -404,6 +415,16 @@ const aplicarRedencionLealtad = (monto: number) => {
       timeout: 3000,
     })
     celularInputRef.value?.focus()
+    return
+  }
+
+  if (debajoDelMinimoCanje.value) {
+    $q.notify({
+      type: 'warning',
+      message: `Mínimo para canjear: ${minimoCanje.value} pts.`,
+      position: 'top',
+      timeout: 3000,
+    })
     return
   }
 
@@ -628,6 +649,10 @@ const finalizarPago = () => {
     font-size: 12px;
     color: var(--tone-info-fg);
     font-weight: 600;
+
+    &--warn {
+      color: var(--tone-warn-fg);
+    }
   }
 
   &__applied {
