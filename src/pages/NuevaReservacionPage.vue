@@ -1520,7 +1520,9 @@ const confirmarReservacion = async () => {
   // reservación: si algo falla aquí no se crea nada.
   let metodosPagoIds: string[]
   try {
-    metodosPagoIds = pagosAplicados.value.map((pago) => mapearMetodoPago(pago.method))
+    metodosPagoIds = pagosAplicados.value.map((pago) =>
+      resolverMetodoPagoId(pago.method, metodosPagoStore.activos),
+    )
     for (const extraId of selectedExtraIds.value) {
       if (!extrasStore.activos.some((e) => e.id === extraId)) {
         throw new Error('Un extra seleccionado ya no está disponible.')

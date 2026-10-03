@@ -51,7 +51,7 @@ describe('registration store: pagos en completeRegistration', () => {
   it('cuando los puntos cubren todo el total, envía pagos: [] sin ningún UUID fijo', async () => {
     const store = prepararRegistroListo()
 
-    await store.proceedToRFID([], 100, 100)
+    await store.proceedToRFID([], 0, 100, 100)
     await store.completeRegistration()
 
     expect(postOnboarding).toHaveBeenCalledTimes(1)
