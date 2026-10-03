@@ -1183,6 +1183,23 @@ body {
   }
 }
 
+// Sub-sección dentro de un diálogo (p. ej. presentaciones dentro del alta de
+// insumo), separada del resto del formulario con un borde superior.
+.dlg-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-input);
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-body);
+    margin-bottom: 10px;
+  }
+}
+
 // Selector segmentado (q-btn-toggle) con el estilo de chips del diseño.
 .q-btn-toggle.q-btn-group {
   padding: 3px;
