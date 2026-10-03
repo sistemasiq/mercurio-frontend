@@ -197,6 +197,28 @@
                         {{ timeSlotLabel }}
                       </div>
                     </div>
+                    <div v-if="form.selectedDate">
+                      <div class="field-label">Disponibilidad del día</div>
+                      <div v-if="resStore.disponibilidadLoading" class="text-caption text-grey-6">
+                        <q-spinner size="14px" class="q-mr-xs" />Consultando bloques...
+                      </div>
+                      <div v-else class="bloques-disponibilidad">
+                        <button
+                          v-for="bloque in bloquesDisponibilidad"
+                          :key="bloque.hora_inicio"
+                          type="button"
+                          class="bloque-chip"
+                          :class="{
+                            'bloque-chip--ocupado': bloque.ocupado,
+                            'bloque-chip--libre': !bloque.ocupado,
+                          }"
+                          :disabled="bloque.ocupado"
+                          @click="seleccionarBloque(bloque)"
+                        >
+                          {{ bloque.hora_inicio.slice(0, 5) }}–{{ bloque.hora_fin.slice(0, 5) }}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -909,11 +931,9 @@ import { useExtrasStore } from '@/stores/extras'
 import { useProductosStore } from '@/stores/productos'
 import { useTiposEventoStore } from '@/stores/tipos_evento'
 import { useReservacionesStore } from '@/stores/reservaciones'
+import type { BloqueDisponibilidad } from '@/types/reservaciones'
 import { useMetodosPagoStore } from '@/stores/metodos_pago'
 import { useAuthStore } from '@/stores/auth'
-import { usePagosReservacionesStore } from '@/stores/pagos_reservacion'
-import { useReservacionExtrasStore } from '@/stores/reservacion_extras'
-import { useReservacionProductosStore } from '@/stores/reservacion_productos'
 import PaymentModal from '@/components/shared/payments/PaymentModal.vue'
 import type { AppliedPayment } from '@/types/payments'
 import { horasFacturables } from '@/utils/horario'
@@ -930,9 +950,6 @@ const tiposEventoStore = useTiposEventoStore()
 const resStore = useReservacionesStore()
 const metodosPagoStore = useMetodosPagoStore()
 const authStore = useAuthStore()
-const pagosStore = usePagosReservacionesStore()
-const reservacionExtrasStore = useReservacionExtrasStore()
-const reservacionProductosStore = useReservacionProductosStore()
 
 onMounted(() => {
   // La validación de turno (y la espera de su carga async) ya la hace el
@@ -1131,6 +1148,28 @@ const timeSlotLabel = computed(() => {
   }
   return `${toTime12(form.value.horaInicio)} – ${toTime12(form.value.horaFin)}`
 })
+
+// ── Disponibilidad por bloque de horario ────────────────────────────────────
+// Reemplaza al antiguo cálculo de "horas libres" en el front: ahora el
+// backend es quien sabe qué bloques ya tienen una reservación encima.
+
+const bloquesDisponibilidad = computed(() => resStore.disponibilidad?.bloques ?? [])
+
+watch(
+  () => [form.value.selectedDate, authStore.currentBranchId] as const,
+  ([fecha, sucursalId]) => {
+    if (fecha && sucursalId) void resStore.cargarDisponibilidad(sucursalId, fecha)
+  },
+  { immediate: true },
+)
+
+/** Al elegir un bloque libre, precarga el horario del evento con su rango
+ * -- el cajero puede seguir ajustándolo a mano después. */
+const seleccionarBloque = (bloque: BloqueDisponibilidad) => {
+  if (bloque.ocupado) return
+  form.value.horaInicio = bloque.hora_inicio.slice(0, 5)
+  form.value.horaFin = bloque.hora_fin.slice(0, 5)
+}
 
 // ── Paquetes ──────────────────────────────────────────────────────────────────
 
@@ -1428,9 +1467,6 @@ const advanceAmount = computed(() => fmt(advanceNum.value))
 // ── Confirmar reservación ─────────────────────────────────────────────────────
 
 const confirmando = ref(false)
-// Id de la reservación ya creada en un intento previo de confirmar: evita que
-// un reintento tras un fallo parcial cree una reservación duplicada.
-const reservacionCreadaId = ref<string | null>(null)
 
 /**
  * Datos del comprobante. Null hasta confirmar; en cuanto tiene valor, el paso 4
@@ -1464,17 +1500,10 @@ function conceptosTicket(): TicketConcepto[] {
 const irAListaReservaciones = () => router.push({ name: 'eventos-reservaciones' })
 
 const confirmarReservacion = async () => {
+  // Único bloqueo de doble clic: ya no hace falta recordar si una reservación
+  // quedó creada a medias (QA #10) porque POST /reservaciones/completa es
+  // atómico -- o se crea todo, o no se crea nada.
   if (confirmando.value) return
-
-  if (reservacionCreadaId.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'La reservación ya se creó. Completa los registros pendientes desde su cierre.',
-      position: 'top-right',
-    })
-    router.push({ name: 'eventos-reservaciones-cierre', params: { id: reservacionCreadaId.value } })
-    return
-  }
 
   const sucursalId = authStore.currentBranchId
   if (!sucursalId) {
@@ -1544,87 +1573,73 @@ const confirmarReservacion = async () => {
     return
   }
 
-  // TODO backend: POST /reservaciones/completa transaccional
-  let faltante = 'la reservación'
+  // QA #10: un solo POST atómico -- reservación, extras, productos y pagos
+  // se crean (o fallan) juntos en una transacción del backend, así que ya no
+  // hace falta recordar un id a medio camino para reintentar.
   try {
-    const nuevaReservacion = await resStore.crearReservacion({
-      sucursal_id: sucursalId,
-      tipo_evento_id: form.value.tipoEvento!,
-      paquete_id: form.value.selectedPackage!,
-      nombre_cliente: form.value.nombre,
-      email_cliente: form.value.email || null,
-      telefono_cliente: telefonoLimpio,
-      fecha_evento: fecha,
-      hora_inicio: form.value.horaInicio,
-      hora_fin: form.value.horaFin,
-      numero_personas: form.value.ninos,
-      precio_base: String(packagePriceNum.value),
-      precio_extras: String(extraServicesNum.value),
-      // La columna conserva su nombre en reservaciones por compatibilidad con
-      // los eventos ya levantados; ahora almacena el total de pulseras.
-      precio_personas_extra: String(precioPulserasNum.value),
-      horas_reservadas: horasSeleccionadas.value,
-      precio_horas: '0',
-      precio_productos: String(productosAdicionalesNum.value),
-      descuento: '0',
-      precio_total: String(totalNum.value),
-      anticipo: String(montoPagado.value),
-      estado: 'confirmada',
-    })
-    reservacionCreadaId.value = nuevaReservacion.id
-    faltante = 'extras, productos adicionales y anticipo'
-
-    for (const extraId of selectedExtraIds.value) {
-      const extra = extrasStore.activos.find((e) => e.id === extraId)
-      if (!extra) continue
-      await reservacionExtrasStore.crearReservacionExtra({
-        reservacion_id: nuevaReservacion.id,
-        extra_id: extra.id,
-        cantidad: 1,
-        precio_unitario: extra.precio,
-      })
-    }
-
-    for (const item of productosAdicionales.value) {
-      await reservacionProductosStore.crearReservacionProducto({
-        reservacion_id: nuevaReservacion.id,
+    const resultado = await resStore.crearReservacionCompleta({
+      reservacion: {
+        sucursal_id: sucursalId,
+        tipo_evento_id: form.value.tipoEvento!,
+        paquete_id: form.value.selectedPackage!,
+        nombre_cliente: form.value.nombre,
+        email_cliente: form.value.email || null,
+        telefono_cliente: telefonoLimpio,
+        fecha_evento: fecha,
+        hora_inicio: form.value.horaInicio,
+        hora_fin: form.value.horaFin,
+        numero_personas: form.value.ninos,
+        precio_base: String(packagePriceNum.value),
+        precio_extras: String(extraServicesNum.value),
+        // La columna conserva su nombre en reservaciones por compatibilidad con
+        // los eventos ya levantados; ahora almacena el total de pulseras.
+        precio_personas_extra: String(precioPulserasNum.value),
+        horas_reservadas: horasSeleccionadas.value,
+        precio_horas: '0',
+        precio_productos: String(productosAdicionalesNum.value),
+        descuento: '0',
+        precio_total: String(totalNum.value),
+        anticipo: String(montoPagado.value),
+        estado: 'confirmada',
+      },
+      extras: selectedExtraIds.value
+        .map((extraId) => extrasStore.activos.find((e) => e.id === extraId))
+        .filter((extra): extra is NonNullable<typeof extra> => !!extra)
+        .map((extra) => ({ extra_id: extra.id, cantidad: 1, precio_unitario: extra.precio })),
+      productos: productosAdicionales.value.map((item) => ({
         producto_id: item.producto_id,
         cantidad: item.cantidad,
         precio_unitario: String(precioUnitarioProducto(item.producto_id)),
         notas: item.notas || null,
-      })
-    }
+      })),
+      // Los ids de método de pago ya se resolvieron y validaron antes de
+      // crear la reservación.
+      pagos: pagosAplicados.value.map((pago, i) => ({
+        metodo_pago_id: metodosPagoIds[i]!,
+        monto: String(pago.amount),
+        notas: pago.cardType
+          ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
+          : 'Anticipo registrado al confirmar reservación',
+        tipo: 'anticipo',
+      })),
+      ...(cambioDevuelto.value > 0 ? { cambio: String(cambioDevuelto.value) } : {}),
+    })
 
-    faltante = 'el anticipo'
-    if (pagosAplicados.value.length > 0) {
-      const resultadoPago = await pagosStore.completarPagosReservacion({
-        reservacion_id: nuevaReservacion.id,
-        // Los ids ya se resolvieron y validaron antes de crear la reservación (#10).
-        pagos: pagosAplicados.value.map((pago, i) => ({
-          metodo_pago_id: metodosPagoIds[i]!,
-          monto: String(pago.amount),
-          notas: pago.cardType
-            ? `Anticipo (${pago.cardType} - Folio: ${pago.authCode ?? ''})`
-            : 'Anticipo registrado al confirmar reservación',
-        })),
-        ...(cambioDevuelto.value > 0 ? { cambio: String(cambioDevuelto.value) } : {}),
+    if (resultado.advertencia_efectivo) {
+      $q.notify({
+        type: 'warning',
+        message: 'No hay suficiente efectivo en caja',
+        caption: resultado.advertencia_efectivo,
+        position: 'top-right',
+        timeout: 6000,
       })
-      if (resultadoPago.advertencia_efectivo) {
-        $q.notify({
-          type: 'warning',
-          message: 'No hay suficiente efectivo en caja',
-          caption: resultadoPago.advertencia_efectivo,
-          position: 'top-right',
-          timeout: 6000,
-        })
-      }
     }
 
     // Se arma el ticket aquí, con los valores que se acaban de cobrar, en vez de
     // navegar de inmediato: así el cajero puede imprimirle el comprobante al
     // cliente sin perder la pantalla ni tener que buscar la reservación.
     ticket.value = {
-      folio: nuevaReservacion.id,
+      folio: resultado.reservacion.folio ?? resultado.reservacion.id,
       sucursal: authStore.currentBranchName ?? 'Sucursal',
       clienteNombre: form.value.nombre,
       clienteTelefono: telefonoLimpio,
@@ -1649,20 +1664,9 @@ const confirmarReservacion = async () => {
     const apiErr = err as { message?: string; statusCode?: number }
     const msg = apiErr?.message || 'Error al guardar la reservación'
     console.error('[confirmarReservacion]', err)
-    if (reservacionCreadaId.value) {
-      $q.notify({
-        type: 'warning',
-        message: `La reservación se creó pero faltó registrar: ${faltante}. ${msg}`,
-        position: 'top-right',
-        timeout: 8000,
-      })
-      router.push({
-        name: 'eventos-reservaciones-cierre',
-        params: { id: reservacionCreadaId.value },
-      })
-    } else {
-      $q.notify({ type: 'negative', message: msg, position: 'top-right', timeout: 6000 })
-    }
+    // Nada quedó persistido (transacción atómica): no hay a dónde redirigir,
+    // solo reintentar.
+    $q.notify({ type: 'negative', message: msg, position: 'top-right', timeout: 6000 })
   } finally {
     confirmando.value = false
   }
@@ -1721,6 +1725,39 @@ const confirmarReservacion = async () => {
   font-size: 0.75rem;
   line-height: 1.35;
   color: #a35200;
+}
+
+/* ── Bloques de disponibilidad ────────────────────────────────────────────── */
+.bloques-disponibilidad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bloque-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+
+  &--libre {
+    border-color: var(--tone-ok-dot);
+    color: var(--tone-ok-fg);
+    background: var(--tone-ok-bg);
+  }
+
+  &--ocupado {
+    border-color: var(--tone-bad-dot);
+    color: var(--tone-bad-fg);
+    background: var(--tone-bad-bg);
+    cursor: not-allowed;
+    opacity: 0.8;
+  }
 }
 
 /* ── Confirmación con ticket ──────────────────────────────────────────────── */
