@@ -25,7 +25,6 @@ const USER = {
 
 const REFRESH_BODY = {
   token: 'new',
-  refresh_token: 'rt2',
   user: { id: '1', full_name: 'x', email: 'x@x.com', role: 'Cajero', branch_id: null },
 }
 
@@ -36,7 +35,7 @@ describe('axiosClient interceptor', () => {
     localStorage.clear()
     localStorage.setItem(
       'auth_session',
-      JSON.stringify({ token: 'old', tokenExpiry: 0, refreshToken: 'rt', user: USER }),
+      JSON.stringify({ token: 'old', tokenExpiry: 0, user: USER }),
     )
     refreshCalls = 0
   })
@@ -142,7 +141,7 @@ describe('axiosClient interceptor', () => {
 
   it('con refresher registrado, guarda el usuario y permisos nuevos', async () => {
     const newUser = { ...USER, permissions: ['pos:acceder'] }
-    configurarRefresh(() => Promise.resolve({ token: 'tok', refreshToken: 'rt3', user: newUser }))
+    configurarRefresh(() => Promise.resolve({ token: 'tok', user: newUser }))
 
     try {
       await refreshAccessToken()
@@ -152,6 +151,6 @@ describe('axiosClient interceptor', () => {
 
     const stored = JSON.parse(localStorage.getItem('auth_session') ?? '{}')
     expect(stored.user.permissions).toEqual(['pos:acceder'])
-    expect(stored.refreshToken).toBe('rt3')
+    expect(stored.token).toBe('tok')
   })
 })

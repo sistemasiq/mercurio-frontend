@@ -19,7 +19,8 @@ import { inactivityTimer } from '@/utils/inactivityTimer'
 const INACTIVITY_MS = 15 * 60 * 1000
 
 export function setupPlugins(app: App, router: Router): void {
-  configurarRefresh((refreshToken) => authService.refresh(refreshToken))
+  // QA #32: el refresh ya no manda el refresh token -- viaja en la cookie HttpOnly.
+  configurarRefresh(() => authService.refresh())
   const pinia = createPinia()
   pinia.use(resetPlugin)
 

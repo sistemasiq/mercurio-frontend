@@ -58,7 +58,6 @@ export interface AuthState {
 export interface StoredSession {
   token: string
   tokenExpiry: number
-  refreshToken: string
   user: User
 }
 
