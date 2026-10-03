@@ -37,6 +37,8 @@ export interface AbrirTurnoPayload {
   cajaId?: string
   /** Solo relevante para AdministradorSistema, que no tiene sucursal propia en el JWT. */
   sucursalId?: string
+  /** PIN del cajero (o su contraseña, si aún no tiene PIN configurado). */
+  pin?: string
 }
 
 // ---------------------------------------------------------------------------

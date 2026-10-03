@@ -147,6 +147,7 @@ export const turnoCajaApi = {
       observaciones_apertura: payload.observacionesApertura,
       turno_id: payload.turnoId,
       sucursal_id: payload.sucursalId,
+      pin: payload.pin,
     }
     const { data } = await apiClient.post(`${BASE}/abrir`, body)
     return mapTurnoActivo(data)

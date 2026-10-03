@@ -93,6 +93,29 @@
       </p>
 
       <div class="apertura__field">
+        <span class="field-label">Tu PIN de caja</span>
+        <q-input
+          v-model="pin"
+          outlined
+          dense
+          :type="verPin ? 'text' : 'password'"
+          autocomplete="off"
+          placeholder="4 dígitos (o tu contraseña, si aún no tienes PIN)"
+          hide-bottom-space
+          :rules="[(v: string) => !!v || 'Ingresa tu PIN de caja']"
+        >
+          <template #append>
+            <q-icon
+              :name="verPin ? 'visibility_off' : 'visibility'"
+              class="cursor-pointer"
+              size="19px"
+              @click="verPin = !verPin"
+            />
+          </template>
+        </q-input>
+      </div>
+
+      <div class="apertura__field">
         <span class="field-label">Notas</span>
         <q-input v-model="observaciones" outlined type="textarea" rows="2" placeholder="Opcional" />
       </div>
@@ -147,6 +170,8 @@ const authStore = useAuthStore()
 
 const fondoInicial = ref<number | null>(0)
 const observaciones = ref('')
+const pin = ref('')
+const verPin = ref(false)
 
 // AdministradorSistema no tiene sucursal propia en el JWT (branchId === null) y
 // controla todas las sucursales: usa la que ya eligió en el selector global del
@@ -185,6 +210,7 @@ const puedeAbrirCaja = computed(() => {
   if (fondoInicial.value < 0) return false
   if (esAdminSistema.value && !sucursalSeleccionada.value) return false
   if (opcionesCajas.value.length > 0 && !cajaSeleccionada.value) return false
+  if (!pin.value) return false
   return true
 })
 
@@ -267,6 +293,14 @@ async function realizarApertura() {
     return
   }
 
+  if (!pin.value) {
+    $q.notify({
+      type: 'warning',
+      message: 'Ingresa tu PIN de caja para abrir el turno.',
+    })
+    return
+  }
+
   const terminalFinal = cajaSeleccionada.value || 'CAJA 01'
 
   await turno.abrirTurno(
@@ -275,6 +309,7 @@ async function realizarApertura() {
     observaciones.value,
     turnoSeleccionado.value ?? undefined,
     esAdminSistema.value ? (sucursalSeleccionada.value ?? undefined) : undefined,
+    pin.value,
   )
 
   if (!turno.error && turno.estaOperando) {

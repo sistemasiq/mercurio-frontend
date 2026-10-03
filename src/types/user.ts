@@ -10,6 +10,8 @@ export interface UserListItem {
   branchId: string | null
   isActive: boolean
   lastAccess: string | null
+  /** C1: true si el usuario ya tiene PIN de caja configurado. */
+  tienePin: boolean
 }
 
 export interface CreateUserPayload {
@@ -20,6 +22,8 @@ export interface CreateUserPayload {
   password: string
   role: UserRole
   branchId?: string | null
+  /** PIN de caja de 4 dígitos, opcional. */
+  pin?: string | null
 }
 
 export interface UpdateUserPayload {
@@ -31,4 +35,6 @@ export interface UpdateUserPayload {
   branchId?: string | null
   password?: string | null
   isActive?: boolean | null
+  /** PIN de caja de 4 dígitos. null/omitido = no cambiar. */
+  pin?: string | null
 }

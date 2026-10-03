@@ -36,6 +36,9 @@ export interface User {
   branchId: string | null
   branchName: string | null
   permissions: string[]
+  /** C1: true si el usuario ya tiene PIN de caja configurado. Opcional para no
+   * romper construcciones existentes de User (login/refresh no lo traían). */
+  tienePin?: boolean
 }
 
 export interface LoginResponse {

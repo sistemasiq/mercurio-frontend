@@ -134,10 +134,6 @@
                     <q-item-section avatar><q-icon name="edit" size="19px" /></q-item-section>
                     <q-item-section>Editar</q-item-section>
                   </q-item>
-                  <q-item v-close-popup clickable @click="abrirPresentaciones(props.row)">
-                    <q-item-section avatar><q-icon name="category" size="19px" /></q-item-section>
-                    <q-item-section>Presentaciones</q-item-section>
-                  </q-item>
                   <q-item
                     v-close-popup
                     clickable
@@ -302,6 +298,81 @@
             :options="proveedorOptions"
           />
         </div>
+
+        <div v-if="editando" class="dlg-section">
+          <div class="dlg-section__title"><q-icon name="category" size="19px" />Presentaciones</div>
+
+          <q-banner
+            v-if="presentacionesStore.error"
+            dense
+            rounded
+            class="bg-red-1 text-red-8 q-mb-sm"
+            style="border-radius: 10px"
+          >
+            {{ presentacionesStore.error }}
+          </q-banner>
+
+          <q-list v-if="presentacionesActivas.length" separator bordered class="rounded-borders">
+            <q-item v-for="item in presentacionesActivas" :key="item.id">
+              <q-item-section>
+                <q-item-label>{{ item.nombre }}</q-item-label>
+                <q-item-label caption>
+                  {{ Number(item.equivalencia_base) }} {{ codigoUnidad(editando.unidad_base_id) }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="delete_outline"
+                  color="negative"
+                  size="sm"
+                  @click="quitarPresentacion(item.id)"
+                >
+                  <q-tooltip>Quitar</q-tooltip>
+                </q-btn>
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-else class="text-body2 text-grey-7 q-py-sm">
+            Este insumo todavía no tiene presentaciones registradas.
+          </div>
+
+          <div class="row q-col-gutter-sm items-start q-mt-sm">
+            <div class="col-7">
+              <div class="field-label">Nombre</div>
+              <q-input
+                v-model="formPresentacion.nombre"
+                dense
+                outlined
+                placeholder="Ej. Paquete (8 pz)"
+              />
+            </div>
+            <div class="col-5">
+              <div class="field-label">Equivalencia</div>
+              <q-input
+                v-model.number="formPresentacion.equivalencia_base"
+                dense
+                outlined
+                type="number"
+                min="0"
+                step="0.001"
+              />
+            </div>
+          </div>
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            label="Agregar presentación"
+            class="q-mt-sm"
+            style="border-radius: 8px; font-weight: 600"
+            :loading="guardandoPresentacion"
+            :disable="!formPresentacion.nombre.trim() || !formPresentacion.equivalencia_base"
+            @click="guardarPresentacion"
+          />
+        </div>
       </div>
 
       <template #footer>
@@ -464,98 +535,6 @@
         />
       </template>
     </BaseDialog>
-
-    <BaseDialog
-      v-model="dialogPresentaciones"
-      :title="'Presentaciones'"
-      :subtitle="
-        insumoPresentaciones
-          ? `${insumoPresentaciones.nombre} · unidad base ${codigoUnidad(insumoPresentaciones.unidad_base_id)}`
-          : ''
-      "
-      icon="category"
-      tone="blue"
-      :width="560"
-    >
-      <div class="dlg-stack">
-        <q-banner
-          v-if="presentacionesStore.error"
-          dense
-          rounded
-          class="bg-red-1 text-red-8 q-mb-md"
-          style="border-radius: 10px"
-        >
-          {{ presentacionesStore.error }}
-        </q-banner>
-
-        <q-list v-if="presentacionesActivas.length" separator>
-          <q-item v-for="item in presentacionesActivas" :key="item.id">
-            <q-item-section>
-              <q-item-label>{{ item.nombre }}</q-item-label>
-              <q-item-label caption>
-                {{ Number(item.equivalencia_base) }}
-                {{ insumoPresentaciones ? codigoUnidad(insumoPresentaciones.unidad_base_id) : '' }}
-              </q-item-label>
-            </q-item-section>
-            <q-item-section side>
-              <q-btn
-                flat
-                round
-                dense
-                icon="delete_outline"
-                color="negative"
-                size="sm"
-                @click="quitarPresentacion(item.id)"
-              >
-                <q-tooltip>Quitar</q-tooltip>
-              </q-btn>
-            </q-item-section>
-          </q-item>
-        </q-list>
-        <div v-else class="text-body2 text-grey-7 q-py-sm">
-          Este insumo todavía no tiene presentaciones registradas.
-        </div>
-      </div>
-
-      <div class="dlg-stack">
-        <div class="row q-col-gutter-sm items-start">
-          <div class="col-7">
-            <div class="field-label">Nombre</div>
-            <q-input
-              v-model="formPresentacion.nombre"
-              dense
-              outlined
-              placeholder="Ej. Paquete (8 pz)"
-            />
-          </div>
-          <div class="col-5">
-            <div class="field-label">Equivalencia</div>
-            <q-input
-              v-model.number="formPresentacion.equivalencia_base"
-              dense
-              outlined
-              type="number"
-              min="0"
-              step="0.001"
-            />
-          </div>
-        </div>
-        <q-btn
-          unelevated
-          no-caps
-          color="primary"
-          label="Agregar presentación"
-          style="border-radius: 8px; font-weight: 600"
-          :loading="guardandoPresentacion"
-          :disable="!formPresentacion.nombre.trim() || !formPresentacion.equivalencia_base"
-          @click="guardarPresentacion"
-        />
-      </div>
-
-      <template #footer>
-        <q-btn v-close-popup outline no-caps label="Cerrar" />
-      </template>
-    </BaseDialog>
   </q-page>
 </template>
 
@@ -671,7 +650,7 @@ const columns: QTableColumn[] = [
   { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
   { name: 'unidad_base_id', label: 'Unidad', field: 'unidad_base_id', align: 'left' },
   { name: 'stock_actual', label: 'Stock', field: 'stock_actual', align: 'left', sortable: true },
-  { name: 'rinde_para', label: 'Rinde para', field: 'id', align: 'left' },
+  { name: 'rinde_para', label: 'Rinde para (estimado)', field: 'id', align: 'left' },
   { name: 'stock_minimo', label: 'Mínimo', field: 'stock_minimo', align: 'right' },
   { name: 'costo_unitario', label: 'Costo', field: 'costo_unitario', align: 'right' },
   {
@@ -726,7 +705,9 @@ const abrirEditar = (row: Insumo) => {
     costo_unitario: row.costo_unitario ? Number(row.costo_unitario) : null,
     proveedor_principal_id: row.proveedor_principal_id,
   }
+  formPresentacion.value = { nombre: '', equivalencia_base: 0 }
   dialogOpen.value = true
+  presentacionesStore.cargarPorInsumo(row.id)
 }
 
 const cerrarDialog = () => {
@@ -914,10 +895,8 @@ const guardarConteo = async () => {
   }
 }
 
-// ── Presentaciones ────────────────────────────────────────────────────────────
+// ── Presentaciones (sección dentro del diálogo de insumo) ─────────────────────
 
-const dialogPresentaciones = ref(false)
-const insumoPresentaciones = ref<Insumo | null>(null)
 const guardandoPresentacion = ref(false)
 
 const formPresentacion = ref({
@@ -927,23 +906,16 @@ const formPresentacion = ref({
 
 const presentacionesActivas = computed(() => presentacionesStore.items.filter((p) => p.activo))
 
-const abrirPresentaciones = (row: Insumo) => {
-  insumoPresentaciones.value = row
-  formPresentacion.value = { nombre: '', equivalencia_base: 0 }
-  dialogPresentaciones.value = true
-  presentacionesStore.cargarPorInsumo(row.id)
-}
-
 const guardarPresentacion = async () => {
   if (
-    !insumoPresentaciones.value ||
+    !editando.value ||
     !formPresentacion.value.nombre.trim() ||
     !formPresentacion.value.equivalencia_base
   )
     return
   guardandoPresentacion.value = true
   try {
-    await presentacionesStore.crear(insumoPresentaciones.value.id, {
+    await presentacionesStore.crear(editando.value.id, {
       nombre: formPresentacion.value.nombre.trim(),
       equivalencia_base: String(formPresentacion.value.equivalencia_base),
     })
@@ -961,9 +933,9 @@ const guardarPresentacion = async () => {
 }
 
 const quitarPresentacion = async (presentacionId: string) => {
-  if (!insumoPresentaciones.value) return
+  if (!editando.value) return
   try {
-    await presentacionesStore.eliminar(insumoPresentaciones.value.id, presentacionId)
+    await presentacionesStore.eliminar(editando.value.id, presentacionId)
     $q.notify({ type: 'positive', message: 'Presentación eliminada', position: 'top-right' })
   } catch (err) {
     $q.notify({

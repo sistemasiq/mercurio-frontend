@@ -50,25 +50,14 @@ simplifican hasta que exista la fuente.
 
 - **Método de pago en el panel del pedido**: se elige dentro del cobro
   multimodal.
-- **Stock en piezas ("48 pzas")**: solo existe el "rinde" calculado por receta.
-- **Checklist "Quien recoge coincide"** (Checkout): sería una validación nueva;
-  se deja el acceso a las fotos para comparar.
-
-### 02 Eventos
 
 ### 03 Catálogo
 
 ### 04 Inventario
 
-- **Presentaciones dentro del diálogo de insumo** (4b.1): se gestionan en su
-  propio diálogo.
-
-### 05 Lealtad
 
 ### 06 Administración
 
-- **PIN de caja** (usuario): su semántica es una decisión de negocio
-  pendiente; el usuario no trae ese campo.
 
 ## Cambios de comportamiento
 
