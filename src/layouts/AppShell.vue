@@ -7,6 +7,7 @@ import { useSucursalesStore } from '@/stores/sucursales'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useAlertasInventarioStore } from '@/stores/alertasInventario'
 import { useShellIndicadoresStore } from '@/stores/shellIndicadores'
+import { useReservacionesStore } from '@/stores/reservaciones'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppTopbar from '@/components/layout/AppTopbar.vue'
 
@@ -17,6 +18,7 @@ const turno = useTurnoCajaStore()
 const sucursalesStore = useSucursalesStore()
 const alertasInventario = useAlertasInventarioStore()
 const shellIndicadores = useShellIndicadoresStore()
+const reservacionesStore = useReservacionesStore()
 
 // Debajo de este ancho el sidebar pasa a overlay y se abre desde el Topbar.
 const DRAWER_BREAKPOINT = 1024
@@ -46,6 +48,7 @@ const refrescarAlertasInventario = (avisar = true) => {
 const INTERVALO_INDICADORES_MS = 30 * 1000
 let indicadoresIntervalId: ReturnType<typeof setInterval> | undefined
 const abortIndicadoresComandas = new AbortController()
+let notifIntervalId: ReturnType<typeof setInterval> | undefined
 
 const refrescarIndicadoresSidebar = () => {
   if (auth.hasPermission('restaurante:gestionar_cocina')) {
@@ -53,6 +56,15 @@ const refrescarIndicadoresSidebar = () => {
   }
   if (auth.hasPermission('estancias:ver_activos') && auth.currentBranchId) {
     void shellIndicadores.refrescarNinosActivos(auth.currentBranchId)
+  }
+}
+
+// Centro de notificaciones (campana): necesita el catálogo de reservaciones
+// disponible fuera de Inicio/Calendario para listar "eventos de hoy por
+// iniciar" desde cualquier pantalla.
+const refrescarReservacionesParaNotificaciones = () => {
+  if (auth.hasPermission('reservaciones:listar') && auth.currentBranchId) {
+    void reservacionesStore.cargar(auth.currentBranchId)
   }
 }
 
@@ -74,11 +86,15 @@ onMounted(() => {
 
   refrescarIndicadoresSidebar()
   indicadoresIntervalId = setInterval(refrescarIndicadoresSidebar, INTERVALO_INDICADORES_MS)
+
+  refrescarReservacionesParaNotificaciones()
+  notifIntervalId = setInterval(refrescarReservacionesParaNotificaciones, INTERVALO_ALERTAS_MS)
 })
 
 onBeforeUnmount(() => {
   if (alertasIntervalId) clearInterval(alertasIntervalId)
   if (indicadoresIntervalId) clearInterval(indicadoresIntervalId)
+  if (notifIntervalId) clearInterval(notifIntervalId)
   abortIndicadoresComandas.abort()
 })
 
@@ -89,6 +105,7 @@ watch(
     refrescarAlertasInventario(false)
     shellIndicadores.limpiar()
     refrescarIndicadoresSidebar()
+    refrescarReservacionesParaNotificaciones()
   },
 )
 </script>
