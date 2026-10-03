@@ -71,7 +71,6 @@ simplifican hasta que exista la fuente.
 ### 05 Lealtad
 
 - **KPI "Por vencer"** (kardex): el saldo ya trae `por_vencer`; falta mostrarlo.
-- **Exportar** (reporte): sin endpoint.
 
 ### 06 Administración
 

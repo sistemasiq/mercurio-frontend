@@ -1,4 +1,5 @@
 import { lealtadApi } from '@/api/lealtadApi'
+import { downloadBlob } from '@/utils/downloadBlob'
 import type {
   AjustePuntosInput,
   ClienteLealtad,
@@ -44,6 +45,16 @@ export async function obtenerReporteLealtad(
   hasta?: string,
 ): Promise<ReporteLealtad> {
   return lealtadApi.obtenerReporte(sucursalId, desde, hasta)
+}
+
+export async function exportarReporteLealtad(
+  sucursalId: string,
+  desde?: string,
+  hasta?: string,
+  nombreArchivo = 'reporte_lealtad.csv',
+): Promise<void> {
+  const blob = await lealtadApi.exportarReporte(sucursalId, desde, hasta)
+  downloadBlob(blob, nombreArchivo)
 }
 
 export async function buscarClientesLealtad(

@@ -57,6 +57,14 @@ export const lealtadApi = {
     return data
   },
 
+  async exportarReporte(sucursalId: string, desde?: string, hasta?: string): Promise<Blob> {
+    const { data } = await apiClient.get('/lealtad/reporte/export', {
+      params: { sucursal_id: sucursalId, desde, hasta },
+      responseType: 'blob',
+    })
+    return data as Blob
+  },
+
   async buscarClientes(sucursalId: string, q: string): Promise<ClienteLealtad[]> {
     const { data } = await apiClient.get<ClienteLealtad[]>('/lealtad/clientes', {
       params: { sucursal_id: sucursalId, q },
