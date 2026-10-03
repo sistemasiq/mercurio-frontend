@@ -523,8 +523,8 @@ const procesarPago = async (
     const totalFinal = redondear2(totalBruto - descuentoPuntos)
 
     const payload: PagoCompletoRequest = {
-      // TODO backend: folio secuencial por sucursal
-      ticket_numero: `TICK-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      // QA #21: el backend asigna el folio secuencial por sucursal; ya no se
+      // genera ticket_numero aquí.
       total_final: totalFinal,
       detalles_comanda: detalles,
       pagos: pagos.map((p) => ({
