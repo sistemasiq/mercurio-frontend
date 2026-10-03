@@ -33,8 +33,10 @@ function mapCaja(raw: BackendCaja): CajaAdmin {
 }
 
 export const cajasAdminApi = {
-  async list(): Promise<CajaAdmin[]> {
-    const { data } = await apiClient.get<BackendCaja[]>('/cajas')
+  async list(sucursalId?: string): Promise<CajaAdmin[]> {
+    const { data } = await apiClient.get<BackendCaja[]>('/cajas', {
+      params: sucursalId ? { sucursal_id: sucursalId } : undefined,
+    })
     return data.map(mapCaja)
   },
 

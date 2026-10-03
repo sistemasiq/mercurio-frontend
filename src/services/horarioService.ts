@@ -2,8 +2,8 @@ import { horariosApi } from '@/api/horariosApi'
 import type { Horario, HorarioCreate, HorarioUpdate } from '@/types/horario'
 
 export const horarioService = {
-  async listHorarios(): Promise<Horario[]> {
-    return horariosApi.list()
+  async listHorarios(sucursalId?: string): Promise<Horario[]> {
+    return horariosApi.list(sucursalId)
   },
 
   async createHorario(payload: HorarioCreate): Promise<Horario> {

@@ -61,7 +61,6 @@ simplifican hasta que exista la fuente.
 
 ### 03 Catálogo
 
-
 ### 04 Inventario
 
 - **Imagen 1:1 del producto** (4a.1): se conserva el selector de imagen
@@ -76,9 +75,6 @@ simplifican hasta que exista la fuente.
 
 ### 06 Administración
 
-- **Pestañas Cajas / Horarios en el detalle de sucursal**: `/cajas` y
-  `/horarios` filtran por la sucursal de la sesión, no por la que se consulta;
-  al ver otra sucursal se muestran las de la propia.
 - **PIN de caja** (usuario): su semántica es una decisión de negocio
   pendiente; el usuario no trae ese campo.
 
