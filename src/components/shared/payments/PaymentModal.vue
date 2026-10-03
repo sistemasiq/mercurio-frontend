@@ -58,8 +58,14 @@
                   : 'Para acumular puntos de lealtad'
               "
             />
-            <span v-if="saldoDisponible !== null && saldoDisponible > 0" class="pay__points">
+            <span
+              v-if="saldoDisponible !== null && saldoDisponible > 0 && !debajoDelMinimoCanje"
+              class="pay__points"
+            >
               {{ saldoDisponible }} pts disponibles · ${{ valorPunto?.toFixed(2) }} c/u
+            </span>
+            <span v-else-if="debajoDelMinimoCanje" class="pay__points pay__points--warn">
+              Mínimo para canjear: {{ minimoCanje }} pts
             </span>
           </div>
 
@@ -170,6 +176,32 @@
       </div>
     </div>
   </BaseDialog>
+
+  <BaseDialog
+    v-model="mostrarModalReferencia"
+    title="Referencia del pago"
+    :subtitle="`${metodoSeleccionado} · $${referenciaMontoTemporal.toFixed(2)}`"
+    icon="receipt_long"
+    :width="440"
+    persistent
+    primary-label="Agregar pago"
+    :primary-disabled="!referenciaPago.trim()"
+    @cancel="limpiarModalReferencia"
+    @confirm="onConfirmarReferencia"
+  >
+    <div class="card-form">
+      <div class="card-form__field card-form__field--full">
+        <span class="field-label">Folio o referencia</span>
+        <q-input
+          v-model="referenciaPago"
+          outlined
+          dense
+          autofocus
+          placeholder="Ej. folio de la transferencia"
+        />
+      </div>
+    </div>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
@@ -240,6 +272,17 @@ const tarjetaMontoTemporal = ref(0)
 const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
 const tarjetaAutorizacion = ref('')
 const tarjetaUltimos4 = ref('')
+
+// Métodos marcados con "requiere referencia" en el catálogo piden un folio
+// antes de agregarse (la tarjeta ya lo pide en su propio diálogo).
+const mostrarModalReferencia = ref(false)
+const referenciaMontoTemporal = ref(0)
+const referenciaPago = ref('')
+
+const requiereReferencia = (categoria: string): boolean => {
+  const tipo = CATEGORIAS_METODO_PAGO.find((c) => c.valor === categoria)?.tipo
+  return props.metodosPago.some((m) => m.tipo === tipo && m.requiere_referencia)
+}
 
 // Catálogo que se ofrece en el selector: sin Lealtad si el flujo no la admite.
 const metodosVisibles = computed(() =>
@@ -322,8 +365,13 @@ watch(celularCliente, async (val) => {
   valorPunto.value = lealtadStore.configuracion?.valor_punto ?? null
 })
 
+const minimoCanje = computed(() => lealtadStore.configuracion?.minimo_canje ?? 0)
+const debajoDelMinimoCanje = computed(
+  () => saldoDisponible.value !== null && saldoDisponible.value < minimoCanje.value,
+)
+
 const maxPuntosRedimibles = computed(() => {
-  if (saldoDisponible.value === null || !valorPunto.value) return 0
+  if (saldoDisponible.value === null || !valorPunto.value || debajoDelMinimoCanje.value) return 0
   const maxPorTotal = Math.floor(props.totalToPay / valorPunto.value)
   return Math.max(0, Math.min(saldoDisponible.value, maxPorTotal))
 })
@@ -405,6 +453,9 @@ const iniciarAbono = (monto: number) => {
   if (esTarjeta(metodoSeleccionado.value)) {
     tarjetaMontoTemporal.value = monto
     mostrarModalTarjeta.value = true
+  } else if (!esEfectivo(metodoSeleccionado.value) && requiereReferencia(metodoSeleccionado.value)) {
+    referenciaMontoTemporal.value = monto
+    mostrarModalReferencia.value = true
   } else {
     agregarPago(monto)
   }
@@ -419,6 +470,16 @@ const aplicarRedencionLealtad = (monto: number) => {
       timeout: 3000,
     })
     celularInputRef.value?.focus()
+    return
+  }
+
+  if (debajoDelMinimoCanje.value) {
+    $q.notify({
+      type: 'warning',
+      message: `Mínimo para canjear: ${minimoCanje.value} pts.`,
+      position: 'top',
+      timeout: 3000,
+    })
     return
   }
 
@@ -486,6 +547,18 @@ const agregarPago = (
     authCode,
     ultimos4,
   })
+}
+
+const onConfirmarReferencia = () => {
+  // La referencia viaja en `authCode`, igual que el folio del voucher de tarjeta.
+  agregarPago(referenciaMontoTemporal.value, undefined, referenciaPago.value.trim())
+  limpiarModalReferencia()
+}
+
+const limpiarModalReferencia = () => {
+  mostrarModalReferencia.value = false
+  referenciaMontoTemporal.value = 0
+  referenciaPago.value = ''
 }
 
 const limpiarModalTarjeta = () => {
@@ -651,6 +724,10 @@ const finalizarPago = () => {
     font-size: 12px;
     color: var(--tone-info-fg);
     font-weight: 600;
+
+    &--warn {
+      color: var(--tone-warn-fg);
+    }
   }
 
   &__applied {

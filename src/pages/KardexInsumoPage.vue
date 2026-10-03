@@ -5,7 +5,11 @@
       subtitle="Movimientos de entrada y salida del insumo."
       back-label="Insumos"
       :back-to="{ name: 'insumos-listar' }"
-    />
+    >
+      <template #actions>
+        <q-btn outline icon="download" label="Exportar" :loading="exportando" @click="exportar" />
+      </template>
+    </PageHeader>
 
     <div v-if="insumo" class="kpi-row">
       <KpiCard
@@ -114,15 +118,19 @@ import StateBlock from '@/components/ui/StateBlock.vue'
 import { formatMXN } from '@/utils/formatoMoneda'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { useInsumosStore } from '@/stores/insumos'
 import { useUnidadesMedidaStore } from '@/stores/unidadesMedida'
 import { useMovimientosInventarioStore } from '@/stores/movimientosInventario'
 import { useAuthStore } from '@/stores/auth'
+import { exportarMovimientos } from '@/services/movimientoInventarioService'
+import { mensajeDeError } from '@/utils/errorHandler'
 
 type TipoMovimiento = 'E' | 'S' | 'A' | 'M'
 
 const route = useRoute()
+const $q = useQuasar()
 const authStore = useAuthStore()
 const insumosStore = useInsumosStore()
 const unidadesStore = useUnidadesMedidaStore()
@@ -133,6 +141,18 @@ const insumo = computed(() => insumosStore.insumos.find((i) => i.id === insumoId
 
 const desde = ref('')
 const hasta = ref('')
+const exportando = ref(false)
+
+async function exportar() {
+  exportando.value = true
+  try {
+    await exportarMovimientos(insumoId.value, desde.value || undefined, hasta.value || undefined)
+  } catch (err) {
+    $q.notify({ type: 'negative', message: mensajeDeError(err, 'No se pudo exportar el kardex.') })
+  } finally {
+    exportando.value = false
+  }
+}
 
 onMounted(async () => {
   if (authStore.currentBranchId) await insumosStore.cargar(authStore.currentBranchId)

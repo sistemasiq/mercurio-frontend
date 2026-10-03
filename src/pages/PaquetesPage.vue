@@ -43,8 +43,12 @@
         <template #body-cell-nombre="props">
           <q-td :props="props">
             <span class="text-weight-bold">{{ props.row.nombre }}</span>
+            <StatusBadge v-if="props.row.destacado" tone="pink" label="Destacado" class="q-ml-sm" />
             <span v-if="props.row.descripcion" class="cell-sub cell-ellipsis">
               {{ props.row.descripcion }}
+            </span>
+            <span v-if="props.row.tipos_evento?.length" class="cell-sub">
+              {{ props.row.tipos_evento.map((t: { nombre: string }) => t.nombre).join(' · ') }}
             </span>
           </q-td>
         </template>
@@ -92,6 +96,16 @@
               class="action-btn"
               aria-label="Editar"
               @click="abrirEditar(props.row)"
+            />
+            <q-btn
+              flat
+              round
+              dense
+              icon="content_copy"
+              class="action-btn"
+              aria-label="Duplicar"
+              :loading="duplicandoId === props.row.id"
+              @click="duplicar(props.row)"
             />
             <q-btn
               flat
@@ -198,6 +212,37 @@
             hide-bottom-space
           />
         </label>
+        <label class="form-grid__field">
+          <span class="field-label">Duración estimada</span>
+          <q-input
+            v-model.number="formDialog.duracion_horas"
+            dense
+            outlined
+            type="number"
+            min="0.5"
+            step="0.5"
+            suffix="h"
+            placeholder="Opcional"
+          />
+        </label>
+        <label class="form-grid__field">
+          <span class="field-label">Anticipo sugerido</span>
+          <q-input
+            v-model.number="formDialog.anticipo_porcentaje"
+            dense
+            outlined
+            type="number"
+            min="1"
+            max="100"
+            suffix="%"
+            placeholder="Opcional"
+            :rules="[(v) => v === null || v === '' || (v > 0 && v <= 100) || 'Entre 1 y 100']"
+            hide-bottom-space
+          />
+        </label>
+        <div class="form-grid__toggle">
+          <q-toggle v-model="formDialog.destacado" label="Destacar al reservar" />
+        </div>
         <p class="form-grid__field form-grid__field--full form-grid__note">
           Al reservar solo se ofrecerán los paquetes cuyo rango cubra el número de niños que pida
           el cliente.
@@ -448,8 +493,15 @@ const formDialog = ref({
   max_invitados: 10,
   precio_base: 0,
   precio_hora_pulsera: 0,
+  duracion_horas: null as number | null,
+  anticipo_porcentaje: null as number | null,
+  destacado: false,
   productos_incluidos: [] as PaqueteProductoItem[],
 })
+
+// Un número vacío del q-input llega como '' (v-model.number no lo convierte).
+const decimalOpcional = (v: number | string | null): string | null =>
+  v === null || v === '' || !Number.isFinite(Number(v)) ? null : String(v)
 
 const abrirCrear = () => {
   editando.value = null
@@ -460,6 +512,9 @@ const abrirCrear = () => {
     max_invitados: 10,
     precio_base: 0,
     precio_hora_pulsera: 0,
+    duracion_horas: null,
+    anticipo_porcentaje: null,
+    destacado: false,
     productos_incluidos: [],
   }
   productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
@@ -492,6 +547,9 @@ const abrirEditar = async (row: Paquetes) => {
     max_invitados: row.max_invitados,
     precio_base: Number(row.precio_base),
     precio_hora_pulsera: Number(row.precio_hora_pulsera),
+    duracion_horas: row.duracion_horas === null ? null : Number(row.duracion_horas),
+    anticipo_porcentaje: row.anticipo_porcentaje === null ? null : Number(row.anticipo_porcentaje),
+    destacado: row.destacado,
     productos_incluidos: productosIncluidosCargados,
   }
   productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
@@ -501,6 +559,24 @@ const abrirEditar = async (row: Paquetes) => {
 const cerrarDialog = () => {
   dialogOpen.value = false
   editando.value = null
+}
+
+const duplicandoId = ref<string | null>(null)
+
+const duplicar = async (row: Paquetes) => {
+  duplicandoId.value = row.id
+  try {
+    const copia = await store.duplicarPaquete(row.id)
+    $q.notify({ type: 'positive', message: `Se creó "${copia.nombre}"`, position: 'top-right' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: resolveErrorMessage(err as ApiError),
+      position: 'top-right',
+    })
+  } finally {
+    duplicandoId.value = null
+  }
 }
 
 const guardar = async () => {
@@ -535,6 +611,9 @@ const guardar = async () => {
         max_invitados: formDialog.value.max_invitados,
         precio_base: String(formDialog.value.precio_base),
         precio_hora_pulsera: String(formDialog.value.precio_hora_pulsera),
+        duracion_horas: decimalOpcional(formDialog.value.duracion_horas),
+        anticipo_porcentaje: decimalOpcional(formDialog.value.anticipo_porcentaje),
+        destacado: formDialog.value.destacado,
         productos_incluidos: formDialog.value.productos_incluidos,
       })
       $q.notify({ type: 'positive', message: 'Paquete actualizado', position: 'top-right' })
@@ -547,6 +626,9 @@ const guardar = async () => {
         max_invitados: formDialog.value.max_invitados,
         precio_base: String(formDialog.value.precio_base),
         precio_hora_pulsera: String(formDialog.value.precio_hora_pulsera),
+        duracion_horas: decimalOpcional(formDialog.value.duracion_horas),
+        anticipo_porcentaje: decimalOpcional(formDialog.value.anticipo_porcentaje),
+        destacado: formDialog.value.destacado,
         productos_incluidos: formDialog.value.productos_incluidos,
         sucursal_id: authStore.currentBranchId,
       })

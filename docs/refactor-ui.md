@@ -52,10 +52,6 @@ simplifican hasta que exista la fuente.
 
 ### 00 Acceso
 
-- **"Tus puntos Woow"** (portal de padres): el tutor no trae saldo de lealtad.
-- **"Cargo extra"** en visita excedida: no viene en `NinoActivo`.
-- **Importe y puntos de visita finalizada**: `NinoActivo` no los trae; se
-  muestra duración y pulsera.
 - **Foto del panel de login**: el mockup deja un placeholder; se usa la
   ilustración del logo.
 
@@ -68,19 +64,8 @@ simplifican hasta que exista la fuente.
 - **Método de pago en el panel del pedido**: se elige dentro del cobro
   multimodal.
 - **Stock en piezas ("48 pzas")**: solo existe el "rinde" calculado por receta.
-- **Hora de entrada real** (Control de Acceso): `ActivoDto` trae minutos
-  transcurridos; la hora se deriva.
-- **"Cliente frecuente · pts" y tiempo de juego por niño** (Registro): el
-  registro no consulta lealtad y define un solo tiempo para todo el registro.
 - **Checklist "Quien recoge coincide"** (Checkout): sería una validación nueva;
   se deja el acceso a las fotos para comparar.
-- **Cargo excedente antes de confirmar** (Checkout): la cotización se pide al
-  confirmar la salida.
-- **UID RFID y "Asignada a"** (Pulseras): `PulseraAdmin` no los trae.
-- **Filtros por método y caja; Exportar** (historiales): sin soporte en el
-  endpoint.
-- **KPIs de arqueos**: el historial se pagina en el servidor; los KPIs cubren
-  la página cargada.
 
 ### 02 Eventos
 
@@ -93,26 +78,14 @@ simplifican hasta que exista la fuente.
 
 ### 03 Catálogo
 
-- **Duración, tipos de evento, anticipo y "destacado" del paquete** (3b.1): el
-  modelo de paquete no tiene esos campos.
-- **Duplicar paquete** (3b): no existe la acción en el backend.
-- **Conteo de paquetes por tipo de evento** (3c): no hay relación expuesta.
-- **Comisión y "solicitar referencia"** (3d.1): el método de pago solo tiene
-  nombre, descripción, tipo y activo.
+- **Tipo de evento como chips** (Nueva reservación): se conserva el selector.
 
 ### 04 Inventario
 
-- **Costo de receta y margen por producto** (4a): no hay costo de receta en el
-  listado; se ve dentro del diálogo de receta solo como insumos y cantidades.
-- **Imagen 1:1 y código del producto** (4a.1): se conserva el selector de imagen
-  existente; el producto no tiene código.
+- **Imagen 1:1 del producto** (4a.1): se conserva el selector de imagen
+  existente.
 - **Presentaciones dentro del diálogo de insumo** (4b.1): se gestionan en su
   propio diálogo.
-- **RFC y días de entrega del proveedor** (4c.1): el modelo no los tiene.
-- **IVA y folio OC en compras** (4d): las compras solo tienen total y estado.
-- **Exportar** (kardex, stock, costo de ventas): sin endpoint.
-- **KPIs de ventas, margen y merma** (4f): el reporte solo regresa costo por
-  insumo.
 
 ### 05 Lealtad
 

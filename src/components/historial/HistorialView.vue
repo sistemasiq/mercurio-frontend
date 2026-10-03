@@ -5,6 +5,7 @@
       subtitle="Órdenes cobradas en caja, estancias y eventos."
     >
       <template #actions>
+        <q-btn outline icon="download" label="Exportar" :loading="exportando" @click="exportar" />
         <q-btn outline icon="sync" label="Actualizar" :loading="isLoading" @click="cargarDatos" />
       </template>
     </PageHeader>
@@ -39,7 +40,10 @@
           icon="date_range"
           label="Rango"
           class="hist-range-btn"
-          :class="{ 'hist-range-btn--on': mostrarFiltros || fechaInicio || fechaFin }"
+          :class="{
+            'hist-range-btn--on':
+              mostrarFiltros || fechaInicio || fechaFin || cajaId || metodoPagoId,
+          }"
           @click="mostrarFiltros = !mostrarFiltros"
         />
       </template>
@@ -52,6 +56,30 @@
         <label class="hist-range__field">
           <span class="field-label">Fecha fin</span>
           <q-input v-model="fechaFin" type="date" outlined dense />
+        </label>
+        <label class="hist-range__field">
+          <span class="field-label">Caja</span>
+          <q-select
+            v-model="cajaId"
+            :options="opcionesCaja"
+            emit-value
+            map-options
+            clearable
+            outlined
+            dense
+          />
+        </label>
+        <label class="hist-range__field">
+          <span class="field-label">Método de pago</span>
+          <q-select
+            v-model="metodoPagoId"
+            :options="opcionesMetodoPago"
+            emit-value
+            map-options
+            clearable
+            outlined
+            dense
+          />
         </label>
         <q-btn flat icon="close" label="Limpiar" @click="limpiarFiltroFecha" />
         <q-btn
@@ -229,11 +257,21 @@ import { formatMXN } from '@/utils/formatoMoneda'
 import { mensajeDeError, resolveErrorMessage } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 import { comandasApi } from '@/api/comandasApi'
-import { obtenerHistorial, obtenerEstadisticas } from '@/services/historialService'
+import {
+  obtenerHistorial,
+  obtenerEstadisticas,
+  exportarHistorial,
+} from '@/services/historialService'
+import { useMetodosPagoStore } from '@/stores/metodos_pago'
+import { turnoCajaService } from '@/services/turnoCajaService'
+import { useAuthStore } from '@/stores/auth'
 import type { ITransaccion } from '@/types/transaccion'
 import type { Estadisticas } from '@/api/historialApi'
+import type { CajaItem } from '@/types/turnoCaja'
 
 const $q = useQuasar()
+const authStore = useAuthStore()
+const metodosPagoStore = useMetodosPagoStore()
 
 const mostrarModalPagado = ref(false)
 const mostrarModalEditar = ref(false)
@@ -248,11 +286,32 @@ const estadisticas = ref<Estadisticas>({ total_ventas: 0, total_ordenes: 0, tick
 const mostrarFiltros = ref(false)
 const fechaInicio = ref('')
 const fechaFin = ref('')
+const cajaId = ref<string | null>(null)
+const metodoPagoId = ref<string | null>(null)
+const cajas = ref<CajaItem[]>([])
 const busqueda = ref('')
 const paginaActual = ref(1)
 const itemsPorPagina = 20
 const modoImpresion = ref(false)
+const exportando = ref(false)
 let controladorFetch: AbortController | null = null
+
+const opcionesCaja = computed(() => cajas.value.map((c) => ({ label: c.nombre, value: c.id })))
+const opcionesMetodoPago = computed(() =>
+  metodosPagoStore.metodos.map((m) => ({ label: m.nombre, value: m.id })),
+)
+
+async function cargarFiltrosDisponibles() {
+  try {
+    const [cajasResp] = await Promise.all([
+      turnoCajaService.obtenerCajas(authStore.currentBranchId),
+      metodosPagoStore.metodos.length ? Promise.resolve() : metodosPagoStore.cargar(),
+    ])
+    cajas.value = cajasResp
+  } catch {
+    // Filtros opcionales: si fallan, simplemente no se muestran opciones.
+  }
+}
 
 function cargarDatos() {
   if (controladorFetch) controladorFetch.abort()
@@ -263,7 +322,15 @@ function cargarDatos() {
   const fi = fechaInicio.value || undefined
   const ff = fechaFin.value || undefined
   Promise.all([
-    obtenerHistorial(filtroTiempo.value, filtroEstado.value, signal, fi, ff),
+    obtenerHistorial(
+      filtroTiempo.value,
+      filtroEstado.value,
+      signal,
+      fi,
+      ff,
+      cajaId.value ?? undefined,
+      metodoPagoId.value ?? undefined,
+    ),
     obtenerEstadisticas(filtroTiempo.value, signal, fi, ff),
   ])
     .then(([txs, stats]) => {
@@ -288,7 +355,10 @@ function cargarDatos() {
     })
 }
 
-onMounted(cargarDatos)
+onMounted(() => {
+  cargarDatos()
+  void cargarFiltrosDisponibles()
+})
 
 onBeforeUnmount(() => {
   if (controladorFetch) controladorFetch.abort()
@@ -325,9 +395,33 @@ function aplicarFiltroFecha() {
 function limpiarFiltroFecha() {
   fechaInicio.value = ''
   fechaFin.value = ''
+  cajaId.value = null
+  metodoPagoId.value = null
   mostrarFiltros.value = false
   paginaActual.value = 1
   cargarDatos()
+}
+
+async function exportar() {
+  exportando.value = true
+  try {
+    await exportarHistorial(filtroTiempo.value, filtroEstado.value, {
+      fechaInicio: fechaInicio.value || undefined,
+      fechaFin: fechaFin.value || undefined,
+      cajaId: cajaId.value ?? undefined,
+      metodoPagoId: metodoPagoId.value ?? undefined,
+    })
+  } catch (err: unknown) {
+    $q.notify({
+      type: 'negative',
+      message: 'No se pudo exportar el historial.',
+      caption: resolveErrorMessage(err as ApiError),
+      position: 'top',
+      timeout: 4000,
+    })
+  } finally {
+    exportando.value = false
+  }
 }
 
 const verDetalleOrden = (tipoOrigen: string, referenciaId: string, _estado: string) => {

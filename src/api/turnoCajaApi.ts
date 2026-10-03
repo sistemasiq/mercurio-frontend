@@ -11,6 +11,7 @@ import type {
   ConfirmarCierreResponse,
   FiltrosHistorial,
   HistorialArqueosResponse,
+  ResumenHistorialArqueos,
   DetalleArqueo,
   IngresoEfectivoPayload,
   IngresoEfectivoResponse,
@@ -332,6 +333,49 @@ export const turnoCajaApi = {
       page: data.page,
       pageSize: data.page_size,
     }
+  },
+
+  /**
+   * GET /turnos-caja/historial/resumen
+   * KPIs agregados de todo el periodo filtrado (no solo la página cargada).
+   */
+  async resumenHistorial(
+    filtros: Omit<FiltrosHistorial, 'page' | 'pageSize'> = {},
+  ): Promise<ResumenHistorialArqueos> {
+    const params: Record<string, string> = {}
+    if (filtros.sucursalId) params.sucursal_id = filtros.sucursalId
+    if (filtros.cajeroId) params.cajero_id = filtros.cajeroId
+    if (filtros.fechaDesde) params.fecha_desde = filtros.fechaDesde
+    if (filtros.fechaHasta) params.fecha_hasta = filtros.fechaHasta
+
+    const { data } = await apiClient.get(`${BASE}/historial/resumen`, { params })
+    return {
+      totalArqueos: data.total_arqueos,
+      totalDeclarado: Number(data.total_declarado),
+      totalEsperado: Number(data.total_esperado),
+      diferenciaNeta: Number(data.diferencia_neta),
+      arqueosConDiferencia: data.arqueos_con_diferencia,
+    }
+  },
+
+  /**
+   * GET /turnos-caja/historial/export
+   * Mismos filtros que `listarHistorial`, sin paginar, como descarga CSV.
+   */
+  async exportarHistorial(
+    filtros: Omit<FiltrosHistorial, 'page' | 'pageSize'> = {},
+  ): Promise<Blob> {
+    const params: Record<string, string> = {}
+    if (filtros.sucursalId) params.sucursal_id = filtros.sucursalId
+    if (filtros.cajeroId) params.cajero_id = filtros.cajeroId
+    if (filtros.fechaDesde) params.fecha_desde = filtros.fechaDesde
+    if (filtros.fechaHasta) params.fecha_hasta = filtros.fechaHasta
+
+    const { data } = await apiClient.get(`${BASE}/historial/export`, {
+      params,
+      responseType: 'blob',
+    })
+    return data as Blob
   },
 
   /**

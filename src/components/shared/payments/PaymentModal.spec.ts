@@ -13,10 +13,10 @@ import type { MetodosPago } from '@/types/metodos_pago'
 // Catálogo de prueba con las 4 categorías activas -- "Efectivo" queda primera
 // para que el default siga siendo igual que antes de exigir el prop.
 const METODOS_PAGO_TEST: MetodosPago[] = [
-  { id: 'e', nombre: 'Efectivo', descripcion: null, tipo: 'E', activo: true },
-  { id: 't', nombre: 'Tarjeta', descripcion: null, tipo: 'T', activo: true },
-  { id: 'c', nombre: 'Cupones', descripcion: null, tipo: 'C', activo: true },
-  { id: 'l', nombre: 'Lealtad', descripcion: null, tipo: 'L', activo: true },
+  { id: 'e', nombre: 'Efectivo', descripcion: null, tipo: 'E', comision_porcentaje: null, requiere_referencia: false, activo: true },
+  { id: 't', nombre: 'Tarjeta', descripcion: null, tipo: 'T', comision_porcentaje: null, requiere_referencia: false, activo: true },
+  { id: 'c', nombre: 'Cupones', descripcion: null, tipo: 'C', comision_porcentaje: null, requiere_referencia: false, activo: true },
+  { id: 'l', nombre: 'Lealtad', descripcion: null, tipo: 'L', comision_porcentaje: null, requiere_referencia: false, activo: true },
 ]
 
 /**
@@ -175,7 +175,7 @@ describe('PaymentModal', () => {
     }
     lealtad.configuracion = { valor_punto: 1 } as unknown as typeof lealtad.configuracion
 
-    type Saldo = { sucursal_id: string; celular: string; saldo: number }
+    type Saldo = { sucursal_id: string; celular: string; saldo: number; por_vencer: number }
     const pendientes = new Map<string, (s: Saldo) => void>()
     vi.spyOn(lealtad, 'cargarSaldo').mockImplementation(
       (_suc, celular) => new Promise<Saldo>((resolve) => pendientes.set(celular, resolve)),
@@ -189,12 +189,38 @@ describe('PaymentModal', () => {
     await wrapper.vm.$nextTick()
 
     // Primero responde el celular nuevo, luego (tarde) el anterior.
-    pendientes.get('5522222222')?.({ sucursal_id: 'suc-1', celular: '5522222222', saldo: 20 })
+    pendientes.get('5522222222')?.({
+      sucursal_id: 'suc-1',
+      celular: '5522222222',
+      saldo: 20,
+      por_vencer: 0,
+    })
     await flushPromises()
-    pendientes.get('5511111111')?.({ sucursal_id: 'suc-1', celular: '5511111111', saldo: 999 })
+    pendientes.get('5511111111')?.({
+      sucursal_id: 'suc-1',
+      celular: '5511111111',
+      saldo: 999,
+      por_vencer: 0,
+    })
     await flushPromises()
 
     expect(wrapper.text()).toContain('20 pts disponibles')
     expect(wrapper.text()).not.toContain('999 pts')
+  })
+  it('pide folio o referencia cuando el método lo requiere en el catálogo', async () => {
+    const metodos = METODOS_PAGO_TEST.map((m) =>
+      m.tipo === 'C' ? { ...m, requiere_referencia: true } : m,
+    )
+    const wrapper = mount(PaymentModal, {
+      props: { modelValue: true, totalToPay: 100, metodosPago: metodos },
+      global: { stubs: { QDialog: { template: '<div><slot /></div>' } } },
+    })
+    await seleccionarMetodo(wrapper as unknown as ReturnType<typeof montar>, 'Cupones')
+    await capturarMonto(wrapper as unknown as ReturnType<typeof montar>, 40)
+
+    const dialogo = wrapper
+      .findAllComponents(BaseDialog)
+      .find((d) => d.props('title') === 'Referencia del pago')
+    expect(dialogo?.props('modelValue')).toBe(true)
   })
 })

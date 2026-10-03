@@ -17,6 +17,9 @@ export interface Child {
   notes: string
   rfidBracelet: string
   saved: boolean
+  // Tiempo de juego de este niño (independiente del de sus hermanos en el
+  // mismo registro). En modo evento se ignora: todos usan horasEvento.
+  estimatedTime: string
 }
 
 export interface TutorData {
@@ -93,6 +96,9 @@ export const useRegistrationStore = defineStore('registration', () => {
       notes: '',
       rfidBracelet: '',
       saved: false,
+      // Arranca con el tiempo que tenga capturado el tutor en ese momento;
+      // cada niño puede cambiarlo después sin afectar a los demás.
+      estimatedTime: tutor.value.estimatedTime,
     }
   }
 
@@ -180,17 +186,20 @@ export const useRegistrationStore = defineStore('registration', () => {
   }
 
   const savedChildren = computed(() => children.value.filter((c) => c.saved))
+  // Tiempo por defecto para niños nuevos (ver createChild); ya no determina
+  // el precio total, que ahora se calcula por niño (ver hoursForChild).
   const hours = computed(() => HOUR_OPTIONS[tutor.value.estimatedTime] ?? 1)
 
-  // ── Cálculo de tarifa por tramos ──────────────────────────────────────────
+  // ── Cálculo de tarifa por tramos, por niño ────────────────────────────────
+  // Cada niño puede contratar un tiempo distinto (B2 #4); en modo evento
+  // todos usan horasEvento (el tiempo lo define el evento, no el selector).
 
-  const tramoAplicable = computed<TramoEstancia | null>(() => {
+  function tramoFor(horasSolicitadas: number): TramoEstancia | null {
     if (!productoBase.value?.config_estancia?.length) return null
-    const h = hours.value
 
     // Primero buscar tramo exacto
     const tramoExacto = productoBase.value.config_estancia.find(
-      (tramo) => h >= tramo.min_horas && h <= tramo.max_horas,
+      (tramo) => horasSolicitadas >= tramo.min_horas && horasSolicitadas <= tramo.max_horas,
     )
 
     if (tramoExacto) return tramoExacto
@@ -201,20 +210,29 @@ export const useRegistrationStore = defineStore('registration', () => {
     )
 
     return tramoMasBajo ?? null
-  })
+  }
 
   const tieneTarifaValida = computed(() => {
     if (modo.value === 'evento') return true
-    return tramoAplicable.value !== null
+    return (productoBase.value?.config_estancia?.length ?? 0) > 0
   })
 
-  const pricePerChild = computed(() => {
+  function hoursForChild(child: Child): number {
+    if (modo.value === 'evento') return HOUR_OPTIONS[horasEvento.value] ?? 1
+    return HOUR_OPTIONS[child.estimatedTime] ?? 1
+  }
+
+  function priceForChild(child: Child): number {
     if (modo.value === 'evento') return 0
-    if (!tramoAplicable.value) return 0
-    return Number(tramoAplicable.value.precio) * hours.value
-  })
+    const horasChild = hoursForChild(child)
+    const tramo = tramoFor(horasChild)
+    if (!tramo) return 0
+    return Number(tramo.precio) * horasChild
+  }
 
-  const total = computed(() => savedChildren.value.length * pricePerChild.value)
+  const total = computed(() =>
+    savedChildren.value.reduce((suma, child) => suma + priceForChild(child), 0),
+  )
 
   const usedBracelets = computed(() => children.value.map((c) => c.rfidBracelet).filter(Boolean))
 
@@ -320,7 +338,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
 
     if (!tieneTarifaValida.value) {
-      motivos.push(`No existe tarifa configurada para ${hours.value} hora(s) de estancia.`)
+      motivos.push('No hay tarifas de estancia configuradas.')
     }
 
     return motivos
@@ -356,7 +374,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
 
     if (!tieneTarifaValida.value) {
-      submitError.value = `No hay un precio configurado para ${hours.value} hora(s).`
+      submitError.value = 'No hay un precio de estancia configurado para esta sucursal.'
       return
     }
 
@@ -392,7 +410,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     const detalles: OnboardingDetalle[] = savedChildren.value.map((child) => ({
       nino: { nombreCompleto: child.name, edad: child.age ?? 0, notas: child.notes },
       productoId: productoBase.value!.id,
-      cantidad: hours.value,
+      cantidad: hoursForChild(child),
       pulseraId: child.rfidBracelet,
     }))
 
@@ -493,9 +511,9 @@ export const useRegistrationStore = defineStore('registration', () => {
     advertenciaEfectivoFromServer,
     savedChildren,
     hours,
-    tramoAplicable,
     tieneTarifaValida,
-    pricePerChild,
+    hoursForChild,
+    priceForChild,
     total,
     usedBracelets,
     availableBraceletsForChild,

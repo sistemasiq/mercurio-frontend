@@ -85,7 +85,10 @@ function braceletLabelForChild(childId: string) {
       <div v-for="(child, i) in store.savedChildren" :key="child.id" class="rfid__row">
         <div class="rfid__kid">
           <span class="rfid__name">{{ child.name }}</span>
-          <span class="rfid__meta">{{ child.age }} años · {{ store.tutor.estimatedTime }}</span>
+          <span class="rfid__meta">
+            {{ child.age }} años ·
+            {{ store.isEventoMode ? store.horasEvento : child.estimatedTime }}
+          </span>
           <span v-if="childScanErrors[child.id]" class="rfid__error">
             <q-icon name="error" size="14px" />{{ childScanErrors[child.id] }}
           </span>

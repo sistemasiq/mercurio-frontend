@@ -3,15 +3,25 @@
     <PageHeader
       title="Costo de Ventas"
       subtitle="Costo de los insumos consumidos (ventas + mermas) por PEPS/FIFO."
-    />
+    >
+      <template #actions>
+        <q-btn outline icon="download" label="Exportar" :loading="exportando" @click="exportar" />
+      </template>
+    </PageHeader>
 
     <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
       <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
     <div class="kpi-row">
-      <KpiCard label="Costo total del periodo" :value="formatMXN(costoTotal)" />
-      <KpiCard label="Insumos con consumo" :value="renglones.length" />
+      <KpiCard label="Ventas del periodo" :value="formatMXN(resumen?.ventasTotales ?? 0)" />
+      <KpiCard label="Costo de ventas" :value="formatMXN(resumen?.costoVentas ?? costoTotal)" />
+      <KpiCard
+        label="Margen"
+        :value="formatMXN(resumen?.margen ?? 0)"
+        :value-color="(resumen?.margen ?? 0) < 0 ? 'var(--tone-bad-fg)' : undefined"
+      />
+      <KpiCard label="Merma" :value="formatMXN(resumen?.merma ?? 0)" note-tone="warn" />
     </div>
 
     <DataTableCard hide-search :count="`${renglones.length} insumos`">
@@ -70,9 +80,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
-import { listarReporteCogs } from '@/services/insumoService'
-import type { CogsRenglon } from '@/types/movimientoInventario'
-import { resolveErrorMessage } from '@/utils/errorHandler'
+import {
+  listarReporteCogs,
+  obtenerResumenCogs,
+  exportarReporteCogs,
+} from '@/services/insumoService'
+import type { CogsRenglon, ResumenCogs } from '@/types/movimientoInventario'
+import { resolveErrorMessage, mensajeDeError } from '@/utils/errorHandler'
 import type { ApiError } from '@/types/auth'
 
 const $q = useQuasar()
@@ -83,7 +97,9 @@ const primeroDeMes = hoy.slice(0, 8) + '01'
 const desde = ref(primeroDeMes)
 const hasta = ref(hoy)
 const loading = ref(false)
+const exportando = ref(false)
 const renglones = ref<CogsRenglon[]>([])
+const resumen = ref<ResumenCogs | null>(null)
 
 const costoTotal = computed(() =>
   renglones.value.reduce((acc, r) => acc + Number(r.costo_total), 0),
@@ -93,11 +109,20 @@ const cargar = async () => {
   if (!authStore.currentBranchId) return
   loading.value = true
   try {
-    renglones.value = await listarReporteCogs(
-      authStore.currentBranchId,
-      desde.value || undefined,
-      hasta.value || undefined,
-    )
+    const [cogs, resumenResp] = await Promise.all([
+      listarReporteCogs(
+        authStore.currentBranchId,
+        desde.value || undefined,
+        hasta.value || undefined,
+      ),
+      obtenerResumenCogs(
+        authStore.currentBranchId,
+        desde.value || undefined,
+        hasta.value || undefined,
+      ),
+    ])
+    renglones.value = cogs
+    resumen.value = resumenResp
   } catch (err) {
     $q.notify({
       type: 'negative',
@@ -106,6 +131,22 @@ const cargar = async () => {
     })
   } finally {
     loading.value = false
+  }
+}
+
+async function exportar() {
+  if (!authStore.currentBranchId) return
+  exportando.value = true
+  try {
+    await exportarReporteCogs(
+      authStore.currentBranchId,
+      desde.value || undefined,
+      hasta.value || undefined,
+    )
+  } catch (err) {
+    $q.notify({ type: 'negative', message: mensajeDeError(err, 'No se pudo exportar el reporte.') })
+  } finally {
+    exportando.value = false
   }
 }
 

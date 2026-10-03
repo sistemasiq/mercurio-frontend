@@ -26,12 +26,16 @@ export interface CompraCreate {
   sucursal_id: string
   proveedor_id: string
   notas?: string | null
+  /** Monto de IVA de la orden; el total sigue siendo la suma de las líneas. */
+  iva?: string
   detalles: DetalleCompraItem[]
 }
 
 export interface CompraEditar {
   proveedor_id: string
   notas?: string | null
+  /** Omitido conserva el IVA ya capturado. */
+  iva?: string
   detalles: DetalleCompraItem[]
 }
 
@@ -53,6 +57,9 @@ export interface Compra {
   fecha_pedido: string
   fecha_recepcion: string | null
   total: string
+  iva: string
+  /** Folio de OC secuencial por sucursal (OC-0001). Null en compras previas. */
+  folio: string | null
   notas: string | null
   activo: boolean
   creado?: string | null

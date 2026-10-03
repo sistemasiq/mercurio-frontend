@@ -33,3 +33,11 @@ export interface CogsRenglon {
   cantidad_salida: string
   costo_total: string
 }
+
+// KPIs del reporte de costo de ventas: ventas, margen y merma del periodo.
+export interface ResumenCogs {
+  ventasTotales: number
+  costoVentas: number
+  margen: number
+  merma: number
+}

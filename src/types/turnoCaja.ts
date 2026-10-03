@@ -286,6 +286,15 @@ export interface HistorialArqueosResponse {
   pageSize: number
 }
 
+// KPIs agregados de TODO el periodo filtrado (no solo la página cargada).
+export interface ResumenHistorialArqueos {
+  totalArqueos: number
+  totalDeclarado: number
+  totalEsperado: number
+  diferenciaNeta: number
+  arqueosConDiferencia: number
+}
+
 export interface DetalleArqueo extends ArqueoResumen {
   desgloseEfectivo: {
     billetes: Array<{ denominacion: number; cantidad: number; subtotal: number }>

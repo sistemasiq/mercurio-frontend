@@ -10,10 +10,11 @@
       <template v-else>
         <div v-for="child in store.savedChildren" :key="child.id" class="summary__line">
           <span>
-            {{ child.name.split(' ')[0] }} · {{ store.tutor.estimatedTime }} ·
-            {{ formatPricePerHour(store.pricePerChild, store.hours) }}
+            {{ child.name.split(' ')[0] }} ·
+            {{ store.isEventoMode ? store.horasEvento : child.estimatedTime }} ·
+            {{ formatPricePerHour(store.priceForChild(child), store.hoursForChild(child)) }}
           </span>
-          <span>{{ formatCurrency(store.pricePerChild) }}</span>
+          <span>{{ formatCurrency(store.priceForChild(child)) }}</span>
         </div>
         <div class="summary__total">
           <span>Total</span>

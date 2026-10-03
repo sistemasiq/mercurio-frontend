@@ -17,7 +17,8 @@
           <div class="reg-kid__info">
             <span class="reg-kid__name">{{ child.name }}</span>
             <span class="reg-kid__meta">
-              {{ store.tutor.estimatedTime }} · salida {{ scheduledExit() }}
+              {{ store.isEventoMode ? store.horasEvento : child.estimatedTime }} · salida
+              {{ scheduledExit(child) }}
             </span>
           </div>
           <span class="reg-kid__band">{{ getBraceletLabel(child.rfidBracelet) }}</span>
@@ -93,7 +94,7 @@
 
         <!-- Salida y Pago -->
         <div class="ticket-box q-my-xs text-center">
-          Salida Estimada: <strong>{{ scheduledExit() }}</strong>
+          Salida Estimada: <strong>{{ maxScheduledExit() }}</strong>
         </div>
 
         <div class="ticket-row text-weight-bold q-mt-xs" style="font-size: 13px">
@@ -127,6 +128,7 @@ import { ref, onMounted, computed, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
 import { printTicketElement } from '@/utils/ticketPrinting'
 import { useRegistrationStore } from '@/stores/registration'
+import type { Child } from '@/stores/registration'
 import { useAuthStore } from '@/stores/auth'
 import QRCode from 'qrcode'
 
@@ -169,12 +171,29 @@ function formatDate() {
   )
 }
 
-function scheduledExit() {
-  const time = store.tutor.estimatedTime
+function scheduledExitDate(child: Child): Date {
+  const time = store.isEventoMode ? store.horasEvento : child.estimatedTime
   const hours = parseInt(time) || 8
   const d = new Date(issuedAt)
   d.setHours(d.getHours() + hours)
-  return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+  return d
+}
+
+function scheduledExit(child: Child) {
+  return scheduledExitDate(child).toLocaleTimeString('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+// Si los niños tienen tiempos distintos, el ticket impreso (uno por
+// registro, no por niño) muestra la salida más tardía: el tutor no debe
+// llegar antes de que el último niño esté listo.
+function maxScheduledExit() {
+  const fechas = store.savedChildren.map((c) => scheduledExitDate(c).getTime())
+  if (fechas.length === 0) return '—'
+  const maxFecha = new Date(Math.max(...fechas))
+  return maxFecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
 
 const nombres = computed(() => {
