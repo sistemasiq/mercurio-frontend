@@ -2,6 +2,7 @@
   <q-page class="page-content list-page">
     <PageHeader title="Historial de Arqueos" subtitle="Cierres de caja y sus diferencias.">
       <template #actions>
+        <q-btn outline icon="download" label="Exportar" :loading="exportando" @click="exportar" />
         <q-btn
           outline
           icon="filter_list"
@@ -13,18 +14,19 @@
     </PageHeader>
 
     <div class="kpi-row">
-      <KpiCard label="Cierres" :value="total" />
+      <KpiCard label="Cierres" :value="resumen?.totalArqueos ?? total" />
       <KpiCard
         label="Con diferencia"
-        :value="conDiferencia"
-        :note="notaPagina ?? `de ${items.length}`"
+        :value="resumen?.arqueosConDiferencia ?? conDiferencia"
         note-tone="warn"
       />
       <KpiCard
         label="Diferencia acumulada"
-        :value="formatDiferencia(diferenciaAcumulada)"
-        :value-color="diferenciaAcumulada < 0 ? 'var(--tone-bad-fg)' : undefined"
-        :note="notaPagina"
+        :value="formatDiferencia(resumen?.diferenciaNeta ?? diferenciaAcumulada)"
+        :value-color="
+          (resumen?.diferenciaNeta ?? diferenciaAcumulada) < 0 ? 'var(--tone-bad-fg)' : undefined
+        "
+        note="de todo el periodo filtrado"
       />
     </div>
 
@@ -149,7 +151,7 @@ import { turnoCajaService } from '@/services/turnoCajaService'
 import { mensajeDeError } from '@/utils/errorHandler'
 import { formatDiferencia, formatMXN } from '@/utils/formatoMoneda'
 import { getAvatarColor, getInitials } from '@/utils/avatar'
-import type { ArqueoResumen, FiltrosHistorial } from '@/types/turnoCaja'
+import type { ArqueoResumen, FiltrosHistorial, ResumenHistorialArqueos } from '@/types/turnoCaja'
 import DetalleArqueoDialog from '@/components/cierre-caja/DetalleArqueoDialog.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import KpiCard from '@/components/ui/KpiCard.vue'
@@ -172,6 +174,8 @@ const mostrarFiltros = ref(false)
 const mostrarDetalle = ref(false)
 const arqueoIdSeleccionado = ref<string | null>(null)
 const descargandoId = ref<string | null>(null)
+const resumen = ref<ResumenHistorialArqueos | null>(null)
+const exportando = ref(false)
 
 const filtros = reactive<FiltrosHistorial>({
   fechaDesde: '',
@@ -193,27 +197,53 @@ const columns: QTableColumn[] = [
 // KPIs sobre la página cargada (el historial se pagina en el servidor).
 const conDiferencia = computed(() => items.value.filter((a) => a.diferenciaNeta !== 0).length)
 const diferenciaAcumulada = computed(() => items.value.reduce((s, a) => s + a.diferenciaNeta, 0))
-const notaPagina = computed(() => (total.value > items.value.length ? 'en esta página' : undefined))
 
 // ── Computed ──────────────────────────────────────────────────────────────
 
 // ── Acciones ──────────────────────────────────────────────────────────────
+function filtrosActivos(): Omit<FiltrosHistorial, 'page' | 'pageSize'> {
+  const params: Omit<FiltrosHistorial, 'page' | 'pageSize'> = {}
+  if (authStore.currentBranchId) params.sucursalId = authStore.currentBranchId
+  if (filtros.fechaDesde) params.fechaDesde = filtros.fechaDesde
+  if (filtros.fechaHasta) params.fechaHasta = filtros.fechaHasta
+  if (filtros.cajeroId) params.cajeroId = filtros.cajeroId
+  return params
+}
+
 async function cargar() {
   cargando.value = true
   error.value = null
   try {
-    const params: FiltrosHistorial = { page: paginaActual.value, pageSize: PAGE_SIZE }
-    if (authStore.currentBranchId) params.sucursalId = authStore.currentBranchId
-    if (filtros.fechaDesde) params.fechaDesde = filtros.fechaDesde
-    if (filtros.fechaHasta) params.fechaHasta = filtros.fechaHasta
-    if (filtros.cajeroId) params.cajeroId = filtros.cajeroId
-    const resp = await turnoCajaService.listarHistorial(params)
+    const params: FiltrosHistorial = {
+      ...filtrosActivos(),
+      page: paginaActual.value,
+      pageSize: PAGE_SIZE,
+    }
+    const [resp, resumenResp] = await Promise.all([
+      turnoCajaService.listarHistorial(params),
+      turnoCajaService.resumenHistorial(filtrosActivos()),
+    ])
     items.value = resp.items
     total.value = resp.total
+    resumen.value = resumenResp
   } catch (err) {
     error.value = mensajeDeError(err, 'No se pudo cargar el historial de arqueos.')
   } finally {
     cargando.value = false
+  }
+}
+
+async function exportar() {
+  exportando.value = true
+  try {
+    await turnoCajaService.exportarHistorial(filtrosActivos())
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: mensajeDeError(err, 'No se pudo exportar el historial.'),
+    })
+  } finally {
+    exportando.value = false
   }
 }
 

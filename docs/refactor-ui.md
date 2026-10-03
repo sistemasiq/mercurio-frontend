@@ -74,10 +74,6 @@ simplifican hasta que exista la fuente.
 - **Puntos ganados en el ticket** (1b.2): el detalle de orden no los regresa.
 - **Checklist "Quien recoge coincide"** (Checkout): sería una validación nueva;
   se deja el acceso a las fotos para comparar.
-- **Filtros por método y caja; Exportar** (historiales): sin soporte en el
-  endpoint.
-- **KPIs de arqueos**: el historial se pagina en el servidor; los KPIs cubren
-  la página cargada.
 
 ### 02 Eventos
 
@@ -98,9 +94,6 @@ simplifican hasta que exista la fuente.
   existente.
 - **Presentaciones dentro del diálogo de insumo** (4b.1): se gestionan en su
   propio diálogo.
-- **Exportar** (kardex, stock, costo de ventas): sin endpoint.
-- **KPIs de ventas, margen y merma** (4f): el reporte solo regresa costo por
-  insumo.
 
 ### 05 Lealtad
 

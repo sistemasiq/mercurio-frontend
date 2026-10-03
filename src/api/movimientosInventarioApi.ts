@@ -30,4 +30,12 @@ export const movimientosInventarioApi = {
     const { data } = await apiClient.post<MovimientoInventario>(`/insumos/${insumoId}/conteo`, body)
     return data
   },
+
+  async exportar(insumoId: string, desde?: string, hasta?: string): Promise<Blob> {
+    const { data } = await apiClient.get(`/insumos/${insumoId}/movimientos/export`, {
+      params: { desde, hasta },
+      responseType: 'blob',
+    })
+    return data as Blob
+  },
 }
