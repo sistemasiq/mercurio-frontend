@@ -30,6 +30,12 @@ export interface PadreDashboardResponse {
   ninosActivos: NinoActivo[]
 }
 
+// QA #31: respuesta del polling autenticado (GET /padres/ninos-activos con
+// el token de la sesión), sin volver a mandar el código.
+export interface PadreNinosActivosResponse {
+  ninosActivos: NinoActivo[]
+}
+
 export interface PadresAuthState {
   token: string | null
   tokenType: string | null
