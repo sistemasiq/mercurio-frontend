@@ -9,9 +9,11 @@ import { useReservacionesStore } from '@/stores/reservaciones'
 import { useAlertasInventarioStore } from '@/stores/alertasInventario'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { obtenerComandas } from '@/services/comandaService'
+import { authService } from '@/services/authService'
 import { formatMXN } from '@/utils/formatoMoneda'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import KpiCard from '@/components/ui/KpiCard.vue'
+import CambiarPinDialog from '@/components/usuarios/CambiarPinDialog.vue'
 import type { Comanda } from '@/types/comanda'
 import type { Reservaciones } from '@/types/reservaciones'
 import type { UiTone } from '@/types/ui'
@@ -62,6 +64,29 @@ const subtitulo = computed(() => {
 const comandas = ref<Comanda[]>([])
 const abortComandas = new AbortController()
 
+// C1: aviso "Configura tu PIN de caja". Bloque propio y aparte: se consulta
+// /auth/me (en vez del user cacheado del login) porque tienePin puede cambiar
+// sin volver a iniciar sesión, y porque este dato debe llegar sin pedir
+// usuarios:ver (el Cajero no lo tiene).
+const tienePin = ref(true)
+const showCambiarPin = ref(false)
+
+async function cargarTienePin() {
+  if (!puede.pos.value) return
+  try {
+    const me = await authService.me()
+    tienePin.value = me.tienePin ?? true
+  } catch {
+    // No bloqueante: si falla, simplemente no se muestra el aviso.
+  }
+}
+
+// Al cerrar el diálogo (tras guardar el PIN) se vuelve a consultar /auth/me
+// para que el aviso desaparezca sin recargar la página.
+watch(showCambiarPin, (abierto) => {
+  if (!abierto) void cargarTienePin()
+})
+
 onMounted(async () => {
   const tareas: Promise<unknown>[] = []
   if (puede.estancias.value) {
@@ -78,6 +103,7 @@ onMounted(async () => {
         .catch(() => (comandas.value = [])),
     )
   }
+  tareas.push(cargarTienePin())
   await Promise.allSettled(tareas)
 })
 
@@ -240,6 +266,19 @@ const sinModulos = computed(
         />
       </template>
     </PageHeader>
+
+    <div v-if="puede.pos.value && !tienePin" class="pin-alert">
+      <q-icon name="password" size="22px" />
+      <span class="pin-alert__text">Configura tu PIN de caja para poder abrir y cerrar turno.</span>
+      <q-btn
+        outline
+        dense
+        label="Configurar PIN"
+        class="pin-alert__btn"
+        @click="showCambiarPin = true"
+      />
+    </div>
+    <CambiarPinDialog v-model="showCambiarPin" />
 
     <div v-if="!sinModulos" class="kpi-row">
       <KpiCard
@@ -419,6 +458,26 @@ const sinModulos = computed(
     display: flex;
     flex-direction: column;
     gap: 18px;
+  }
+}
+
+.pin-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--tone-warn-bg);
+  color: var(--tone-warn-fg);
+  font-size: 13.5px;
+  font-weight: 600;
+
+  &__text {
+    flex: 1;
+  }
+
+  &__btn {
+    flex-shrink: 0;
   }
 }
 
