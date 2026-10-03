@@ -1,0 +1,81 @@
+import { apiClient } from '@/api/axiosClient'
+import type {
+  AjustePuntosInput,
+  ClienteLealtad,
+  ConfiguracionLealtad,
+  ConfiguracionLealtadInput,
+  MovimientoPuntos,
+  ReporteLealtad,
+  SaldoPuntos,
+} from '@/types/lealtad'
+
+export const lealtadApi = {
+  async obtenerConfiguracion(sucursalId: string): Promise<ConfiguracionLealtad> {
+    const { data } = await apiClient.get<ConfiguracionLealtad>('/lealtad/configuracion', {
+      params: { sucursal_id: sucursalId },
+    })
+    return data
+  },
+
+  async actualizarConfiguracion(
+    sucursalId: string,
+    body: ConfiguracionLealtadInput,
+  ): Promise<ConfiguracionLealtad> {
+    const { data } = await apiClient.put<ConfiguracionLealtad>('/lealtad/configuracion', body, {
+      params: { sucursal_id: sucursalId },
+    })
+    return data
+  },
+
+  async obtenerSaldo(sucursalId: string, celular: string): Promise<SaldoPuntos> {
+    const { data } = await apiClient.get<SaldoPuntos>('/lealtad/saldo', {
+      params: { sucursal_id: sucursalId, celular },
+    })
+    return data
+  },
+
+  async listarMovimientos(
+    sucursalId: string,
+    celular: string,
+    desde?: string,
+    hasta?: string,
+  ): Promise<MovimientoPuntos[]> {
+    const { data } = await apiClient.get<MovimientoPuntos[]>('/lealtad/movimientos', {
+      params: { sucursal_id: sucursalId, celular, desde, hasta },
+    })
+    return data
+  },
+
+  async obtenerReporte(
+    sucursalId: string,
+    desde?: string,
+    hasta?: string,
+  ): Promise<ReporteLealtad> {
+    const { data } = await apiClient.get<ReporteLealtad>('/lealtad/reporte', {
+      params: { sucursal_id: sucursalId, desde, hasta },
+    })
+    return data
+  },
+
+  async exportarReporte(sucursalId: string, desde?: string, hasta?: string): Promise<Blob> {
+    const { data } = await apiClient.get('/lealtad/reporte/export', {
+      params: { sucursal_id: sucursalId, desde, hasta },
+      responseType: 'blob',
+    })
+    return data as Blob
+  },
+
+  async buscarClientes(sucursalId: string, q: string): Promise<ClienteLealtad[]> {
+    const { data } = await apiClient.get<ClienteLealtad[]>('/lealtad/clientes', {
+      params: { sucursal_id: sucursalId, q },
+    })
+    return data
+  },
+
+  async ajustarPuntos(sucursalId: string, body: AjustePuntosInput): Promise<MovimientoPuntos> {
+    const { data } = await apiClient.post<MovimientoPuntos>('/lealtad/ajustes', body, {
+      params: { sucursal_id: sucursalId },
+    })
+    return data
+  },
+}

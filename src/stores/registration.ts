@@ -1,0 +1,538 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { postOnboarding, type OnboardingDetalle, type OnboardingPago } from '@/api/onboardingClient'
+import { productosApi } from '@/api/productosApi'
+import { useAuthStore } from '@/stores/auth'
+import { useAccessControlStore } from '@/stores/accessControl'
+import { reservacionesApi } from '@/api/reservacionesApi'
+import { horasFacturables } from '@/utils/horario'
+import type { EventoDelDia } from '@/types/reservaciones'
+import type { PrecioEstancia, TramoEstancia } from '@/types/producto'
+import { redondear2, TOLERANCIA_MONTO } from '@/utils/dinero'
+
+export interface Child {
+  id: string
+  name: string
+  age: number | null
+  notes: string
+  rfidBracelet: string
+  saved: boolean
+  // Tiempo de juego de este niño (independiente del de sus hermanos en el
+  // mismo registro). En modo evento se ignora: todos usan horasEvento.
+  estimatedTime: string
+}
+
+export interface TutorData {
+  fullName: string
+  relationship: string
+  phone: string
+  secondaryGuardian: string | null
+  inePhoto: File | null
+  arrivalPhotos: File[]
+  estimatedTime: string
+}
+
+const HOUR_OPTIONS: Record<string, number> = {
+  '1 hr': 1,
+  '2 hr': 2,
+  '3 hr': 3,
+  '4 hr': 4,
+  '5 hr': 5,
+}
+
+export type RegistrationStep = 'form' | 'rfid' | 'complete'
+export type RegistrationMode = 'normal' | 'evento'
+
+export const useRegistrationStore = defineStore('registration', () => {
+  const authStore = useAuthStore()
+  const accessControlStore = useAccessControlStore()
+  const step = ref<RegistrationStep>('form')
+
+  const modo = ref<RegistrationMode>('normal')
+  const eventoSeleccionado = ref<EventoDelDia | null>(null)
+  const isLoadingEvento = ref(false)
+  const eventoNoEncontrado = ref(false)
+
+  const isEventoMode = computed(() => modo.value === 'evento')
+  const isLocked = computed(
+    () => isEventoMode.value || step.value === 'rfid' || step.value === 'complete',
+  )
+
+  const tutor = ref<TutorData>({
+    fullName: '',
+    relationship: 'Padre / Madre',
+    phone: '',
+    secondaryGuardian: '',
+    inePhoto: null,
+    arrivalPhotos: [],
+    estimatedTime: '1 hr',
+  })
+
+  const children = ref<Child[]>([createChild()])
+  const currentChildIndex = ref(0)
+
+  const productoBase = ref<PrecioEstancia | null>(null)
+  const pulseras = computed(() => accessControlStore.pulserasDisponibles)
+  const pagosFromModal = ref<OnboardingPago[]>([])
+  const cambioFromModal = ref(0)
+  const puntosARedimirValue = ref(0)
+  const descuentoPuntosValue = ref(0)
+  const isLoadingCatalog = ref(false)
+  const isSubmitting = ref(false)
+  const submitError = ref<string | null>(null)
+  const noPreciosDisponibles = ref(false)
+
+  const registroId = ref('')
+  const totalFromServer = ref<number | null>(null)
+  const pagadoFromServer = ref<number | null>(null)
+  const estadoFromServer = ref('')
+  const advertenciaEfectivoFromServer = ref<string | null>(null)
+
+  function createChild(): Child {
+    return {
+      id: crypto.randomUUID(),
+      name: '',
+      age: null,
+      notes: '',
+      rfidBracelet: '',
+      saved: false,
+      // Arranca con el tiempo que tenga capturado el tutor en ese momento;
+      // cada niño puede cambiarlo después sin afectar a los demás.
+      estimatedTime: tutor.value.estimatedTime,
+    }
+  }
+
+  function addChild() {
+    children.value.push(createChild())
+    currentChildIndex.value = children.value.length - 1
+  }
+
+  function removeChild(index: number) {
+    if (children.value.length > 1) {
+      children.value.splice(index, 1)
+      if (currentChildIndex.value >= children.value.length) {
+        currentChildIndex.value = children.value.length - 1
+      }
+    }
+  }
+
+  function saveChild(index: number) {
+    children.value[index].saved = true
+  }
+
+  function editChild(index: number) {
+    children.value[index].saved = false
+  }
+
+  async function loadProductos() {
+    if (!authStore.currentBranchId) {
+      submitError.value = 'No hay una sucursal activa en la sesión.'
+      return
+    }
+    isLoadingCatalog.value = true
+    submitError.value = null
+    noPreciosDisponibles.value = false
+    try {
+      productoBase.value = await productosApi.obtenerPreciosEstancia()
+
+      // Verificar si hay rangos de precios configurados
+      if (!productoBase.value?.config_estancia?.length) {
+        noPreciosDisponibles.value = true
+      }
+    } catch (err) {
+      submitError.value = 'No se pudo cargar el catálogo de precios de estancia.'
+      console.error(err)
+    } finally {
+      isLoadingCatalog.value = false
+    }
+  }
+
+  async function cargarEventoProximo() {
+    if (!authStore.currentBranchId) return
+    isLoadingEvento.value = true
+    eventoNoEncontrado.value = false
+    try {
+      const evento = await reservacionesApi.eventoProximo(authStore.currentBranchId)
+      if (evento) {
+        seleccionarEvento(evento)
+      } else {
+        eventoSeleccionado.value = null
+        eventoNoEncontrado.value = true
+      }
+    } catch (err) {
+      submitError.value = 'No se pudo consultar el evento próximo.'
+      console.error(err)
+    } finally {
+      isLoadingEvento.value = false
+    }
+  }
+
+  function cambiarModo(nuevoModo: RegistrationMode) {
+    modo.value = nuevoModo
+    eventoSeleccionado.value = null
+    eventoNoEncontrado.value = false
+
+    if (nuevoModo === 'evento') {
+      void cargarEventoProximo()
+    }
+  }
+
+  function seleccionarEvento(evento: EventoDelDia) {
+    eventoSeleccionado.value = evento
+    tutor.value.fullName = [evento.nombre_cliente, evento.apellidos_cliente]
+      .filter(Boolean)
+      .join(' ')
+    tutor.value.phone = evento.telefono_cliente
+  }
+
+  const savedChildren = computed(() => children.value.filter((c) => c.saved))
+  // Tiempo por defecto para niños nuevos (ver createChild); ya no determina
+  // el precio total, que ahora se calcula por niño (ver hoursForChild).
+  const hours = computed(() => HOUR_OPTIONS[tutor.value.estimatedTime] ?? 1)
+
+  // ── Cálculo de tarifa por tramos, por niño ────────────────────────────────
+  // Cada niño puede contratar un tiempo distinto (B2 #4); en modo evento
+  // todos usan horasEvento (el tiempo lo define el evento, no el selector).
+
+  function tramoFor(horasSolicitadas: number): TramoEstancia | null {
+    if (!productoBase.value?.config_estancia?.length) return null
+
+    // Primero buscar tramo exacto
+    const tramoExacto = productoBase.value.config_estancia.find(
+      (tramo) => horasSolicitadas >= tramo.min_horas && horasSolicitadas <= tramo.max_horas,
+    )
+
+    if (tramoExacto) return tramoExacto
+
+    // Si no encuentra, usar el tramo con min_horas más bajo
+    const tramoMasBajo = productoBase.value.config_estancia.reduce((min, tramo) =>
+      tramo.min_horas < min.min_horas ? tramo : min,
+    )
+
+    return tramoMasBajo ?? null
+  }
+
+  const tieneTarifaValida = computed(() => {
+    if (modo.value === 'evento') return true
+    return (productoBase.value?.config_estancia?.length ?? 0) > 0
+  })
+
+  function hoursForChild(child: Child): number {
+    if (modo.value === 'evento') return HOUR_OPTIONS[horasEvento.value] ?? 1
+    return HOUR_OPTIONS[child.estimatedTime] ?? 1
+  }
+
+  function priceForChild(child: Child): number {
+    if (modo.value === 'evento') return 0
+    const horasChild = hoursForChild(child)
+    const tramo = tramoFor(horasChild)
+    if (!tramo) return 0
+    return Number(tramo.precio) * horasChild
+  }
+
+  const total = computed(() =>
+    savedChildren.value.reduce((suma, child) => suma + priceForChild(child), 0),
+  )
+
+  const usedBracelets = computed(() => children.value.map((c) => c.rfidBracelet).filter(Boolean))
+
+  const availableBraceletsForChild = (childId: string) => {
+    const child = children.value.find((c) => c.id === childId)
+    return pulseras.value.filter(
+      (p) => !usedBracelets.value.includes(p.id) || p.id === child?.rfidBracelet,
+    )
+  }
+
+  const allChildrenHaveBracelet = computed(
+    () => savedChildren.value.length > 0 && savedChildren.value.every((c) => c.rfidBracelet !== ''),
+  )
+
+  const cupoEventoRestante = computed(() => {
+    if (!eventoSeleccionado.value) return Infinity
+    return eventoSeleccionado.value.numero_personas - savedChildren.value.length
+  })
+
+  // Regla: horas facturables (hora iniciada cuenta completa, cruza medianoche),
+  // acotadas al rango del selector de tiempo (1 a 5 hr).
+  const horasEvento = computed(() => {
+    if (!eventoSeleccionado.value) return '1 hr'
+    const horas = horasFacturables(
+      eventoSeleccionado.value.hora_inicio,
+      eventoSeleccionado.value.hora_fin,
+    )
+    return `${Math.min(5, horas)} hr`
+  })
+
+  const maxChildrenAllowed = computed(() => {
+    if (modo.value === 'evento' && eventoSeleccionado.value) {
+      return eventoSeleccionado.value.numero_personas
+    }
+    return Math.max(0, pulseras.value.length - 1)
+  })
+
+  const reachedBraceletLimit = computed(
+    () => savedChildren.value.length >= maxChildrenAllowed.value,
+  )
+
+  const showBraceletLimitBanner = computed(() => {
+    if (modo.value === 'evento') {
+      return savedChildren.value.length >= maxChildrenAllowed.value
+    }
+    if (maxChildrenAllowed.value === 1) {
+      return true
+    }
+    return savedChildren.value.length >= 2 && savedChildren.value.length >= maxChildrenAllowed.value
+  })
+
+  const canProceedToRFID = computed(() => {
+    const hasValidName = tutor.value.fullName.trim().length > 3
+
+    const cleanPhone = tutor.value.phone.replace(/\D/g, '')
+    const hasValidPhone = cleanPhone.length === 10
+
+    const hasInePhoto = tutor.value.inePhoto !== null
+    const hasArrivalPhotos = tutor.value.arrivalPhotos.length > 0
+
+    const hasChildren = savedChildren.value.length > 0
+
+    const childrenAreValid = savedChildren.value.every(
+      (child) =>
+        child.name.trim().length > 0 && child.age !== null && child.age > 0 && child.age < 18,
+    )
+
+    return (
+      hasValidName &&
+      hasValidPhone &&
+      hasInePhoto &&
+      hasArrivalPhotos &&
+      hasChildren &&
+      childrenAreValid &&
+      tieneTarifaValida.value
+    )
+  })
+
+  const motivosPendientes = computed(() => {
+    const motivos: string[] = []
+
+    if (tutor.value.fullName.trim().length <= 3) {
+      motivos.push('Captura el nombre completo del tutor')
+    }
+    if (tutor.value.phone.replace(/\D/g, '').length !== 10) {
+      motivos.push('El teléfono del tutor debe tener 10 dígitos')
+    }
+    if (tutor.value.inePhoto === null) {
+      motivos.push('Toma la foto de INE del tutor')
+    }
+    if (tutor.value.arrivalPhotos.length === 0) {
+      motivos.push('Toma al menos una foto de llegada del tutor')
+    }
+    if (savedChildren.value.length === 0) {
+      motivos.push('Guarda al menos un niño')
+    } else if (
+      !savedChildren.value.every(
+        (child) =>
+          child.name.trim().length > 0 && child.age !== null && child.age > 0 && child.age < 18,
+      )
+    ) {
+      motivos.push('Revisa el nombre y la edad de cada niño guardado')
+    }
+
+    if (!tieneTarifaValida.value) {
+      motivos.push('No hay tarifas de estancia configuradas.')
+    }
+
+    return motivos
+  })
+
+  async function proceedToRFID(
+    pagos?: OnboardingPago[],
+    cambio?: number,
+    puntosARedimir?: number,
+    descuentoPuntos?: number,
+  ) {
+    if (pagos) {
+      pagosFromModal.value = pagos
+      cambioFromModal.value = cambio ?? 0
+    }
+    if (puntosARedimir) {
+      puntosARedimirValue.value = puntosARedimir
+    }
+    if (descuentoPuntos) {
+      descuentoPuntosValue.value = descuentoPuntos
+    }
+    step.value = 'rfid'
+  }
+
+  async function completeRegistration() {
+    const esEvento = modo.value === 'evento'
+
+    if (!productoBase.value) {
+      submitError.value =
+        'Esta sucursal no tiene un producto de tipo "estancia" configurado. ' +
+        'Ve a Catálogo > Productos y crea uno antes de completar el registro.'
+      return
+    }
+
+    if (!tieneTarifaValida.value) {
+      submitError.value = 'No hay un precio de estancia configurado para esta sucursal.'
+      return
+    }
+
+    if (esEvento && !eventoSeleccionado.value) {
+      submitError.value = 'Selecciona el evento antes de completar el registro.'
+      return
+    }
+
+    if (!authStore.currentBranchId) {
+      submitError.value = 'No hay una sucursal activa en la sesión.'
+      return
+    }
+
+    if (!esEvento) {
+      // Los pagos (puede venir vacío si los puntos cubren todo) más el
+      // descuento por puntos deben cuadrar exactamente con el total: si no,
+      // no se envía nada al backend (evita cobros fantasma o dobles).
+      // En efectivo el monto es lo entregado; el cambio se descuenta para cuadrar.
+      const sumaPagos =
+        pagosFromModal.value.reduce((acc, p) => acc + p.monto, 0) - cambioFromModal.value
+      const cuadra =
+        Math.abs(redondear2(sumaPagos + descuentoPuntosValue.value) - redondear2(total.value)) <=
+        TOLERANCIA_MONTO
+      if (!cuadra) {
+        submitError.value = 'Los pagos capturados no cubren el total del registro. Vuelve a cobrar.'
+        return
+      }
+    }
+
+    isSubmitting.value = true
+    submitError.value = null
+
+    const detalles: OnboardingDetalle[] = savedChildren.value.map((child) => ({
+      nino: { nombreCompleto: child.name, edad: child.age ?? 0, notas: child.notes },
+      productoId: productoBase.value!.id,
+      cantidad: hoursForChild(child),
+      pulseraId: child.rfidBracelet,
+    }))
+
+    const payload = {
+      sucursalId: authStore.currentBranchId,
+      tutor: {
+        nombreCompleto: tutor.value.fullName,
+        telefono: tutor.value.phone,
+      },
+      nombreSegundoTutor: tutor.value.secondaryGuardian || null,
+      parentesco: tutor.value.relationship,
+      detalles,
+      pagos: esEvento ? [] : pagosFromModal.value,
+      cambio: cambioFromModal.value > 0 ? cambioFromModal.value : undefined,
+      reservacionId: esEvento ? eventoSeleccionado.value!.id : null,
+      puntosARedimir: puntosARedimirValue.value,
+    }
+
+    try {
+      const response = await postOnboarding(
+        payload,
+        tutor.value.inePhoto!,
+        tutor.value.arrivalPhotos,
+      )
+
+      registroId.value = response.registroId
+      totalFromServer.value = response.total
+      pagadoFromServer.value = response.pagado
+      estadoFromServer.value = response.estado
+      advertenciaEfectivoFromServer.value = response.advertenciaEfectivo ?? null
+      step.value = 'complete'
+    } catch (err: any) {
+      if (err?.statusCode === 409) {
+        const message = err?.message || ''
+        if (message.includes('pulsera no puede asignarse a más de un niño en el mismo registro')) {
+          submitError.value =
+            'No puedes asignar la misma pulsera a más de un niño. Verifica las pulseras asignadas.'
+        } else if (message.includes('ya fue usada o no está disponible')) {
+          submitError.value = 'Una de las pulseras seleccionadas ya fue usada o no está disponible.'
+        } else {
+          submitError.value = message || 'No se pudo completar el registro. Intenta de nuevo.'
+        }
+      } else {
+        submitError.value = 'No se pudo completar el registro. Intenta de nuevo.'
+      }
+      console.error(err)
+    } finally {
+      isSubmitting.value = false
+    }
+  }
+
+  function reset() {
+    step.value = 'form'
+    modo.value = 'normal'
+    eventoSeleccionado.value = null
+    eventoNoEncontrado.value = false
+    pagosFromModal.value = []
+    cambioFromModal.value = 0
+    puntosARedimirValue.value = 0
+    descuentoPuntosValue.value = 0
+    tutor.value = {
+      fullName: '',
+      relationship: 'Padre / Madre',
+      phone: '',
+      secondaryGuardian: '',
+      inePhoto: null,
+      arrivalPhotos: [],
+      estimatedTime: '1 hr',
+    }
+    children.value = [createChild()]
+    currentChildIndex.value = 0
+  }
+
+  return {
+    step,
+    modo,
+    isEventoMode,
+    isLocked,
+    eventoSeleccionado,
+    isLoadingEvento,
+    eventoNoEncontrado,
+    cupoEventoRestante,
+    horasEvento,
+    tutor,
+    children,
+    currentChildIndex,
+    productoBase,
+    pulseras,
+    isLoadingCatalog,
+    isSubmitting,
+    submitError,
+    noPreciosDisponibles,
+    registroId,
+    totalFromServer,
+    pagadoFromServer,
+    estadoFromServer,
+    pagosFromModal,
+    advertenciaEfectivoFromServer,
+    savedChildren,
+    hours,
+    tieneTarifaValida,
+    hoursForChild,
+    priceForChild,
+    total,
+    usedBracelets,
+    availableBraceletsForChild,
+    allChildrenHaveBracelet,
+    canProceedToRFID,
+    motivosPendientes,
+    maxChildrenAllowed,
+    reachedBraceletLimit,
+    showBraceletLimitBanner,
+    addChild,
+    removeChild,
+    saveChild,
+    editChild,
+    proceedToRFID,
+    completeRegistration,
+    reset,
+    loadProductos,
+    cargarEventoProximo,
+    cambiarModo,
+    seleccionarEvento,
+  }
+})

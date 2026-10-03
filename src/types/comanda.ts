@@ -1,0 +1,102 @@
+/**
+ * src/types/comanda.ts
+ *
+ * Contratos TypeScript que reflejan exactamente el shape que retorna el backend
+ * (app/models/comanda.py y app/repositories/comanda_repository.py).
+ *
+ * Reglas:
+ *  - EstadoActualComanda incluye 'T' (ENTREGADO) porque el backend lo soporta
+ *    y el KDS necesita hacer la transición L → T.
+ *  - DetalleComanda incluye producto_tipo (viene del JOIN con public.productos).
+ *  - Comanda incluye fecha_hora (viene del backend, se usa para el timer en KDS).
+ *  - DetalleComandaRequest usa notas_especiales (nombre exacto del schema
+ *    DetalleCreate en el backend — no 'observaciones').
+ */
+
+import type { TipoProducto } from './producto'
+
+// Estados del ciclo de vida de una comanda (códigos del backend)
+export type EstadoActualComanda = 'P' | 'E' | 'L' | 'T' | 'C'
+
+// Producto individual dentro del desglose de un combo (solo cuando
+// producto_tipo === 'C'). cantidad ya viene multiplicada por la cantidad
+// de combos pedidos en este detalle.
+export interface ComboItemComanda {
+  producto_id: string
+  nombre: string
+  cantidad: number
+}
+
+// Detalle de un ítem dentro de una comanda — shape exacto del backend
+export interface DetalleComanda {
+  id: string
+  producto_id: string
+  nombre?: string | null
+  producto_nombre: string | null
+  nombre_combo_padre?: string | null
+  // Viene del JOIN LEFT con public.productos (p.tipo AS producto_tipo)
+  // Necesario para que el KDS filtre ítems no consumibles (S, E)
+  producto_tipo?: TipoProducto | null
+  cantidad: number
+  precio_unitario: number
+  subtotal?: number
+  importe?: number
+  notas_especiales?: string | null
+  // Solo presente si producto_tipo === 'C'; desglose de lo que incluye el combo
+  productos_combo?: ComboItemComanda[] | null
+  es_hijo_de?: string | null
+  es_hijo_combo?: boolean
+  // Instancia de combo: identifica la unidad a la que pertenece el hijo
+  // (permite separar combos múltiples en el visor de cocina).
+  id_combo_padre?: string | null
+}
+
+// Shape de la comanda tal como la retorna el backend (asdict de models/Comanda)
+export interface Comanda {
+  id: string
+  ticket_numero?: string
+  total_final?: number
+  folio?: string
+  mesa?: string
+  notas_generales?: string
+  estado_actual: EstadoActualComanda
+  detalles: DetalleComanda[]
+  // fecha_hora viene del backend; se usa para el timer de tiempo transcurrido en el KDS
+  fecha_hora?: string | null
+  // Alias legacy que puede llegar en algunos payloads del WS
+  created_at?: string
+  updated_at?: string
+  // Nombre del cliente para comandas de mostrador / para llevar
+  nombre_cliente?: string | null
+  // Presente cuando el cambio entregado excedió el efectivo que había en caja
+  // antes de esta venta -- el pago se autoriza igual, solo se avisa al cajero.
+  advertenciaEfectivo?: string | null
+}
+
+// Mensajes WebSocket del canal de comandas (app/api/routers/comandas.py)
+export type ComandaWsMessage =
+  { type: 'comanda_creada'; comanda: Comanda } | { type: 'comanda_actualizada'; comanda: Comanda }
+
+// Payload para crear una comanda (POST /api/comandas/)
+export interface CrearComandaRequest {
+  ticket_numero: string
+  total_final: number
+  estado_actual: EstadoActualComanda
+  detalles_comanda: DetalleComandaRequest[]
+}
+
+// Contrato exacto con DetalleCreate (app/schemas/comanda.py)
+// El campo 'producto_id' se mapea al alias 'id' en Pydantic (Field alias).
+// notas_especiales: nombre exacto en el backend — NO usar 'observaciones'.
+export interface DetalleComandaRequest {
+  producto_id: string
+  nombre: string
+  cantidad: number
+  precio_unitario: number
+  subtotal: number
+  notas_especiales?: string
+  nombre_combo_padre?: string
+  es_hijo_de?: string
+  es_hijo_combo?: boolean
+  id_combo_padre?: string
+}

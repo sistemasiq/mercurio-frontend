@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "skills": {
+    "accessibility": {
+      "source": "addyosmani/web-quality-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "bffe3d08cfe92ebad63699f74ce29e35c19850ebfbf474c1463183cfe34d6a09"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "82fb11a63fb1e35ee2469516ed02d54695f783115b1540c0e783197af4240a3a"
+    },
+    "seo": {
+      "source": "addyosmani/web-quality-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "c184da724d1c61ad077f27418ea8e7e88fd54bcdf98165e18be7e4681cbd5e20"
+    },
+    "typescript-advanced-types": {
+      "source": "wshobson/agents",
+      "sourceType": "autoskills-registry",
+      "computedHash": "5ca0e177c6aaaba1889255691224daafdb7d71f317cc70bede1590d3907ded42"
+    },
+    "vue": {
+      "source": "antfu/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "4cc429a32520d5a7615d572687c902637459dfd6c92b7faf74afb879247dfbc4"
+    },
+    "vue-best-practices": {
+      "source": "antfu/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "1f369104c1aac5c101d71b65a2bd317ad2a1d3ceda160cb5d45da9b389a3f53f"
+    },
+    "vue-debug-guides": {
+      "source": "hyf0/vue-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "ef84274bb3af820e3ede22cb55863e6b0755eabe597713707ae9051a81ef3a02"
+    },
+    "vue-pinia-best-practices": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "57b87d5f058a5c51f0a0ff09e87e949bb1d5de3b4c9e8172c15a30a5d5713e88"
+    }
+  }
+}

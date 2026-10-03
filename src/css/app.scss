@@ -1,0 +1,1222 @@
+// ─── Palette (Woow Kids) ──────────────────────────────────────────────────
+$primary: #025fe0; // Woow Kids Blue
+$secondary: #f31258; // Woow Kids Pink
+$accent: #65b80b; // Woow Kids Green
+$dark: #0b1450; // Woow Kids Navy
+$positive: #3fa834; // Success Green
+$negative: #dc2626; // Error Red
+$info: #0fa4fe; // Sky Blue
+$warning: #ffc107; // Warning Yellow
+
+// ─── Tipografía ─────────────────────────────────────────────────────────────
+// Plus Jakarta Sans se carga desde index.html (Refactor UI · diseño Woow Kids).
+$body-font-family: 'Plus Jakarta Sans', sans-serif;
+
+// ─── App globals ────────────────────────────────────────────────────────────
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --sidebar-width: 248px;
+  --header-height: 56px;
+
+  // Superficies y texto
+  --bg-main: #f6f7fb;
+  --bg-card: #ffffff;
+  --bg-subtle: #fafbfd; // encabezados de tabla, pies de diálogo
+  --bg-muted: #f3f5f9; // chips neutros, buscador del sidebar
+  --text-strong: #0b1450; // títulos (navy)
+  --text-primary: #0f172a;
+  --text-body: #334155;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --border-color: #e6e9f0; // tarjetas, tablas
+  --border-input: #dfe3eb; // inputs, botones secundarios
+  --border-soft: #eef1f5; // divisores internos
+
+  // Tonos semánticos: fondo / texto / punto
+  --tone-ok-bg: #e6f5e3;
+  --tone-ok-fg: #246b1d;
+  --tone-ok-dot: #3fa834;
+  --tone-warn-bg: #fff1d6;
+  --tone-warn-fg: #8a5a00;
+  --tone-warn-dot: #f59e0b;
+  --tone-bad-bg: #fde8e8;
+  --tone-bad-fg: #b91c1c;
+  --tone-bad-dot: #dc2626;
+  --tone-info-bg: #e8f0fd;
+  --tone-info-fg: #0347a8;
+  --tone-info-dot: #025fe0;
+  --tone-off-bg: #f1f3f7;
+  --tone-off-fg: #475569;
+  --tone-off-dot: #94a3b8;
+  --tone-pink-bg: #fdeef3;
+  --tone-pink-fg: #b00d40;
+  --tone-pink-dot: #f31258;
+
+  --shadow-sm: 0 1px 2px rgba(11, 20, 80, 0.06);
+  --shadow-md: 0 4px 12px rgba(11, 20, 80, 0.06);
+  --shadow-lg: 0 1px 2px rgba(11, 20, 80, 0.06), 0 12px 32px rgba(11, 20, 80, 0.08);
+  --shadow-hover: 0 12px 32px rgba(11, 20, 80, 0.16);
+  --shadow-dialog: 0 2px 4px rgba(11, 20, 80, 0.06), 0 24px 56px rgba(11, 20, 80, 0.18);
+
+  --radius-sm: 8px;
+  --radius-control: 10px; // botones, inputs
+  --radius-md: 14px; // tarjetas, tablas
+  --radius-lg: 18px; // diálogos
+}
+
+body {
+  background: var(--bg-main);
+  color: var(--text-primary);
+  font-family: $body-font-family;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+// ─── Material Symbols Outlined (iconos de acciones: editar/eliminar) ────────
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
+// ─── Field label (etiquetas de campos de formulario/detalle) ────────────────
+.field-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-body);
+  margin-bottom: 6px;
+}
+
+// ─── Action button (botones de acción en filas de tabla: editar/eliminar) ───
+.action-btn {
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+// ─── Quasar: botones ────────────────────────────────────────────────────────
+.q-btn {
+  text-transform: none;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.q-btn:not(.q-btn--round) {
+  border-radius: var(--radius-control);
+}
+
+.q-btn:not(.q-btn--round) .q-icon.on-left,
+.q-btn:not(.q-btn--round) .q-icon.on-right {
+  font-size: 1.4em;
+}
+
+.q-btn .q-icon.on-left {
+  margin-right: 6px;
+}
+
+.q-btn--outline:before {
+  border-color: var(--border-input);
+}
+
+.q-btn--outline:not([class*='text-']) {
+  color: var(--text-primary);
+}
+
+// ─── Quasar: campos (q-input / q-select) ────────────────────────────────────
+.q-field--outlined .q-field__control {
+  border-radius: var(--radius-control);
+  background: #fff;
+
+  &:before {
+    border-color: var(--border-input);
+  }
+
+  &:hover:before {
+    border-color: #cbd2de;
+  }
+}
+
+.q-field--outlined.q-field--focused .q-field__control:after {
+  border-width: 1.5px;
+}
+
+.q-field--outlined.q-field--readonly .q-field__control {
+  background: #f6f8fc;
+
+  &:before {
+    border-color: var(--border-soft);
+  }
+}
+
+.q-field__native,
+.q-field__input {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+// ─── Quasar: tablas ─────────────────────────────────────────────────────────
+// Estilo base de toda q-table: encabezado gris claro en mayúsculas, filas
+// altas separadas por líneas finas (TablePage del diseño).
+.q-table__card {
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  border: 1px solid var(--border-color);
+}
+
+.q-table thead tr {
+  height: 40px;
+}
+
+.q-table thead th {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+}
+
+.q-table tbody tr {
+  height: 58px;
+}
+
+.q-table tbody td {
+  font-size: 13.5px;
+  color: var(--text-primary);
+  border-bottom-color: #f1f3f7;
+  font-variant-numeric: tabular-nums;
+}
+
+.q-table tbody tr:hover > td {
+  background: #fafbfd;
+}
+
+.q-table__bottom {
+  min-height: 48px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-soft);
+}
+
+// ─── Quasar: diálogos ───────────────────────────────────────────────────────
+.q-dialog__inner > .q-card {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dialog);
+}
+
+// ─── Quasar: tarjetas ───────────────────────────────────────────────────────
+.q-card {
+  border-radius: var(--radius-md);
+}
+
+.q-card--bordered,
+.q-card--flat {
+  border-color: var(--border-color);
+}
+
+.q-card.q-card--flat:not(.q-card--bordered) {
+  box-shadow: none;
+}
+
+// ─── Quasar: tipografía de las páginas existentes ───────────────────────────
+// Muchas pantallas usan las clases de Quasar para títulos; se alinean a la
+// escala del diseño (título de página 26/800 navy, secciones 15–18/800).
+// Las clases de color de Quasar llevan !important, así que no se pisan.
+.text-h4 {
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+
+.text-h5 {
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+
+.text-h6 {
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
+}
+
+.text-subtitle1 {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-strong);
+}
+
+.text-subtitle2 {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.text-caption {
+  font-size: 12.5px;
+  letter-spacing: 0;
+}
+
+// ─── Quasar: avisos ─────────────────────────────────────────────────────────
+.q-banner--rounded {
+  border-radius: 12px;
+}
+
+.q-banner {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+// ─── Quasar: chips y toggles ────────────────────────────────────────────────
+.q-chip {
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.q-btn-group {
+  border-radius: var(--radius-control);
+}
+
+// ─── Notificaciones (toast · 07b Sistema) ───────────────────────────────────
+// Todas las Notify se pintan como tarjeta blanca con ícono tonal en círculo.
+// El tono sale del color de Quasar (bg-positive / bg-negative / …), así que
+// las llamadas existentes ($q.notify({ type: 'positive', … })) no cambian.
+.q-notification.wk-toast {
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  min-height: 0;
+  padding: 14px 10px 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: #fff !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 12px 32px rgba(11, 20, 80, 0.16);
+  font-family: $body-font-family;
+
+  .q-notification__wrapper {
+    align-items: flex-start;
+  }
+
+  .q-notification__content {
+    align-items: flex-start;
+    padding: 0;
+  }
+
+  .q-notification__icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 16px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+  }
+
+  .q-notification__message {
+    padding: 6px 0 0;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--text-primary);
+  }
+
+  .q-notification__caption {
+    margin-top: 2px;
+    font-size: 12.5px;
+    font-weight: 400;
+    opacity: 1;
+    color: var(--text-secondary);
+  }
+
+  .q-notification__actions {
+    padding: 0;
+    margin-left: 8px;
+    align-self: flex-start;
+
+    .q-btn {
+      font-size: 13px;
+      font-weight: 800;
+      min-height: 32px;
+      padding: 0 6px;
+      color: var(--q-primary);
+    }
+
+    .q-btn--round {
+      color: var(--text-muted);
+    }
+  }
+
+  &.bg-positive .q-notification__icon {
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
+  }
+
+  &.bg-negative .q-notification__icon {
+    background: var(--tone-bad-bg);
+    color: var(--tone-bad-fg);
+  }
+
+  &.bg-warning .q-notification__icon {
+    background: var(--tone-warn-bg);
+    color: var(--tone-warn-fg);
+  }
+
+  &.bg-info .q-notification__icon,
+  &.bg-primary .q-notification__icon {
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+  }
+}
+
+.q-notifications__list--top {
+  top: 64px;
+}
+
+.q-notifications__list--right {
+  right: 12px;
+}
+
+// ─── Quasar Drawer Fix (Hide Scrollbars) ────────────────────────────────────
+.q-drawer {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+
+  &::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+  }
+}
+
+// ─── Stat Cards ─────────────────────────────────────────────────────────────
+.stat-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  &__top {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  &__corner-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+
+    &--positive {
+      background: rgba($positive, 0.12);
+      color: $positive;
+    }
+
+    &--negative {
+      background: rgba($negative, 0.12);
+      color: $negative;
+    }
+  }
+
+  &__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  &__value {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+
+    &--blue {
+      background: rgba(2, 95, 224, 0.1);
+      color: $primary;
+    }
+    &--green {
+      background: rgba(63, 168, 52, 0.12);
+      color: $positive;
+    }
+    &--orange {
+      background: rgba(255, 193, 7, 0.12);
+      color: $warning;
+    }
+    &--pink {
+      background: rgba($secondary, 0.1);
+      color: $secondary;
+    }
+    &--red {
+      background: rgba($negative, 0.1);
+      color: $negative;
+    }
+    &--grey {
+      background: var(--bg-main);
+      color: var(--text-muted);
+    }
+  }
+}
+
+// ─── Grid de KPIs (reporte de inventario, reporte de lealtad, etc.) ─────────
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+// ─── Panel Card ─────────────────────────────────────────────────────────────
+.panel-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-soft);
+
+    h3 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-strong);
+      margin: 0;
+    }
+  }
+}
+
+// ─── Table ──────────────────────────────────────────────────────────────────
+.fec-table {
+  width: 100%;
+
+  .event-name {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+  }
+
+  .amount-pending {
+    font-weight: 700;
+    color: $negative;
+    font-size: 0.875rem;
+  }
+
+  .amount-paid {
+    font-weight: 700;
+    color: $positive;
+    font-size: 0.875rem;
+  }
+
+  // Columnas de texto libre (direcciones, descripciones) que con datos reales
+  // pueden ser arbitrariamente largas y estirar la tabla fuera del viewport.
+  // Trunca con "..." -- el texto completo sigue disponible en un tooltip.
+  .cell-truncate {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// ─── Nueva reservación (2b) ─────────────────────────────────────────────────
+// Clases usadas por NuevaReservacionPage: secciones, calendario de reservas,
+// tarjetas de paquete/extra y resumen lateral.
+
+.q-stepper--flat {
+  box-shadow: none;
+  background: transparent;
+
+  .q-stepper__header {
+    border: 0;
+    min-height: 0;
+    margin-bottom: 20px;
+  }
+
+  .q-stepper__tab {
+    padding: 0 12px 0 0;
+    min-height: 32px;
+    flex: 0 0 auto;
+    color: var(--text-secondary);
+
+    &::after {
+      content: '';
+      width: 48px;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--border-input);
+      margin-left: 12px;
+    }
+
+    &:last-child::after {
+      display: none;
+    }
+  }
+
+  .q-stepper__tab--done::after {
+    background: var(--tone-ok-dot);
+  }
+
+  .q-stepper__dot {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    margin-right: 10px;
+    font-size: 13px;
+    background: #fff;
+    border: 1.5px solid var(--border-input);
+    color: var(--text-secondary);
+
+    &::before,
+    &::after {
+      display: none;
+    }
+  }
+
+  .q-stepper__tab--active .q-stepper__dot {
+    background: var(--q-primary);
+    border-color: var(--q-primary);
+    color: #fff;
+  }
+
+  .q-stepper__tab--done .q-stepper__dot {
+    background: var(--tone-ok-dot);
+    border-color: var(--tone-ok-dot);
+    color: #fff;
+  }
+
+  .q-stepper__title {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .q-stepper__tab--active .q-stepper__title,
+  .q-stepper__tab--done .q-stepper__title {
+    color: var(--text-strong);
+    font-weight: 700;
+  }
+
+  .q-stepper__step-inner {
+    padding: 0;
+  }
+
+  .q-stepper__nav {
+    padding: 0;
+  }
+}
+
+.form-section {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  margin-bottom: 16px;
+
+  &__title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-strong);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+
+    .q-icon {
+      display: none;
+    }
+  }
+}
+
+// Paquetes
+// Con `row q-gutter-md` + `.col` las tarjetas se reparten siempre en una sola
+// fila y se enciman al haber varias; el grid con auto-fill/minmax las deja saltar
+// de renglón. El min() evita que la columna desborde en contenedores < 240px.
+.packages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.package-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  cursor: pointer;
+  // Empuja el botón al fondo para que tarjetas con distinta cantidad de
+  // "incluidos" queden parejas en el mismo renglón.
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--bg-card);
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: #cbd2de;
+  }
+
+  &--selected,
+  &--selected:hover {
+    border: 2px solid var(--q-primary);
+    padding: 17px;
+  }
+
+  &__badge {
+    position: absolute;
+    top: -11px;
+    left: 18px;
+    background: var(--q-secondary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+  }
+
+  &__name {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-strong);
+    margin-bottom: 2px;
+  }
+
+  &__capacity {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+  }
+
+  &__price {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+    margin-bottom: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px;
+    font-size: 13px;
+    color: var(--text-body);
+    // Ocupa el espacio sobrante para que el botón quede al fondo.
+    flex: 1;
+
+    li {
+      display: flex;
+      // Un incluido de varias líneas alinea su palomita con la primera línea.
+      align-items: flex-start;
+      gap: 8px;
+      padding: 3px 0;
+      // Sin esto, un nombre de producto largo sin espacios desborda la tarjeta
+      // y reaparece el encimado que el grid vino a resolver.
+      overflow-wrap: anywhere;
+
+      .q-icon {
+        color: var(--tone-ok-dot);
+        font-size: 17px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+    }
+  }
+
+  // En pantallas angostas la tarjeta ya ocupa todo el ancho disponible, así que
+  // el aire y el tamaño del precio se reducen para que quepa más contenido útil
+  // sin obligar a hacer scroll por cada paquete.
+  @media (max-width: 599px) {
+    padding: 16px;
+
+    &__price {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+
+    &__capacity {
+      margin-bottom: 8px;
+    }
+  }
+}
+
+// Extras
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.service-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-card);
+
+  &--selected {
+    border-color: var(--q-primary);
+  }
+
+  &__img {
+    height: 70px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: repeating-linear-gradient(135deg, #f5f7fb 0 8px, #eef1f6 8px 16px);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 10px 12px 12px;
+  }
+
+  &__name {
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+
+  &__desc {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__price {
+    margin-top: auto;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+}
+
+// Resumen lateral
+.payment-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  position: sticky;
+  top: 16px;
+
+  &__title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-strong);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+
+    .q-icon {
+      display: none;
+    }
+  }
+
+  &__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 5px 0;
+    font-size: 13.5px;
+    color: var(--text-body);
+
+    &--total {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      border-top: 1px solid var(--border-soft);
+      margin-top: 8px;
+      padding-top: 14px;
+    }
+
+    .amount {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .total-amount {
+      color: var(--text-strong);
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+  }
+
+  &__advance {
+    background: #fdeef3;
+    border-radius: 12px;
+    padding: 14px;
+    margin: 12px 0;
+
+    .advance-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--tone-pink-fg);
+    }
+
+    .advance-amount {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--tone-pink-fg);
+    }
+
+    .advance-note {
+      font-size: 12px;
+      color: var(--tone-pink-fg);
+      margin-top: 4px;
+    }
+
+    .q-linear-progress {
+      margin-top: 8px;
+    }
+  }
+}
+
+// Calendario de reservas
+.booking-calendar {
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-bottom: 10px;
+
+    .month-title {
+      min-width: 120px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-strong);
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+  }
+
+  &__dow {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    padding: 4px 0 6px;
+  }
+
+  &__day {
+    position: relative;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13.5px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+
+    &:hover:not(&--disabled) {
+      background: var(--bg-muted);
+    }
+
+    &--today {
+      background: var(--tone-info-bg);
+      color: var(--q-primary);
+      font-weight: 800;
+    }
+
+    &--booked::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      width: 5px;
+      height: 5px;
+      margin-left: -2.5px;
+      border-radius: 3px;
+      background: var(--q-secondary);
+    }
+
+    &--selected,
+    &--selected:hover {
+      background: var(--q-primary) !important;
+      color: #fff !important;
+      font-weight: 800;
+
+      &::after {
+        background: #fff;
+      }
+    }
+
+    &--disabled {
+      color: var(--text-muted);
+      cursor: default;
+    }
+
+    &--other-month {
+      color: transparent;
+    }
+  }
+}
+
+.selected-date-display,
+.time-slot-display {
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .q-icon {
+    color: var(--text-secondary);
+  }
+}
+
+// ─── Page layout ─────────────────────────────────────────────────────────────
+.page-content {
+  padding: 28px;
+  min-height: calc(100vh - var(--header-height));
+  background: var(--bg-main);
+}
+
+// ─── Páginas de listado (TablePage del diseño) ──────────────────────────────
+.list-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  &__note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13.5px;
+    font-weight: 600;
+
+    &--warn {
+      background: var(--tone-warn-bg);
+      color: var(--tone-warn-fg);
+    }
+
+    &--bad {
+      background: var(--tone-bad-bg);
+      color: var(--tone-bad-fg);
+    }
+  }
+}
+
+// Código corto en celdas (pulseras, SKU, folios).
+.code-chip {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f1f4f9;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-body);
+  white-space: nowrap;
+}
+
+// Texto secundario en celdas de tabla.
+.cell-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cell-muted {
+  color: var(--text-secondary);
+}
+
+// Botón de filtro activo (outline).
+.q-btn.btn--on {
+  background: var(--tone-info-bg);
+  color: var(--q-primary) !important;
+}
+
+// Formulario en dos columnas dentro de diálogos (Dialog del diseño).
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__section {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  &__toggle {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-control);
+    font-size: 13.5px;
+    color: var(--text-body);
+  }
+
+  @media (max-width: 520px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+// Celda de texto largo truncada con "…" (descripciones, direcciones).
+.cell-ellipsis {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.q-table tbody td.cell-muted,
+.q-table tbody td .cell-muted {
+  color: var(--text-secondary);
+}
+
+// Bloques del cuerpo de diálogos convertidos desde q-card-section.
+.dlg-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  &:empty {
+    display: none;
+  }
+}
+
+// Sub-sección dentro de un diálogo (p. ej. presentaciones dentro del alta de
+// insumo), separada del resto del formulario con un borde superior.
+.dlg-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-input);
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-body);
+    margin-bottom: 10px;
+  }
+}
+
+// Selector segmentado (q-btn-toggle) con el estilo de chips del diseño.
+.q-btn-toggle.q-btn-group {
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-control);
+  box-shadow: none;
+  background: #fff;
+
+  > .q-btn-item {
+    border-radius: 8px !important;
+    min-height: 34px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  > .q-btn-item.bg-primary {
+    background: var(--text-strong) !important;
+  }
+}

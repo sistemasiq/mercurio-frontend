@@ -1,0 +1,11 @@
+dist
+dist-ssr
+coverage
+node_modules
+*.log
+.quasar
+src-capacitor
+src-cordova
+.vscode/extensions.json
+# Prettier no soporta la sintaxis indentada de Sass (.sass, solo .scss)
+src/quasar-variables.sass

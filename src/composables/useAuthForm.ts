@@ -1,0 +1,82 @@
+import { reactive, ref } from 'vue'
+import { Notify } from 'quasar'
+import { useAuthStore } from '@/stores/auth'
+import { useRouter, useRoute } from 'vue-router'
+import { inactivityTimer } from '@/utils/inactivityTimer'
+import { mensajeDeError } from '@/utils/errorHandler'
+import type { LoginRequest } from '@/types/auth'
+
+export function useAuthForm() {
+  const auth = useAuthStore()
+  const router = useRouter()
+  const route = useRoute()
+
+  const credentials = reactive<LoginRequest>({
+    email: '',
+    password: '',
+    rememberMe: false,
+  })
+
+  const showPassword = ref(false)
+
+  const emailRules = [
+    (v: string) => !!v || 'El usuario o correo electrónico es requerido.',
+    (v: string) => v.length >= 3 || 'Debe tener al menos 3 caracteres.',
+  ]
+
+  const passwordRules = [
+    (v: string) => !!v || 'La contraseña es requerida.',
+    (v: string) => v.length >= 6 || 'La contraseña debe tener al menos 6 caracteres.',
+  ]
+
+  async function afterLogin(): Promise<void> {
+    inactivityTimer.start()
+
+    Notify.create({
+      type: 'positive',
+      message: '¡Bienvenido!',
+      icon: 'check_circle',
+    })
+
+    const redirect = route.query.redirect as string | undefined
+    await router.push(redirect ?? { name: 'home' })
+  }
+
+  async function handleLogin(): Promise<void> {
+    try {
+      const loggedIn = await auth.login({ ...credentials })
+      if (loggedIn) await afterLogin()
+    } catch (err) {
+      Notify.create({
+        type: 'negative',
+        message: mensajeDeError(err, auth.error ?? 'Error al iniciar sesión.'),
+        icon: 'error',
+      })
+    }
+  }
+
+  async function confirmBranchSelection(sucursalId: string): Promise<void> {
+    try {
+      const loggedIn = await auth.selectBranchAndLogin(sucursalId)
+      if (loggedIn) await afterLogin()
+    } catch (err) {
+      Notify.create({
+        type: 'negative',
+        message: mensajeDeError(err, auth.error ?? 'Error al iniciar sesión.'),
+        icon: 'error',
+      })
+    }
+  }
+
+  return {
+    credentials,
+    showPassword,
+    emailRules,
+    passwordRules,
+    isLoading: () => auth.loading,
+    pendingBranchSelection: () => auth.pendingBranchSelection,
+    handleLogin,
+    confirmBranchSelection,
+    cancelBranchSelection: auth.cancelBranchSelection,
+  }
+}

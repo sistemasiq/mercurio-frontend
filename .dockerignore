@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+.git
+.env
+.env.*
+!.env.example
+*.local
+*.log
+coverage
+# Worktrees de agentes y herramientas: no forman parte de la imagen y pesan GB.
+.claude
+.github
+.husky
+.vscode
+.idea
+docs

@@ -1,0 +1,68 @@
+import { defineStore } from 'pinia'
+import { mensajeDeError } from '@/utils/errorHandler'
+import { pagosReservacionApi } from '@/api/pagosReservacionApi'
+import type {
+  Pagos_reservacion,
+  Pagos_reservacion_completar_request,
+  Pagos_reservacion_update,
+  Pagos_reservacion_create,
+} from '@/types/pagos_reservacion.ts'
+
+interface Pagos_reservacionState {
+  pagos_reservacion: Pagos_reservacion[]
+  loading: boolean
+  error: string | null
+}
+
+export const usePagosReservacionesStore = defineStore('pagos_reservacion', {
+  state: (): Pagos_reservacionState => ({
+    pagos_reservacion: [],
+    loading: false,
+    error: null,
+  }),
+  getters: {},
+  actions: {
+    async cargar() {
+      this.loading = true
+      this.error = null
+      try {
+        this.pagos_reservacion = await pagosReservacionApi.listar()
+      } catch (error: unknown) {
+        this.error = mensajeDeError(error, 'Error al cargar pagos')
+      } finally {
+        this.loading = false
+      }
+    },
+    async fetchPagosReservacion(reservacion_id: string) {
+      this.loading = true
+      this.error = null
+      try {
+        this.pagos_reservacion = await pagosReservacionApi.listarPorReservacion(reservacion_id)
+      } catch (error: unknown) {
+        this.error = mensajeDeError(error, 'Error al cargar pagos')
+      } finally {
+        this.loading = false
+      }
+    },
+    async crearPagosReservacion(body: Pagos_reservacion_create) {
+      const nuevo = await pagosReservacionApi.crear(body)
+      this.pagos_reservacion.push(nuevo)
+      return nuevo
+    },
+    async completarPagosReservacion(body: Pagos_reservacion_completar_request) {
+      const resultado = await pagosReservacionApi.completar(body)
+      this.pagos_reservacion.push(...resultado.pagos)
+      return resultado
+    },
+    async actualizarPagosReservacion(id: string, body: Pagos_reservacion_update) {
+      const actualizado = await pagosReservacionApi.actualizar(id, body)
+      const idx = this.pagos_reservacion.findIndex((pago) => pago.id === id)
+      if (idx !== -1) this.pagos_reservacion[idx] = actualizado
+      return actualizado
+    },
+    async borrarPagosReservacion(id: string) {
+      await pagosReservacionApi.eliminar(id)
+      this.pagos_reservacion = this.pagos_reservacion.filter((pago) => pago.id !== id)
+    },
+  },
+})
