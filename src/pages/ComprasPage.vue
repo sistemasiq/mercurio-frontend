@@ -41,7 +41,10 @@
         :rows-per-page-options="[10, 25, 50]"
       >
         <template #body-cell-proveedor_nombre="props">
-          <q-td :props="props" class="text-weight-bold">{{ props.row.proveedor_nombre }}</q-td>
+          <q-td :props="props">
+            <span class="text-weight-bold">{{ props.row.proveedor_nombre }}</span>
+            <span v-if="props.row.folio" class="code-chip q-ml-sm">{{ props.row.folio }}</span>
+          </q-td>
         </template>
         <template #body-cell-estado="props">
           <q-td :props="props">
@@ -152,6 +155,20 @@
           <div class="field-label">Notas (opcional)</div>
           <q-input v-model="formCompra.notas" dense outlined placeholder="Referencia, factura..." />
         </div>
+        <div>
+          <div class="field-label">IVA</div>
+          <q-input
+            v-model.number="formCompra.iva"
+            dense
+            outlined
+            type="number"
+            min="0"
+            step="0.01"
+            prefix="$"
+            hint="Monto de IVA de la factura (opcional)"
+            :rules="[(v) => v === '' || v === null || Number(v) >= 0 || 'No puede ser negativo']"
+          />
+        </div>
 
         <div
           class="q-p-sm bg-grey-1 rounded-borders"
@@ -256,6 +273,7 @@
 
             <div class="row justify-end q-mt-sm text-subtitle2 text-weight-bold">
               Total: ${{ totalCompra.toFixed(2) }}
+              <template v-if="ivaCompra > 0"> · IVA: ${{ ivaCompra.toFixed(2) }}</template>
             </div>
           </div>
         </div>
@@ -380,7 +398,11 @@
         </q-list>
         <div v-else class="text-body2 text-grey-7 q-py-sm">Sin líneas.</div>
         <div v-if="detalleCompra" class="row justify-end q-mt-sm text-subtitle2 text-weight-bold">
+          <template v-if="detalleCompra.folio">{{ detalleCompra.folio }} ·&nbsp;</template>
           Total: ${{ Number(detalleCompra.total).toFixed(2) }}
+          <template v-if="Number(detalleCompra.iva) > 0">
+            · IVA: ${{ Number(detalleCompra.iva).toFixed(2) }}
+          </template>
         </div>
         <div v-if="detalleCompra?.notas" class="text-caption text-grey-7 q-mt-sm">
           Notas: {{ detalleCompra.notas }}
@@ -554,6 +576,7 @@ const onCambiarInsumoLinea = (insumoId: string | null) => {
 const formCompra = ref({
   proveedor_id: null as string | null,
   notas: '',
+  iva: 0 as number | string,
 })
 
 interface LineaLocal {
@@ -583,6 +606,12 @@ const lineaCompleta = computed(
     lineaTemporal.value.costo_unitario >= 0,
 )
 
+// v-model.number deja '' cuando se borra el campo.
+const ivaCompra = computed(() => {
+  const v = Number(formCompra.value.iva)
+  return Number.isFinite(v) && v > 0 ? v : 0
+})
+
 const totalCompra = computed(() =>
   lineas.value.reduce((acc, l) => acc + l.cantidad * l.costo_unitario, 0),
 )
@@ -598,7 +627,7 @@ const compraEditando = ref<Compra | null>(null)
 
 const abrirCrear = () => {
   compraEditando.value = null
-  formCompra.value = { proveedor_id: null, notas: '' }
+  formCompra.value = { proveedor_id: null, notas: '', iva: 0 }
   lineas.value = []
   lineaTemporal.value = lineaTemporalVacia()
   dialogOpen.value = true
@@ -607,7 +636,11 @@ const abrirCrear = () => {
 const abrirEditar = async (row: Compra) => {
   const completa = await comprasApi.obtener(row.id)
   compraEditando.value = completa
-  formCompra.value = { proveedor_id: completa.proveedor_id, notas: completa.notas ?? '' }
+  formCompra.value = {
+    proveedor_id: completa.proveedor_id,
+    notas: completa.notas ?? '',
+    iva: Number(completa.iva ?? 0),
+  }
   lineas.value = completa.detalles.flatMap((d) => {
     const insumo = insumosStore.insumos.find((i) => i.id === d.insumo_id)
     return [
@@ -631,7 +664,7 @@ const abrirEditar = async (row: Compra) => {
 const aplicarBorradorPrefill = () => {
   const borrador = store.consumirBorradorPrefill()
   if (!borrador) return
-  formCompra.value = { proveedor_id: borrador.proveedor_id, notas: '' }
+  formCompra.value = { proveedor_id: borrador.proveedor_id, notas: '', iva: 0 }
   lineas.value = borrador.lineas.flatMap((l) => {
     const insumo = insumosStore.insumos.find((i) => i.id === l.insumo_id)
     const unidad = unidadesStore.unidades.find((u) => u.id === l.unidad_medida_id)
@@ -710,6 +743,7 @@ const guardarCompra = async () => {
       await store.editar(compraEditando.value.id, {
         proveedor_id: formCompra.value.proveedor_id,
         notas: formCompra.value.notas.trim() || null,
+        iva: String(ivaCompra.value),
         detalles,
       })
       $q.notify({ type: 'positive', message: 'Compra actualizada', position: 'top-right' })
@@ -718,6 +752,7 @@ const guardarCompra = async () => {
         sucursal_id: authStore.currentBranchId,
         proveedor_id: formCompra.value.proveedor_id,
         notas: formCompra.value.notas.trim() || null,
+        iva: String(ivaCompra.value),
         detalles,
       })
       $q.notify({ type: 'positive', message: 'Compra creada', position: 'top-right' })
