@@ -25,6 +25,29 @@
       <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
+    <div class="resumen-filtros">
+      <q-btn-toggle
+        v-model="periodoFiltro"
+        dense
+        unelevated
+        no-caps
+        toggle-color="primary"
+        color="white"
+        text-color="primary"
+        :options="PERIODOS"
+      />
+      <q-btn-toggle
+        v-model="estadoFiltro"
+        dense
+        unelevated
+        no-caps
+        toggle-color="primary"
+        color="white"
+        text-color="primary"
+        :options="ESTADOS"
+      />
+    </div>
+
     <div class="kpi-row">
       <KpiCard
         label="Fiestas próximas"
@@ -119,6 +142,8 @@ import type { Paquetes } from '@/types/paquetes'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import KpiCard from '@/components/ui/KpiCard.vue'
 import { formatMXN } from '@/utils/formatoMoneda'
+import type { FilterChip } from '@/types/ui'
+import type { Reservaciones } from '@/types/reservaciones'
 
 const router = useRouter()
 const store = useReservacionesStore()
@@ -141,6 +166,63 @@ function parseLocalDate(str: string): Date {
   const [y, m, d] = str.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
+
+// ── Filtros del lado del cliente (D1.5): periodo y estado, sobre lo que ya
+// carga el store. Se aplican a los KPIs y a la agenda de la semana.
+type PeriodoFiltro = 'hoy' | 'semana' | 'mes'
+type EstadoFiltro = 'todas' | 'confirmada' | 'pendientes' | 'cerrada' | 'cancelada'
+
+const PERIODOS: FilterChip<PeriodoFiltro>[] = [
+  { label: 'Hoy', value: 'hoy' },
+  { label: 'Esta semana', value: 'semana' },
+  { label: 'Este mes', value: 'mes' },
+]
+const ESTADOS: FilterChip<EstadoFiltro>[] = [
+  { label: 'Todas', value: 'todas' },
+  { label: 'Confirmada', value: 'confirmada' },
+  { label: 'Pendiente de pago', value: 'pendientes' },
+  { label: 'Cerrada', value: 'cerrada' },
+  { label: 'Cancelada', value: 'cancelada' },
+]
+
+const periodoFiltro = ref<PeriodoFiltro>('semana')
+const estadoFiltro = ref<EstadoFiltro>('todas')
+
+function cumplePeriodoFiltro(r: Reservaciones): boolean {
+  const d = parseLocalDate(r.fecha_evento)
+  if (periodoFiltro.value === 'hoy') {
+    return d.toDateString() === today.toDateString()
+  }
+  if (periodoFiltro.value === 'mes') {
+    return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()
+  }
+  // 'semana': semana calendario actual (lunes a domingo)
+  const dia = today.getDay()
+  const inicio = new Date(today)
+  inicio.setDate(inicio.getDate() + (dia === 0 ? -6 : 1 - dia))
+  const fin = new Date(inicio)
+  fin.setDate(fin.getDate() + 6)
+  return d >= inicio && d <= fin
+}
+
+function cumpleEstadoFiltro(r: Reservaciones): boolean {
+  switch (estadoFiltro.value) {
+    case 'confirmada':
+      return r.estado === 'confirmada'
+    case 'pendientes':
+      return Number(r.saldo_pendiente) > 0 && r.estado !== 'cancelada'
+    case 'cerrada':
+      return r.estado === 'completada'
+    case 'cancelada':
+      return r.estado === 'cancelada'
+    default:
+      return true
+  }
+}
+
+const reservacionesFiltradas = computed(() =>
+  store.reservaciones.filter((r) => cumplePeriodoFiltro(r) && cumpleEstadoFiltro(r)),
+)
 
 // ── Semana mostrada (lunes a domingo), navegable con semanaOffset ────────────
 
@@ -169,7 +251,7 @@ const rangoSemanaLabel = computed(
 )
 
 const eventosSemana = computed(() =>
-  store.reservaciones
+  reservacionesFiltradas.value
     .filter((r) => {
       const d = parseLocalDate(r.fecha_evento)
       return d >= inicioSemana.value && d <= finSemana.value && r.estado !== 'cancelada'
@@ -185,7 +267,7 @@ const eventosSemana = computed(() =>
 
 const eventosProximos = computed(
   () =>
-    store.reservaciones.filter(
+    reservacionesFiltradas.value.filter(
       (r) => parseLocalDate(r.fecha_evento) >= today && r.estado !== 'cancelada',
     ).length,
 )
@@ -205,7 +287,7 @@ const eventosEstaSemana = computed(() => {
 
 const depositosPendientes = computed(
   () =>
-    store.reservaciones.filter(
+    reservacionesFiltradas.value.filter(
       (r) =>
         r.estado !== 'cancelada' &&
         parseLocalDate(r.fecha_evento) >= today &&
@@ -216,7 +298,7 @@ const depositosPendientes = computed(
 const depositosUrgentes = computed(() => {
   const en3Dias = new Date(today)
   en3Dias.setDate(en3Dias.getDate() + 3)
-  return store.reservaciones.filter((r) => {
+  return reservacionesFiltradas.value.filter((r) => {
     const d = parseLocalDate(r.fecha_evento)
     return (
       r.estado !== 'cancelada' &&
@@ -231,7 +313,7 @@ const depositosUrgentes = computed(() => {
 
 const topPaquetes = computed(() => {
   const conteos = new Map<string, number>()
-  store.reservaciones.forEach((r) => {
+  reservacionesFiltradas.value.forEach((r) => {
     if (r.estado === 'cancelada') return
     conteos.set(r.paquete_id, (conteos.get(r.paquete_id) ?? 0) + 1)
   })
@@ -287,7 +369,7 @@ const diasSemana = computed(() =>
 // ── KPIs adicionales ─────────────────────────────────────────────────────────
 
 const reservacionesConSaldo = computed(() =>
-  store.reservaciones.filter(
+  reservacionesFiltradas.value.filter(
     (r) =>
       r.estado !== 'cancelada' &&
       parseLocalDate(r.fecha_evento) >= today &&
@@ -300,7 +382,7 @@ const saldoPorCobrar = computed(() =>
 const conteoPaquetePopular = computed(() => {
   const top = topPaquetes.value[0]
   if (!top) return null
-  const activas = store.reservaciones.filter((r) => r.estado !== 'cancelada')
+  const activas = reservacionesFiltradas.value.filter((r) => r.estado !== 'cancelada')
   return `${activas.filter((r) => r.paquete_id === top.id).length} de ${activas.length}`
 })
 
@@ -314,6 +396,12 @@ function irACierre(id: string) {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+.resumen-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .agenda {

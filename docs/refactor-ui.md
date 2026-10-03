@@ -56,9 +56,6 @@ simplifican hasta que exista la fuente.
 
 ### 02 Eventos
 
-- **Botón "Filtrar"** (Resumen): no había filtros implementados; se reemplazó
-  por acceso a Reservaciones.
-
 ### 03 Catálogo
 
 ### 04 Inventario
