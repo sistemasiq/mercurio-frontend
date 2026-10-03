@@ -141,9 +141,6 @@ simplifican hasta que exista la fuente.
 
 ### 06 Administración
 
-- **Ventas, niños atendidos, eventos y cajas por sucursal** (detalle de
-  sucursal y Reportes): no hay endpoints de indicadores por sucursal; se
-  muestran estado, usuarios asignados y administrador.
 - **Pestañas Cajas / Horarios en el detalle de sucursal**: sin dato (no forma
   parte de este endpoint).
 - **PIN de caja** (usuario): su semántica es una decisión de negocio
