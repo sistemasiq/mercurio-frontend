@@ -554,14 +554,25 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     }
 
     // Si el turno llega en BALANCE_REVELADO (ej. recarga tras autenticar al admin), el
-    // balance en memoria se perdió y no hay endpoint para recuperarlo: se pide que el
-    // admin se re-autentique (la respuesta de la revisión trae el balance). Si el balance
-    // sigue en memoria, se reabre directo el modal de autorización.
-    // TODO backend: incluir adminEmail y el balance en la respuesta del turno
+    // backend ya incluye adminEmail y balancePorMetodo en esta misma respuesta (QA #8),
+    // así que no hace falta re-autenticar al admin para recuperarlos. El sessionStorage
+    // y la re-autenticación quedan solo como respaldo para backends viejos que todavía
+    // no manden esos campos.
     if (turno.estado === 'BALANCE_REVELADO') {
-      if (!adminEmail.value) adminEmail.value = leerAdminEmail(turno.id)
-      if (revisionAplicada.value) mostrarDialogAutorizacion.value = true
-      else if (!mostrarDialogAutorizacion.value) mostrarDialogAdmin.value = true
+      if (turno.adminEmail) {
+        adminEmail.value = turno.adminEmail
+      } else if (!adminEmail.value) {
+        adminEmail.value = leerAdminEmail(turno.id)
+      }
+      if (turno.balancePorMetodo && turno.balancePorMetodo.length > 0) {
+        balancePorMetodo.value = turno.balancePorMetodo
+        revisionAplicada.value = true
+        mostrarDialogAutorizacion.value = true
+      } else if (revisionAplicada.value) {
+        mostrarDialogAutorizacion.value = true
+      } else if (!mostrarDialogAutorizacion.value) {
+        mostrarDialogAdmin.value = true
+      }
     }
 
     // Precarga las filas de métodos de pago con los movimientos reales del turno.

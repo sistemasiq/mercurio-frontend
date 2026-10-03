@@ -48,6 +48,9 @@ function mapTurnoActivo(raw: any): TurnoActivoResponse {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (m: any) => ({ metodo: m.metodo, totalVentas: Number(m.total_ventas) }),
     ),
+    // QA #8: solo vienen poblados cuando estado === 'BALANCE_REVELADO'.
+    adminEmail: raw.admin_email ?? null,
+    balancePorMetodo: mapBalancePorMetodo(raw.balance_por_metodo),
   }
 }
 

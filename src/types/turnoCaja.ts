@@ -117,6 +117,10 @@ export interface TurnoActivoResponse {
   totalRetiros: number
   totalIngresos: number
   movimientos: MovimientoTurno[]
+  /** Solo poblado por el backend cuando estado === 'BALANCE_REVELADO' (QA #8). */
+  adminEmail?: string | null
+  /** Solo poblado por el backend cuando estado === 'BALANCE_REVELADO' (QA #8). */
+  balancePorMetodo?: FilaBalance[]
 }
 
 // ---------------------------------------------------------------------------
