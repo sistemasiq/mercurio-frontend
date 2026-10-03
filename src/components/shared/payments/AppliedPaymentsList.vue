@@ -1,41 +1,24 @@
 <template>
-  <div class="applied-list-container">
-    <h4 class="title">
-      <q-icon name="account_balance_wallet" color="primary" size="sm" /> Pagos Aplicados
-    </h4>
-
-    <div v-if="pagos.length === 0" class="empty-state">No hay pagos aplicados aún.</div>
-
-    <div class="payments-scroll">
-      <div v-for="pago in pagos" :key="pago.id" class="payment-card">
-        <div class="payment-info">
-          <q-avatar
-            :color="getColor(pago.method)"
-            text-color="white"
-            :icon="getIcon(pago.method)"
-            size="md"
-          />
-          <div>
-            <div class="row items-center q-gutter-x-sm">
-              <span class="payment-name">{{ formatMethodName(pago) }}</span>
-              <q-badge color="positive" label="Completado" rounded />
-            </div>
-            <div v-if="esTarjeta(pago.method)" class="payment-meta">Folio: {{ pago.authCode }}</div>
-          </div>
-        </div>
-
-        <div class="payment-actions">
-          <span class="payment-amount">${{ pago.amount.toFixed(2) }}</span>
-          <q-btn
-            flat
-            round
-            dense
-            color="negative"
-            icon="delete"
-            @click="$emit('remove-payment', pago.id)"
-          />
-        </div>
+  <div class="applied">
+    <span class="applied__title">Pagos aplicados</span>
+    <div v-if="pagos.length === 0" class="applied__empty">Aún no hay pagos aplicados.</div>
+    <div v-for="pago in pagos" :key="pago.id" class="applied__row">
+      <q-icon :name="getIcon(pago.method)" size="20px" :style="{ color: getColor(pago.method) }" />
+      <div class="applied__info">
+        <span class="applied__name">{{ formatMethodName(pago) }}</span>
+        <span v-if="esTarjeta(pago.method) && pago.authCode" class="applied__meta">
+          Aut. {{ pago.authCode }}
+        </span>
       </div>
+      <span class="applied__amount">${{ pago.amount.toFixed(2) }}</span>
+      <button
+        type="button"
+        class="applied__remove"
+        aria-label="Quitar pago"
+        @click="$emit('remove-payment', pago.id)"
+      >
+        <q-icon name="close" size="18px" />
+      </button>
     </div>
   </div>
 </template>
@@ -52,11 +35,11 @@ defineEmits<{
 }>()
 
 const METHOD_META: Record<string, { icon: string; color: string }> = {
-  efectivo: { icon: 'payments', color: 'positive' },
-  tarjeta: { icon: 'credit_card', color: 'primary' },
-  cupones: { icon: 'redeem', color: 'warning' },
-  lealtad: { icon: 'loyalty', color: 'secondary' },
-  otro: { icon: 'account_balance_wallet', color: 'grey' },
+  efectivo: { icon: 'payments', color: '#246b1d' },
+  tarjeta: { icon: 'credit_card', color: '#c40f47' },
+  cupones: { icon: 'redeem', color: '#8a5a00' },
+  lealtad: { icon: 'loyalty', color: '#025fe0' },
+  otro: { icon: 'account_balance_wallet', color: '#64748b' },
 }
 
 const getMeta = (method: string) => {
@@ -64,7 +47,7 @@ const getMeta = (method: string) => {
   for (const [pattern, meta] of Object.entries(METHOD_META)) {
     if (key.includes(pattern)) return meta
   }
-  return { icon: 'payment', color: 'grey' }
+  return { icon: 'payment', color: '#64748b' }
 }
 
 const getIcon = (method: string) => getMeta(method).icon
@@ -89,67 +72,77 @@ const formatMethodName = (pago: AppliedPayment) => {
 }
 </script>
 
-<style scoped>
-.applied-list-container {
-  flex: 1;
+<style scoped lang="scss">
+.applied {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: var(--bg-main);
-  padding: 16px;
-  border-radius: 12px;
-}
-.title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-  display: flex;
-  align-items: center;
   gap: 8px;
-}
-.empty-state {
-  text-align: center;
-  color: var(--text-secondary);
-  padding: 32px 0;
-}
-.payments-scroll {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.payment-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-.payment-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.payment-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.payment-meta {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-.payment-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.payment-amount {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
+
+  &__title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+
+  &__empty {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  &__meta {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+  }
+
+  &__amount {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__remove {
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--tone-bad-bg);
+      color: var(--tone-bad-fg);
+    }
+  }
 }
 </style>

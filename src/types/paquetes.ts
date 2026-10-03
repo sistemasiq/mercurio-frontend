@@ -20,8 +20,9 @@ export interface Paquetes extends AuditFields {
   min_invitados: number
   max_invitados: number
   precio_base: string
-  /** Se cobra por cada invitado: precio_base + precio_pulsera × invitados. */
-  precio_pulsera: string
+  /** Tarifa de la pulsera por invitado y por hora:
+   * total = precio_base + precio_hora_pulsera × invitados × horas. */
+  precio_hora_pulsera: string
   productos_incluidos: PaqueteProductoIncluido[] | null
   /** Reservaciones vigentes que usan este paquete. Solo lo puebla el listado. */
   contrataciones: number
@@ -36,7 +37,7 @@ export interface PaquetesCreate {
   min_invitados?: number
   max_invitados?: number
   precio_base: string
-  precio_pulsera?: string
+  precio_hora_pulsera?: string
   productos_incluidos?: PaqueteProductoItem[] | null
 }
 
@@ -46,7 +47,7 @@ export interface PaquetesUpdate {
   min_invitados?: number | null
   max_invitados?: number | null
   precio_base?: string | null
-  precio_pulsera?: string | null
+  precio_hora_pulsera?: string | null
   activo?: boolean
   productos_incluidos?: PaqueteProductoItem[] | null
 }

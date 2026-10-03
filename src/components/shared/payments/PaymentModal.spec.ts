@@ -81,7 +81,7 @@ describe('PaymentModal', () => {
     await capturarMonto(wrapper, 5000)
     const finalizar = wrapper
       .findAllComponents({ name: 'QBtn' })
-      .find((b) => b.props('label') === 'Finalizar Transacción')
+      .find((b) => b.props('label') === 'Confirmar pago')
     expect(finalizar, 'no se encontró el botón de finalizar').toBeTruthy()
     await finalizar!.trigger('click')
 
@@ -108,5 +108,21 @@ describe('PaymentModal', () => {
     expect(pagos).toHaveLength(2)
     // Con ids repetidos, eliminarPago() borraría los dos renglones a la vez.
     expect(new Set(pagos.map((p) => p.id)).size).toBe(2)
+  })
+
+  it('emite el cambio a devolver junto con el pago', async () => {
+    const wrapper = montar(120)
+    await capturarMonto(wrapper, 200)
+
+    const finalizar = wrapper
+      .findAllComponents({ name: 'QBtn' })
+      .find((b) => b.props('label') === 'Finalizar Transacción')
+    expect(finalizar, 'no se encontró el botón de finalizar').toBeTruthy()
+    await finalizar!.trigger('click')
+
+    const emitido = wrapper.emitted('pago-exitoso')
+    expect(emitido).toBeTruthy()
+    const cambio = emitido?.[0]?.[4] as number
+    expect(cambio).toBe(80)
   })
 })

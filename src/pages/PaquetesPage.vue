@@ -1,391 +1,320 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div class="row items-center q-mb-lg">
-      <div>
-        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Paquetes</div>
-        <div class="text-body2" style="color: var(--text-secondary)">
-          Catálogo de paquetes disponibles para reservaciones.
-        </div>
-      </div>
-      <q-space />
-      <q-btn
-        color="primary"
-        icon="add"
-        label="Nuevo Paquete"
-        unelevated
-        no-caps
-        style="border-radius: 8px; font-weight: 600"
-        :disable="!authStore.currentBranchId"
-        @click="abrirCrear"
-      />
+  <q-page class="page-content list-page">
+    <PageHeader title="Paquetes" subtitle="Paquetes de fiesta con precio base y capacidad.">
+      <template #actions>
+        <q-btn
+          unelevated
+          color="primary"
+          icon="add"
+          label="Nuevo Paquete"
+          :disable="!authStore.currentBranchId"
+          @click="abrirCrear"
+        />
+      </template>
+    </PageHeader>
+
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
-    <q-banner
-      v-if="!authStore.currentBranchId"
-      dense
-      rounded
-      class="bg-orange-1 text-orange-9 q-mb-md"
-      style="border-radius: 10px"
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtro"
+      search-placeholder="Buscar paquete"
+      :filters="FILTROS_ACTIVO"
+      :count="`${paquetesVisibles.length} paquetes`"
     >
-      <template #avatar><q-icon name="info" color="orange-9" /></template>
-      No hay una sucursal activa en la sesión.
-    </q-banner>
-
-    <q-banner
-      v-if="store.error"
-      dense
-      rounded
-      class="bg-red-1 text-red-8 q-mb-md"
-      style="border-radius: 10px"
-    >
-      <template #avatar><q-icon name="error_outline" color="negative" /></template>
-      {{ store.error }}
-      <template #action>
-        <q-btn flat dense no-caps label="Reintentar" @click="cargar" />
-      </template>
-    </q-banner>
-
-    <q-card flat bordered style="border-radius: 12px; overflow: hidden">
+      <StateBlock
+        v-if="store.error"
+        variant="error"
+        :body="store.error"
+        action-label="Reintentar"
+        @action="cargar"
+      />
       <q-table
-        :rows="store.paquetes"
+        v-else
+        :rows="paquetesVisibles"
         :columns="columns"
         row-key="id"
         flat
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
-        no-data-label="No hay paquetes registrados"
-        class="fec-table"
       >
-        <template #body-cell-precio_base="props">
-          <q-td :props="props"> ${{ Number(props.row.precio_base).toFixed(2) }} </q-td>
-        </template>
-
-        <template #body-cell-precio_pulsera="props">
-          <q-td :props="props"> ${{ Number(props.row.precio_pulsera).toFixed(2) }} </q-td>
-        </template>
-
-        <template #body-cell-productos_incluidos="props">
+        <template #body-cell-nombre="props">
           <q-td :props="props">
-            <div v-if="props.row.productos_incluidos?.length" class="row q-gutter-xs">
-              <q-badge
-                v-for="item in props.row.productos_incluidos"
-                :key="item.producto_id"
-                color="blue-1"
-                text-color="primary"
-                :label="`${item.cantidad}x ${item.nombre}`"
-                style="font-size: 0.7rem; padding: 3px 8px; border-radius: 6px"
-              />
-            </div>
-            <span v-else class="text-grey-6 text-caption">—</span>
+            <span class="text-weight-bold">{{ props.row.nombre }}</span>
+            <span v-if="props.row.descripcion" class="cell-sub cell-ellipsis">
+              {{ props.row.descripcion }}
+            </span>
           </q-td>
         </template>
-
+        <template #body-cell-precio_base="props">
+          <q-td :props="props" class="text-weight-bold">
+            {{ formatMXN(Number(props.row.precio_base)) }}
+          </q-td>
+        </template>
+        <template #body-cell-precio_hora_pulsera="props">
+          <q-td :props="props">{{ formatMXN(Number(props.row.precio_hora_pulsera)) }}</q-td>
+        </template>
+        <template #body-cell-productos_incluidos="props">
+          <q-td :props="props" class="cell-muted">
+            <template v-if="props.row.productos_incluidos?.length">
+              {{
+                props.row.productos_incluidos
+                  .map((i: PaqueteProductoIncluido) => `${i.cantidad}× ${i.nombre}`)
+                  .join(', ')
+              }}
+            </template>
+            <template v-else>—</template>
+          </q-td>
+        </template>
         <template #body-cell-activo="props">
           <q-td :props="props">
-            <q-badge
-              :color="props.row.activo ? 'positive' : 'grey-5'"
+            <StatusBadge
+              :tone="props.row.activo ? 'ok' : 'off'"
               :label="props.row.activo ? 'Activo' : 'Inactivo'"
-              style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
             />
           </q-td>
         </template>
-
         <template #body-cell-actions="props">
-          <q-td :props="props" class="text-right">
+          <q-td :props="props">
+            <q-toggle
+              :model-value="props.row.activo"
+              dense
+              :aria-label="props.row.activo ? 'Desactivar' : 'Activar'"
+              @update:model-value="toggleActivo(props.row)"
+            />
             <q-btn
               flat
+              round
               dense
-              color="grey-8"
-              size="sm"
-              class="action-btn q-mr-xs"
-              @click="abrirEditar(props.row)"
-            >
-              <span class="material-symbols-outlined">edit</span>
-              <q-tooltip>Editar</q-tooltip>
-            </q-btn>
-            <q-btn
-              flat
-              dense
-              color="grey-8"
-              size="sm"
-              class="action-btn q-mr-xs"
-              @click="toggleActivo(props.row)"
-            >
-              <span class="material-symbols-outlined">{{
-                props.row.activo ? 'toggle_on' : 'toggle_off'
-              }}</span>
-              <q-tooltip>{{ props.row.activo ? 'Desactivar' : 'Activar' }}</q-tooltip>
-            </q-btn>
-            <q-btn
-              flat
-              dense
-              color="grey-8"
-              size="sm"
+              icon="edit"
               class="action-btn"
+              aria-label="Editar"
+              @click="abrirEditar(props.row)"
+            />
+            <q-btn
+              flat
+              round
+              dense
+              icon="delete"
+              class="action-btn"
+              aria-label="Eliminar"
               @click="confirmarEliminar(props.row)"
-            >
-              <span class="material-symbols-outlined">delete_outline</span>
-              <q-tooltip>Eliminar</q-tooltip>
-            </q-btn>
+            />
           </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="filtrando ? 'no-results' : 'empty'"
+            :title="filtrando ? undefined : 'No hay paquetes registrados'"
+            :body="filtrando ? undefined : 'Crea el primer paquete de fiesta.'"
+            :action-label="filtrando ? 'Limpiar filtros' : 'Nuevo Paquete'"
+            @action="filtrando ? ((busqueda = ''), (filtro = 'todos')) : abrirCrear()"
+          />
         </template>
       </q-table>
-    </q-card>
+    </DataTableCard>
 
-    <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
-    <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 520px; border-radius: 12px">
-        <q-card-section class="q-pa-lg q-pb-md">
-          <div class="text-h6 text-weight-bold">
-            {{ editando ? 'Editar Paquete' : 'Nuevo Paquete' }}
-          </div>
-        </q-card-section>
+    <BaseDialog
+      v-model="dialogOpen"
+      :title="editando ? 'Editar paquete' : 'Nuevo paquete'"
+      :subtitle="editando ? editando.nombre : 'Precio base, capacidad y alimentos incluidos.'"
+      icon="card_giftcard"
+      :width="640"
+      persistent
+      :primary-label="editando ? 'Guardar cambios' : 'Crear paquete'"
+      :loading="guardando"
+      @cancel="cerrarDialog"
+      @confirm="guardar"
+    >
+      <div class="form-grid">
+        <span class="form-grid__section">General</span>
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Nombre</span>
+          <q-input
+            ref="nombreRef"
+            v-model="formDialog.nombre"
+            dense
+            outlined
+            autofocus
+            placeholder="Ej. Paquete Clásico"
+            :rules="[(v) => !!v || 'El nombre es requerido']"
+            hide-bottom-space
+          />
+        </label>
+        <label class="form-grid__field">
+          <span class="field-label">Precio base</span>
+          <q-input
+            v-model.number="formDialog.precio_base"
+            dense
+            outlined
+            type="number"
+            min="0"
+            step="0.01"
+            prefix="$"
+            :rules="[(v) => v > 0 || 'Debe ser mayor a 0']"
+            hide-bottom-space
+          />
+        </label>
+        <label class="form-grid__field">
+          <span class="field-label">Precio por pulsera, por hora</span>
+          <q-input
+            v-model.number="formDialog.precio_hora_pulsera"
+            dense
+            outlined
+            type="number"
+            min="0"
+            step="0.01"
+            prefix="$"
+            hint="Por cada invitado y por cada hora del evento, además del precio base"
+          />
+        </label>
+        <label class="form-grid__field">
+          <span class="field-label">Mínimo de invitados</span>
+          <q-input
+            v-model.number="formDialog.min_invitados"
+            dense
+            outlined
+            type="number"
+            min="1"
+            :rules="[(v) => v > 0 || 'Debe ser mayor a 0']"
+            hide-bottom-space
+          />
+        </label>
+        <label class="form-grid__field">
+          <span class="field-label">Máximo de invitados</span>
+          <q-input
+            v-model.number="formDialog.max_invitados"
+            dense
+            outlined
+            type="number"
+            min="1"
+            :rules="[
+              (v) => v > 0 || 'Debe ser mayor a 0',
+              (v) => v >= formDialog.min_invitados || 'No puede ser menor que el mínimo',
+            ]"
+            hide-bottom-space
+          />
+        </label>
+        <p class="form-grid__field form-grid__field--full form-grid__note">
+          Al reservar solo se ofrecerán los paquetes cuyo rango cubra el número de niños que pida
+          el cliente.
+        </p>
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Descripción</span>
+          <q-input
+            v-model="formDialog.descripcion"
+            dense
+            outlined
+            type="textarea"
+            rows="2"
+            placeholder="Descripción breve del paquete (opcional)"
+          />
+        </label>
 
-        <q-separator />
-
-        <q-card-section class="q-gutter-lg q-pa-lg">
-          <div>
-            <div class="field-label">NOMBRE</div>
-            <q-input
-              ref="nombreRef"
-              v-model="formDialog.nombre"
+        <span class="form-grid__section">Alimentos incluidos</span>
+        <div class="form-grid__field form-grid__field--full">
+          <div class="incl-add">
+            <q-select
+              v-model="productoIncluidoTemporal.producto_id"
               dense
               outlined
-              autofocus
-              placeholder="Ej. Paquete Clásico"
-              :rules="[(v) => !!v || 'El nombre es requerido']"
+              emit-value
+              map-options
+              option-value="id"
+              option-label="nombre"
+              :options="productosDisponiblesParaIncluir"
+              placeholder="Elige un producto"
+              no-options-label="No hay más productos disponibles"
+              class="incl-add__select"
             />
-          </div>
-          <div class="row q-col-gutter-md">
-            <div class="col-6">
-              <div class="field-label">PRECIO BASE</div>
-              <q-input
-                v-model.number="formDialog.precio_base"
-                dense
-                outlined
-                type="number"
-                min="0"
-                step="0.01"
-                prefix="$"
-                :rules="[(v) => v > 0 || 'Debe ser mayor a 0']"
-              />
-            </div>
-            <div class="col-6">
-              <div class="field-label">PRECIO DE LA PULSERA</div>
-              <q-input
-                v-model.number="formDialog.precio_pulsera"
-                dense
-                outlined
-                type="number"
-                min="0"
-                step="0.01"
-                prefix="$"
-              />
-              <div class="text-caption text-grey-6 q-mt-xs">
-                Se cobra por cada invitado del evento, además del precio base.
-              </div>
-            </div>
-          </div>
-          <div class="row q-col-gutter-md">
-            <div class="col-6">
-              <div class="field-label">MÍN. DE INVITADOS</div>
-              <q-input
-                v-model.number="formDialog.min_invitados"
-                dense
-                outlined
-                type="number"
-                min="1"
-                :rules="[(v) => v > 0 || 'Debe ser mayor a 0']"
-              />
-            </div>
-            <div class="col-6">
-              <div class="field-label">MÁX. DE INVITADOS</div>
-              <q-input
-                v-model.number="formDialog.max_invitados"
-                dense
-                outlined
-                type="number"
-                min="1"
-                :rules="[
-                  (v) => v > 0 || 'Debe ser mayor a 0',
-                  (v) => v >= formDialog.min_invitados || 'No puede ser menor que el mínimo',
-                ]"
-              />
-            </div>
-          </div>
-          <div class="text-caption text-grey-6 q-mb-sm">
-            Al reservar solo se ofrecerán los paquetes cuyo rango cubra el número de niños que pida
-            el cliente.
-          </div>
-          <div>
-            <div class="field-label">DESCRIPCIÓN (opcional)</div>
             <q-input
-              v-model="formDialog.descripcion"
+              v-model.number="productoIncluidoTemporal.cantidad"
               dense
               outlined
-              type="textarea"
-              rows="2"
-              placeholder="Descripción breve del paquete"
+              type="number"
+              min="1"
+              class="incl-add__qty"
+              aria-label="Cantidad"
+            />
+            <q-btn
+              unelevated
+              color="primary"
+              icon="add"
+              aria-label="Agregar"
+              @click="agregarProductoIncluido"
             />
           </div>
-
-          <div
-            class="bg-grey-1 rounded-borders q-mt-md"
-            style="border: 1px dashed var(--border-color); border-radius: 8px; padding: 20px"
-          >
-            <div class="text-subtitle2 text-weight-bold q-mb-md text-primary">
-              ALIMENTOS INCLUIDOS (opcional)
-            </div>
-
-            <div class="row q-col-gutter-sm items-end">
-              <div class="col-7">
-                <div class="field-label">Seleccionar producto</div>
-                <q-select
-                  v-model="productoIncluidoTemporal.producto_id"
-                  dense
-                  outlined
-                  emit-value
-                  map-options
-                  option-value="id"
-                  option-label="nombre"
-                  :options="productosDisponiblesParaIncluir"
-                  placeholder="Elige un producto"
-                  no-options-label="No hay más productos disponibles"
-                />
-              </div>
-              <div class="col-3">
-                <div class="field-label">Cant.</div>
-                <q-input
-                  v-model.number="productoIncluidoTemporal.cantidad"
-                  dense
-                  outlined
-                  type="number"
-                  min="1"
-                />
-              </div>
-              <div class="col-2 flex flex-center">
-                <q-btn
-                  color="primary"
-                  icon="add"
-                  unelevated
-                  style="height: 40px; border-radius: 8px"
-                  @click="agregarProductoIncluido"
+          <div class="incl-list">
+            <p v-if="formDialog.productos_incluidos.length === 0" class="incl-list__empty">
+              Sin alimentos incluidos.
+            </p>
+            <div
+              v-for="(item, index) in formDialog.productos_incluidos"
+              :key="item.producto_id"
+              class="incl-list__row"
+            >
+              <span class="incl-list__name">{{ obtenerNombreProducto(item.producto_id) }}</span>
+              <div class="qty-stepper">
+                <button
+                  type="button"
+                  aria-label="Quitar uno"
+                  @click="ajustarCantidadIncluido(item, -1)"
                 >
-                  <q-tooltip>Agregar al paquete</q-tooltip>
-                </q-btn>
+                  <q-icon name="remove" size="16px" />
+                </button>
+                <span>{{ item.cantidad }}</span>
+                <button
+                  type="button"
+                  aria-label="Agregar uno"
+                  @click="ajustarCantidadIncluido(item, 1)"
+                >
+                  <q-icon name="add" size="16px" />
+                </button>
               </div>
-            </div>
-
-            <div class="q-mt-md">
-              <div
-                v-if="formDialog.productos_incluidos.length === 0"
-                class="text-caption text-grey-6 text-center q-py-sm"
-              >
-                No has añadido alimentos incluidos a este paquete todavía.
-              </div>
-
-              <q-list
-                v-else
-                separator
+              <q-btn
+                flat
+                round
                 dense
-                class="bg-white rounded-borders"
-                style="border: 1px solid var(--border-color)"
-              >
-                <q-item
-                  v-for="(item, index) in formDialog.productos_incluidos"
-                  :key="item.producto_id"
-                  class="q-py-sm"
-                >
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{
-                      obtenerNombreProducto(item.producto_id)
-                    }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <div class="row items-center q-gutter-sm">
-                      <div class="qty-stepper bg-blue-2 text-blue-9">
-                        <q-btn
-                          flat
-                          round
-                          dense
-                          class="qty-btn"
-                          @click="ajustarCantidadIncluido(item, -1)"
-                        >
-                          <span class="material-symbols-outlined qty-icon">remove</span>
-                        </q-btn>
-                        <span class="qty-value">{{ item.cantidad }}</span>
-                        <q-btn
-                          flat
-                          round
-                          dense
-                          class="qty-btn"
-                          @click="ajustarCantidadIncluido(item, 1)"
-                        >
-                          <span class="material-symbols-outlined qty-icon">add</span>
-                        </q-btn>
-                      </div>
-                      <q-btn
-                        flat
-                        round
-                        dense
-                        color="grey-8"
-                        size="sm"
-                        @click="removerProductoIncluido(index)"
-                      >
-                        <span class="material-symbols-outlined">delete</span>
-                      </q-btn>
-                    </div>
-                  </q-item-section>
-                </q-item>
-              </q-list>
+                icon="delete"
+                class="action-btn"
+                aria-label="Quitar"
+                @click="removerProductoIncluido(index)"
+              />
             </div>
           </div>
-        </q-card-section>
+        </div>
+      </div>
+    </BaseDialog>
 
-        <q-card-actions align="right" class="q-pa-lg q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            :label="editando ? 'Guardar cambios' : 'Crear paquete'"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            @click="guardar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ── Dialog Confirmar Eliminar ────────────────────────────────────────── -->
-    <q-dialog v-model="dialogEliminar">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">Eliminar paquete</div>
-          <div class="q-mt-sm text-body2 text-grey-8">
-            ¿Estás seguro de que deseas eliminar
-            <strong>{{ filaEliminar?.nombre }}</strong
-            >? Esta acción no se puede deshacer.
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="negative"
-            label="Eliminar"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="eliminando"
-            @click="ejecutarEliminar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <BaseDialog
+      v-model="dialogEliminar"
+      title="Eliminar paquete"
+      :subtitle="filaEliminar?.nombre"
+      icon="delete"
+      tone="red"
+      :width="460"
+      primary-label="Eliminar"
+      danger
+      :loading="eliminando"
+      @confirm="ejecutarEliminar"
+    >
+      Las reservaciones existentes con este paquete no se modifican. Dejará de estar disponible para
+      nuevas reservaciones.
+    </BaseDialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/ui/PageHeader.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
+import { formatMXN } from '@/utils/formatoMoneda'
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
@@ -395,7 +324,7 @@ import { useAuthStore } from '@/stores/auth'
 import { usePaquetesStore } from '@/stores/paquetes'
 import { useProductosStore } from '@/stores/productos'
 import { paquetesApi } from '@/api/paquetesApi'
-import type { Paquetes, PaqueteProductoItem } from '@/types/paquetes'
+import type { Paquetes, PaqueteProductoItem, PaqueteProductoIncluido } from '@/types/paquetes'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -456,36 +385,53 @@ const obtenerNombreProducto = (id: string) => {
   return prod ? prod.nombre : 'Producto no encontrado'
 }
 
+type FiltroActivo = 'todos' | 'activos' | 'inactivos'
+const FILTROS_ACTIVO: FilterChip<FiltroActivo>[] = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Activos', value: 'activos' },
+  { label: 'Inactivos', value: 'inactivos' },
+]
+const filtro = ref<FiltroActivo | null>('todos')
+const busqueda = ref('')
+const filtrando = computed(() => !!busqueda.value || filtro.value !== 'todos')
+
+const paquetesVisibles = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  return store.paquetes
+    .filter((p) => filtro.value === 'todos' || p.activo === (filtro.value === 'activos'))
+    .filter((p) => !q || `${p.nombre} ${p.descripcion ?? ''}`.toLowerCase().includes(q))
+})
+
 const columns: QTableColumn[] = [
-  { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
+  { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
   {
     name: 'precio_base',
-    label: 'PRECIO BASE',
+    label: 'Precio base',
     field: 'precio_base',
-    align: 'left',
+    align: 'right',
     sortable: true,
   },
   {
-    name: 'precio_pulsera',
-    label: 'PULSERA',
-    field: 'precio_pulsera',
-    align: 'left',
+    name: 'precio_hora_pulsera',
+    label: 'Pulsera/hora',
+    field: 'precio_hora_pulsera',
+    align: 'right',
     sortable: true,
   },
   {
     name: 'invitados',
-    label: 'INVITADOS',
+    label: 'Invitados',
     field: (row: Paquetes) => `${row.min_invitados} a ${row.max_invitados}`,
     align: 'left',
   },
   {
     name: 'productos_incluidos',
-    label: 'ALIMENTOS INCLUIDOS',
+    label: 'Incluye',
     field: 'productos_incluidos',
     align: 'left',
   },
-  { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
-  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+  { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 
 // ── Estado del dialog ─────────────────────────────────────────────────────────
@@ -501,7 +447,7 @@ const formDialog = ref({
   min_invitados: 1,
   max_invitados: 10,
   precio_base: 0,
-  precio_pulsera: 0,
+  precio_hora_pulsera: 0,
   productos_incluidos: [] as PaqueteProductoItem[],
 })
 
@@ -513,7 +459,7 @@ const abrirCrear = () => {
     min_invitados: 1,
     max_invitados: 10,
     precio_base: 0,
-    precio_pulsera: 0,
+    precio_hora_pulsera: 0,
     productos_incluidos: [],
   }
   productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
@@ -545,7 +491,7 @@ const abrirEditar = async (row: Paquetes) => {
     min_invitados: row.min_invitados,
     max_invitados: row.max_invitados,
     precio_base: Number(row.precio_base),
-    precio_pulsera: Number(row.precio_pulsera),
+    precio_hora_pulsera: Number(row.precio_hora_pulsera),
     productos_incluidos: productosIncluidosCargados,
   }
   productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
@@ -588,7 +534,7 @@ const guardar = async () => {
         min_invitados: formDialog.value.min_invitados,
         max_invitados: formDialog.value.max_invitados,
         precio_base: String(formDialog.value.precio_base),
-        precio_pulsera: String(formDialog.value.precio_pulsera),
+        precio_hora_pulsera: String(formDialog.value.precio_hora_pulsera),
         productos_incluidos: formDialog.value.productos_incluidos,
       })
       $q.notify({ type: 'positive', message: 'Paquete actualizado', position: 'top-right' })
@@ -600,7 +546,7 @@ const guardar = async () => {
         min_invitados: formDialog.value.min_invitados,
         max_invitados: formDialog.value.max_invitados,
         precio_base: String(formDialog.value.precio_base),
-        precio_pulsera: String(formDialog.value.precio_pulsera),
+        precio_hora_pulsera: String(formDialog.value.precio_hora_pulsera),
         productos_incluidos: formDialog.value.productos_incluidos,
         sucursal_id: authStore.currentBranchId,
       })
@@ -667,30 +613,56 @@ const ejecutarEliminar = async () => {
 }
 </script>
 
-<style scoped>
-.qty-stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 4px;
-  border-radius: 999px;
+<style scoped lang="scss">
+.form-grid__note {
+  margin: -4px 0 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
 }
 
-.qty-value {
-  min-width: 16px;
-  text-align: center;
-  font-size: 0.78rem;
-  font-weight: 700;
+.incl-add {
+  display: flex;
+  gap: 8px;
+
+  &__select {
+    flex: 1;
+  }
+
+  &__qty {
+    width: 80px;
+  }
 }
 
-.qty-btn {
-  min-height: 22px;
-  min-width: 22px;
-  padding: 0;
-}
+.incl-list {
+  margin-top: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
 
-.qty-icon {
-  font-size: 14px;
-  line-height: 1;
+  &__empty {
+    margin: 0;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px 8px 14px;
+    border-bottom: 1px solid #f1f3f7;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  &__name {
+    flex: 1;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
 }
 </style>

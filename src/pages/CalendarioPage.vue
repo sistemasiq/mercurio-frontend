@@ -1,225 +1,104 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 1400px; margin: 0 auto">
-      <!-- Header -->
-      <div class="row items-center q-mb-lg">
-        <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Calendario</div>
-          <div class="text-body2" style="color: var(--text-secondary)">
-            Vista mensual de eventos y reservaciones.
-          </div>
-        </div>
-        <q-space />
-        <q-btn
-          flat
-          no-caps
-          label="Hoy"
-          color="primary"
-          class="q-mr-sm"
-          style="border-radius: 8px; font-weight: 600"
-          @click="irAHoy"
-        />
-        <q-btn flat dense round icon="chevron_left" color="grey-7" @click="prevMonth" />
-        <span
-          class="q-mx-sm"
-          style="
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            min-width: 160px;
-            text-align: center;
-            text-transform: capitalize;
-          "
-        >
-          {{ monthLabel }}
-        </span>
-        <q-btn flat dense round icon="chevron_right" color="grey-7" @click="nextMonth" />
-      </div>
-
-      <!-- Sin sucursal activa -->
-      <q-banner
-        v-if="!authStore.currentBranchId"
+  <q-page class="page-content cal">
+    <header class="cal__head">
+      <h1 class="cal__title">{{ monthTitle }}</h1>
+      <q-btn
+        outline
+        round
         dense
-        rounded
-        class="bg-orange-1 text-orange-9 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="info" color="orange-9" /></template>
-        No hay una sucursal activa en la sesión.
-      </q-banner>
+        icon="chevron_left"
+        class="cal__nav"
+        aria-label="Mes anterior"
+        @click="prevMonth"
+      />
+      <q-btn outline label="Hoy" class="cal__today" @click="irAHoy" />
+      <q-btn
+        outline
+        round
+        dense
+        icon="chevron_right"
+        class="cal__nav"
+        aria-label="Mes siguiente"
+        @click="nextMonth"
+      />
+      <q-btn
+        unelevated
+        color="primary"
+        icon="add"
+        label="Nueva Reservación"
+        class="cal__new"
+        @click="irANuevaReservacion"
+      />
+    </header>
 
-      <!-- Stats del mes visible -->
-      <div class="row q-col-gutter-md q-mb-lg">
-        <div class="col-6 col-sm-3">
-          <div class="cal-stat-card">
-            <div class="cal-stat-card__icon cal-stat-card__icon--blue">
-              <q-icon name="event" />
-            </div>
-            <div>
-              <div class="cal-stat-card__label">Eventos del mes</div>
-              <div class="cal-stat-card__value">{{ store.loading ? '—' : statEventosMes }}</div>
-            </div>
-          </div>
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
+    </div>
+
+    <div class="cal__body">
+      <section class="month">
+        <div class="month__dows">
+          <span v-for="dow in daysOfWeek" :key="dow">{{ dow }}</span>
         </div>
-        <div class="col-6 col-sm-3">
-          <div class="cal-stat-card">
-            <div class="cal-stat-card__icon cal-stat-card__icon--green">
-              <q-icon name="check_circle_outline" />
-            </div>
-            <div>
-              <div class="cal-stat-card__label">Confirmados</div>
-              <div class="cal-stat-card__value">{{ store.loading ? '—' : statConfirmados }}</div>
-            </div>
-          </div>
+        <div v-if="store.loading" class="month__loading">
+          <q-spinner size="36px" color="primary" />
         </div>
-        <div class="col-6 col-sm-3">
-          <div class="cal-stat-card">
-            <div class="cal-stat-card__icon cal-stat-card__icon--orange">
-              <q-icon name="pending_actions" />
-            </div>
-            <div>
-              <div class="cal-stat-card__label">Pendientes</div>
-              <div class="cal-stat-card__value">{{ store.loading ? '—' : statPendientes }}</div>
-            </div>
-          </div>
-        </div>
-        <div class="col-6 col-sm-3">
-          <div class="cal-stat-card">
-            <div class="cal-stat-card__icon cal-stat-card__icon--purple">
-              <q-icon name="trending_up" />
-            </div>
-            <div>
-              <div class="cal-stat-card__label">Ingresos del mes</div>
-              <div class="cal-stat-card__value">{{ store.loading ? '—' : statIngresos }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row q-col-gutter-lg">
-        <!-- ── Calendario ───────────────────────────────────────── -->
-        <div class="col-12 col-md-8 col-lg-9">
-          <div class="panel-card" style="overflow: hidden">
-            <!-- Días de la semana -->
-            <div class="cal-dow-row">
-              <div v-for="dow in daysOfWeek" :key="dow" class="cal-dow">{{ dow }}</div>
-            </div>
-
-            <!-- Grid de días -->
-            <div v-if="store.loading" class="q-pa-xl text-center text-grey">
-              <q-spinner size="36px" color="primary" />
-            </div>
-            <div v-else class="cal-grid">
-              <div
-                v-for="(day, idx) in calendarDays"
-                :key="idx"
-                class="cal-cell"
-                :class="{
-                  'cal-cell--other-month': day.isOtherMonth,
-                  'cal-cell--today': day.isToday,
-                  'cal-cell--selected': selectedDate === day.isoDate && !day.isOtherMonth,
-                }"
-                @click="seleccionar(day)"
-              >
-                <div class="cal-cell__number">{{ day.day }}</div>
-
-                <!-- Chips de eventos -->
-                <div
-                  v-for="ev in day.events.slice(0, 2)"
-                  :key="ev.id"
-                  class="cal-chip"
-                  :class="`cal-chip--${ev.estado}`"
-                >
-                  <span class="cal-chip__text">{{ ev.nombre }}</span>
-                </div>
-                <div v-if="day.events.length > 2" class="cal-chip cal-chip--more">
-                  +{{ day.events.length - 2 }} más
-                </div>
-              </div>
-            </div>
-
-            <!-- Leyenda -->
-            <div class="cal-legend">
-              <div v-for="item in leyenda" :key="item.value" class="cal-legend__item">
-                <span class="cal-legend__dot" :class="`cal-chip--${item.value}`"></span>
-                {{ item.label }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── Panel lateral ───────────────────────────────────── -->
-        <div class="col-12 col-md-4 col-lg-3">
-          <!-- Detalle del día seleccionado -->
-          <div class="panel-card q-mb-md">
-            <div class="panel-card__header">
-              <h3 style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.8px">
-                <q-icon name="event" size="16px" color="primary" class="q-mr-xs" />
-                {{ selectedDateLabel }}
-              </h3>
-            </div>
-
-            <div v-if="!selectedDate" class="q-pa-md text-caption text-grey text-center q-py-lg">
-              Selecciona un día para ver sus eventos
-            </div>
-            <div
-              v-else-if="eventosDelDia.length === 0"
-              class="q-pa-md text-caption text-grey text-center q-py-lg"
+        <div v-else class="month__grid">
+          <button
+            v-for="(day, idx) in calendarDays"
+            :key="idx"
+            type="button"
+            class="month__cell"
+            :class="{
+              'month__cell--other': day.isOtherMonth,
+              'month__cell--today': day.isToday,
+              'month__cell--selected': selectedDate === day.isoDate && !day.isOtherMonth,
+            }"
+            :disabled="day.isOtherMonth"
+            @click="seleccionar(day)"
+          >
+            <span class="month__num">{{ day.day }}</span>
+            <span
+              v-for="ev in day.events.slice(0, 3)"
+              :key="ev.id"
+              class="month__chip"
+              :class="{ 'month__chip--due': ev.pendiente || ev.estado === 'pendiente' }"
             >
-              Sin eventos este día
-            </div>
-            <div v-else>
-              <div v-for="ev in eventosDelDia" :key="ev.id" class="ev-item">
-                <div class="ev-item__dot" :class="`ev-dot--${ev.estado}`"></div>
-                <div class="ev-item__body">
-                  <div class="ev-item__nombre">{{ ev.nombre }}</div>
-                  <div class="ev-item__hora">
-                    <q-icon name="schedule" size="12px" />
-                    {{ ev.hora_inicio.slice(0, 5) }} – {{ ev.hora_fin.slice(0, 5) }}
-                  </div>
-                  <div class="ev-item__personas">
-                    <q-icon name="people" size="12px" />
-                    {{ ev.numero_personas }} personas
-                  </div>
-                  <q-badge
-                    :color="estadoColor(ev.estado)"
-                    :label="estadoLabel(ev.estado)"
-                    style="font-size: 0.65rem; margin-top: 4px; border-radius: 20px"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Próximos eventos -->
-          <div class="panel-card">
-            <div class="panel-card__header">
-              <h3 style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.8px">
-                <q-icon name="upcoming" size="16px" color="primary" class="q-mr-xs" />
-                Próximos eventos
-              </h3>
-            </div>
-            <div v-if="proximos.length === 0" class="q-pa-md text-caption text-grey text-center">
-              Sin eventos próximos
-            </div>
-            <div v-else>
-              <div v-for="ev in proximos" :key="ev.id" class="ev-item">
-                <div class="ev-item__date-badge">
-                  <div class="ev-date-day">{{ ev.dia }}</div>
-                  <div class="ev-date-mes">{{ ev.mes }}</div>
-                </div>
-                <div class="ev-item__body">
-                  <div class="ev-item__nombre">{{ ev.nombre }}</div>
-                  <div class="ev-item__hora">
-                    <q-icon name="schedule" size="12px" />
-                    {{ ev.hora_inicio.slice(0, 5) }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+              {{ ev.hora_inicio.slice(0, 5) }} {{ ev.corto }}
+            </span>
+            <span v-if="day.events.length > 3" class="month__more">
+              +{{ day.events.length - 3 }} más
+            </span>
+          </button>
         </div>
-      </div>
+      </section>
+
+      <aside class="day-panel">
+        <h2 class="day-panel__title">{{ selectedTitulo }}</h2>
+        <span class="day-panel__meta">
+          {{ eventosDelDia.length }} {{ eventosDelDia.length === 1 ? 'evento' : 'eventos' }}
+        </span>
+        <p v-if="!eventosDelDia.length" class="day-panel__empty">Sin eventos este día.</p>
+        <router-link
+          v-for="ev in eventosDelDia"
+          :key="ev.id"
+          :to="{ name: 'eventos-reservaciones-cierre', params: { id: ev.id } }"
+          class="day-ev"
+          :class="{ 'day-ev--due': ev.pendiente }"
+        >
+          <span class="day-ev__time"
+            >{{ ev.hora_inicio.slice(0, 5) }} – {{ ev.hora_fin.slice(0, 5) }}</span
+          >
+          <span class="day-ev__name">{{ ev.nombre }}</span>
+          <span class="day-ev__meta">
+            <template v-if="ev.paquete">{{ ev.paquete }} · </template
+            >{{ ev.numero_personas }} invitados
+          </span>
+          <span class="day-ev__status">
+            {{ ev.pendiente ? 'Depósito pendiente' : estadoLabel(ev.estado) }}
+          </span>
+        </router-link>
+      </aside>
     </div>
   </q-page>
 </template>
@@ -228,18 +107,30 @@
 import { ref, computed, onMounted } from 'vue'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useAuthStore } from '@/stores/auth'
-import {
-  ESTADOS_RESERVACION,
-  estadoColorReservacion,
-  estadoLabelReservacion,
-} from '@/utils/estadoReservacion'
+import { useRouter } from 'vue-router'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
+import { usePaquetesStore } from '@/stores/paquetes'
+import { estadoLabelReservacion } from '@/utils/estadoReservacion'
 
 const store = useReservacionesStore()
 const authStore = useAuthStore()
+const paquetesStore = usePaquetesStore()
+const turno = useTurnoCajaStore()
+const router = useRouter()
 onMounted(() => {
   if (!authStore.currentBranchId) return
+  selectedDate.value = isoDate(today)
   store.cargar(authStore.currentBranchId)
+  if (!paquetesStore.paquetes.length) paquetesStore.cargar(authStore.currentBranchId)
 })
+
+function irANuevaReservacion() {
+  if (!turno.estaOperando) {
+    router.push('/pos/cierre')
+    return
+  }
+  router.push({ name: 'eventos-reservaciones-crear' })
+}
 
 // ── Navegación ────────────────────────────────────────────────────────────────
 
@@ -248,6 +139,7 @@ today.setHours(0, 0, 0, 0)
 
 const cursor = ref(new Date(today.getFullYear(), today.getMonth(), 1))
 const selectedDate = ref<string | null>(null)
+// Por defecto el panel lateral muestra hoy.
 
 const curYear = computed(() => cursor.value.getFullYear())
 const curMonth = computed(() => cursor.value.getMonth())
@@ -275,6 +167,9 @@ const isoDate = (d: Date) =>
 interface EvResumen {
   id: string
   nombre: string
+  corto: string
+  paquete: string
+  pendiente: boolean
   estado: string
   hora_inicio: string
   hora_fin: string
@@ -287,9 +182,14 @@ const eventos = computed((): EvResumen[] =>
     .filter((r) => r.activo)
     .map((r) => ({
       id: r.id,
-      nombre:
-        r.nombre_festejado ||
-        `${r.nombre_cliente}${r.apellidos_cliente ? ' ' + r.apellidos_cliente : ''}`.trim(),
+      nombre: `${r.apellidos_cliente ? `Fam. ${r.apellidos_cliente}` : r.nombre_cliente}${
+        r.nombre_festejado
+          ? ` · ${r.nombre_festejado}${r.edad_festejado ? ` (${r.edad_festejado})` : ''}`
+          : ''
+      }`,
+      corto: r.apellidos_cliente?.split(' ')[0] || r.nombre_cliente.split(' ')[0] || '',
+      paquete: paquetesStore.paquetes.find((p) => p.id === r.paquete_id)?.nombre ?? '',
+      pendiente: parseFloat(r.saldo_pendiente || '0') > 0,
       estado: r.estado,
       hora_inicio: r.hora_inicio,
       hora_fin: r.hora_fin,
@@ -308,12 +208,13 @@ interface CalDay {
   events: EvResumen[]
 }
 
-const daysOfWeek = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
+const daysOfWeek = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
 
 const calendarDays = computed((): CalDay[] => {
   const y = curYear.value
   const m = curMonth.value
-  const firstWeekday = new Date(y, m, 1).getDay()
+  // Semana de lunes a domingo, como en el diseño.
+  const firstWeekday = (new Date(y, m, 1).getDay() + 6) % 7
   const daysInMonth = new Date(y, m + 1, 0).getDate()
   const daysInPrev = new Date(y, m, 0).getDate()
 
@@ -394,351 +295,248 @@ const eventosDelDia = computed(() =>
     : [],
 )
 
-const proximos = computed(() => {
-  const hoy = isoDate(today)
-  return store.reservaciones
-    .filter((r) => r.activo && r.fecha_evento >= hoy && r.estado !== 'cancelada')
-    .sort((a, b) => a.fecha_evento.localeCompare(b.fecha_evento))
-    .slice(0, 6)
-    .map((r) => {
-      const [y, m, d] = r.fecha_evento.split('-').map(Number)
-      const fecha = new Date(y, m - 1, d)
-      return {
-        id: r.id,
-        nombre: r.nombre_festejado || `${r.nombre_cliente}`.trim(),
-        hora_inicio: r.hora_inicio,
-        dia: fecha.getDate(),
-        mes: fecha.toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''),
-      }
-    })
-})
-
-// ── Stats del mes visible ─────────────────────────────────────────────────────
-
-const reservacionesMes = computed(() =>
-  store.reservaciones.filter((r) => {
-    const [y, m] = r.fecha_evento.split('-').map(Number)
-    return y === curYear.value && m - 1 === curMonth.value && r.activo
-  }),
-)
-
-const statEventosMes = computed(() => reservacionesMes.value.length)
-const statConfirmados = computed(
-  () =>
-    reservacionesMes.value.filter((r) => r.estado === 'confirmada' || r.estado === 'completada')
-      .length,
-)
-const statPendientes = computed(
-  () => reservacionesMes.value.filter((r) => r.estado === 'pendiente').length,
-)
-
-const statIngresos = computed(() => {
-  const total = reservacionesMes.value.reduce((sum, r) => sum + parseFloat(r.anticipo || '0'), 0)
-  if (total >= 1_000_000) return `$${(total / 1_000_000).toFixed(1)}M`
-  if (total >= 1000) return `$${(total / 1000).toFixed(1)}k`
-  return `$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
-})
-
-// ── Helpers de estado ─────────────────────────────────────────────────────────
-
-const leyenda = ESTADOS_RESERVACION
-const estadoColor = estadoColorReservacion
 const estadoLabel = estadoLabelReservacion
+
+const selectedTitulo = computed(() => {
+  const t = selectedDateLabel.value
+  return t.charAt(0).toUpperCase() + t.slice(1)
+})
+
+const monthTitle = computed(() => {
+  const t = monthLabel.value.replace(' de ', ' ')
+  return t.charAt(0).toUpperCase() + t.slice(1)
+})
 </script>
 
 <style scoped lang="scss">
-// ── Tarjetas de stats ─────────────────────────────────────────────────────────
-
-.cal-stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-
-  &__icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    flex-shrink: 0;
-
-    &--blue {
-      background: rgba($primary, 0.1);
-      color: $primary;
-    }
-    &--green {
-      background: rgba($positive, 0.12);
-      color: $positive;
-    }
-    &--orange {
-      background: rgba($warning, 0.18);
-      color: $warning;
-    }
-    &--purple {
-      background: rgba($secondary, 0.1);
-      color: $secondary;
-    }
-  }
-
-  &__label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-  }
-
-  &__value {
-    font-size: 1.35rem;
-    font-weight: 800;
-    color: var(--text-primary);
-    line-height: 1.2;
-  }
-}
-
-// ── Grid del calendario ───────────────────────────────────────────────────────
-
-.cal-dow-row {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.cal-dow {
-  padding: 10px 0;
-  text-align: center;
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.cal-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-auto-rows: minmax(96px, auto);
-}
-
-.cal-cell {
-  border-right: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  padding: 6px;
-  cursor: pointer;
-  transition: background 0.12s;
-  min-height: 96px;
-
-  &:nth-child(7n) {
-    border-right: none;
-  }
-
-  &:hover:not(.cal-cell--other-month) {
-    background: rgba(2, 95, 224, 0.06);
-  }
-
-  &--other-month {
-    background: var(--bg-main);
-    cursor: default;
-    .cal-cell__number {
-      color: var(--text-muted);
-    }
-  }
-
-  &--today .cal-cell__number {
-    background: var(--q-primary);
-    color: #fff;
-    border-radius: 50%;
-    width: 26px;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  &--selected {
-    background: rgba(2, 95, 224, 0.1) !important;
-    outline: 2px solid var(--q-primary);
-    outline-offset: -2px;
-  }
-}
-
-.cal-cell__number {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-// ── Chips de evento ───────────────────────────────────────────────────────────
-
-.cal-chip {
-  border-radius: 4px;
-  padding: 2px 5px;
-  font-size: 0.68rem;
-  font-weight: 600;
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-  overflow: hidden;
-
-  &__text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &--pendiente {
-    background: rgba($warning, 0.18);
-    color: $warning;
-  }
-  &--confirmada {
-    background: rgba($primary, 0.1);
-    color: $primary;
-  }
-  &--en_curso {
-    background: rgba($secondary, 0.1);
-    color: $secondary;
-  }
-  &--completada {
-    background: rgba($positive, 0.12);
-    color: $positive;
-  }
-  &--cancelada {
-    background: #f5f5f5;
-    color: #757575;
-  }
-  &--more {
-    background: transparent;
-    color: #90a4ae;
-    font-style: italic;
-  }
-}
-
-// ── Leyenda ───────────────────────────────────────────────────────────────────
-
-.cal-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border-color);
-
-  &__item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.72rem;
-    color: var(--text-secondary);
-  }
-
-  &__dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-  }
-}
-
-// ── Panel lateral – evento item ───────────────────────────────────────────────
-
-.ev-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border-color);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.ev-item__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: 5px;
-}
-
-.ev-dot--pendiente {
-  background: $warning;
-}
-.ev-dot--confirmada {
-  background: $primary;
-}
-.ev-dot--en_curso {
-  background: $secondary;
-}
-.ev-dot--completada {
-  background: $positive;
-}
-.ev-dot--cancelada {
-  background: #9e9e9e;
-}
-
-.ev-item__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.ev-item__nombre {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ev-item__hora,
-.ev-item__personas {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-
-// ── Próximos – date badge ─────────────────────────────────────────────────────
-
-.ev-item__date-badge {
+.cal {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  min-width: 38px;
-  height: 38px;
-  background: rgba(2, 95, 224, 0.1);
-  border-radius: 8px;
-  color: var(--q-primary);
+  gap: 18px;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  &__title {
+    flex: 1;
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+  }
+
+  &__nav {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  &__today,
+  &__new {
+    min-height: 40px;
+  }
+
+  &__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 18px;
+    align-items: stretch;
+
+    @media (max-width: 1100px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
 }
 
-.ev-date-day {
-  font-size: 1rem;
-  font-weight: 800;
-  line-height: 1;
+.month {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+
+  &__dows {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border-soft);
+
+    span {
+      padding: 10px 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--text-secondary);
+    }
+  }
+
+  &__loading {
+    display: flex;
+    justify-content: center;
+    padding: 64px 0;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  &__cell {
+    min-height: 118px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 8px;
+    border: 0;
+    border-right: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border-soft);
+    background: #fff;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:nth-child(7n) {
+      border-right: 0;
+    }
+
+    &:hover:not(:disabled) {
+      background: var(--bg-subtle);
+    }
+
+    &--other {
+      background: #fafbfd;
+      cursor: default;
+
+      .month__num {
+        color: var(--text-muted);
+      }
+    }
+
+    &--selected,
+    &--selected:hover:not(:disabled) {
+      background: #f2f6fe;
+    }
+
+    &--today .month__num {
+      background: var(--q-primary);
+      color: #fff;
+    }
+  }
+
+  &__num {
+    align-self: flex-start;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 6px;
+    border-radius: 13px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__chip {
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: #eaf1fd;
+    color: var(--tone-info-fg);
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &--due {
+      background: #fdeef3;
+      color: var(--tone-pink-fg);
+    }
+  }
+
+  &__more {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
 }
 
-.ev-date-mes {
-  font-size: 0.6rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  line-height: 1;
+.day-panel {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &__title {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__meta {
+    margin-top: -6px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__empty {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+}
+
+.day-ev {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--q-primary);
+  border-radius: 10px;
+  background: #eaf1fd;
+  text-decoration: none;
+
+  &--due {
+    border-left-color: var(--q-secondary);
+    background: #fdeef3;
+
+    .day-ev__status {
+      color: var(--tone-warn-fg);
+    }
+  }
+
+  &__time {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__meta {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__status {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--tone-ok-fg);
+  }
 }
 </style>

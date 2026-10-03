@@ -8,6 +8,8 @@ declare module 'vue-router' {
     publicOnly?: boolean
     permissions?: string[]
     title?: string
+    /** Sección de la miga de pan cuando la ruta no está en el menú lateral. */
+    section?: string
   }
 }
 
@@ -20,6 +22,18 @@ const routes: RouteRecordRaw[] = [
           name: 'dev-menu',
           component: () => import('@/pages/DevMenuPage.vue'),
           meta: { title: '⚗ Dev Menu' },
+        },
+        {
+          path: '/dev/ui',
+          component: () => import('@/layouts/AppShell.vue'),
+          children: [
+            {
+              path: '',
+              name: 'dev-ui-kit',
+              component: () => import('@/pages/DevUiKitPage.vue'),
+              meta: { requiresAuth: true, title: 'Kit de UI' },
+            },
+          ],
         },
       ] as RouteRecordRaw[])
     : []),
@@ -117,19 +131,18 @@ const routes: RouteRecordRaw[] = [
         path: '',
         name: 'usuarios-listar',
         component: () => import('@/pages/sysadmin/UsersPage.vue'),
-        meta: { permissions: ['usuarios:listar'] },
+        meta: { permissions: ['usuarios:listar'], title: 'Usuarios' },
       },
+      // Alta y edición son diálogos del listado; las rutas se conservan como accesos directos.
       {
         path: 'nuevo',
         name: 'usuarios-crear',
-        component: () => import('@/pages/sysadmin/UserRegisterPage.vue'),
-        meta: { permissions: ['usuarios:crear'] },
+        redirect: { name: 'usuarios-listar', query: { nuevo: '1' } },
       },
       {
         path: ':id/editar',
         name: 'usuarios-editar',
-        component: () => import('@/pages/sysadmin/UserEditPage.vue'),
-        meta: { permissions: ['usuarios:editar'] },
+        redirect: (to) => ({ name: 'usuarios-listar', query: { editar: String(to.params.id) } }),
       },
     ],
   },
@@ -155,25 +168,24 @@ const routes: RouteRecordRaw[] = [
         path: '',
         name: 'sucursales-listar',
         component: () => import('@/pages/locations/SucursalesPage.vue'),
-        meta: { permissions: ['sucursales:listar'] },
+        meta: { permissions: ['sucursales:listar'], title: 'Sucursales' },
       },
+      // Alta y edición son diálogos del listado; las rutas se conservan como accesos directos.
       {
         path: 'nueva',
         name: 'sucursales-crear',
-        component: () => import('@/components/NewBranchPage.vue'),
-        meta: { permissions: ['sucursales:crear'] },
+        redirect: { name: 'sucursales-listar', query: { nueva: '1' } },
       },
       {
         path: ':id/editar',
         name: 'sucursales-editar',
-        component: () => import('@/components/EditBranchPage.vue'),
-        meta: { permissions: ['sucursales:editar'] },
+        redirect: (to) => ({ name: 'sucursales-listar', query: { editar: String(to.params.id) } }),
       },
       {
         path: ':id',
         name: 'sucursales-detalle',
         component: () => import('@/components/DetailBranchPage.vue'),
-        meta: { permissions: ['sucursales:ver'] },
+        meta: { permissions: ['sucursales:ver'], title: 'Detalle de sucursal' },
       },
     ],
   },
@@ -186,7 +198,7 @@ const routes: RouteRecordRaw[] = [
         path: 'dashboard',
         name: 'reportes-dashboard',
         component: () => import('@/pages/sysadmin/SysAdminDashboardPage.vue'),
-        meta: { permissions: ['reportes:dashboard'] },
+        meta: { permissions: ['reportes:dashboard'], title: 'Reportes' },
       },
       {
         path: 'inventario',
@@ -309,7 +321,11 @@ const routes: RouteRecordRaw[] = [
         path: 'registro-infantes',
         name: 'estancias-registro-infantes',
         component: () => import('@/pages/RegistrationPage.vue'),
-        meta: { permissions: ['estancias:checkin'], title: 'Registro de Entrada' },
+        meta: {
+          permissions: ['estancias:checkin'],
+          title: 'Registro de Entrada',
+          section: 'Control de Acceso',
+        },
       },
       {
         path: 'control-acceso',
@@ -321,7 +337,11 @@ const routes: RouteRecordRaw[] = [
         path: 'checkout',
         name: 'estancias-checkout',
         component: () => import('@/pages/CheckoutPage.vue'),
-        meta: { permissions: ['estancias:checkout'], title: 'Checkout' },
+        meta: {
+          permissions: ['estancias:checkout'],
+          title: 'Checkout',
+          section: 'Control de Acceso',
+        },
       },
       {
         path: 'pulseras/registro',

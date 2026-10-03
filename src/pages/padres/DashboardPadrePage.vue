@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount } from 'vue'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePadresAuthStore } from '@/stores/padres/padresAuthStore'
 import HijoCard from '@/components/padres/HijoCard.vue'
@@ -7,6 +7,8 @@ import HijoCard from '@/components/padres/HijoCard.vue'
 const route = useRoute()
 const router = useRouter()
 const store = usePadresAuthStore()
+
+const nombreCorto = computed(() => store.currentTutor?.nombreCompleto.split(' ')[0] ?? '')
 
 let pollingId: ReturnType<typeof setInterval> | null = null
 const POLLING_MS = 30_000
@@ -53,232 +55,155 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <q-page class="dashboard-padre">
-    <div class="dashboard-container">
-      <!-- Hero card: brand + welcome -->
-      <header class="hero-card">
-        <div class="hero-inner">
-          <div class="hero-logo-wrap">
-            <img src="/woow-kids-mascot.png" alt="Woow Kids" class="hero-logo" />
-          </div>
-          <div class="hero-body">
-            <p class="hero-greeting">Bienvenido,</p>
-            <h1 class="hero-name">{{ store.currentTutor?.nombreCompleto }}</h1>
-            <div class="hero-meta">
-              <span class="hero-meta-brand">Woow Kids</span>
-              <span class="hero-meta-sep">·</span>
-              <span class="hero-meta-sub">Centro de entretenimiento infantil</span>
-            </div>
-            <div class="hero-location">
-              <q-icon name="location_on" size="14px" class="hero-loc-icon" />
-              <span>{{ store.currentTutor?.sucursal.nombre }}</span>
-            </div>
+  <q-page class="padres">
+    <header class="padres-hero">
+      <div class="padres-hero__inner">
+        <div class="padres-hero__brand">
+          <img src="/woow-kids-mascot.png" alt="" class="padres-hero__mascot" />
+          <div class="padres-hero__brand-text">
+            <span class="padres-hero__name">Woow Kids</span>
+            <span class="padres-hero__branch">{{ store.currentTutor?.sucursal.nombre }}</span>
           </div>
         </div>
-      </header>
+        <h1 class="padres-hero__hello">Hola, {{ nombreCorto }}</h1>
+      </div>
+    </header>
 
-      <!-- Empty state -->
-      <div v-if="store.allChildren.length === 0" class="empty-state column items-center">
-        <q-icon name="child_care" size="64px" color="grey-3" />
-        <h2 class="text-h6 text-weight-semibold text-grey-7 q-mt-md q-mb-xs">
-          Sin niños registrados
-        </h2>
-        <p class="text-body2 text-grey-5 text-center" style="max-width: 280px">
-          Por el momento no hay ningún menor de edad registrado con esta cuenta.
-        </p>
+    <div class="padres-body">
+      <div v-if="store.allChildren.length === 0" class="padres-empty">
+        <span class="padres-empty__icon"><q-icon name="child_care" size="28px" /></span>
+        <span class="padres-empty__title">Sin visitas registradas</span>
+        <span class="padres-empty__text">
+          Por el momento no hay ningún menor registrado con esta cuenta.
+        </span>
       </div>
 
-      <!-- Active children -->
-      <div v-if="store.activeChildren.length > 0" class="section-block">
-        <h2 class="section-title">Visitas activas</h2>
-        <div class="children-list">
-          <HijoCard v-for="nino in store.activeChildren" :key="nino.id" :nino="nino" />
-        </div>
-      </div>
+      <section v-if="store.activeChildren.length > 0" class="padres-section">
+        <h2 class="padres-section__title">Visitas activas</h2>
+        <HijoCard v-for="nino in store.activeChildren" :key="nino.id" :nino="nino" />
+      </section>
 
-      <!-- Terminated children -->
-      <div v-if="store.terminatedChildren.length > 0" class="section-block q-mt-lg">
-        <h2 class="section-title section-title--muted">Visitas finalizadas</h2>
-        <div class="children-list">
-          <HijoCard v-for="nino in store.terminatedChildren" :key="nino.id" :nino="nino" />
-        </div>
-      </div>
+      <section v-if="store.terminatedChildren.length > 0" class="padres-section">
+        <h2 class="padres-section__title padres-section__title--muted">Visitas finalizadas</h2>
+        <HijoCard v-for="nino in store.terminatedChildren" :key="nino.id" :nino="nino" />
+      </section>
     </div>
   </q-page>
 </template>
 
-<style scoped>
-/* ── Page ─────────────────────────────────────────── */
-.dashboard-padre {
+<style scoped lang="scss">
+.padres {
   min-height: 100vh;
-  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-main) 100%);
-  padding: 0;
-  padding-bottom: 48px;
+  background: var(--bg-main);
 }
 
-.dashboard-container {
+.padres-hero {
+  background: var(--text-strong);
+  color: #fff;
+
+  &__inner {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 44px 22px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__mascot {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    object-fit: cover;
+  }
+
+  &__brand-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__name {
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  &__branch {
+    font-size: 11.5px;
+    color: #aeb8e8;
+  }
+
+  &__hello {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.25;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+}
+
+.padres-body {
   max-width: 480px;
   margin: 0 auto;
-  padding: 20px 16px 40px;
-}
-
-@media (max-width: 380px) {
-  .dashboard-container {
-    padding: 16px 12px 32px;
-  }
-
-  .hero-inner {
-    padding: 16px;
-    gap: 12px;
-  }
-
-  .hero-logo-wrap {
-    width: 48px;
-    height: 48px;
-  }
-
-  .hero-logo {
-    width: 28px;
-    height: 28px;
-  }
-
-  .hero-greeting {
-    font-size: 13px;
-  }
-}
-
-/* ── Hero card ────────────────────────────────────── */
-.hero-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  box-shadow:
-    0 10px 25px -5px rgba(0, 0, 0, 0.05),
-    0 8px 10px -6px rgba(0, 0, 0, 0.04);
-  margin-bottom: 28px;
-  overflow: hidden;
-}
-
-.hero-inner {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 20px;
-}
-
-/* ── Logo ─────────────────────────────────────────── */
-.hero-logo-wrap {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--bg-card);
-  border: 2px solid var(--border-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.hero-logo {
-  width: 34px;
-  height: 34px;
-  object-fit: contain;
-}
-
-/* ── Body ─────────────────────────────────────────── */
-.hero-body {
+  padding: 20px 18px 40px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  gap: 20px;
 }
 
-.hero-greeting {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin: 0;
-  line-height: 1.3;
-}
-
-.hero-name {
-  font-size: clamp(20px, 5vw, 26px);
-  font-weight: 800;
-  color: #025fe0;
-  margin: 0 0 4px;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  word-break: break-word;
-}
-
-.hero-meta {
+.padres-section {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  margin-bottom: 4px;
+  flex-direction: column;
+  gap: 14px;
+
+  &__title {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+
+    &--muted {
+      color: var(--text-secondary);
+    }
+  }
 }
 
-.hero-meta-brand {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.hero-meta-sep {
-  color: var(--border-color);
-}
-
-.hero-meta-sub {
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.hero-location {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.hero-loc-icon {
-  color: #025fe0;
-  font-size: 15px;
-}
-
-/* ── Empty state ──────────────────────────────────── */
-.empty-state {
+.padres-empty {
   padding: 48px 16px;
-  text-align: center;
-}
-
-/* ── Sections ─────────────────────────────────────── */
-.section-block {
-  width: 100%;
-}
-
-.section-title {
-  font-size: clamp(11px, 3vw, 12px);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-secondary);
-  margin: 0 0 14px;
-  padding-left: 4px;
-}
-
-.section-title--muted {
-  color: var(--text-muted);
-}
-
-.children-list {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+
+  &__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+    background: var(--tone-off-bg);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__text {
+    max-width: 280px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
 }
 </style>

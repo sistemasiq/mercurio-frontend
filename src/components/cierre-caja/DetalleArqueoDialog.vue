@@ -1,186 +1,109 @@
 <template>
-  <q-dialog v-model="modelValue" maximized transition-show="slide-up" transition-hide="slide-down">
-    <q-card class="detalle-dialog-card">
-      <!-- ── Toolbar ── -->
-      <q-toolbar class="dialog-toolbar">
-        <q-btn flat round icon="close" @click="modelValue = false" />
-        <q-toolbar-title class="text-weight-semibold">
-          Detalle de Arqueo
-          <span v-if="detalle" class="text-subtitle2 text-on-surface-variant q-ml-sm">
-            #{{ detalle.id.slice(-8).toUpperCase() }}
+  <BaseDialog
+    v-model="modelValue"
+    :title="detalle ? `Arqueo · ${formatDia(detalle.fechaCierre)}` : 'Detalle de arqueo'"
+    :subtitle="
+      detalle
+        ? `${detalle.terminal} · ${detalle.cajeroNombre} · autorizó ${detalle.adminNombre}`
+        : undefined
+    "
+    icon="receipt_long"
+    tone="amber"
+    :width="600"
+    secondary-label="Cerrar"
+    primary-label="Descargar PDF"
+    :primary-disabled="!detalle?.pdfUrl"
+    :loading="descargando"
+    @confirm="descargar"
+  >
+    <div v-if="cargando" class="arq-detail__state">
+      <q-spinner-dots color="primary" size="40px" />
+    </div>
+    <div v-else-if="error" class="arq-detail__state arq-detail__state--bad">
+      <q-icon name="error" size="22px" />{{ error }}
+    </div>
+
+    <template v-else-if="detalle">
+      <div class="arq-list">
+        <div class="arq-list__head"><span>Concepto</span><span>Diferencia</span></div>
+        <div v-for="fila in detalle.balancePorMetodo" :key="fila.metodo" class="arq-list__row">
+          <div class="arq-list__info">
+            <span class="arq-list__name">{{ fila.label }}</span>
+            <span class="arq-list__meta">
+              Declarado {{ formatMXN(fila.declarado) }} · esperado {{ formatMXN(fila.esperado) }}
+            </span>
+          </div>
+          <span class="arq-list__diff" :class="claseDiferencia(fila.diferencia)">
+            {{ formatDiferencia(fila.diferencia) }}
           </span>
-        </q-toolbar-title>
-        <q-btn
-          v-if="detalle?.pdfUrl"
-          flat
-          no-caps
-          icon="download"
-          label="Descargar PDF"
-          :loading="descargando"
-          @click="descargar"
-        />
-      </q-toolbar>
-
-      <q-separator />
-
-      <!-- ── Estado de carga ── -->
-      <div v-if="cargando" class="full-height flex flex-center q-pa-xl">
-        <div class="text-center">
-          <q-spinner-dots color="primary" size="48px" />
-          <div class="text-body2 text-on-surface-variant q-mt-md">Cargando detalle...</div>
         </div>
       </div>
 
-      <div v-else-if="error" class="q-pa-xl text-center">
-        <q-icon name="error_outline" color="negative" size="48px" />
-        <div class="text-body1 q-mt-md">{{ error }}</div>
-      </div>
+      <dl class="arq-totals">
+        <div>
+          <dt>Fondo inicial</dt>
+          <dd>{{ formatMXN(detalle.fondoInicial) }}</dd>
+        </div>
+        <div>
+          <dt>Total declarado</dt>
+          <dd>{{ formatMXN(detalle.totalDeclarado) }}</dd>
+        </div>
+        <div>
+          <dt>Total esperado</dt>
+          <dd>{{ formatMXN(detalle.totalEsperado) }}</dd>
+        </div>
+        <div class="arq-totals__net">
+          <dt>Diferencia neta</dt>
+          <dd :class="claseDiferencia(detalle.diferenciaNeta)">
+            {{ formatDiferencia(detalle.diferenciaNeta) }}
+          </dd>
+        </div>
+      </dl>
 
-      <!-- ── Contenido ── -->
-      <q-scroll-area v-else-if="detalle" class="dialog-body">
-        <div class="q-pa-lg row q-col-gutter-lg">
-          <!-- Columna izquierda -->
-          <div class="col-12 col-md-6">
-            <!-- Meta del arqueo -->
-            <q-card flat bordered class="info-card q-mb-md">
-              <q-card-section class="info-header">
-                <q-icon name="info" size="18px" class="q-mr-xs" />
-                Información del Turno
-              </q-card-section>
-              <q-card-section class="q-gutter-y-xs">
-                <div class="info-row">
-                  <span class="info-label">Cajero</span>
-                  <span class="info-value">{{ detalle.cajeroNombre }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Terminal</span>
-                  <span class="info-value">{{ detalle.terminal }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Sucursal</span>
-                  <span class="info-value">{{ detalle.sucursalNombre }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Apertura</span>
-                  <span class="info-value">{{ formatFecha(detalle.fechaApertura) }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Cierre</span>
-                  <span class="info-value">{{ formatFecha(detalle.fechaCierre) }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Autorizado por</span>
-                  <span class="info-value">{{ detalle.adminNombre }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Fondo Inicial</span>
-                  <span class="info-value">{{ formatMXN(detalle.fondoInicial) }}</span>
-                </div>
-              </q-card-section>
-            </q-card>
-
-            <!-- Desglose de efectivo -->
-            <q-card flat bordered class="info-card">
-              <q-card-section class="info-header">
-                <q-icon name="payments" size="18px" class="q-mr-xs" />
-                Desglose de Efectivo
-              </q-card-section>
-              <q-card-section>
-                <div class="text-caption text-on-surface-variant q-mb-xs">Billetes</div>
-                <div
-                  v-for="b in detalle.desgloseEfectivo.billetes.filter((x) => x.cantidad > 0)"
-                  :key="'b' + b.denominacion"
-                  class="denom-row"
-                >
-                  <span>${{ formatEntero(b.denominacion) }} × {{ b.cantidad }}</span>
-                  <span>{{ formatMXN(b.subtotal) }}</span>
-                </div>
-                <q-separator spaced="xs" />
-                <div class="text-caption text-on-surface-variant q-mb-xs">Monedas</div>
-                <div
-                  v-for="m in detalle.desgloseEfectivo.monedas.filter((x) => x.cantidad > 0)"
-                  :key="'m' + m.denominacion"
-                  class="denom-row"
-                >
-                  <span>${{ m.denominacion }} × {{ m.cantidad }}</span>
-                  <span>{{ formatMXN(m.subtotal) }}</span>
-                </div>
-                <q-separator spaced="xs" />
-                <div class="denom-row denom-row--total">
-                  <span>Total Efectivo</span>
-                  <span>{{ formatMXN(detalle.desgloseEfectivo.totalEfectivo) }}</span>
-                </div>
-              </q-card-section>
-            </q-card>
+      <q-expansion-item
+        dense
+        expand-separator
+        icon="payments"
+        label="Desglose de efectivo"
+        :caption="formatMXN(detalle.desgloseEfectivo.totalEfectivo)"
+        class="arq-cash"
+      >
+        <div class="arq-cash__grid">
+          <div
+            v-for="b in detalle.desgloseEfectivo.billetes.filter((x) => x.cantidad > 0)"
+            :key="'b' + b.denominacion"
+            class="arq-cash__row"
+          >
+            <span>${{ formatEntero(b.denominacion) }} × {{ b.cantidad }}</span>
+            <span>{{ formatMXN(b.subtotal) }}</span>
           </div>
-
-          <!-- Columna derecha -->
-          <div class="col-12 col-md-6">
-            <!-- Balance comparativo -->
-            <q-card flat bordered class="info-card q-mb-md">
-              <q-card-section class="info-header">
-                <q-icon name="balance" size="18px" class="q-mr-xs" />
-                Balance por Método de Pago
-              </q-card-section>
-              <q-markup-table flat dense>
-                <thead>
-                  <tr>
-                    <th class="text-left">Método</th>
-                    <th class="text-right">Declarado</th>
-                    <th class="text-right">Esperado</th>
-                    <th class="text-right">Diferencia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="fila in detalle.balancePorMetodo" :key="fila.metodo">
-                    <td class="text-left">{{ fila.label }}</td>
-                    <td class="text-right">{{ formatMXN(fila.declarado) }}</td>
-                    <td class="text-right text-on-surface-variant">
-                      {{ formatMXN(fila.esperado) }}
-                    </td>
-                    <td class="text-right" :class="claseDiferencia(fila.diferencia)">
-                      {{ formatDiferencia(fila.diferencia) }}
-                    </td>
-                  </tr>
-                </tbody>
-                <tfoot>
-                  <tr class="total-row">
-                    <td class="text-weight-bold">Total</td>
-                    <td class="text-right text-weight-bold">
-                      {{ formatMXN(detalle.totalDeclarado) }}
-                    </td>
-                    <td class="text-right text-weight-bold text-on-surface-variant">
-                      {{ formatMXN(detalle.totalEsperado) }}
-                    </td>
-                    <td
-                      class="text-right text-weight-bold"
-                      :class="claseDiferencia(detalle.diferenciaNeta)"
-                    >
-                      {{ formatDiferencia(detalle.diferenciaNeta) }}
-                    </td>
-                  </tr>
-                </tfoot>
-              </q-markup-table>
-            </q-card>
-
-            <!-- Observaciones -->
-            <q-card v-if="detalle.observaciones" flat bordered class="info-card">
-              <q-card-section class="info-header">
-                <q-icon name="edit_note" size="18px" class="q-mr-xs" />
-                Observaciones
-              </q-card-section>
-              <q-card-section>
-                <p class="text-body2" style="white-space: pre-wrap">{{ detalle.observaciones }}</p>
-              </q-card-section>
-            </q-card>
+          <div
+            v-for="m in detalle.desgloseEfectivo.monedas.filter((x) => x.cantidad > 0)"
+            :key="'m' + m.denominacion"
+            class="arq-cash__row"
+          >
+            <span>${{ m.denominacion }} × {{ m.cantidad }}</span>
+            <span>{{ formatMXN(m.subtotal) }}</span>
           </div>
         </div>
-      </q-scroll-area>
-    </q-card>
-  </q-dialog>
+      </q-expansion-item>
+
+      <div class="arq-meta">
+        <span>Apertura {{ formatFecha(detalle.fechaApertura) }}</span>
+        <span>Cierre {{ formatFecha(detalle.fechaCierre) }}</span>
+        <span>{{ detalle.sucursalNombre }}</span>
+      </div>
+
+      <div v-if="detalle.observaciones" class="arq-notes">
+        <span class="field-label">Observaciones</span>
+        <p>{{ detalle.observaciones }}</p>
+      </div>
+    </template>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 import { ref, watch } from 'vue'
 import { formatMXN, formatEntero, formatDiferencia, claseDiferencia } from '@/utils/formatoMoneda'
 import { turnoCajaService } from '@/services/turnoCajaService'
@@ -233,6 +156,11 @@ async function descargar() {
   }
 }
 
+function formatDia(iso: string): string {
+  if (!iso) return ''
+  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).format(new Date(iso))
+}
+
 function formatFecha(iso: string): string {
   return new Intl.DateTimeFormat('es-MX', {
     dateStyle: 'medium',
@@ -241,63 +169,144 @@ function formatFecha(iso: string): string {
 }
 </script>
 
-<style scoped>
-.detalle-dialog-card {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-.dialog-toolbar {
-  background: var(--bg-card);
-  color: var(--text-primary);
-}
-.dialog-body {
-  flex: 1;
-  height: 0; /* necesario para que q-scroll-area funcione dentro de flex */
-}
-.info-card {
-  border-radius: 12px;
-  border-color: var(--border-color);
-}
-.info-header {
+<style scoped lang="scss">
+.arq-detail__state {
+  min-height: 160px;
   display: flex;
   align-items: center;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--q-primary);
-  background: var(--bg-main);
-  border-bottom: 1px solid var(--border-color);
-  padding: 10px 16px;
+  justify-content: center;
+  gap: 8px;
+
+  &--bad {
+    color: var(--tone-bad-fg);
+    font-weight: 600;
+  }
 }
-.info-row {
+
+.arq-list {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-bottom: 1px solid #f1f3f7;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+  }
+
+  &__name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: capitalize;
+  }
+
+  &__meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__diff {
+    font-size: 13.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.arq-totals {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f6f8fc;
   display: flex;
-  justify-content: space-between;
-  padding: 4px 0;
-  font-size: 0.875rem;
+  flex-direction: column;
+  gap: 8px;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13.5px;
+    color: #475569;
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__net {
+    font-size: 20px !important;
+    font-weight: 800;
+    color: var(--text-strong) !important;
+  }
 }
-.info-label {
+
+.arq-cash {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 18px;
+    padding: 10px 16px 14px;
+  }
+
+  &__row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.arq-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12.5px;
   color: var(--text-secondary);
 }
-.info-value {
-  font-weight: 500;
-}
-.denom-row {
+
+.arq-notes {
   display: flex;
-  justify-content: space-between;
-  font-size: 0.85rem;
-  padding: 3px 0;
-  color: var(--text-secondary);
-}
-.denom-row--total {
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-top: 4px;
-}
-.total-row td {
-  border-top: 2px solid var(--border-color);
-  background: var(--bg-main);
-  padding: 8px 12px;
+  flex-direction: column;
+
+  p {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border-input);
+    border-radius: 10px;
+    font-size: 14px;
+    white-space: pre-wrap;
+  }
 }
 </style>

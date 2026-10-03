@@ -1,40 +1,56 @@
 <template>
-  <div class="keypad-container">
-    <!-- Pantalla de cantidad ingresada -->
-    <div class="amount-display">
-      <span class="currency">$</span>
-      <span class="amount">{{ amountDisplay || '0' }}</span>
+  <div class="keypad">
+    <div class="keypad__display">
+      <span class="keypad__display-label">{{ label }}</span>
+      <span class="keypad__display-amount">${{ montoFormateado }}</span>
     </div>
 
-    <!-- Teclado Numérico -->
-    <div class="keypad-grid">
+    <div v-if="atajos.length" class="keypad__quick">
       <button
-        v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9]"
+        v-for="a in atajos"
+        :key="a.label"
+        type="button"
+        class="keypad__quick-btn"
+        @click="amountDisplay = String(a.value)"
+      >
+        {{ a.label }}
+      </button>
+    </div>
+
+    <div class="keypad__grid">
+      <button
+        v-for="n in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0']"
         :key="n"
-        class="num-btn"
-        @click="appendNumber(n.toString())"
+        type="button"
+        class="keypad__key"
+        @click="appendNumber(n)"
       >
         {{ n }}
       </button>
-      <button class="num-btn" @click="appendNumber('.')">.</button>
-      <button class="num-btn" @click="appendNumber('0')">0</button>
-      <button class="num-btn keypad-backspace-btn" @click="backspace">
-        <q-icon name="backspace" size="sm" />
-      </button>
-
-      <!-- Botón de Acción Principal -->
-      <button class="apply-btn" :disabled="!montoValido" @click="submitAmount">
-        <q-icon name="add_circle" size="sm" /> {{ actionLabel }}
+      <button type="button" class="keypad__key" aria-label="Borrar" @click="backspace">
+        <q-icon name="backspace" size="22px" />
       </button>
     </div>
+
+    <button type="button" class="keypad__apply" :disabled="!montoValido" @click="submitAmount">
+      {{ montoValido ? `${actionLabel} $${montoFormateado}` : actionLabel }}
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 
-const { actionLabel = 'Aplicar Pago' } = defineProps<{
+const {
+  actionLabel = 'Aplicar',
+  label = 'Monto',
+  exacto = null,
+} = defineProps<{
   actionLabel?: string
+  /** Texto sobre el monto (p. ej. "Efectivo recibido"). */
+  label?: string
+  /** Si se indica, muestra atajos: Exacto y los siguientes múltiplos de $100. */
+  exacto?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -46,6 +62,24 @@ const amountDisplay = ref('')
 const montoValido = computed(() => {
   const num = parseFloat(amountDisplay.value)
   return !isNaN(num) && num > 0
+})
+
+const montoFormateado = computed(() => {
+  const num = parseFloat(amountDisplay.value)
+  return isNaN(num)
+    ? '0.00'
+    : num.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+})
+
+const atajos = computed(() => {
+  if (exacto === null || exacto <= 0) return []
+  const base = Math.ceil(exacto / 100) * 100
+  const redondos = [base, base + 100, base + 200].filter((v) => v > exacto).slice(0, 3)
+  while (redondos.length < 3) redondos.push((redondos.at(-1) ?? base) + 100)
+  return [
+    { label: 'Exacto', value: Number(exacto.toFixed(2)) },
+    ...redondos.map((v) => ({ label: `$${v}`, value: v })),
+  ]
 })
 
 const appendNumber = (num: string) => {
@@ -70,74 +104,107 @@ const submitAmount = () => {
 }
 </script>
 
-<style scoped>
-.keypad-container {
+<style scoped lang="scss">
+.keypad {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  height: 100%;
-}
-.amount-display {
-  background: var(--bg-main);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 8px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary);
-  min-height: 54px;
-}
-.currency {
-  font-size: 20px;
-  color: var(--text-secondary);
-}
-.keypad-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  flex-grow: 1; /* Esto hace que el teclado se estire para llenar el espacio disponible */
-}
-.num-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  cursor: pointer;
-  min-height: 42px; /* Altura mínima flexible */
-  transition: background 0.2s;
-}
-.num-btn:hover {
-  background: var(--bg-main);
-}
-.keypad-backspace-btn {
-  color: var(--text-secondary);
-}
-.apply-btn {
-  grid-column: span 3;
-  background: #025fe0;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  min-height: 48px;
-  margin-top: 4px;
-}
-.apply-btn:hover:not(:disabled) {
-  background: #0350c4;
-}
-.apply-btn:disabled {
-  background: rgba(2, 95, 224, 0.35);
-  cursor: not-allowed;
+  gap: 14px;
+
+  &__display {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 16px;
+    border: 2px solid var(--q-primary);
+    border-radius: 12px;
+  }
+
+  &__display-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--q-primary);
+  }
+
+  &__display-amount {
+    font-size: 36px;
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__quick {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  &__quick-btn {
+    height: 36px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--bg-muted);
+    color: var(--text-body);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:hover {
+      background: #e8ebf1;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  &__key {
+    height: 54px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 20px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bg-subtle);
+    }
+
+    &:active {
+      background: var(--bg-muted);
+    }
+  }
+
+  &__apply {
+    height: 46px;
+    border: 1px solid var(--q-primary);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--q-primary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--tone-info-bg);
+    }
+
+    &:disabled {
+      border-color: var(--border-input);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+  }
 }
 </style>

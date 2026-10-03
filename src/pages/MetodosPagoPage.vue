@@ -1,130 +1,145 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div style="max-width: 900px; margin: 0 auto">
-      <!-- Encabezado -->
-      <div class="row items-center q-mb-lg">
-        <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
-            Métodos de Pago
-          </div>
-          <div class="text-body2" style="color: var(--text-secondary)">
-            Activa o desactiva los métodos de pago disponibles en tu sucursal.
-          </div>
-        </div>
-      </div>
+  <q-page class="page-content list-page">
+    <PageHeader title="Métodos de Pago" subtitle="Activa los métodos disponibles en esta sucursal.">
+      <template #actions> </template>
+    </PageHeader>
 
-      <!-- Error -->
-      <q-banner
-        v-if="store.error"
-        dense
-        rounded
-        class="bg-red-1 text-red-8 q-mb-md"
-        style="border-radius: 10px"
-      >
-        <template #avatar><q-icon name="error_outline" color="negative" /></template>
-        {{ store.error }}
-        <template #action>
-          <q-btn flat dense no-caps label="Reintentar" @click="store.cargar()" />
-        </template>
-      </q-banner>
-
-      <!-- Tabla -->
-      <q-card flat bordered style="border-radius: 12px; overflow: hidden">
-        <q-table
-          :rows="store.metodos"
-          :columns="columns"
-          row-key="id"
-          flat
-          :loading="store.loading"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="No hay métodos de pago registrados"
-          class="fec-table"
-        >
-          <!-- Estado -->
-          <template #body-cell-activo="props">
-            <q-td :props="props">
-              <q-toggle
-                :model-value="props.row.activo"
-                color="positive"
-                :disable="toggleando === props.row.id"
-                @update:model-value="toggleActivo(props.row)"
-              />
-            </q-td>
-          </template>
-
-          <!-- Acciones -->
-          <template #body-cell-actions="props">
-            <q-td :props="props" class="text-right">
-              <q-btn
-                v-if="esSistema"
-                flat
-                round
-                dense
-                icon="edit"
-                color="primary"
-                size="sm"
-                @click="abrirEditar(props.row)"
-              >
-                <q-tooltip>Editar nombre/descripción</q-tooltip>
-              </q-btn>
-            </q-td>
-          </template>
-        </q-table>
-      </q-card>
+    <div class="list-page__note">
+      <q-icon name="info" size="19px" />
+      Los cambios de activación aplican solo a {{ sucursalNombre }}.
     </div>
 
-    <!-- ── Dialog Editar (solo AdministradorSistema) ─────────────────────── -->
-    <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 420px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">Editar Método de Pago</div>
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">NOMBRE</div>
-            <q-input
-              ref="nombreRef"
-              v-model="formDialog.nombre"
-              dense
-              outlined
-              autofocus
-              :rules="[(v) => !!v || 'El nombre es requerido']"
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtro"
+      :filters="FILTROS_ACTIVO"
+      search-placeholder="Buscar método"
+      :count="`${metodosVisibles.length} métodos`"
+    >
+      <StateBlock
+        v-if="store.error"
+        variant="error"
+        :body="store.error"
+        action-label="Reintentar"
+        @action="store.cargar()"
+      />
+      <q-table
+        v-else
+        :rows="metodosVisibles"
+        :columns="columns"
+        row-key="id"
+        flat
+        :loading="store.loading"
+        :rows-per-page-options="[10, 25, 50]"
+      >
+        <template #body-cell-nombre="props">
+          <q-td :props="props" class="text-weight-bold">{{ props.row.nombre }}</q-td>
+        </template>
+        <template #body-cell-descripcion="props">
+          <q-td
+            :props="props"
+            class="cell-muted cell-ellipsis"
+            :title="props.row.descripcion ?? ''"
+          >
+            {{ props.row.descripcion }}
+          </q-td>
+        </template>
+        <template #body-cell-tipo="props">
+          <q-td :props="props">
+            <StatusBadge
+              :tone="TONO_TIPO[props.row.tipo as TipoMetodoPago] ?? 'off'"
+              :label="props.value"
             />
-          </div>
-          <div>
-            <div class="field-label">DESCRIPCIÓN (opcional)</div>
-            <q-input
-              v-model="formDialog.descripcion"
+          </q-td>
+        </template>
+        <template #body-cell-activo="props">
+          <q-td :props="props">
+            <q-toggle
+              :model-value="props.row.activo"
               dense
-              outlined
-              type="textarea"
-              rows="3"
-              placeholder="Descripción breve del método de pago"
+              :disable="toggleando === props.row.id"
+              :aria-label="props.row.activo ? 'Desactivar' : 'Activar'"
+              @update:model-value="toggleActivo(props.row)"
             />
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            label="Guardar cambios"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            @click="guardar"
+          </q-td>
+        </template>
+        <template #body-cell-actions="props">
+          <q-td :props="props">
+            <q-btn
+              v-if="esSistema"
+              flat
+              round
+              dense
+              icon="edit"
+              class="action-btn"
+              aria-label="Editar"
+              @click="abrirEditar(props.row)"
+            />
+          </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="filtrando ? 'no-results' : 'empty'"
+            :title="filtrando ? undefined : 'No hay métodos de pago registrados'"
+            :body="
+              filtrando ? undefined : 'Los métodos los configura el administrador del sistema.'
+            "
+            :action-label="filtrando ? 'Limpiar filtros' : undefined"
+            @action="filtrando ? ((busqueda = ''), (filtro = 'todos')) : undefined"
           />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+        </template>
+      </q-table>
+    </DataTableCard>
+
+    <BaseDialog
+      v-model="dialogOpen"
+      title="Editar método de pago"
+      :subtitle="editando?.nombre"
+      icon="credit_card"
+      :width="520"
+      persistent
+      primary-label="Guardar"
+      :loading="guardando"
+      @cancel="cerrarDialog"
+      @confirm="guardar"
+    >
+      <div class="form-grid">
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Nombre</span>
+          <q-input
+            ref="nombreRef"
+            v-model="formDialog.nombre"
+            dense
+            outlined
+            autofocus
+            :rules="[(v) => !!v || 'El nombre es requerido']"
+            hide-bottom-space
+          />
+        </label>
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Descripción</span>
+          <q-input
+            v-model="formDialog.descripcion"
+            dense
+            outlined
+            type="textarea"
+            rows="3"
+            placeholder="Descripción breve (opcional)"
+          />
+        </label>
+      </div>
+    </BaseDialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/ui/PageHeader.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
 import { computed, ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
@@ -150,18 +165,44 @@ const esSistema = computed(() => authStore.hasRole('AdministradorSistema'))
 
 onMounted(() => store.cargar())
 
+type FiltroActivo = 'todos' | 'activos' | 'inactivos'
+const FILTROS_ACTIVO: FilterChip<FiltroActivo>[] = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Activos', value: 'activos' },
+  { label: 'Inactivos', value: 'inactivos' },
+]
+const filtro = ref<FiltroActivo | null>('todos')
+const busqueda = ref('')
+const filtrando = computed(() => !!busqueda.value || filtro.value !== 'todos')
+
+const metodosVisibles = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  return store.metodos
+    .filter((r) => filtro.value === 'todos' || r.activo === (filtro.value === 'activos'))
+    .filter((r) => !q || `${r.nombre ?? ''} ${r.descripcion ?? ''}`.toLowerCase().includes(q))
+})
+
+const TONO_TIPO: Record<TipoMetodoPago, 'info' | 'pink' | 'warn' | 'ok' | 'off'> = {
+  E: 'info',
+  T: 'pink',
+  C: 'warn',
+  L: 'ok',
+  O: 'off',
+}
+const sucursalNombre = computed(() => authStore.currentBranchName ?? 'esta sucursal')
+
 const columns: QTableColumn[] = [
-  { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
-  { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
+  { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
+  { name: 'descripcion', label: 'Descripción', field: 'descripcion', align: 'left' },
   {
     name: 'tipo',
-    label: 'TIPO',
+    label: 'Categoría',
     field: 'tipo',
     align: 'left',
     format: (v: TipoMetodoPago) => TIPO_LABELS[v] ?? v,
   },
-  { name: 'activo', label: 'ACTIVO EN ESTA SUCURSAL', field: 'activo', align: 'left' },
-  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+  { name: 'activo', label: 'Activo en esta sucursal', field: 'activo', align: 'center' },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 
 // ── Estado del dialog de edición ────────────────────────────────────────────
@@ -239,5 +280,3 @@ const toggleActivo = async (row: MetodosPago) => {
   }
 }
 </script>
-
-<style scoped></style>

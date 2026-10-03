@@ -4,251 +4,159 @@
     persistent
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <q-card
-      style="
-        width: 900px;
-        max-width: 95vw;
-        max-height: 85vh;
-        display: flex;
-        flex-direction: row;
-        border-radius: 12px;
-        overflow: hidden;
-      "
-    >
-      <!-- PANEL IZQUIERDO -->
-      <div
-        style="
-          flex: 3;
-          display: flex;
-          flex-direction: column;
-          padding: 16px 20px;
-          background: var(--bg-card);
-          overflow-y: auto;
-          min-height: 0;
-        "
-      >
-        <div class="row items-center justify-between q-mb-sm">
-          <div class="row items-center q-gutter-sm">
-            <q-btn
-              icon="arrow_back"
-              flat
-              round
-              dense
-              class="bg-grey-2"
-              @click="$emit('update:modelValue', false)"
-            />
-            <span class="text-h6 text-weight-bold">Pago Multimodal</span>
-          </div>
+    <q-card class="pay">
+      <header class="pay__head">
+        <div class="pay__titles">
+          <span class="pay__title">{{ titulo ?? 'Cobrar' }}</span>
+          <span v-if="subtitulo" class="pay__subtitle">{{ subtitulo }}</span>
         </div>
+        <div class="pay__total">
+          <span class="pay__total-label">Total a pagar</span>
+          <span class="pay__total-value">${{ totalNeto.toFixed(2) }}</span>
+        </div>
+        <q-btn
+          flat
+          round
+          dense
+          icon="close"
+          class="pay__close"
+          aria-label="Cerrar"
+          @click="$emit('update:modelValue', false)"
+        />
+      </header>
 
-        <MethodSelector v-model="metodoSeleccionado" :metodos-disponibles="props.metodosPago" />
+      <div class="pay__body">
+        <section class="pay__col pay__col--methods">
+          <span class="pay__label">Método</span>
+          <MethodSelector v-model="metodoSeleccionado" :metodos-disponibles="props.metodosPago" />
+        </section>
 
-        <div
-          style="
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-          "
-        >
-          <div class="row justify-between items-center q-mb-sm">
-            <span class="text-subtitle1 text-weight-bold">Ingresar Monto</span>
-            <span class="text-grey-7 text-caption">Método: {{ metodoSeleccionado }}</span>
-          </div>
-
+        <section class="pay__col pay__col--keypad">
           <PaymentKeypad
-            class="full-width"
-            style="flex-grow: 1"
-            :action-label="metodoSeleccionado === 'Lealtad' ? 'Aplicar Puntos' : 'Aplicar Pago'"
+            :label="etiquetaMonto"
+            :exacto="esEfectivo(metodoSeleccionado) ? saldoPendiente : null"
+            :action-label="metodoSeleccionado === 'Lealtad' ? 'Aplicar puntos' : 'Aplicar'"
             @add-payment="iniciarAbono"
           />
-        </div>
-      </div>
+        </section>
 
-      <!-- PANEL DERECHO -->
-      <div
-        style="
-          flex: 2;
-          background: var(--bg-main);
-          border-left: 1px solid var(--border-color);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        "
-      >
-        <div
-          style="
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border-color);
-            background: var(--bg-card);
-          "
-        >
-          <div class="field-label">Celular del cliente (opcional)</div>
-          <q-input
-            ref="celularInputRef"
-            v-model="celularCliente"
-            placeholder="10 dígitos"
-            outlined
-            dense
-            mask="##########"
-            class="q-mb-sm"
-            :readonly="!!props.celularPrellenado"
-            :rules="[(val: string) => !val || val.length === 10 || 'Debe tener 10 dígitos']"
-            :hint="
-              props.celularPrellenado
-                ? 'Tel. del tutor, usado para puntos de lealtad'
-                : 'Para acumular puntos de lealtad'
-            "
+        <section class="pay__col pay__col--applied">
+          <div class="pay__client">
+            <span class="field-label">Celular del cliente (opcional)</span>
+            <q-input
+              ref="celularInputRef"
+              v-model="celularCliente"
+              placeholder="10 dígitos"
+              outlined
+              dense
+              mask="##########"
+              :readonly="!!props.celularPrellenado"
+              :rules="[(val: string) => !val || val.length === 10 || 'Debe tener 10 dígitos']"
+              :hint="
+                props.celularPrellenado
+                  ? 'Tel. del tutor, usado para puntos de lealtad'
+                  : 'Para acumular puntos de lealtad'
+              "
+            />
+            <span v-if="saldoDisponible !== null && saldoDisponible > 0" class="pay__points">
+              {{ saldoDisponible }} pts disponibles · ${{ valorPunto?.toFixed(2) }} c/u
+            </span>
+          </div>
+
+          <AppliedPaymentsList
+            class="pay__applied"
+            :pagos="pagosParaMostrar"
+            @remove-payment="eliminarPago"
           />
 
-          <div
-            v-if="saldoDisponible !== null && saldoDisponible > 0"
-            class="row justify-between text-caption q-mb-sm"
-            style="color: var(--text-secondary)"
-          >
-            <span>Puntos disponibles</span>
-            <span>{{ saldoDisponible }} pts · ${{ valorPunto?.toFixed(2) }} c/u</span>
-          </div>
-
-          <div class="row justify-between text-grey-8 text-caption q-mb-xs">
-            <span>Subtotal</span>
-            <span>${{ props.totalToPay.toFixed(2) }}</span>
-          </div>
-          <div
-            v-if="descuentoPuntos > 0"
-            class="row justify-between text-positive text-caption q-mb-xs"
-          >
-            <span>Descuento por puntos</span>
-            <span>-${{ descuentoPuntos.toFixed(2) }}</span>
-          </div>
-          <div class="row justify-between text-h6 text-weight-bold q-mt-xs">
-            <span>Total a Pagar</span>
-            <span>${{ totalNeto.toFixed(2) }}</span>
-          </div>
-        </div>
-
-        <div style="flex-grow: 1; padding: 12px; overflow-y: auto; min-height: 0">
-          <AppliedPaymentsList :pagos="pagosParaMostrar" @remove-payment="eliminarPago" />
-        </div>
-
-        <div
-          style="
-            padding: 16px;
-            background: var(--bg-card);
-            border-top: 1px solid var(--border-color);
-          "
-        >
-          <!-- ESTADO 1: Hay saldo pendiente -->
-          <div
-            v-if="saldoPendiente > 0"
-            style="
-              background: rgba(63, 168, 52, 0.1);
-              border: 1px solid #3fa834;
-              border-radius: 10px;
-              padding: 12px;
-              margin-bottom: 12px;
-            "
-            class="row justify-between items-center"
-          >
-            <div class="row items-center q-gutter-x-sm text-positive">
-              <q-icon name="pending" size="sm" />
-              <span class="text-subtitle1 text-weight-bold">Saldo Pendiente</span>
+          <dl class="pay__summary">
+            <template v-if="descuentoPuntos > 0">
+              <div>
+                <dt>Subtotal</dt>
+                <dd>${{ props.totalToPay.toFixed(2) }}</dd>
+              </div>
+              <div class="pay__summary--ok">
+                <dt>Descuento por puntos</dt>
+                <dd>−${{ descuentoPuntos.toFixed(2) }}</dd>
+              </div>
+            </template>
+            <div>
+              <dt>Aplicado</dt>
+              <dd>${{ totalPagado.toFixed(2) }}</dd>
             </div>
-            <span class="text-h5 text-weight-bold text-positive"
-              >${{ saldoPendiente.toFixed(2) }}</span
-            >
-          </div>
-
-          <!-- ESTADO 2: Transacción Completa / Hay Cambio -->
-          <div
-            v-else
-            style="
-              background: rgba(2, 95, 224, 0.08);
-              border: 1px solid #025fe0;
-              border-radius: 10px;
-              padding: 12px;
-              margin-bottom: 12px;
-            "
-            class="row justify-between items-center"
-          >
-            <div class="row items-center q-gutter-x-sm text-primary">
-              <q-icon name="monetization_on" size="sm" />
-              <span class="text-subtitle1 text-weight-bold">{{
-                cambioADevolver > 0 ? 'Cambio a Devolver' : 'Pagado Completamente'
-              }}</span>
+            <div class="pay__summary--bad">
+              <dt>Restante</dt>
+              <dd>${{ saldoPendiente.toFixed(2) }}</dd>
             </div>
-            <span class="text-h5 text-weight-bold text-primary"
-              >${{ cambioADevolver.toFixed(2) }}</span
-            >
-          </div>
-
-          <q-btn
-            class="full-width text-subtitle1 shadow-2"
-            style="border-radius: 8px; font-weight: 600; height: 50px"
-            :color="saldoPendiente <= 0 ? 'primary' : 'grey-5'"
-            :icon="saldoPendiente <= 0 ? 'receipt_long' : 'lock'"
-            :label="saldoPendiente <= 0 ? 'Finalizar Transacción' : 'Falta Pago'"
-            unelevated
-            :disable="saldoPendiente > 0"
-            @click="finalizarPago"
-          />
-        </div>
+            <div class="pay__summary--ok">
+              <dt>Cambio</dt>
+              <dd>${{ cambioADevolver.toFixed(2) }}</dd>
+            </div>
+          </dl>
+        </section>
       </div>
+
+      <footer class="pay__foot">
+        <q-btn outline label="Cancelar" @click="$emit('update:modelValue', false)" />
+        <q-btn
+          unelevated
+          color="primary"
+          label="Confirmar pago"
+          class="pay__confirm"
+          :disable="saldoPendiente > 0"
+          @click="finalizarPago"
+        />
+      </footer>
     </q-card>
   </q-dialog>
 
-  <!-- MINI MODAL PARA DATOS DE TARJETA (Sin Cambios) -->
-  <q-dialog v-model="mostrarModalTarjeta" persistent>
-    <q-card style="min-width: 350px; border-radius: 12px">
-      <q-card-section class="bg-primary text-white row items-center q-pb-sm">
-        <div class="text-subtitle1 text-weight-bold">Detalles de Tarjeta</div>
-        <q-space />
-        <q-btn v-close-popup icon="close" flat round dense @click="limpiarModalTarjeta" />
-      </q-card-section>
-
-      <q-card-section class="q-pt-md">
-        <div class="text-center q-mb-md">
-          Monto a cobrar: <br />
-          <span class="text-h5 text-weight-bold">${{ tarjetaMontoTemporal.toFixed(2) }}</span>
-        </div>
-
-        <div class="field-label">Tipo de tarjeta</div>
-        <q-select
-          v-model="tarjetaTipo"
-          :options="['DEBITO', 'CREDITO']"
+  <BaseDialog
+    v-model="mostrarModalTarjeta"
+    title="Pago con tarjeta"
+    subtitle="Cobra en la terminal bancaria y captura los datos"
+    icon="credit_card"
+    tone="pink"
+    :width="480"
+    persistent
+    primary-label="Agregar pago"
+    :primary-disabled="!tarjetaTipo || !tarjetaAutorizacion"
+    @cancel="limpiarModalTarjeta"
+    @confirm="onConfirmarTarjeta"
+  >
+    <div class="card-form">
+      <div class="card-form__field">
+        <span class="field-label">Monto</span>
+        <q-input
+          :model-value="tarjetaMontoTemporal.toFixed(2)"
           outlined
           dense
-          class="q-mb-md"
+          readonly
+          prefix="$"
         />
-        <div class="field-label">Folio de autorización</div>
-        <q-input v-model="tarjetaAutorizacion" outlined dense autofocus />
-      </q-card-section>
-
-      <q-card-actions align="right" class="text-primary bg-grey-1 border-top">
-        <q-btn
-          v-close-popup
-          flat
-          no-caps
-          label="Cancelar"
-          color="grey-7"
-          @click="limpiarModalTarjeta"
+      </div>
+      <div class="card-form__field">
+        <span class="field-label">Tipo</span>
+        <q-select
+          v-model="tarjetaTipo"
+          :options="OPCIONES_TARJETA"
+          emit-value
+          map-options
+          outlined
+          dense
         />
-        <q-btn
-          v-close-popup
-          unelevated
-          no-caps
-          color="primary"
-          label="Agregar Pago"
-          style="border-radius: 8px; font-weight: 600"
-          :disable="!tarjetaTipo || !tarjetaAutorizacion"
-          @click="confirmarPagoTarjeta"
+      </div>
+      <div class="card-form__field card-form__field--full">
+        <span class="field-label">Autorización</span>
+        <q-input
+          v-model="tarjetaAutorizacion"
+          outlined
+          dense
+          autofocus
+          placeholder="Folio del voucher"
         />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
+      </div>
+    </div>
+  </BaseDialog>
 </template>
 
 <script setup lang="ts">
@@ -260,10 +168,20 @@ import { useAuthStore } from '@/stores/auth'
 import { useLealtadStore } from '@/stores/lealtad'
 
 import MethodSelector from './MethodSelector.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
 import PaymentKeypad from './PaymentKeypad.vue'
 import AppliedPaymentsList from './AppliedPaymentsList.vue'
 
-const props = defineProps<PaymentProps & { modelValue: boolean; metodosPago: MetodosPago[] }>()
+const props = defineProps<
+  PaymentProps & {
+    modelValue: boolean
+    metodosPago: MetodosPago[]
+    /** Encabezado del cobro (p. ej. "Cobrar pedido"). */
+    titulo?: string
+    /** Línea secundaria (cliente, mesa, folio). */
+    subtitulo?: string
+  }
+>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (
@@ -272,6 +190,7 @@ const emit = defineEmits<{
     celularCliente: string | null,
     puntosARedimir: number,
     descuentoPuntos: number,
+    cambio: number,
   ): void
 }>()
 
@@ -371,6 +290,13 @@ watch(totalNeto, (nuevoTotal) => {
   }
 })
 
+const etiquetaMonto = computed(() => {
+  const m = metodoSeleccionado.value
+  if (esEfectivo(m)) return 'Efectivo recibido'
+  if (esLealtad(m)) return 'Monto en puntos'
+  return m ? `Monto · ${m}` : 'Monto'
+})
+
 const esEfectivo = (nombre: string) => nombre.trim().toLowerCase().includes('efectivo')
 const esLealtad = (nombre: string) => nombre.trim().toLowerCase().includes('lealtad')
 const esTarjeta = (nombre: string) => {
@@ -451,6 +377,16 @@ const aplicarRedencionLealtad = (monto: number) => {
   puntosARedimir.value += Math.min(puntosSolicitados, puntosDisponiblesRestantes)
 }
 
+const OPCIONES_TARJETA = [
+  { label: 'Débito', value: 'DEBITO' },
+  { label: 'Crédito', value: 'CREDITO' },
+]
+
+const onConfirmarTarjeta = () => {
+  confirmarPagoTarjeta()
+  mostrarModalTarjeta.value = false
+}
+
 const confirmarPagoTarjeta = () => {
   agregarPago(
     tarjetaMontoTemporal.value,
@@ -525,6 +461,7 @@ const finalizarPago = () => {
     celularCliente.value.length === 10 ? celularCliente.value : null,
     Math.min(puntosARedimir.value, maxPuntosRedimibles.value),
     descuentoPuntos.value,
+    cambioADevolver.value,
   )
   emit('update:modelValue', false)
   pagosAplicados.value = []
@@ -535,3 +472,187 @@ const finalizarPago = () => {
   valorPunto.value = null
 }
 </script>
+<style scoped lang="scss">
+.pay {
+  width: 900px;
+  max-width: 96vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__total {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  &__total-label {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__total-value {
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__close {
+    color: var(--text-secondary);
+  }
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 260px;
+    overflow-y: auto;
+
+    @media (max-width: 760px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__col {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    &--methods {
+      border-right: 1px solid var(--border-soft);
+    }
+
+    &--keypad {
+      padding: 18px 24px;
+    }
+
+    &--applied {
+      border-left: 1px solid var(--border-soft);
+      background: var(--bg-subtle);
+      gap: 16px;
+    }
+  }
+
+  &__label {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  &__client {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__points {
+    font-size: 12px;
+    color: var(--tone-info-fg);
+    font-weight: 600;
+  }
+
+  &__applied {
+    flex: 1;
+  }
+
+  &__summary {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    div {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13.5px;
+      color: var(--text-secondary);
+    }
+
+    dt {
+      font-weight: 500;
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 800;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  &__summary--bad dd {
+    color: var(--tone-bad-fg) !important;
+  }
+
+  &__summary--ok dd {
+    color: var(--tone-ok-fg) !important;
+  }
+
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-subtle);
+
+    :deep(.q-btn) {
+      min-height: 46px;
+    }
+  }
+
+  &__confirm {
+    font-weight: 800;
+    padding: 0 22px;
+  }
+}
+
+.card-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
+}
+</style>

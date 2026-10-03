@@ -1,12 +1,113 @@
+<template>
+  <q-page class="page-content access">
+    <header class="access__head">
+      <div class="access__titles">
+        <h1 class="access__title">Control de Acceso</h1>
+        <span class="access__live" :class="`access__live--${socket.estado.value}`">
+          <span class="access__live-dot" />
+          {{ socket.estado.value === 'conectado' ? 'En vivo' : 'Actualizando' }} ·
+          {{ store.activos.length }} {{ store.activos.length === 1 ? 'niño' : 'niños' }} en estancia
+        </span>
+      </div>
+      <q-input
+        v-model="busqueda"
+        outlined
+        dense
+        clearable
+        placeholder="Buscar niño, tutor o pulsera"
+        class="access__search"
+        aria-label="Buscar niño, tutor o pulsera"
+      >
+        <template #prepend><q-icon name="search" size="20px" /></template>
+      </q-input>
+      <q-btn
+        unelevated
+        color="primary"
+        icon="person_add"
+        label="Nuevo registro"
+        class="access__new"
+        @click="goToNewRegistration"
+      />
+    </header>
+
+    <div class="access__bar">
+      <div class="access__tabs" role="tablist">
+        <button
+          v-for="f in filtros"
+          :key="f.value"
+          type="button"
+          role="tab"
+          class="access__tab"
+          :class="{ 'access__tab--on': filtro === f.value }"
+          :aria-selected="filtro === f.value"
+          @click="filtro = f.value"
+        >
+          <span class="access__tab-dot" :class="`access__tab-dot--${f.tone}`" />
+          {{ f.label }}
+          <span class="access__tab-count">{{ f.count }}</span>
+        </button>
+      </div>
+      <span class="access__sort">Ordenado por tiempo restante</span>
+      <span v-if="store.puedeVerPulseras" class="access__bands">
+        <q-icon name="sensors" size="18px" />{{ store.pulserasLibres }} pulseras libres
+      </span>
+      <q-btn
+        flat
+        round
+        dense
+        icon="refresh"
+        class="action-btn"
+        aria-label="Actualizar"
+        @click="store.loadActivos()"
+      />
+    </div>
+
+    <div v-if="store.isLoading && store.activos.length === 0" class="access__grid">
+      <q-skeleton v-for="n in 4" :key="n" type="rect" height="210px" class="access__skeleton" />
+    </div>
+
+    <div v-else-if="store.error" class="access__state">
+      <StateBlock
+        variant="error"
+        :body="store.error"
+        action-label="Reintentar"
+        @action="store.loadActivos()"
+      />
+    </div>
+
+    <div v-else-if="activosVisibles.length === 0" class="access__state">
+      <StateBlock
+        v-if="store.activos.length === 0"
+        variant="empty"
+        title="No hay niños en estancia"
+        body="Registra una entrada para empezar."
+        action-label="Nuevo registro"
+        @action="goToNewRegistration"
+      />
+      <StateBlock
+        v-else
+        variant="no-results"
+        action-label="Limpiar filtros"
+        @action="((busqueda = ''), (filtro = 'todos'))"
+      />
+    </div>
+
+    <div v-else class="access__grid">
+      <ActiveChildCard v-for="child in activosVisibles" :key="child.detalleId" :child="child" />
+    </div>
+  </q-page>
+</template>
+
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccessControlStore } from '@/stores/accessControl'
 import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { useAuthStore } from '@/stores/auth'
 import { useEstanciasSocket } from '@/composables/useEstanciasSocket'
 import type { EstanciaWsMessage } from '@/types/estancia'
-import StatCard from '@/components/control-acceso/StatCard.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import type { StayStatus } from '@/stores/accessControl'
 import ActiveChildCard from '@/components/control-acceso/ActiveChildCard.vue'
 
 // Si el socket queda 'caido' (ver useEstanciasSocket), se cae a polling  mientras sigue reintentando la reconexión en segundo plano.
@@ -17,7 +118,6 @@ const turno = useTurnoCajaStore()
 const auth = useAuthStore()
 const router = useRouter()
 
-const scrollContainer = ref<HTMLElement | null>(null)
 const fallbackIntervalId = ref<number | null>(null)
 
 onMounted(() => {
@@ -58,25 +158,32 @@ watch(socket.estado, (estado) => {
   }
 })
 
-function getChildFirstName(nino: string, index: number) {
-  const first = nino.trim().split(' ')[0]
-  return first || `Niño ${index + 1}`
-}
+// ── Filtros y orden ─────────────────────────────────────────────────────────
+type Filtro = 'todos' | StayStatus
+const filtro = ref<Filtro>('todos')
+const busqueda = ref('')
 
-function scrollToChild(index: number) {
-  const container = scrollContainer.value
-  if (!container) return
-  const cardEl = container.children[index] as HTMLElement | undefined
-  if (cardEl) {
-    cardEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
-  }
-}
+const filtros = computed(() => [
+  { value: 'todos' as const, label: 'Todos', count: store.activos.length, tone: 'all' },
+  { value: 'excedido' as const, label: 'Excedidos', count: store.excedidos, tone: 'bad' },
+  { value: 'por_expirar' as const, label: 'Por expirar', count: store.porExpirar, tone: 'warn' },
+  { value: 'activo' as const, label: 'Activos', count: store.totalActivos, tone: 'ok' },
+])
 
-function scrollByCards(direction: 1 | -1) {
-  const container = scrollContainer.value
-  if (!container) return
-  container.scrollBy({ left: direction * 280, behavior: 'smooth' })
-}
+// Los que salen primero son los que menos tiempo tienen (o más excedidos van).
+const activosVisibles = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  return store.activos
+    .filter((c) => filtro.value === 'todos' || c.status === filtro.value)
+    .filter(
+      (c) =>
+        !q ||
+        c.nino.toLowerCase().includes(q) ||
+        c.tutor.toLowerCase().includes(q) ||
+        c.pulsera.toLowerCase().includes(q),
+    )
+    .sort((a, b) => a.minutosRestantes - b.minutosRestantes)
+})
 
 function goToNewRegistration() {
   // Exigir turno de caja abierto solo aplica a roles que de hecho operan
@@ -90,191 +197,181 @@ function goToNewRegistration() {
 }
 </script>
 
-<template>
-  <q-page class="access-page q-pa-lg">
-    <!-- Header -->
-    <div class="row items-start q-mb-lg">
-      <div>
-        <div class="text-h5 text-weight-bold">Control de Acceso</div>
-        <div class="text-caption text-grey-6">Monitoreo en tiempo real de estancias activas.</div>
-      </div>
-      <q-space />
-      <q-btn
-        unelevated
-        color="primary"
-        icon="person_add"
-        label="Nuevo Registro"
-        no-caps
-        @click="goToNewRegistration"
-      />
-    </div>
-
-    <!-- Stat cards -->
-    <div class="row q-col-gutter-md q-mb-lg">
-      <div class="col-12 col-sm-6 col-md-3">
-        <StatCard
-          label="Activos"
-          :value="store.totalActivos"
-          icon="groups"
-          icon-color="primary"
-          icon-bg="rgba(2, 95, 224, 0.1)"
-          caption="+ 15 min restantes"
-          caption-color="positive"
-          caption-icon="trending_up"
-        />
-      </div>
-      <div class="col-12 col-sm-6 col-md-3">
-        <StatCard
-          label="Por Expirar"
-          :value="store.porExpirar"
-          icon="schedule"
-          icon-color="orange-9"
-          icon-bg="rgba(255, 193, 7, 0.16)"
-          caption="< 15 min restantes"
-          caption-color="orange-9"
-        />
-      </div>
-      <div class="col-12 col-sm-6 col-md-3">
-        <StatCard
-          label="Excedidos"
-          :value="store.excedidos"
-          icon="warning"
-          icon-color="negative"
-          icon-bg="rgba(220, 38, 38, 0.1)"
-          caption="Requieren acción"
-          caption-color="negative"
-        />
-      </div>
-      <div class="col-12 col-sm-6 col-md-3">
-        <StatCard
-          label="Disponibilidad"
-          :value="`${store.pulserasLibres}`"
-          icon="lock_open"
-          icon-color="primary"
-          icon-bg="rgba(220, 38, 38, 0.1)"
-          caption="Listas para usar"
-          caption-color="grey-7"
-        />
-      </div>
-    </div>
-
-    <!-- Sección Niños Activos -->
-    <q-card flat bordered class="registration-card q-mb-md">
-      <q-card-section>
-        <div class="row items-center q-mb-md">
-          <q-icon name="child_care" size="22px" color="amber-8" class="q-mr-sm" />
-          <span class="text-subtitle1 text-weight-bold">Niños Activos</span>
-
-          <!-- Flechas de scroll -->
-          <div
-            v-if="store.activos.length > 0"
-            class="row items-center q-ml-sm text-caption text-grey-7"
-          >
-            <q-btn flat dense round icon="chevron_left" size="md" @click="scrollByCards(-1)" />
-            <span class="q-px-md">{{ store.activos.length }} en total</span>
-            <q-btn flat dense round icon="chevron_right" size="md" @click="scrollByCards(1)" />
-          </div>
-
-          <q-space />
-          <q-btn flat round dense icon="refresh" color="grey-7" @click="store.loadActivos()" />
-        </div>
-
-        <!-- Loading -->
-        <div v-if="store.isLoading && store.activos.length === 0" class="text-center q-py-xl">
-          <q-spinner color="primary" size="32px" />
-          <div class="text-caption text-grey-6 q-mt-sm">Cargando estancias activas...</div>
-        </div>
-
-        <!-- Error -->
-        <q-banner v-else-if="store.error" dense rounded class="bg-red-1 text-red-9">
-          <template #avatar>
-            <q-icon name="error_outline" color="negative" />
-          </template>
-          {{ store.error }}
-          <template #action>
-            <q-btn flat dense label="Reintentar" color="negative" @click="store.loadActivos()" />
-          </template>
-        </q-banner>
-
-        <!-- Empty -->
-        <div v-else-if="store.activos.length === 0" class="text-center q-py-xl text-grey-6">
-          No hay niños activos en este momento.
-        </div>
-
-        <!-- Fila horizontal con scroll -->
-        <div v-else ref="scrollContainer" class="horizontal-scroll q-pb-sm">
-          <div v-for="child in store.activos" :key="child.detalleId" class="scroll-item">
-            <ActiveChildCard :child="child" />
-          </div>
-        </div>
-
-        <!-- Chips de navegación rápida (saltan dentro del scroll) -->
-        <div v-if="store.activos.length > 1" class="row q-gutter-sm q-mt-md">
-          <q-chip
-            v-for="(child, i) in store.activos"
-            :key="child.detalleId"
-            clickable
-            :color="
-              child.status === 'excedido'
-                ? 'red-2'
-                : child.status === 'por_expirar'
-                  ? 'orange-2'
-                  : 'grey-3'
-            "
-            :text-color="
-              child.status === 'excedido'
-                ? 'red-9'
-                : child.status === 'por_expirar'
-                  ? 'orange-9'
-                  : 'grey-9'
-            "
-            :icon="
-              child.status === 'excedido'
-                ? 'warning'
-                : child.status === 'por_expirar'
-                  ? 'schedule'
-                  : 'check'
-            "
-            :label="getChildFirstName(child.nino, i)"
-            size="lg"
-            class="text-weight-medium q-px-lg"
-            @click="scrollToChild(i)"
-          />
-        </div>
-      </q-card-section>
-    </q-card>
-  </q-page>
-</template>
-
-<style scoped>
-.access-page {
-  background: var(--bg-main);
-  min-height: 100vh;
-}
-
-.registration-card {
-  border-radius: 12px;
-}
-
-.horizontal-scroll {
+<style scoped lang="scss">
+.access {
   display: flex;
-  gap: 80px;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
-  padding: 4px 16px 12px 16px;
-}
-.horizontal-scroll::-webkit-scrollbar {
-  height: 6px;
-}
+  flex-direction: column;
+  gap: 18px;
 
-.horizontal-scroll::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
-}
+  &__head {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
 
-.scroll-item {
-  flex: 0 0 320px;
-  scroll-snap-align: start;
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 240px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 26px;
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
+  }
+
+  &__live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--text-secondary);
+
+    &--caido .access__live-dot {
+      background: var(--tone-warn-dot);
+    }
+  }
+
+  &__live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--tone-ok-dot);
+  }
+
+  &__search {
+    width: 346px;
+    max-width: 100%;
+
+    :deep(.q-field__control) {
+      height: 42px;
+      min-height: 42px;
+    }
+
+    :deep(.q-field__marginal) {
+      height: 42px;
+      color: var(--text-secondary);
+    }
+  }
+
+  &__new {
+    min-height: 40px;
+  }
+
+  &__bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &__tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  &__tab {
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--text-body);
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+
+    &--on {
+      background: var(--text-strong);
+      color: #fff;
+
+      .access__tab-count {
+        color: #aeb8e8;
+      }
+
+      .access__tab-dot--all {
+        background: #fff;
+      }
+    }
+  }
+
+  &__tab-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 4px;
+
+    &--all {
+      background: var(--text-strong);
+    }
+    &--bad {
+      background: var(--tone-bad-dot);
+    }
+    &--warn {
+      background: var(--tone-warn-dot);
+    }
+    &--ok {
+      background: var(--tone-ok-dot);
+    }
+  }
+
+  &__tab-count {
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  &__sort {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__bands {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #fff;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+
+    .q-icon {
+      color: var(--q-primary);
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 14px;
+  }
+
+  &__skeleton {
+    border-radius: var(--radius-md);
+  }
+
+  &__state {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+  }
 }
 </style>

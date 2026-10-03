@@ -10,147 +10,137 @@
                Al entregar/cerrar la última usa "kds-fs-close" (salida elegante). -->
           <Transition :name="cerrando ? 'kds-fs-close' : 'kds-fs-fade'" @before-enter="resetScroll">
             <div v-if="comanda" :key="comanda.id" class="kds-fs-sheet">
-              <!-- ── Header compacto ─────────────────────── -->
-              <header class="kds-fs-header">
-                <div class="kds-fs-header-left">
-                  <button
-                    type="button"
-                    class="kds-fs-btn-regresar"
-                    aria-label="Regresar al listado de comandas"
-                    @click="$emit('close')"
-                  >
-                    <q-icon name="arrow_back" size="xs" />
-                    <span>Regresar</span>
-                  </button>
-                </div>
+              <!-- ── Encabezado ─────────────────────────── -->
+              <header class="kds-fs-head">
+                <button
+                  type="button"
+                  class="kds-fs-back"
+                  aria-label="Regresar al tablero de cocina"
+                  @click="$emit('close')"
+                >
+                  <q-icon name="arrow_back" size="18px" />Cocina
+                </button>
 
-                <div class="kds-fs-header-center">
-                  <p v-if="comanda.nombre_cliente" class="kds-fs-ticket">
-                    {{ comanda.nombre_cliente }}
-                  </p>
-                  <h2 class="kds-fs-client-name">#{{ comanda.ticket_numero ?? comanda.id }}</h2>
-                  <div class="kds-fs-badges">
-                    <span class="kds-fs-badge badge-estado" :class="badgeEstadoClass">
-                      <span class="kds-fs-badge-dot" />
-                      {{ estadoLabel(comanda.estado_actual) }}
-                    </span>
-                    <span class="kds-fs-badge badge-servicio">
-                      <q-icon :name="comanda.mesa ? 'table_bar' : 'storefront'" size="xs" />
+                <div class="kds-fs-head__main">
+                  <div class="kds-fs-head__title">
+                    <h2 class="kds-fs-folio">#{{ comanda.ticket_numero ?? comanda.id }}</h2>
+                    <StatusBadge :tone="estado.tono" :label="estado.label" />
+                  </div>
+                  <div class="kds-fs-head__meta">
+                    <span class="kds-fs-meta">
+                      <q-icon :name="comanda.mesa ? 'table_bar' : 'storefront'" size="17px" />
                       {{ tipoEntrega }}
                     </span>
+                    <span v-if="comanda.nombre_cliente" class="kds-fs-meta">
+                      <q-icon name="person" size="17px" />{{ comanda.nombre_cliente }}
+                    </span>
                   </div>
                 </div>
 
-                <div class="kds-fs-header-right">
-                  <div class="kds-fs-time" :class="{ 'kds-fs-time--critico': tiempoCritico }">
-                    <q-icon name="schedule" size="sm" class="kds-fs-time-icon" />
-                    <span>{{ tiempoFormateado }}</span>
-                  </div>
-                  <button
-                    type="button"
-                    class="kds-fs-btn-close"
-                    aria-label="Cerrar vista de comanda"
-                    @click="$emit('close')"
-                  >
-                    <q-icon name="close" size="sm" />
-                  </button>
-                </div>
+                <span class="kds-fs-time" :class="{ 'kds-fs-time--late': retrasada }">
+                  <q-icon name="schedule" size="18px" />{{ etiquetaTiempo }}
+                </span>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="close"
+                  class="kds-fs-close"
+                  aria-label="Cerrar vista de comanda"
+                  @click="$emit('close')"
+                />
               </header>
 
               <!-- ── Cuerpo ───────────────────────────────── -->
               <main class="kds-fs-body">
-                <div class="kds-fs-body-inner">
-                  <p v-if="comanda.notas_generales" class="kds-fs-notes-generales">
-                    <q-icon name="sticky_note_2" size="sm" />
-                    <span>{{ comanda.notas_generales }}</span>
-                  </p>
+                <div v-if="comanda.notas_generales" class="list-page__note list-page__note--warn">
+                  <q-icon name="sticky_note_2" size="19px" />{{ comanda.notas_generales }}
+                </div>
 
-                  <div class="kds-fs-grid">
-                    <template v-for="(el, i) in ticketsAgrupados" :key="el.key">
-                      <!-- Grupo combo -->
-                      <section
-                        v-if="el.tipo === 'combo'"
-                        :style="{ '--i': i }"
-                        class="kds-fs-card kds-fs-card--combo"
-                      >
-                        <header class="kds-fs-combo-header">
-                          <q-icon name="restaurant_menu" size="sm" />
-                          <span>{{ el.nombre }}</span>
-                          <span class="kds-fs-combo-count">{{ el.items.length }}</span>
-                        </header>
+                <span class="kds-fs-section">
+                  Productos <span class="kds-fs-section__count">{{ totalPiezas }}</span>
+                </span>
 
-                        <div class="kds-fs-combo-items">
-                          <article
-                            v-for="hijo in el.items"
-                            :key="hijo.id"
-                            class="kds-fs-combo-item"
-                          >
-                            <div class="kds-fs-qty kds-fs-qty--sm">{{ hijo.cantidad }}</div>
-                            <div class="kds-fs-item-details">
-                              <p class="kds-fs-item-name">
-                                {{ hijo.nombre ?? hijo.producto_nombre }}
-                              </p>
-                              <p v-if="hijo.notas_especiales" class="kds-fs-item-notas">
-                                <q-icon name="warning" size="xs" />
-                                <span>{{ hijo.notas_especiales }}</span>
-                              </p>
-                            </div>
-                          </article>
+                <div class="kds-fs-grid">
+                  <template v-for="(el, i) in ticketsAgrupados" :key="el.key">
+                    <!-- Grupo combo -->
+                    <section
+                      v-if="el.tipo === 'combo'"
+                      :style="{ '--i': i }"
+                      class="kds-fs-card kds-fs-card--combo"
+                    >
+                      <header class="kds-fs-combo__head">
+                        <q-icon name="restaurant_menu" size="18px" />
+                        <span class="kds-fs-combo__name">{{ el.nombre }}</span>
+                        <span class="kds-fs-combo__count">{{ el.items.length }}</span>
+                      </header>
+
+                      <div class="kds-fs-combo__items">
+                        <div v-for="hijo in el.items" :key="hijo.id" class="kds-fs-item">
+                          <span class="kds-fs-qty">{{ hijo.cantidad }}×</span>
+                          <div class="kds-fs-item__body">
+                            <span class="kds-fs-item__name">
+                              {{ hijo.nombre ?? hijo.producto_nombre }}
+                            </span>
+                            <span v-if="hijo.notas_especiales" class="kds-fs-item__note">
+                              <q-icon name="warning" size="15px" />{{ hijo.notas_especiales }}
+                            </span>
+                          </div>
                         </div>
+                      </div>
 
-                        <p v-if="resumenCombo(el.items)" class="kds-fs-combo-incluye">
-                          <span class="kds-fs-incluye-label">Incluye</span>
-                          <span>{{ resumenCombo(el.items) }}</span>
-                        </p>
-                      </section>
+                      <p v-if="resumenCombo(el.items)" class="kds-fs-combo__includes">
+                        <span class="kds-fs-combo__includes-label">Incluye</span>
+                        {{ resumenCombo(el.items) }}
+                      </p>
+                    </section>
 
-                      <!-- Item suelto -->
-                      <article v-else :style="{ '--i': i }" class="kds-fs-card">
-                        <div class="kds-fs-qty">{{ el.item.cantidad }}</div>
-                        <div class="kds-fs-item-details">
-                          <p class="kds-fs-item-name">
-                            {{ el.item.nombre ?? el.item.producto_nombre }}
-                          </p>
-                          <p v-if="el.item.notas_especiales" class="kds-fs-item-notas">
-                            <q-icon name="warning" size="xs" />
-                            <span>{{ el.item.notas_especiales }}</span>
-                          </p>
-                        </div>
-                      </article>
-                    </template>
-                  </div>
+                    <!-- Producto suelto -->
+                    <article v-else :style="{ '--i': i }" class="kds-fs-card kds-fs-item">
+                      <span class="kds-fs-qty">{{ el.item.cantidad }}×</span>
+                      <div class="kds-fs-item__body">
+                        <span class="kds-fs-item__name">
+                          {{ el.item.nombre ?? el.item.producto_nombre }}
+                        </span>
+                        <span v-if="el.item.notas_especiales" class="kds-fs-item__note">
+                          <q-icon name="warning" size="15px" />{{ el.item.notas_especiales }}
+                        </span>
+                      </div>
+                    </article>
+                  </template>
                 </div>
               </main>
 
-              <!-- ── Footer flotante con acción ───────────── -->
-              <footer class="kds-fs-footer">
-                <button
+              <!-- ── Pie con la acción del estado ─────────── -->
+              <footer class="kds-fs-foot">
+                <q-btn
                   v-if="esPendiente"
-                  type="button"
-                  class="kds-fs-btn btn-pendiente"
+                  unelevated
+                  color="primary"
+                  icon="play_arrow"
+                  label="Iniciar preparación"
+                  class="kds-fs-action"
                   @click="emit('cambiar-estado', comanda.id, 'E')"
-                >
-                  <q-icon name="play_arrow" size="md" /> Comenzar Preparación
-                </button>
-                <button
+                />
+                <q-btn
                   v-else-if="esEnProceso"
-                  type="button"
-                  class="kds-fs-btn btn-accion"
+                  unelevated
+                  color="positive"
+                  icon="check_circle"
+                  label="Marcar lista"
+                  class="kds-fs-action"
                   @click="emit('cambiar-estado', comanda.id, 'L')"
-                >
-                  <q-icon name="check_circle" size="md" /> Listo para Entregar
-                </button>
-                <button
+                />
+                <q-btn
                   v-else-if="esListo"
-                  type="button"
-                  class="kds-fs-btn btn-entregar"
+                  unelevated
+                  icon="done_all"
+                  label="Entregada"
+                  class="kds-fs-action kds-fs-action--deliver"
                   @click="emit('cambiar-estado', comanda.id, 'T')"
-                >
-                  <q-icon name="done_all" size="md" /> Entregar Pedido
-                </button>
-                <div v-else class="kds-fs-orden-finalizada">
-                  <q-icon name="task_alt" size="md" />
-                  Orden {{ estadoLabel(comanda.estado_actual) }}
+                />
+                <div v-else class="kds-fs-done">
+                  <q-icon name="task_alt" size="20px" />Comanda {{ estado.label.toLowerCase() }}
                 </div>
               </footer>
             </div>
@@ -163,7 +153,9 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import type { Comanda, DetalleComanda, EstadoActualComanda } from '@/types/comanda'
+import type { UiTone } from '@/types/ui'
 
 const props = defineProps<{ comanda: Comanda | null }>()
 const emit = defineEmits<{
@@ -210,35 +202,34 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
 })
 
-const estadoLabel = (estado: EstadoActualComanda): string => {
-  const labels: Record<EstadoActualComanda, string> = {
-    P: 'PENDIENTE',
-    E: 'EN PREPARACIÓN',
-    L: 'LISTO PARA ENTREGA',
-    T: 'ENTREGADO',
-    C: 'CANCELADO',
-  }
-  return labels[estado] ?? estado
+// Mismos tonos y nombres que las columnas del tablero de cocina.
+const ESTADOS: Record<EstadoActualComanda, { label: string; tono: UiTone }> = {
+  P: { label: 'Nueva', tono: 'pink' },
+  E: { label: 'En preparación', tono: 'warn' },
+  L: { label: 'Lista para entregar', tono: 'ok' },
+  T: { label: 'Entregada', tono: 'off' },
+  C: { label: 'Cancelada', tono: 'bad' },
 }
+const estado = computed(() => ESTADOS[props.comanda?.estado_actual ?? 'P'])
 
-// Contador de tiempo en formato amigable: "23 min", "1 h", "1 h 12 min".
-const tiempoFormateado = computed(() => {
-  const f = props.comanda?.fecha_hora
-  if (!f) return '--'
-  const diffMin = Math.floor((now.value - new Date(f).getTime()) / 60000)
-  if (diffMin < 1) return '--'
-  if (diffMin < 60) return `${diffMin} min`
-  const h = Math.floor(diffMin / 60)
-  const m = diffMin % 60
-  return m > 0 ? `${h} h ${m} min` : `${h} h`
+// Minutos desde que entró la orden (o desde que quedó lista), con el mismo
+// umbral de retraso que la tarjeta del tablero.
+const UMBRAL_RETRASO_MIN = 10
+const minutos = computed(() => {
+  const c = props.comanda
+  if (!c) return null
+  const desde = c.estado_actual === 'L' ? (c.updated_at ?? c.fecha_hora) : c.fecha_hora
+  if (!desde) return null
+  return Math.max(0, Math.floor((now.value - new Date(desde).getTime()) / 60000))
 })
-
-// A partir de 45 min el contador pasa a estilo de alerta.
-const tiempoCritico = computed(() => {
-  const f = props.comanda?.fecha_hora
-  if (!f) return false
-  const diffMin = Math.floor((now.value - new Date(f).getTime()) / 60000)
-  return diffMin >= 45
+const retrasada = computed(
+  () => !esListo.value && minutos.value !== null && minutos.value >= UMBRAL_RETRASO_MIN,
+)
+const etiquetaTiempo = computed(() => {
+  const m = minutos.value
+  if (m === null) return '--'
+  const texto = m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`
+  return esListo.value ? `lista hace ${texto}` : texto
 })
 
 interface ComboGroup {
@@ -324,20 +315,13 @@ const esPendiente = computed(() => props.comanda?.estado_actual === 'P')
 const esEnProceso = computed(() => props.comanda?.estado_actual === 'E')
 const esListo = computed(() => props.comanda?.estado_actual === 'L')
 
-const badgeEstadoClass = computed(() => {
-  switch (props.comanda?.estado_actual) {
-    case 'E':
-      return 'badge-proceso'
-    case 'L':
-      return 'badge-listo'
-    case 'P':
-      return 'badge-pendiente'
-    default:
-      return 'badge-final'
-  }
-})
+const tipoEntrega = computed(() =>
+  props.comanda?.mesa ? `Mesa ${props.comanda.mesa}` : 'Mostrador',
+)
 
-const tipoEntrega = computed(() => props.comanda?.mesa ?? 'MOSTRADOR')
+const totalPiezas = computed(() =>
+  (props.comanda?.detalles ?? []).reduce((s, d) => s + (d.cantidad ?? 0), 0),
+)
 </script>
 
 <style lang="scss" scoped>
@@ -439,513 +423,348 @@ const tipoEntrega = computed(() => props.comanda?.mesa ?? 'MOSTRADOR')
   transform: translateY(16px) scale(0.97);
 }
 
-/* ── Header compacto ────────────────────────────────────── */
-.kds-fs-header {
+/* ── Encabezado ─────────────────────────────────────────── */
+.kds-fs-head {
   position: sticky;
   top: 0;
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 24px;
-  background-color: var(--bg-card);
+  gap: 20px;
+  padding: 16px 32px;
+  background: #fff;
   border-bottom: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
 }
 
-.kds-fs-header-left {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  flex: 1;
-}
-
-.kds-fs-btn-regresar {
+.kds-fs-back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
-  padding: 0 16px;
-  border: 1px solid var(--border-color);
-  border-radius: 9999px;
-  background-color: var(--bg-card);
-  color: var(--text-secondary);
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-control);
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-body);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bg-muted);
+  }
+}
+
+.kds-fs-folio {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.kds-fs-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
   font-weight: 600;
-  cursor: pointer;
-  transition:
-    background-color 0.2s,
-    color 0.2s,
-    border-color 0.2s;
-  white-space: nowrap;
-}
-.kds-fs-btn-regresar:hover {
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-  border-color: var(--text-muted);
-}
-
-.kds-fs-header-center {
-  text-align: center;
-  min-width: 0;
-}
-
-.kds-fs-ticket {
-  font-size: 28px;
-  font-weight: 800;
-  line-height: 1.1;
-  margin: 0;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-}
-.kds-fs-client-name {
-  font-size: 16px;
-  font-weight: 600;
   color: var(--text-secondary);
-  margin: 4px 0 0 0;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-}
-
-.kds-fs-badges {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-}
-
-.kds-fs-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: 9999px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
-.badge-estado .kds-fs-badge-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: currentColor;
-  opacity: 0.85;
-}
-.badge-proceso {
-  background-color: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #b45309;
-}
-.badge-pendiente {
-  background-color: var(--bg-main);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-}
-.badge-listo {
-  background-color: rgba(63, 168, 52, 0.1);
-  border: 1px solid rgba(63, 168, 52, 0.35);
-  color: #2f7d2a;
-}
-.badge-final {
-  background-color: var(--bg-main);
-  border: 1px solid var(--border-color);
-  color: var(--text-muted);
-}
-
-.badge-servicio {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-}
-
-.kds-fs-header-right {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  flex: 1;
 }
 
 .kds-fs-time {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 9999px;
-  background-color: var(--bg-main);
-  border: 1px solid var(--border-color);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-control);
+  background: var(--bg-muted);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-body);
   white-space: nowrap;
-  transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s;
-}
-.kds-fs-time--critico {
-  background-color: rgba(220, 38, 38, 0.08);
-  border-color: rgba(220, 38, 38, 0.35);
-  color: #dc2626;
-}
-.kds-fs-time--critico .kds-fs-time-icon {
-  animation: kds-fs-pulse 2s ease-in-out infinite;
-}
-@keyframes kds-fs-pulse {
-  0%,
-  100% {
-    opacity: 1;
+  font-variant-numeric: tabular-nums;
+
+  &--late {
+    background: var(--tone-bad-bg);
+    color: var(--tone-bad-fg);
+
+    .q-icon {
+      animation: kds-fs-pulse 2s ease-in-out infinite;
+    }
   }
+}
+
+@keyframes kds-fs-pulse {
   50% {
     opacity: 0.35;
   }
 }
 
-.kds-fs-btn-close {
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--border-color);
-  border-radius: 9999px;
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    background-color 0.2s,
-    transform 0.15s;
-}
-.kds-fs-btn-close:hover {
-  background-color: var(--border-color);
-}
-.kds-fs-btn-close:active {
-  transform: scale(0.94);
+.kds-fs-close {
+  color: var(--text-secondary);
 }
 
 /* ── Cuerpo ─────────────────────────────────────────────── */
 .kds-fs-body {
   flex: 1;
-  display: flex;
-  justify-content: center;
-}
-
-.kds-fs-body-inner {
   width: 100%;
-  max-width: 880px;
-  padding: 24px 24px 40px;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 28px 32px 40px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
-.kds-fs-notes-generales {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 0;
-  padding: 14px 18px;
-  border-radius: var(--radius-md);
-  background-color: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  color: #92400e;
+.kds-fs-body .list-page__note {
   font-size: 15px;
-  font-weight: 500;
-  line-height: 1.5;
 }
 
-/* Cuadrícula de platillos: rellena la pantalla en vez de una tarjeta solitaria */
+.kds-fs-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+
+  &__count {
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--bg-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0;
+    color: var(--text-body);
+  }
+}
+
 .kds-fs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
   align-items: start;
 }
 
 .kds-fs-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 18px 20px;
-  border-radius: var(--radius-md);
-  background-color: var(--bg-card);
+  background: #fff;
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
-  transition:
-    box-shadow 0.2s,
-    border-color 0.2s;
-}
-.kds-fs-card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--text-muted);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+
+  &--combo {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 
-/* Cantidad en contenedor circular moderno */
-.kds-fs-qty {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background-color: #eaf2ff;
-  color: #025fe0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  font-weight: 700;
-  flex-shrink: 0;
-  box-shadow: inset 0 0 0 1px rgba(2, 95, 224, 0.14);
-}
-
-.kds-fs-qty--sm {
-  width: 34px;
-  height: 34px;
-  font-size: 15px;
-  background-color: #fef3c7;
-  color: #b45309;
-  box-shadow: inset 0 0 0 1px rgba(180, 83, 9, 0.14);
-}
-
-.kds-fs-item-details {
-  flex: 1;
-  min-width: 0;
-}
-
-.kds-fs-item-name {
-  font-size: 17px;
-  font-weight: 650;
-  margin: 0;
-  line-height: 1.35;
-  color: var(--text-primary);
-}
-
-.kds-fs-item-notas {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 10px 0 0 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background-color: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.28);
-  color: #92400e;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-/* ── Combo ──────────────────────────────────────────────── */
-.kds-fs-card--combo {
-  grid-column: 1 / -1;
-  flex-direction: column;
-  gap: 14px;
-  padding: 20px;
-  background-color: rgba(255, 248, 235, 0.6);
-}
-
-.kds-fs-combo-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 9999px;
-  background-color: rgba(245, 158, 11, 0.14);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #b45309;
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  align-self: flex-start;
-}
-.kds-fs-combo-count {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 9999px;
-  background-color: rgba(180, 83, 9, 0.14);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-}
-
-.kds-fs-combo-items {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 10px;
-}
-
-.kds-fs-combo-item {
+.kds-fs-item {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__name {
+    font-size: 18px;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  &__note {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #c2410c;
+  }
 }
 
-.kds-fs-combo-incluye {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background-color: var(--bg-card);
-  border: 1px dashed var(--border-color);
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.5;
-}
-.kds-fs-incluye-label {
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+.kds-fs-qty {
+  min-width: 40px;
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: var(--q-primary);
+  font-variant-numeric: tabular-nums;
 }
 
-/* ── Footer flotante ────────────────────────────────────── */
-.kds-fs-footer {
+.kds-fs-combo {
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+  }
+
+  &__name {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  &__count {
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--tone-warn-bg);
+    color: var(--tone-warn-fg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  &__items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+
+    .kds-fs-item {
+      padding: 12px 14px;
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-control);
+      background: var(--bg-subtle);
+    }
+  }
+
+  &__includes {
+    margin: 0;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+    font-size: 13.5px;
+    color: var(--text-secondary);
+  }
+
+  &__includes-label {
+    margin-right: 6px;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+}
+
+/* ── Pie ────────────────────────────────────────────────── */
+.kds-fs-foot {
   position: sticky;
   bottom: 0;
   z-index: 10;
   display: flex;
   justify-content: center;
-  padding: 16px 24px 20px;
-  background-color: rgba(248, 250, 252, 0.9);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  padding: 16px 32px;
+  background: #fff;
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
 }
 
-.kds-fs-btn {
-  flex: 1;
-  max-width: 560px;
-  min-height: 58px;
-  border-radius: 14px;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+.kds-fs-action {
+  width: 100%;
+  max-width: 520px;
+  min-height: 56px;
+  font-size: 17px;
+  font-weight: 800;
+
+  &--deliver {
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+  }
+}
+
+.kds-fs-done {
+  width: 100%;
+  max-width: 520px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  cursor: pointer;
-  border: none;
-  transition:
-    transform 0.18s,
-    box-shadow 0.18s,
-    background-color 0.2s;
-}
-.kds-fs-btn:hover {
-  transform: translateY(-2px);
-}
-.kds-fs-btn:active {
-  transform: translateY(0) scale(0.99);
-}
-
-.btn-accion {
-  background-color: #025fe0;
-  color: #fff;
-  box-shadow: 0 12px 24px -10px rgba(2, 95, 224, 0.55);
-}
-.btn-accion:hover {
-  background-color: #0350c4;
-  box-shadow: 0 16px 30px -10px rgba(2, 95, 224, 0.65);
-}
-
-.btn-pendiente {
-  background-color: #0f172a;
-  color: #fff;
-  box-shadow: 0 12px 24px -10px rgba(15, 23, 42, 0.45);
-}
-.btn-pendiente:hover {
-  background-color: #1e293b;
-}
-
-.btn-entregar {
-  background-color: #16a34a;
-  color: #fff;
-  box-shadow: 0 12px 24px -10px rgba(22, 163, 74, 0.55);
-}
-.btn-entregar:hover {
-  background-color: #15803d;
-  box-shadow: 0 16px 30px -10px rgba(22, 163, 74, 0.65);
-}
-
-.kds-fs-orden-finalizada {
-  flex: 1;
-  max-width: 560px;
-  min-height: 58px;
-  border-radius: 14px;
-  background-color: var(--bg-card);
-  color: var(--text-muted);
+  gap: 8px;
   border: 1px dashed var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-size: 16px;
+  border-radius: var(--radius-control);
+  font-size: 15px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--text-secondary);
 }
 
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .kds-fs-header {
+  .kds-fs-head {
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
     padding: 12px 16px;
+
+    &__main {
+      order: 3;
+      flex-basis: 100%;
+    }
   }
-  .kds-fs-header-left {
-    flex: 1;
+
+  .kds-fs-back {
+    margin-right: auto;
   }
-  .kds-fs-header-right {
-    flex: none;
-    gap: 8px;
-  }
-  .kds-fs-header-center {
-    order: 3;
-    width: 100%;
-    text-align: center;
-  }
-  .kds-fs-ticket {
+
+  .kds-fs-folio {
     font-size: 24px;
   }
-  .kds-fs-time {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-  .kds-fs-body-inner {
+
+  .kds-fs-body {
     padding: 16px 16px 32px;
-    gap: 16px;
   }
-  .kds-fs-grid {
+
+  .kds-fs-grid,
+  .kds-fs-combo__items {
     grid-template-columns: 1fr;
   }
-  .kds-fs-combo-items {
-    grid-template-columns: 1fr;
-  }
-  .kds-fs-footer {
-    padding: 12px 16px 16px;
-  }
-  .kds-fs-btn {
-    font-size: 16px;
-    min-height: 54px;
+
+  .kds-fs-foot {
+    padding: 12px 16px;
   }
 }
 </style>

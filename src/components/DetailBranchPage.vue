@@ -1,14 +1,28 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { branchService } from '@/services/branchService'
-import type { Branch } from '@/types/branch'
+import { Notify } from 'quasar'
+import type { QTableColumn } from 'quasar'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import EstadoBadge from '@/components/shared/EstadoBadge.vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import KpiCard from '@/components/ui/KpiCard.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import SucursalFormDialog from '@/components/sucursales/SucursalFormDialog.vue'
+import SucursalModalDesactivar from '@/components/sucursales/SucursalModalDesactivar.vue'
+import { branchService } from '@/services/branchService'
+import { userService } from '@/services/userService'
+import { useAuthStore } from '@/stores/auth'
+import { rolTono } from '@/utils/rolTono'
+import type { Branch } from '@/types/branch'
+import type { UserListItem } from '@/types/user'
+import type { Sucursal } from '@/composables/useSucursales'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 const id = computed(() => {
   const param = route.params.id
@@ -16,20 +30,65 @@ const id = computed(() => {
 })
 
 const branch = ref<Branch | null>(null)
+const usuarios = ref<UserListItem[]>([])
 const loading = ref(false)
+const busqueda = ref('')
+const formAbierto = ref(false)
+const desactivarAbierto = ref(false)
 
-onMounted(async () => {
+async function cargar() {
   loading.value = true
   try {
-    branch.value = await branchService.getBranch(id.value)
-  } catch {
-    router.push({ name: 'sucursales-listar' })
+    const [b, users] = await Promise.allSettled([
+      branchService.getBranch(id.value),
+      userService.listUsers(),
+    ])
+    if (b.status === 'rejected') {
+      router.push({ name: 'sucursales-listar' })
+      return
+    }
+    branch.value = b.value
+    usuarios.value =
+      users.status === 'fulfilled' ? users.value.filter((u) => u.branchId === id.value) : []
   } finally {
     loading.value = false
   }
-})
+}
 
-function formatFechaLocal(fechaIso: string): string {
+onMounted(cargar)
+
+const usuariosFiltrados = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  if (!q) return usuarios.value
+  return usuarios.value.filter(
+    (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
+  )
+})
+const activos = computed(() => usuarios.value.filter((u) => u.isActive).length)
+
+const subtitulo = computed(() =>
+  [branch.value?.clave, branch.value?.direccion, branch.value?.telefono]
+    .filter(Boolean)
+    .join(' · '),
+)
+
+const sucursalModal = computed<Sucursal | null>(() =>
+  branch.value
+    ? {
+        id: branch.value.id,
+        clave: branch.value.clave ?? '-',
+        nombre: branch.value.nombre,
+        ciudad: branch.value.direccion ?? '-',
+        estado: '-',
+        gerente: branch.value.administradorName,
+        fechaCreacion: branch.value.creado ?? '',
+        statusClave: branch.value.isActive ? 'activa' : 'inactiva',
+      }
+    : null,
+)
+
+function formatFecha(fechaIso: string | null): string {
+  if (!fechaIso) return '—'
   try {
     return format(parseISO(fechaIso), "dd MMM yyyy 'a las' HH:mm", { locale: es })
   } catch {
@@ -37,274 +96,153 @@ function formatFechaLocal(fechaIso: string): string {
   }
 }
 
-const contactItems = computed(() => [
-  {
-    icon: 'phone',
-    label: 'Teléfono Principal',
-    value: branch.value?.telefono ?? '-',
-    accent: false,
-  },
-  {
-    icon: 'mail',
-    label: 'Correo Electrónico',
-    value: branch.value?.correo ?? '-',
-    accent: true,
-  },
-  {
-    icon: 'person',
-    label: 'Administrador',
-    value: branch.value?.administradorName ?? '-',
-    accent: true,
-  },
-])
-
-const addressLines = computed(() => [
-  {
-    icon: 'place',
-    label: 'Dirección',
-    value: branch.value?.direccion ?? '-',
-    accent: false,
-  },
-])
-
-const metadata = computed(() => {
-  const meta = [
-    {
-      label: 'Fecha de creación',
-      value: branch.value?.creado ? formatFechaLocal(branch.value.creado) : '-',
-    },
-    {
-      label: 'Creado por',
-      value: branch.value?.creadorName ?? '-',
-    },
-  ]
-
-  // Solo si existe una modificación, agregamos estos campos extra
-  if (branch.value?.modificado && branch.value?.modificadorName) {
-    meta.push(
-      {
-        label: 'Última modificación',
-        value: formatFechaLocal(branch.value.modificado),
-      },
-      {
-        label: 'Modificado por',
-        value: branch.value.modificadorName,
-      },
-    )
+async function desactivar() {
+  try {
+    await branchService.deleteBranch(id.value)
+    Notify.create({ type: 'positive', message: 'Sucursal desactivada correctamente.' })
+    await cargar()
+  } catch {
+    Notify.create({ type: 'negative', message: 'Error al desactivar la sucursal.' })
   }
-
-  return meta
-})
-
-function handleEdit(): void {
-  router.push({ name: 'sucursales-editar', params: { id: id.value } })
 }
+
+async function reactivar() {
+  try {
+    await branchService.restoreBranch(id.value)
+    Notify.create({ type: 'positive', message: 'Sucursal reactivada correctamente.' })
+    await cargar()
+  } catch {
+    Notify.create({ type: 'negative', message: 'Error al reactivar la sucursal.' })
+  }
+}
+
+const columns: QTableColumn[] = [
+  { name: 'name', label: 'Usuario', field: 'name', align: 'left', sortable: true },
+  { name: 'role', label: 'Rol', field: 'role', align: 'left', sortable: true },
+  { name: 'status', label: 'Estado', field: 'isActive', align: 'left' },
+]
 </script>
 
 <template>
-  <q-page v-if="loading" class="flex flex-center">
-    <q-spinner-dots color="primary" size="40px" />
-  </q-page>
-
-  <q-page v-else-if="!branch" class="page-content q-pa-md q-pa-lg-xl text-center">
-    <div class="text-h5 text-grey-7 q-mt-xl">Sucursal no encontrada</div>
-    <q-btn
-      unelevated
-      no-caps
-      color="primary"
-      label="Volver al listado"
-      class="q-mt-md"
-      style="border-radius: 8px; font-weight: 600"
-      @click="router.push({ name: 'sucursales-listar' })"
-    />
-  </q-page>
-
-  <q-page v-else class="page-content q-pa-md q-pa-lg-xl">
-    <div class="row items-start q-mb-lg header-wrap">
-      <div class="header-copy">
-        <div class="row items-center q-gutter-sm q-mb-xs">
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
-            {{ branch.nombre }}
-          </div>
-          <EstadoBadge
-            :tono="branch.isActive ? 'verde' : 'rojo'"
-            :label="branch.isActive ? 'Activa' : 'Inactiva'"
+  <q-page class="page-content list-page">
+    <PageHeader
+      :title="branch?.nombre ?? 'Sucursal'"
+      :subtitle="subtitulo"
+      back-label="Sucursales"
+      :back-to="{ name: 'sucursales-listar' }"
+    >
+      <template v-if="branch" #actions>
+        <template v-if="auth.hasPermission('sucursales:editar')">
+          <q-btn
+            v-if="branch.isActive"
+            outline
+            icon="block"
+            label="Desactivar"
+            @click="desactivarAbierto = true"
           />
-        </div>
-        <div class="text-body2" style="color: var(--text-secondary)">
-          Vista general de la sucursal <strong>{{ branch.clave }}</strong>
-        </div>
-      </div>
-      <q-space />
-      <q-btn
-        outline
-        no-caps
-        color="primary"
-        icon="edit"
-        label="Editar"
-        style="border-radius: 8px; font-weight: 600"
-        @click="handleEdit"
-      />
+          <q-btn v-else outline icon="restart_alt" label="Reactivar" @click="reactivar" />
+        </template>
+        <q-btn
+          v-if="auth.hasPermission('sucursales:editar')"
+          unelevated
+          color="primary"
+          icon="edit"
+          label="Editar"
+          @click="formAbierto = true"
+        />
+      </template>
+    </PageHeader>
+
+    <div v-if="loading && !branch" class="state-card">
+      <StateBlock variant="loading" />
     </div>
 
-    <div class="row q-col-gutter-lg items-stretch">
-      <div class="col-12 col-lg-8">
-        <div class="row q-col-gutter-lg items-stretch" style="height: 100%">
-          <div class="col-12 col-md-6">
-            <q-card flat bordered class="info-card full-height">
-              <q-card-section class="section-header">
-                <div class="section-title">
-                  <q-icon name="support_agent" size="18px" color="primary" class="q-mr-sm" />
-                  Contacto
-                </div>
-              </q-card-section>
-              <q-separator />
-              <q-card-section class="q-pt-lg contact-section">
-                <div v-for="item in contactItems" :key="item.label" class="contact-item">
-                  <q-icon :name="item.icon" size="18px" color="grey-7" class="contact-item__icon" />
-                  <div class="contact-item__content">
-                    <div class="contact-item__label">{{ item.label }}</div>
-                    <div
-                      class="contact-item__value"
-                      :class="{ 'contact-item__value--accent': item.accent }"
-                    >
-                      {{ item.value }}
-                    </div>
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
-
-          <div class="col-12 col-md-6">
-            <q-card flat bordered class="info-card full-height">
-              <q-card-section class="section-header">
-                <div class="section-title">
-                  <q-icon name="place" size="18px" color="primary" class="q-mr-sm" />
-                  Ubicación
-                </div>
-              </q-card-section>
-              <q-separator />
-              <q-card-section class="q-pt-lg contact-section">
-                <div v-for="item in addressLines" :key="item.label" class="contact-item">
-                  <q-icon :name="item.icon" size="18px" color="grey-7" class="contact-item__icon" />
-                  <div class="contact-item__content">
-                    <div class="contact-item__label">{{ item.label }}</div>
-                    <div class="contact-item__value">{{ item.value }}</div>
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
-        </div>
+    <template v-else-if="branch">
+      <div class="kpi-row">
+        <KpiCard
+          label="Estado"
+          :value="branch.isActive ? 'Activa' : 'Inactiva'"
+          :value-color="branch.isActive ? 'var(--tone-ok-fg)' : 'var(--text-secondary)'"
+        />
+        <KpiCard label="Usuarios" :value="usuarios.length" :note="`${activos} activos`" />
+        <KpiCard
+          label="Administrador"
+          :value="branch.administradorName ?? 'Sin asignar'"
+          :note="branch.correo ?? ''"
+        />
       </div>
 
-      <div class="col-12 col-lg-4">
-        <q-card flat bordered class="meta-card full-height">
-          <q-card-section class="section-header">
-            <div class="section-title text-grey-9">Detalles del registro</div>
-          </q-card-section>
-          <q-separator />
-          <q-card-section class="q-pt-lg">
-            <div class="meta-discrete-list">
-              <div v-for="item in metadata" :key="item.label" class="meta-discrete-row">
-                <span class="meta-discrete-label">{{ item.label }}:</span>
-                <span class="meta-discrete-value">{{ item.value }}</span>
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
-    </div>
+      <DataTableCard
+        v-model:search="busqueda"
+        search-placeholder="Buscar usuario"
+        :count="`${usuariosFiltrados.length} usuarios`"
+      >
+        <q-table
+          :rows="usuariosFiltrados"
+          :columns="columns"
+          row-key="id"
+          flat
+          :loading="loading"
+          :rows-per-page-options="[10, 25, 50]"
+        >
+          <template #body-cell-name="props">
+            <q-td :props="props">
+              <div class="text-weight-bold">{{ props.row.name }}</div>
+              <div class="cell-sub">{{ props.row.email }}</div>
+            </q-td>
+          </template>
+          <template #body-cell-role="props">
+            <q-td :props="props">
+              <StatusBadge :tone="rolTono(props.row.role)" :label="props.row.role" />
+            </q-td>
+          </template>
+          <template #body-cell-status="props">
+            <q-td :props="props">
+              <StatusBadge
+                :tone="props.row.isActive ? 'ok' : 'off'"
+                :label="props.row.isActive ? 'Activo' : 'Inactivo'"
+              />
+            </q-td>
+          </template>
+          <template #no-data>
+            <StateBlock
+              class="full-width"
+              :variant="busqueda ? 'no-results' : 'empty'"
+              :title="busqueda ? undefined : 'Sin usuarios asignados'"
+              :body="busqueda ? undefined : 'Asigna usuarios a esta sucursal desde Usuarios.'"
+            />
+          </template>
+        </q-table>
+      </DataTableCard>
+
+      <p class="branch-meta">
+        Creada {{ formatFecha(branch.creado) }}
+        <template v-if="branch.creadorName"> por {{ branch.creadorName }}</template>
+        <template v-if="branch.modificado && branch.modificadorName">
+          · Modificada {{ formatFecha(branch.modificado) }} por {{ branch.modificadorName }}
+        </template>
+      </p>
+    </template>
+
+    <SucursalFormDialog v-model="formAbierto" :branch-id="id" @saved="cargar" />
+    <SucursalModalDesactivar
+      v-model="desactivarAbierto"
+      :sucursal="sucursalModal"
+      @confirmar="desactivar"
+    />
   </q-page>
 </template>
 
-<style scoped>
-.header-wrap {
-  gap: 16px;
-}
-.header-copy {
-  min-width: 0;
-}
-.info-card,
-.meta-card {
-  border-radius: 12px;
-}
-.section-header {
-  padding: 20px 24px 16px;
-}
-.section-title {
-  display: flex;
-  align-items: center;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-.contact-section {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.contact-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-.contact-item__icon {
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-.contact-item__content {
-  min-width: 0;
-}
-.contact-item__label {
-  font-size: 12px;
-  line-height: 1.2;
-  color: var(--text-muted);
-  margin-bottom: 3px;
-}
-.contact-item__value {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  word-break: break-word;
-}
-.contact-item__value--accent {
-  color: #025fe0;
-}
-@media (max-width: 1023px) {
-  .header-wrap {
-    align-items: flex-start;
-  }
-}
-@media (max-width: 599px) {
-  .section-header {
-    padding-inline: 18px;
-  }
+<style scoped lang="scss">
+.state-card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
 }
 
-.meta-discrete-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.meta-discrete-row {
-  font-size: 14px;
-  display: flex;
-  justify-content: flex-start;
-  align-items: flex-start;
-  gap: 16px;
-  line-height: 1.2;
-}
-
-.meta-discrete-label {
+.branch-meta {
+  margin: 0;
+  font-size: 12.5px;
   color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.meta-discrete-value {
-  color: var(--text-primary);
-  text-align: right;
 }
 </style>

@@ -1,185 +1,201 @@
 <template>
-  <q-page class="rs-page">
-    <div class="rs-page-wrap">
-      <!-- ══ Header ══════════════════════════════════════════════════════ -->
-      <div class="rs-page-header">
-        <div class="rs-header-meta">
-          <span class="rs-meta-item">
-            <q-icon name="person" size="20px" color="primary" class="q-mr-xs" />
-            <span class="rs-meta-text"
-              >Cajero: <strong>{{ cajeroNombreMostrar }}</strong></span
-            >
-          </span>
-          <span class="rs-meta-item">
-            <q-icon name="point_of_sale" size="20px" color="primary" class="q-mr-xs" />
-            <span class="rs-meta-text"
-              >Terminal: <strong>{{ terminalNombreMostrar }}</strong></span
-            >
-          </span>
-        </div>
-      </div>
+  <q-page class="page-content cierre">
+    <PageHeader
+      :title="turno.sinTurno ? 'Apertura de caja' : 'Cierre de caja'"
+      :subtitle="turno.sinTurno ? 'Abre un turno para empezar a vender.' : subtitulo"
+    />
 
-      <!-- ══ Sin turno activo / Apertura de caja ═════════════════════════ -->
-      <div v-if="turno.sinTurno" class="rs-apertura-section">
-        <AperturaCajaCard @apertura-exitosa="turno.cargarTurnoActivo(authStore.currentBranchId)" />
-      </div>
+    <!-- Sin turno activo: apertura -->
+    <AperturaCajaCard
+      v-if="turno.sinTurno"
+      @apertura-exitosa="turno.cargarTurnoActivo(authStore.currentBranchId)"
+    />
 
-      <!-- ══ Cargando ════════════════════════════════════════════════════ -->
-      <div v-else-if="turno.cargando && !turno.turnoId" class="rs-loading">
-        <q-spinner-dots color="primary" size="48px" />
-      </div>
-
-      <!-- ══ Layout principal ══════════════════════════════════════════ -->
-      <div v-else class="rs-layout">
-        <!-- Columna izquierda -->
-        <div class="rs-col-main">
-          <!-- FASE OPERANDO — Hub de Gestión de Caja Activa -->
-          <template v-if="turno.estaOperando">
-            <div v-if="vistaOperando === 'hub'" class="rs-hub-wrap">
-              <div class="rs-hub-header">
-                <h1 class="rs-hub-title">Gestión de Caja Activa</h1>
-                <p class="rs-hub-sub">
-                  Selecciona la operación que deseas realizar en el turno actual.
-                </p>
-              </div>
-              <div class="rs-hub-actions">
-                <button type="button" class="rs-hub-card" @click="vistaOperando = 'retiro'">
-                  <div class="rs-hub-icon rs-hub-icon--retiro">
-                    <q-icon name="payments" size="32px" />
-                  </div>
-                  <h2 class="rs-hub-card-title">Registrar Retiro Parcial</h2>
-                  <p class="rs-hub-card-sub">Extraer fondos para operaciones específicas.</p>
-                </button>
-                <button
-                  type="button"
-                  class="rs-hub-card"
-                  :disabled="turno.cargando"
-                  @click="turno.iniciarConteo()"
-                >
-                  <div class="rs-hub-icon rs-hub-icon--cierre">
-                    <q-icon name="receipt_long" size="32px" />
-                  </div>
-                  <h2 class="rs-hub-card-title">Cierre de Caja</h2>
-                  <p class="rs-hub-card-sub">Finalizar tu turno y hacer el corte.</p>
-                </button>
-              </div>
-            </div>
-
-            <RetiroParcialCard
-              v-else
-              @volver="vistaOperando = 'hub'"
-              @retiro-exitoso="vistaOperando = 'hub'"
-            />
-          </template>
-
-          <!-- FASES EN_CONTEO / ESPERANDO_REVISION -->
-          <template v-if="turno.enConteo || turno.esperandoRevision">
-            <div class="rs-form-stack">
-              <!-- Card contenedor Declaración de Valores -->
-              <div class="rs-panel">
-                <div class="rs-panel-header">
-                  <div>
-                    <h2 class="rs-panel-title">Declaración de Valores</h2>
-                    <p class="rs-panel-sub">
-                      Ingresa el conteo físico de tu caja antes de finalizar el turno.
-                    </p>
-                  </div>
-                </div>
-                <div class="rs-panel-body">
-                  <EfectivoDesgloseForm v-model="turno.desgloseEfectivo" />
-                  <MetodoPagoMontoForm v-model="turno.metodosPago" />
-                  <TotalDeclaradoCard
-                    v-model="turno.totalContadoDeclarado"
-                    :total-calculado="totalCalculado"
-                  />
-
-                  <q-banner v-if="turno.error" rounded class="bg-negative text-white q-mt-sm">
-                    <template #avatar><q-icon name="error" /></template>
-                    {{ turno.error }}
-                  </q-banner>
-
-                  <div class="rs-submit-row row q-gutter-md justify-between items-center q-mt-md">
-                    <q-btn
-                      outline
-                      no-caps
-                      class="rs-btn-salir"
-                      label="Salir"
-                      icon="logout"
-                      :loading="turno.cargando"
-                      :disable="turno.esperandoRevision"
-                      @click="cancelarConteoYSalir"
-                    />
-                    <q-btn
-                      unelevated
-                      no-caps
-                      color="primary"
-                      class="rs-btn-enviar"
-                      label="Enviar conteo"
-                      icon-right="send"
-                      :loading="turno.cargando"
-                      :disable="!puedeEnviarConteo"
-                      @click="turno.enviarConteo()"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- FASE BALANCE_REVELADO: manejada por completo por AutorizacionCierreModal.vue
-               (balance, observaciones, doble PIN y confirmación). No se renderiza nada aquí
-               para evitar duplicar esa UI. -->
-
-          <!-- FASE CERRADO -->
-          <template v-if="turno.estaCerrado">
-            <div class="rs-panel rs-cerrado-panel">
-              <q-icon name="task_alt" size="32px" color="positive" class="q-mb-xs" />
-              <div class="rs-operando-title">Cierre confirmado</div>
-              <div class="rs-operando-sub q-mb-lg">El turno ha sido cerrado correctamente.</div>
-              <div class="row q-gutter-md justify-center">
-                <q-btn
-                  v-if="pdfUrl"
-                  unelevated
-                  no-caps
-                  color="primary"
-                  label="Descargar comprobante PDF"
-                  icon="download"
-                  @click="descargarPdf"
-                />
-                <q-btn
-                  unelevated
-                  no-caps
-                  color="positive"
-                  label="Abrir Nuevo Turno (Apertura de Caja)"
-                  icon="add_circle"
-                  @click="turno.reiniciarCicloTurno()"
-                />
-              </div>
-            </div>
-          </template>
-        </div>
-
-        <!-- Columna derecha -->
-        <div v-if="!turno.estaCerrado" class="rs-col-aside">
-          <ResumenConteoCard
-            :fondo-inicial="turno.fondoInicial"
-            :retiros-pagos="turno.totalRetiros"
-          />
-        </div>
-      </div>
+    <div v-else-if="turno.cargando && !turno.turnoId" class="cierre__loading">
+      <q-spinner-dots color="primary" size="48px" />
     </div>
 
-    <!-- Overlay de bloqueo -->
+    <template v-else>
+      <!-- Turno operando: hub de operaciones (retiro, ingreso, iniciar cierre) -->
+      <template v-if="turno.estaOperando">
+        <div v-if="vistaOperando === 'hub'" class="cierre-hub">
+          <div class="cierre-hub__head">
+            <h2 class="cierre-hub__title">Gestión de caja activa</h2>
+            <p class="cierre-hub__text">
+              Selecciona la operación que deseas realizar en el turno actual.
+            </p>
+          </div>
+          <div class="cierre-hub__actions">
+            <button type="button" class="cierre-hub__card" @click="vistaOperando = 'ingreso'">
+              <span class="cierre-hub__icon cierre-hub__icon--ingreso">
+                <q-icon name="add_card" size="28px" />
+              </span>
+              <h3 class="cierre-hub__card-title">Ingreso de efectivo</h3>
+              <p class="cierre-hub__card-text">Agregar dinero físico a la caja actual.</p>
+            </button>
+            <button type="button" class="cierre-hub__card" @click="vistaOperando = 'retiro'">
+              <span class="cierre-hub__icon cierre-hub__icon--retiro">
+                <q-icon name="payments" size="28px" />
+              </span>
+              <h3 class="cierre-hub__card-title">Retiro parcial</h3>
+              <p class="cierre-hub__card-text">Extraer fondos para operaciones específicas.</p>
+            </button>
+            <button
+              type="button"
+              class="cierre-hub__card"
+              :disabled="turno.cargando"
+              @click="turno.iniciarConteo()"
+            >
+              <span class="cierre-hub__icon cierre-hub__icon--cierre">
+                <q-icon name="receipt_long" size="28px" />
+              </span>
+              <h3 class="cierre-hub__card-title">Cierre de caja</h3>
+              <p class="cierre-hub__card-text">Finalizar tu turno y hacer el corte.</p>
+            </button>
+          </div>
+          <dl class="cierre-active__stats cierre-hub__stats">
+            <div>
+              <dt>Fondo inicial</dt>
+              <dd>{{ formatMXN(turno.fondoInicial) }}</dd>
+            </div>
+            <div>
+              <dt>Retiros parciales</dt>
+              <dd>{{ formatMXN(turno.totalRetiros) }}</dd>
+            </div>
+            <div v-if="turno.totalIngresos > 0">
+              <dt>Ingresos de efectivo</dt>
+              <dd>{{ formatMXN(turno.totalIngresos) }}</dd>
+            </div>
+            <div v-if="horaApertura">
+              <dt>Apertura</dt>
+              <dd>{{ horaApertura }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <IngresoEfectivoCard
+          v-else-if="vistaOperando === 'ingreso'"
+          @volver="vistaOperando = 'hub'"
+          @ingreso-exitoso="vistaOperando = 'hub'"
+        />
+
+        <RetiroParcialCard
+          v-else
+          @volver="vistaOperando = 'hub'"
+          @retiro-exitoso="vistaOperando = 'hub'"
+        />
+      </template>
+
+      <!-- Stepper del cierre -->
+      <ol v-if="!turno.estaOperando" class="cierre-steps">
+        <li
+          v-for="(paso, idx) in pasos"
+          :key="paso"
+          class="cierre-steps__item"
+          :class="{
+            'cierre-steps__item--on': idx === pasoActual,
+            'cierre-steps__item--done': idx < pasoActual,
+          }"
+        >
+          <span class="cierre-steps__num">
+            <q-icon v-if="idx < pasoActual" name="check" size="16px" />
+            <template v-else>{{ idx + 1 }}</template>
+          </span>
+          <span class="cierre-steps__label">{{ paso }}</span>
+        </li>
+      </ol>
+
+      <!-- Conteo -->
+      <div v-if="turno.enConteo || turno.esperandoRevision" class="cierre-grid">
+        <EfectivoDesgloseForm v-model="turno.desgloseEfectivo" />
+        <MetodoPagoMontoForm v-model="turno.metodosPago" />
+        <aside class="cierre-total">
+          <TotalDeclaradoCard
+            v-model="turno.totalContadoDeclarado"
+            :total-calculado="totalCalculado"
+          />
+          <dl class="cierre-total__rows">
+            <div v-for="fila in desgloseDeclarado" :key="fila.label">
+              <dt>{{ fila.label }}</dt>
+              <dd>{{ formatMXN(fila.valor) }}</dd>
+            </div>
+          </dl>
+          <div v-if="turno.error" class="cierre-total__error">
+            <q-icon name="error" size="18px" />{{ turno.error }}
+          </div>
+          <div class="cierre-total__actions">
+            <q-btn
+              unelevated
+              class="cierre-total__send"
+              label="Enviar conteo"
+              :loading="turno.cargando"
+              :disable="!puedeEnviarConteo"
+              @click="turno.enviarConteo()"
+            />
+            <span class="cierre-total__note">Requiere autorización de un administrador</span>
+            <button
+              type="button"
+              class="cierre-total__cancel"
+              :disabled="turno.esperandoRevision || turno.cargando"
+              @click="cancelarConteoYSalir"
+            >
+              <q-icon name="undo" size="16px" />Cancelar conteo
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      <!-- FASE BALANCE_REVELADO: manejada por completo por AutorizacionCierreModal.vue -->
+
+      <!-- Cerrado -->
+      <section v-if="turno.estaCerrado" class="cierre-done">
+        <span class="cierre-done__icon"><q-icon name="task_alt" size="30px" /></span>
+        <h2 class="cierre-done__title">Cierre confirmado</h2>
+        <p class="cierre-done__text">El turno ha sido cerrado correctamente.</p>
+        <div class="cierre-done__actions">
+          <q-btn
+            v-if="pdfUrl"
+            outline
+            icon="download"
+            label="Descargar comprobante PDF"
+            @click="descargarPdf"
+          />
+          <q-btn
+            unelevated
+            color="primary"
+            icon="lock_open"
+            label="Abrir nuevo turno"
+            @click="turno.reiniciarCicloTurno()"
+          />
+        </div>
+      </section>
+    </template>
+
+    <BaseDialog
+      v-model="dialogCancelarConteo"
+      title="Cancelar conteo de caja"
+      subtitle="Se perderán las cantidades capturadas"
+      icon="undo"
+      tone="amber"
+      :width="460"
+      secondary-label="Continuar en conteo"
+      primary-label="Sí, cancelar y salir"
+      danger
+      @confirm="confirmarCancelarConteo"
+    >
+      El turno regresa al estado activo y podrás seguir vendiendo. Tendrás que capturar el conteo de
+      nuevo.
+    </BaseDialog>
+
     <ConteoBloqueadoOverlay
       :visible="turno.esperandoRevision && !turno.mostrarDialogAdmin"
       :permitir-cancelar="true"
+      :cajero="cajeroNombreMostrar"
       @cancelar="turno.cancelarConteo()"
+      @autenticar="turno.mostrarDialogAdmin = true"
     />
 
-    <!-- Etapa 1: Login del Administrador (Conteo Ciego) -->
     <AutenticacionAdminForm />
-
-    <!-- Etapa 2: Modal de Autorización de Cierre (Stitch Standalone Modal) -->
     <AutorizacionCierreModal />
   </q-page>
 </template>
@@ -194,11 +210,14 @@ import AperturaCajaCard from '@/components/cierre-caja/AperturaCajaCard.vue'
 import EfectivoDesgloseForm from '@/components/cierre-caja/EfectivoDesgloseForm.vue'
 import MetodoPagoMontoForm from '@/components/cierre-caja/MetodoPagoMontoForm.vue'
 import TotalDeclaradoCard from '@/components/cierre-caja/TotalDeclaradoCard.vue'
-import ResumenConteoCard from '@/components/cierre-caja/ResumenConteoCard.vue'
 import ConteoBloqueadoOverlay from '@/components/cierre-caja/ConteoBloqueadoOverlay.vue'
 import AutenticacionAdminForm from '@/components/cierre-caja/AutenticacionAdminForm.vue'
 import AutorizacionCierreModal from '@/components/cierre-caja/AutorizacionCierreModal.vue'
 import RetiroParcialCard from '@/components/cierre-caja/RetiroParcialCard.vue'
+import IngresoEfectivoCard from '@/components/cierre-caja/IngresoEfectivoCard.vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import { formatMXN } from '@/utils/formatoMoneda'
 
 import { useAuthStore } from '@/stores/auth'
 
@@ -214,9 +233,41 @@ const cajeroNombreMostrar = computed(() => {
   return turno.cajeroNombre || authStore.user?.name || authStore.user?.email || '—'
 })
 
-const terminalNombreMostrar = computed(() => {
-  return turno.terminal || 'Sin caja activa'
+const horaApertura = computed(() =>
+  turno.fechaApertura
+    ? new Date(turno.fechaApertura).toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null,
+)
+
+const subtitulo = computed(() =>
+  [
+    turno.terminal || null,
+    cajeroNombreMostrar.value,
+    horaApertura.value ? `turno abierto desde ${horaApertura.value}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · '),
+)
+
+// Pasos del cierre según el estado del turno (máquina de estados del store).
+const pasos = ['Conteo', 'Autorización', 'Resultado', 'Comprobante']
+const pasoActual = computed(() => {
+  if (turno.estaCerrado) return 3
+  if (turno.balanceRevelado) return 2
+  if (turno.esperandoRevision) return 1
+  return 0
 })
+
+// Desglose del panel "Total declarado": lo que el cajero lleva capturado.
+const desgloseDeclarado = computed(() => [
+  { label: 'Efectivo', valor: turno.desgloseEfectivo.total },
+  ...turno.metodosPago.map((m) => ({ label: m.metodo, valor: m.monto ?? 0 })),
+  { label: 'Fondo inicial', valor: turno.fondoInicial },
+  { label: 'Retiros parciales', valor: turno.totalRetiros },
+])
 
 const totalCalculado = computed(() => {
   const totalMetodos = turno.metodosPago.reduce((acc, m) => acc + (m.monto ?? 0), 0)
@@ -234,27 +285,19 @@ const puedeEnviarConteo = computed(
 
 // ── Acciones ──────────────────────────────────────────────────────────────
 
-async function cancelarConteoYSalir() {
-  $q.dialog({
-    title: 'Cancelar conteo de caja',
-    message:
-      '¿Estás seguro de cancelar el conteo actual? Toda la información capturada se restablecerá a cero.',
-    cancel: {
-      flat: true,
-      label: 'Continuar en conteo',
-    },
-    ok: {
-      color: 'negative',
-      label: 'Sí, cancelar y salir',
-    },
-    persistent: true,
-  }).onOk(async () => {
-    await turno.cancelarConteo()
-    $q.notify({
-      type: 'info',
-      icon: 'cancel',
-      message: 'El conteo ha sido cancelado. El turno regresa al estado activo.',
-    })
+const dialogCancelarConteo = ref(false)
+
+function cancelarConteoYSalir() {
+  dialogCancelarConteo.value = true
+}
+
+async function confirmarCancelarConteo() {
+  dialogCancelarConteo.value = false
+  await turno.cancelarConteo()
+  $q.notify({
+    type: 'info',
+    icon: 'undo',
+    message: 'El conteo ha sido cancelado. El turno regresa al estado activo.',
   })
 }
 
@@ -285,8 +328,9 @@ watch(
   },
 )
 
-// Sub-vista del hub de la fase OPERANDO: 'hub' (elegir operación) o 'retiro' (formulario).
-const vistaOperando = ref<'hub' | 'retiro'>('hub')
+// Sub-vista del hub de la fase OPERANDO: 'hub' (elegir operación), 'retiro' o
+// 'ingreso' (formularios).
+const vistaOperando = ref<'hub' | 'retiro' | 'ingreso'>('hub')
 watch(
   () => turno.turnoId,
   () => {
@@ -295,242 +339,436 @@ watch(
 )
 </script>
 
-<style scoped>
-/* ── Página ─────────────────────────────────────────────────────────── */
-.rs-page {
-  background: var(--bg-main);
-}
-.rs-page-wrap {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 32px;
-}
+<style scoped lang="scss">
+.cierre {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 
-/* ── Header ─────────────────────────────────────────────────────────── */
-.rs-page-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 28px;
-}
-.rs-header-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-.rs-meta-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.rs-meta-text {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-.rs-meta-text strong {
-  color: var(--text-primary);
-}
-
-.rs-loading {
-  display: flex;
-  justify-content: center;
-  padding: 80px 0;
-}
-
-/* ── Layout 8/4 ─────────────────────────────────────────────────────── */
-.rs-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-}
-@media (min-width: 1024px) {
-  .rs-layout {
-    grid-template-columns: 1fr 340px;
+  &__loading {
+    display: flex;
+    justify-content: center;
+    padding: 64px 0;
   }
 }
-.rs-col-main {
+
+.cierre-active {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  align-items: center;
+
+  @media (max-width: 900px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--tone-ok-dot);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__text {
+    margin: 0;
+    max-width: 520px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+  }
+
+  &__cta {
+    margin-top: 6px;
+    min-height: 44px;
+  }
+
+  &__stats {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px;
+    border-radius: 12px;
+    background: var(--bg-subtle);
+
+    div {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13.5px;
+    }
+
+    dt {
+      color: var(--text-secondary);
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 800;
+      color: var(--text-strong);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}
+
+.cierre-hub {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 32px 28px;
   display: flex;
   flex-direction: column;
   gap: 24px;
+
+  &__head {
+    text-align: center;
+  }
+
+  &__title {
+    margin: 0 0 6px;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  &__actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+
+    @media (max-width: 760px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: 24px 18px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    font: inherit;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+
+    &:hover:not(:disabled) {
+      border-color: var(--q-primary);
+      box-shadow: var(--shadow-md);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+
+    &--ingreso {
+      background: var(--tone-ok-bg);
+      color: var(--tone-ok-fg);
+    }
+
+    &--retiro {
+      background: var(--tone-info-bg);
+      color: var(--tone-info-fg);
+    }
+
+    &--cierre {
+      background: var(--tone-bad-bg);
+      color: var(--tone-bad-fg);
+    }
+  }
+
+  &__card-title {
+    margin: 0;
+    font-size: 15.5px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__card-text {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__stats {
+    max-width: 480px;
+    width: 100%;
+    margin: 0 auto;
+  }
 }
-.rs-col-aside {
+
+.cierre-steps {
+  list-style: none;
+  margin: 0;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   display: flex;
-  flex-direction: column;
   gap: 16px;
-}
 
-/* ── Panel card ─────────────────────────────────────────────────────── */
-.rs-panel {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  overflow: hidden;
-}
-.rs-panel-header {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-main);
-}
-.rs-panel-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #025fe0;
-  margin: 0;
-}
-.rs-panel-sub {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 4px 0 0;
-}
-.rs-panel-body {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+  &__item {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
 
-/* ── Form stack (sin card envolvente) ───────────────────────────────── */
-.rs-form-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+    &::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border-input);
+      margin-left: 12px;
+    }
 
-/* ── Hub de Gestión de Caja Activa (fase OPERANDO) ────────────────────── */
-.rs-hub-wrap {
-  padding: 32px 0 8px;
-}
-.rs-hub-header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-.rs-hub-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 8px;
-}
-.rs-hub-sub {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-.rs-hub-actions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-  max-width: 640px;
-  margin: 0 auto;
-}
-@media (min-width: 700px) {
-  .rs-hub-actions {
-    grid-template-columns: 1fr 1fr;
+    &:last-child::after {
+      display: none;
+    }
+
+    &--on {
+      color: var(--text-strong);
+      font-weight: 700;
+
+      .cierre-steps__num {
+        background: var(--q-primary);
+        color: #fff;
+      }
+    }
+
+    &--done .cierre-steps__num {
+      background: var(--tone-ok-bg);
+      color: var(--tone-ok-fg);
+    }
+  }
+
+  &__num {
+    width: 26px;
+    height: 26px;
+    border-radius: 13px;
+    flex-shrink: 0;
+    background: var(--bg-muted);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @media (max-width: 700px) {
+    &__label {
+      display: none;
+    }
   }
 }
-.rs-hub-card {
+
+.cierre-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: stretch;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+
+    .cierre-total {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 760px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.cierre-total {
+  background: var(--text-strong);
+  color: #fff;
+  border-radius: var(--radius-md);
+  padding: 22px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  background: var(--bg-card);
+  gap: 18px;
+
+  &__rows {
+    margin: 0;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    div {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13.5px;
+    }
+
+    dt {
+      color: #c9d0f2;
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  &__error {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(220, 38, 38, 0.2);
+    color: #fecaca;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  &__actions {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__send {
+    width: 100%;
+    min-height: 52px;
+    border-radius: 12px;
+    background: #fff;
+    color: var(--text-strong);
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  &__note {
+    font-size: 12px;
+    color: #aeb8e8;
+  }
+
+  &__cancel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    color: #c9d0f2;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      color: #fff;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.cierre-done {
+  background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 32px;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background 0.2s ease;
-}
-.rs-hub-card:hover:not(:disabled) {
-  border-color: #025fe0;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  background: var(--bg-main);
-}
-.rs-hub-card:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.rs-hub-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 20px;
-  transition: transform 0.2s ease;
-}
-.rs-hub-card:hover .rs-hub-icon {
-  transform: scale(1.1);
-}
-.rs-hub-icon--retiro {
-  background: rgba(2, 95, 224, 0.1);
-  color: #025fe0;
-}
-.rs-hub-icon--cierre {
-  background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
-}
-.rs-hub-card-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 8px;
-}
-.rs-hub-card-sub {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-/* ── Cerrado ────────────────────────────────────────────────────────── */
-.rs-cerrado-panel {
+  border-radius: var(--radius-md);
+  padding: 40px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 48px 32px;
+  gap: 10px;
   text-align: center;
-}
-.rs-operando-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.rs-operando-sub {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
 
-/* ── Submit row ─────────────────────────────────────────────────────── */
-.rs-submit-row {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-color);
-}
-.rs-btn-enviar {
-  font-weight: 700;
-  font-size: 13px;
-  padding: 10px 28px;
-  border-radius: 8px;
-}
+  &__icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 30px;
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-.rs-btn-salir {
-  font-weight: 700;
-  font-size: 13px;
-  padding: 10px 28px;
-  border-radius: 8px;
-  color: #dc2626;
-  border: 1.5px solid rgba(220, 38, 38, 0.4) !important;
-  background: rgba(220, 38, 38, 0.06);
-  transition: all 0.2s ease;
-}
-.rs-btn-salir:hover {
-  background: rgba(220, 38, 38, 0.12);
-  border-color: rgba(220, 38, 38, 0.7) !important;
+  &__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  &__actions {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
 }
 </style>

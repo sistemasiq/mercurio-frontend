@@ -1,204 +1,174 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div class="row items-center q-mb-lg">
-      <div>
-        <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">
-          Tipos de Evento
-        </div>
-        <div class="text-body2" style="color: var(--text-secondary)">
-          Catálogo de tipos de evento disponibles para reservaciones.
-        </div>
-      </div>
-      <q-space />
-      <q-btn
-        color="primary"
-        icon="add"
-        label="Nuevo Tipo"
-        unelevated
-        no-caps
-        style="border-radius: 8px; font-weight: 600"
-        :disable="!authStore.currentBranchId"
-        @click="abrirCrear"
-      />
+  <q-page class="page-content list-page">
+    <PageHeader
+      title="Tipos de Evento"
+      subtitle="Clasifica las reservaciones y define qué paquetes aplican."
+    >
+      <template #actions>
+        <q-btn
+          unelevated
+          color="primary"
+          icon="add"
+          label="Nuevo Tipo"
+          :disable="!authStore.currentBranchId"
+          @click="abrirCrear"
+        />
+      </template>
+    </PageHeader>
+
+    <div v-if="!authStore.currentBranchId" class="list-page__note list-page__note--warn">
+      <q-icon name="info" size="19px" />No hay una sucursal activa en la sesión.
     </div>
 
-    <!-- Sin sucursal activa -->
-    <q-banner
-      v-if="!authStore.currentBranchId"
-      dense
-      rounded
-      class="bg-orange-1 text-orange-9 q-mb-md"
-      style="border-radius: 10px"
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtro"
+      :filters="FILTROS_ACTIVO"
+      search-placeholder="Buscar tipo"
+      :count="`${tiposVisibles.length} tipos`"
     >
-      <template #avatar><q-icon name="info" color="orange-9" /></template>
-      No hay una sucursal activa en la sesión.
-    </q-banner>
-
-    <q-banner
-      v-if="store.error"
-      dense
-      rounded
-      class="bg-red-1 text-red-8 q-mb-md"
-      style="border-radius: 10px"
-    >
-      <template #avatar><q-icon name="error_outline" color="negative" /></template>
-      {{ store.error }}
-      <template #action>
-        <q-btn flat dense no-caps label="Reintentar" @click="store.cargar()" />
-      </template>
-    </q-banner>
-
-    <q-card flat bordered style="border-radius: 12px; overflow: hidden">
+      <StateBlock
+        v-if="store.error"
+        variant="error"
+        :body="store.error"
+        action-label="Reintentar"
+        @action="store.cargar()"
+      />
       <q-table
-        :rows="store.tipos"
+        v-else
+        :rows="tiposVisibles"
         :columns="columns"
         row-key="id"
         flat
         :loading="store.loading"
         :rows-per-page-options="[10, 25, 50]"
-        no-data-label="No hay tipos de evento registrados"
-        class="fec-table"
       >
+        <template #body-cell-nombre="props">
+          <q-td :props="props" class="text-weight-bold">{{ props.row.nombre }}</q-td>
+        </template>
         <template #body-cell-descripcion="props">
-          <q-td :props="props" class="cell-truncate" :title="props.row.descripcion ?? ''">
+          <q-td
+            :props="props"
+            class="cell-muted cell-ellipsis"
+            :title="props.row.descripcion ?? ''"
+          >
             {{ props.row.descripcion }}
           </q-td>
         </template>
-
         <template #body-cell-activo="props">
           <q-td :props="props">
-            <q-badge
-              :color="props.row.activo ? 'positive' : 'grey-5'"
+            <StatusBadge
+              :tone="props.row.activo ? 'ok' : 'off'"
               :label="props.row.activo ? 'Activo' : 'Inactivo'"
-              style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
             />
           </q-td>
         </template>
-
         <template #body-cell-actions="props">
-          <q-td :props="props" class="text-right">
+          <q-td :props="props">
+            <q-toggle
+              :model-value="props.row.activo"
+              dense
+              :aria-label="props.row.activo ? 'Desactivar' : 'Activar'"
+              @update:model-value="toggleActivo(props.row)"
+            />
             <q-btn
               flat
+              round
               dense
-              color="grey-8"
-              size="sm"
-              class="action-btn q-mr-xs"
-              @click="abrirEditar(props.row)"
-            >
-              <span class="material-symbols-outlined">edit</span>
-              <q-tooltip>Editar</q-tooltip>
-            </q-btn>
-            <q-btn
-              flat
-              dense
-              color="grey-8"
-              size="sm"
-              class="action-btn q-mr-xs"
-              @click="toggleActivo(props.row)"
-            >
-              <span class="material-symbols-outlined">{{
-                props.row.activo ? 'toggle_on' : 'toggle_off'
-              }}</span>
-              <q-tooltip>{{ props.row.activo ? 'Desactivar' : 'Activar' }}</q-tooltip>
-            </q-btn>
-            <q-btn
-              flat
-              dense
-              color="grey-8"
-              size="sm"
+              icon="edit"
               class="action-btn"
+              aria-label="Editar"
+              @click="abrirEditar(props.row)"
+            />
+            <q-btn
+              flat
+              round
+              dense
+              icon="delete"
+              class="action-btn"
+              aria-label="Eliminar"
               @click="confirmarEliminar(props.row)"
-            >
-              <span class="material-symbols-outlined">delete_outline</span>
-              <q-tooltip>Eliminar</q-tooltip>
-            </q-btn>
+            />
           </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="filtrando ? 'no-results' : 'empty'"
+            :title="filtrando ? undefined : 'No hay tipos de evento registrados'"
+            :body="filtrando ? undefined : 'Crea el primero para clasificar reservaciones.'"
+            :action-label="filtrando ? 'Limpiar filtros' : 'Nuevo Tipo'"
+            @action="filtrando ? ((busqueda = ''), (filtro = 'todos')) : abrirCrear()"
+          />
         </template>
       </q-table>
-    </q-card>
+    </DataTableCard>
 
-    <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
-    <q-dialog v-model="dialogOpen" persistent>
-      <q-card style="min-width: 420px; border-radius: 12px">
-        <q-card-section class="q-pb-sm">
-          <div class="text-h6 text-weight-bold">
-            {{ editando ? 'Editar Tipo de Evento' : 'Nuevo Tipo de Evento' }}
-          </div>
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section class="q-gutter-md q-pt-md">
-          <div>
-            <div class="field-label">NOMBRE</div>
-            <q-input
-              ref="nombreRef"
-              v-model="formDialog.nombre"
-              dense
-              outlined
-              autofocus
-              placeholder="Ej. Cumpleaños"
-              :rules="[(v) => !!v || 'El nombre es requerido']"
-            />
-          </div>
-          <div>
-            <div class="field-label">DESCRIPCIÓN (opcional)</div>
-            <q-input
-              v-model="formDialog.descripcion"
-              dense
-              outlined
-              type="textarea"
-              rows="3"
-              placeholder="Descripción breve del tipo de evento"
-            />
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md q-pt-sm">
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            :label="editando ? 'Guardar cambios' : 'Crear tipo'"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            @click="guardar"
+    <BaseDialog
+      v-model="dialogOpen"
+      :title="editando ? 'Editar tipo de evento' : 'Nuevo tipo de evento'"
+      :subtitle="editando ? editando.nombre : 'Podrás asignarlo a uno o más paquetes.'"
+      icon="category"
+      :width="520"
+      persistent
+      :primary-label="editando ? 'Guardar cambios' : 'Crear tipo'"
+      :loading="guardando"
+      @cancel="cerrarDialog"
+      @confirm="guardar"
+    >
+      <div class="form-grid">
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Nombre</span>
+          <q-input
+            ref="nombreRef"
+            v-model="formDialog.nombre"
+            dense
+            outlined
+            autofocus
+            placeholder="Ej. Baby shower"
+            :rules="[(v) => !!v || 'El nombre es requerido']"
+            hide-bottom-space
           />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ── Dialog Confirmar Eliminar ──────────────────────────────────────── -->
-    <q-dialog v-model="dialogEliminar">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">Eliminar tipo de evento</div>
-          <div class="q-mt-sm text-body2 text-grey-8">
-            ¿Estás seguro de que deseas eliminar
-            <strong>{{ filaEliminar?.nombre }}</strong
-            >? Esta acción no se puede deshacer.
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="negative"
-            label="Eliminar"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="eliminando"
-            @click="ejecutarEliminar"
+        </label>
+        <label class="form-grid__field form-grid__field--full">
+          <span class="field-label">Descripción</span>
+          <q-input
+            v-model="formDialog.descripcion"
+            dense
+            outlined
+            type="textarea"
+            rows="3"
+            placeholder="Descripción breve (opcional)"
           />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+        </label>
+      </div>
+    </BaseDialog>
+    <BaseDialog
+      v-model="dialogEliminar"
+      title="Eliminar tipo de evento"
+      :subtitle="filaEliminar?.nombre"
+      icon="delete"
+      tone="red"
+      :width="460"
+      primary-label="Eliminar"
+      danger
+      :loading="eliminando"
+      @confirm="ejecutarEliminar"
+    >
+      Se quitará de los paquetes que lo tengan asignado. Las reservaciones existentes conservan su
+      tipo.
+    </BaseDialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
+import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { resolveErrorMessage } from '@/utils/errorHandler'
@@ -215,11 +185,28 @@ onMounted(() => {
   if (authStore.currentBranchId) store.cargar()
 })
 
+type FiltroActivo = 'todos' | 'activos' | 'inactivos'
+const FILTROS_ACTIVO: FilterChip<FiltroActivo>[] = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Activos', value: 'activos' },
+  { label: 'Inactivos', value: 'inactivos' },
+]
+const filtro = ref<FiltroActivo | null>('todos')
+const busqueda = ref('')
+const filtrando = computed(() => !!busqueda.value || filtro.value !== 'todos')
+
+const tiposVisibles = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  return store.tipos
+    .filter((r) => filtro.value === 'todos' || r.activo === (filtro.value === 'activos'))
+    .filter((r) => !q || `${r.nombre ?? ''} ${r.descripcion ?? ''}`.toLowerCase().includes(q))
+})
+
 const columns: QTableColumn[] = [
-  { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
-  { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
-  { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
-  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+  { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
+  { name: 'descripcion', label: 'Descripción', field: 'descripcion', align: 'left' },
+  { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 
 // ── Estado del dialog ─────────────────────────────────────────────────────────
@@ -340,5 +327,3 @@ const ejecutarEliminar = async () => {
   }
 }
 </script>
-
-<style scoped></style>

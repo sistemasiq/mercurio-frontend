@@ -1,52 +1,40 @@
 <template>
-  <div
+  <button
+    type="button"
     class="producto-card"
-    :class="{ 'producto-card--combo': producto.es_combo, 'producto-card--agotado': sinStock }"
+    :class="{ 'producto-card--agotado': sinStock }"
     @click="$emit('agregar', producto)"
   >
-    <div class="producto-card__img-wrap">
-      <q-img v-if="imagenSrc" :src="imagenSrc" height="100px" class="producto-card__img">
+    <div class="producto-card__media">
+      <q-img v-if="imagenSrc" :src="imagenSrc" class="producto-card__img" fit="cover">
         <template #error>
-          <div class="absolute-full flex flex-center bg-grey-3">
-            <q-icon
-              :name="producto.es_combo ? 'inventory_2' : 'fastfood'"
-              size="28px"
-              color="grey-5"
-            />
+          <div class="producto-card__placeholder">
+            <q-icon :name="producto.es_combo ? 'lunch_dining' : 'fastfood'" size="26px" />
           </div>
         </template>
       </q-img>
-      <div v-else class="producto-card__img producto-card__placeholder">
-        <q-icon :name="producto.es_combo ? 'inventory_2' : 'fastfood'" size="28px" color="grey-5" />
+      <div v-else class="producto-card__placeholder">
+        <q-icon :name="producto.es_combo ? 'lunch_dining' : 'fastfood'" size="26px" />
       </div>
-      <span class="producto-card__badge">${{ producto.precio_unitario.toFixed(2) }}</span>
-      <span v-if="producto.es_combo" class="producto-card__combo-badge">COMBO</span>
-      <span v-if="sinStock" class="producto-card__stock-badge producto-card__stock-badge--out">
-        SIN STOCK
-      </span>
-      <span
-        v-else-if="stockBajo"
-        class="producto-card__stock-badge producto-card__stock-badge--low"
-      >
-        Quedan ~{{ rinde }}
-      </span>
+      <span v-if="producto.es_combo" class="producto-card__tag">Combo</span>
     </div>
-
     <div class="producto-card__body">
-      <p class="producto-card__nombre">{{ producto.nombre }}</p>
-      <p class="producto-card__desc">{{ producto.descripcion || 'Sin descripción...' }}</p>
-      <div class="producto-card__add">
-        <q-btn
-          unelevated
-          :color="producto.es_combo ? 'positive' : 'primary'"
-          icon="add"
-          size="xs"
-          style="border-radius: 8px; width: 30px; height: 30px; min-width: 30px"
-          @click.stop="$emit('agregar', producto)"
-        />
+      <span class="producto-card__nombre">{{ producto.nombre }}</span>
+      <div class="producto-card__row">
+        <span class="producto-card__precio">${{ producto.precio_unitario.toFixed(2) }}</span>
+        <span v-if="sinStock" class="producto-card__stock producto-card__stock--out"
+          >Sin stock</span
+        >
+        <span
+          v-else-if="rinde !== null"
+          class="producto-card__stock"
+          :class="{ 'producto-card__stock--low': stockBajo }"
+        >
+          Rinde {{ rinde }}
+        </span>
       </div>
     </div>
-  </div>
+  </button>
 </template>
 
 <script setup lang="ts">
@@ -64,7 +52,7 @@ const props = withDefaults(
 )
 defineEmits<{ (e: 'agregar', producto: Producto): void }>()
 
-const UMBRAL_STOCK_BAJO = 3
+const UMBRAL_STOCK_BAJO = 6
 
 const imagenSrc = computed(() => getProductoImagenUrl(props.producto.imagen))
 const sinStock = computed(() => props.rinde === 0)
@@ -73,121 +61,115 @@ const stockBajo = computed(
 )
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .producto-card {
-  background: var(--bg-card);
-  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
   border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: #fff;
   overflow: hidden;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-}
-.producto-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
+    border-color 0.12s,
+    box-shadow 0.12s;
 
-.producto-card__img-wrap {
-  position: relative;
-}
-.producto-card__img {
-  display: block;
-  width: 100%;
-}
-.producto-card__placeholder {
-  height: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-main);
-}
+  &:hover {
+    border-color: #cbd2de;
+    box-shadow: var(--shadow-md);
+  }
 
-.producto-card__badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: var(--q-primary, #025fe0);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
+  &:focus-visible {
+    outline: 2px solid var(--q-primary);
+    outline-offset: 2px;
+  }
 
-.producto-card__combo-badge {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  background: #3fa834;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  padding: 2px 6px;
-  border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
+  &--agotado {
+    opacity: 0.6;
+  }
 
-.producto-card--combo {
-  border-color: rgba(63, 168, 52, 0.45);
-  border-width: 1.5px;
-}
+  &__media {
+    position: relative;
+    height: 84px;
+  }
 
-.producto-card--agotado {
-  opacity: 0.55;
-}
+  &__img {
+    width: 100%;
+    height: 100%;
+  }
 
-.producto-card__stock-badge {
-  position: absolute;
-  bottom: 6px;
-  left: 6px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  padding: 2px 6px;
-  border-radius: 6px;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
-.producto-card__stock-badge--out {
-  background: #d32f2f;
-}
-.producto-card__stock-badge--low {
-  background: #ed8936;
-}
+  &__placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: repeating-linear-gradient(135deg, #f5f7fb 0 8px, #eef1f6 8px 16px);
+  }
 
-.producto-card__body {
-  padding: 10px 12px 12px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.producto-card__nombre {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px 0;
-  line-height: 1.2;
-}
-.producto-card__desc {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.4;
-  flex: 1;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.producto-card__add {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
+  &__tag {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--text-strong);
+    color: #fff;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px 12px;
+    flex: 1;
+  }
+
+  &__nombre {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text-primary);
+  }
+
+  &__row {
+    margin-top: auto;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  &__precio {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__stock {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+
+    &--low {
+      font-weight: 700;
+      color: #c2410c;
+    }
+
+    &--out {
+      font-weight: 800;
+      color: var(--tone-bad-fg);
+    }
+  }
 }
 </style>

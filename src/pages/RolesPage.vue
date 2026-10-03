@@ -1,314 +1,275 @@
 <template>
-  <q-page class="page-content q-pa-md q-pa-lg-xl">
-    <div>
-      <!-- Encabezado -->
-      <div class="row items-center q-mb-lg">
-        <div>
-          <div class="text-h5 text-weight-bold" style="color: var(--text-primary)">Roles</div>
-          <div class="text-body2" style="color: var(--text-secondary)">
-            Catálogo de roles y los permisos que se le pueden dar a cada uno.
-          </div>
-        </div>
-        <q-space />
+  <q-page class="page-content list-page">
+    <PageHeader title="Roles" subtitle="Agrupa permisos y asígnalos a usuarios.">
+      <template #actions>
         <q-btn
           v-if="puedeEditar"
+          unelevated
           color="primary"
           icon="add"
           label="Nuevo rol"
-          unelevated
-          no-caps
-          style="border-radius: 8px; font-weight: 600"
           @click="abrirCrear"
         />
-      </div>
+      </template>
+    </PageHeader>
 
-      <!-- Error -->
-      <q-banner
+    <DataTableCard
+      v-model:search="busqueda"
+      v-model:filter="filtro"
+      :filters="FILTROS"
+      search-placeholder="Buscar rol"
+      :count="`${rolesFiltrados.length} roles`"
+    >
+      <StateBlock
         v-if="store.error"
-        dense
-        rounded
-        class="bg-red-1 text-red-8 q-mb-md"
-        style="border-radius: 10px"
+        variant="error"
+        :body="store.error"
+        action-label="Reintentar"
+        @action="cargar"
+      />
+      <q-table
+        v-else
+        :rows="rolesFiltrados"
+        :columns="columns"
+        row-key="id"
+        flat
+        :loading="store.loading"
+        :rows-per-page-options="[10, 25, 50]"
       >
-        <template #avatar><q-icon name="error_outline" color="negative" /></template>
-        {{ store.error }}
-        <template #action>
-          <q-btn flat dense no-caps label="Reintentar" @click="cargar" />
+        <template #body-cell-nombre="props">
+          <q-td :props="props" class="text-weight-bold">
+            {{ props.row.nombre }}
+            <q-icon
+              v-if="!(props.row as RolConPermisos).requiere_sucursal"
+              name="lock"
+              size="15px"
+              class="rol-lock"
+            >
+              <q-tooltip>Rol protegido del sistema</q-tooltip>
+            </q-icon>
+          </q-td>
         </template>
-      </q-banner>
-
-      <!-- Tabla -->
-      <q-card flat bordered style="border-radius: 12px; overflow-x: auto; overflow-y: hidden">
-        <q-table
-          :rows="store.roles"
-          :columns="columns"
-          row-key="id"
-          flat
-          :loading="store.loading"
-          :rows-per-page-options="[10, 25, 50]"
-          no-data-label="No hay roles registrados"
-          class="fec-table"
-        >
-          <template #body-cell-descripcion="props">
-            <q-td :props="props" class="cell-truncate" :title="props.row.descripcion ?? ''">
-              {{ props.row.descripcion || '—' }}
-            </q-td>
-          </template>
-
-          <template #body-cell-permisos="props">
-            <q-td :props="props">
-              <q-badge
-                color="grey-3"
-                text-color="grey-9"
-                :label="`${(props.row as RolConPermisos).permisos.length} permisos`"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
-              />
-            </q-td>
-          </template>
-
-          <template #body-cell-activo="props">
-            <q-td :props="props">
-              <q-badge
-                :color="props.row.activo ? 'positive' : 'grey-5'"
-                :label="props.row.activo ? 'Activo' : 'Inactivo'"
-                style="font-size: 0.72rem; padding: 4px 10px; border-radius: 20px"
-              />
-            </q-td>
-          </template>
-
-          <template #body-cell-actions="props">
-            <q-td v-if="puedeEditar" :props="props" class="text-right">
+        <template #body-cell-descripcion="props">
+          <q-td
+            :props="props"
+            class="cell-muted cell-ellipsis"
+            :title="props.row.descripcion ?? ''"
+          >
+            {{ props.row.descripcion || '—' }}
+          </q-td>
+        </template>
+        <template #body-cell-permisos="props">
+          <q-td :props="props">
+            <div class="perm-bar">
+              <div class="perm-bar__track">
+                <div
+                  class="perm-bar__fill"
+                  :style="{ width: `${pctPermisos(props.row as RolConPermisos)}%` }"
+                />
+              </div>
+              <span class="perm-bar__value">
+                {{ (props.row as RolConPermisos).permisos.length }} de {{ totalPermisos }}
+              </span>
+            </div>
+          </q-td>
+        </template>
+        <template #body-cell-activo="props">
+          <q-td :props="props">
+            <StatusBadge
+              :tone="props.row.activo ? 'ok' : 'off'"
+              :label="props.row.activo ? 'Activo' : 'Inactivo'"
+            />
+          </q-td>
+        </template>
+        <template #body-cell-actions="props">
+          <q-td :props="props">
+            <template v-if="puedeEditar">
               <q-btn
                 flat
                 round
                 dense
-                color="grey-7"
-                size="sm"
-                class="q-mr-xs"
+                icon="tune"
+                class="action-btn"
+                aria-label="Permisos"
+                @click="abrirPermisos(props.row)"
+              />
+              <q-btn
+                v-if="(props.row as RolConPermisos).requiere_sucursal"
+                flat
+                round
+                dense
+                icon="edit"
+                class="action-btn"
+                aria-label="Editar"
                 @click="abrirEditar(props.row)"
-              >
-                <span class="material-symbols-outlined">edit</span>
-                <q-tooltip>Editar</q-tooltip>
-              </q-btn>
+              />
               <q-btn
                 v-if="(props.row as RolConPermisos).requiere_sucursal && props.row.activo"
                 flat
                 round
                 dense
-                color="grey-7"
-                size="sm"
+                icon="block"
+                class="action-btn"
+                aria-label="Desactivar"
                 @click="confirmarDesactivar(props.row)"
-              >
-                <span class="material-symbols-outlined">delete</span>
-                <q-tooltip>Desactivar</q-tooltip>
-              </q-btn>
+              />
               <q-btn
-                v-else-if="(props.row as RolConPermisos).requiere_sucursal && !props.row.activo"
+                v-else-if="(props.row as RolConPermisos).requiere_sucursal"
                 flat
                 round
                 dense
-                icon="restore"
-                color="positive"
-                size="sm"
+                icon="restart_alt"
+                class="action-btn"
+                aria-label="Reactivar"
                 @click="confirmarReactivar(props.row)"
-              >
-                <q-tooltip>Reactivar</q-tooltip>
-              </q-btn>
-              <q-icon v-else name="lock" size="18px" color="grey-5" class="q-pa-sm">
-                <q-tooltip>Rol protegido del sistema</q-tooltip>
-              </q-icon>
-            </q-td>
-          </template>
-        </q-table>
-      </q-card>
-    </div>
+              />
+            </template>
+          </q-td>
+        </template>
+        <template #no-data>
+          <StateBlock
+            class="full-width"
+            :variant="filtrando ? 'no-results' : 'empty'"
+            :title="filtrando ? undefined : 'No hay roles registrados'"
+            :action-label="filtrando ? 'Limpiar filtros' : undefined"
+            @action="((busqueda = ''), (filtro = 'todos'))"
+          />
+        </template>
+      </q-table>
+    </DataTableCard>
 
-    <!-- ── Dialog Crear / Editar ──────────────────────────────────────────── -->
-    <q-dialog v-model="dialogOpen" persistent>
-      <q-card class="rol-dialog-card" style="border-radius: 12px">
-        <q-card-section class="q-pb-sm row items-center" style="flex-shrink: 0">
-          <div class="text-h6 text-weight-bold">
-            {{ editando ? 'Editar rol' : 'Nuevo rol' }}
-          </div>
-          <q-space />
-          <q-btn flat round dense icon="close" color="grey-7" @click="cerrarDialog" />
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section class="q-gutter-md q-pt-md rol-dialog-body">
-          <div>
-            <div class="field-label">NOMBRE</div>
+    <!-- ── Crear / editar / permisos ─────────────────────────────────────── -->
+    <BaseDialog
+      v-model="dialogOpen"
+      :title="tituloDialog"
+      :subtitle="subtituloDialog"
+      :icon="modo === 'permisos' ? 'admin_panel_settings' : modo === 'crear' ? 'add' : 'edit'"
+      :width="modo === 'editar' ? 520 : 720"
+      persistent
+      :primary-label="
+        modo === 'crear' ? 'Crear rol' : modo === 'permisos' ? 'Guardar permisos' : 'Guardar'
+      "
+      :primary-disabled="
+        (modo !== 'permisos' && !formDialog.nombre.trim()) ||
+        (modo === 'permisos' && !!editando && !editando.permisos_editables)
+      "
+      :loading="guardando"
+      @cancel="cerrarDialog"
+      @confirm="guardar"
+    >
+      <div class="form-grid">
+        <template v-if="modo !== 'permisos'">
+          <label class="form-grid__field form-grid__field--full">
+            <span class="field-label">Nombre</span>
             <q-input
               ref="nombreRef"
               v-model="formDialog.nombre"
               dense
               outlined
               autofocus
-              :disable="!!editando && !editando.requiere_sucursal"
-              placeholder="Ej. Personal de atención de niños"
+              placeholder="Ej. Atención niños"
+              hide-bottom-space
               :rules="[(v) => !!v.trim() || 'El nombre es requerido']"
             />
-          </div>
-          <div>
-            <div class="field-label">DESCRIPCIÓN (opcional)</div>
+          </label>
+          <label class="form-grid__field form-grid__field--full">
+            <span class="field-label">Descripción (opcional)</span>
             <q-input
               v-model="formDialog.descripcion"
               dense
               outlined
               type="textarea"
               rows="2"
-              :disable="!!editando && !editando.requiere_sucursal"
               placeholder="Qué hace este rol dentro del sistema"
             />
+          </label>
+        </template>
+
+        <template v-if="modo !== 'editar'">
+          <div v-if="editando && !editando.permisos_editables" class="perm-note">
+            <q-icon name="lock" size="18px" />Este rol siempre tiene todos los permisos.
+          </div>
+          <q-input
+            v-model="busquedaPermiso"
+            dense
+            outlined
+            clearable
+            placeholder="Buscar permiso"
+            class="form-grid__field--full"
+          >
+            <template #prepend><q-icon name="search" size="19px" /></template>
+          </q-input>
+
+          <div v-if="gruposPermisos.length === 0" class="form-grid__field--full cell-muted">
+            No se encontraron permisos.
           </div>
 
-          <div>
-            <div class="row items-center q-mb-xs">
-              <div class="field-label" style="margin-bottom: 0">PERMISOS</div>
-              <q-space />
-              <span
-                v-if="editando && !editando.permisos_editables"
-                class="text-caption text-grey-6"
-              >
-                Este rol siempre tiene todos los permisos.
-              </span>
-            </div>
+          <template v-for="grupo in gruposPermisos" :key="grupo.modulo">
+            <span class="form-grid__section perm-section">
+              {{ grupo.modulo }}
+              <span class="perm-section__count">{{ grupo.seleccionados }}/{{ grupo.total }}</span>
+            </span>
+            <label v-for="permiso in grupo.permisos" :key="permiso.id" class="perm-row">
+              <span>{{ permiso.nombre }}</span>
+              <q-toggle
+                v-model="formDialog.permiso_ids"
+                :val="permiso.id"
+                dense
+                color="primary"
+                :disable="!!editando && !editando.permisos_editables"
+              />
+            </label>
+          </template>
+        </template>
+      </div>
+    </BaseDialog>
 
-            <q-input
-              v-model="busquedaPermiso"
-              dense
-              outlined
-              clearable
-              placeholder="Buscar permiso..."
-              class="q-mb-sm"
-            >
-              <template #prepend><q-icon name="search" size="18px" color="grey-6" /></template>
-            </q-input>
+    <!-- ── Desactivar / reactivar ──────────────────────────────────────────── -->
+    <BaseDialog
+      v-model="dialogDesactivar"
+      title="Desactivar rol"
+      :subtitle="filaDesactivar?.nombre"
+      icon="block"
+      tone="red"
+      danger
+      :width="460"
+      primary-label="Desactivar"
+      :loading="desactivando"
+      @confirm="ejecutarDesactivar"
+    >
+      <p class="dlg-text">
+        Los usuarios que ya lo tienen conservan su acceso, pero no podrás asignarlo a usuarios
+        nuevos hasta reactivarlo.
+      </p>
+    </BaseDialog>
 
-            <div
-              v-if="gruposPermisos.length === 0"
-              class="text-caption text-grey-6 text-center q-pa-md"
-            >
-              No se encontraron permisos.
-            </div>
-
-            <q-expansion-item
-              v-for="grupo in gruposPermisos"
-              :key="grupo.modulo"
-              :model-value="isModuloExpandido(grupo.modulo)"
-              dense
-              header-class="permiso-grupo__header"
-              class="permiso-grupo"
-              :class="{ 'permiso-grupo--activo': grupo.seleccionados > 0 }"
-              @update:model-value="(val) => toggleModulo(grupo.modulo, val)"
-            >
-              <template #header>
-                <q-item-section class="permiso-grupo__nombre">
-                  {{ grupo.modulo }}
-                </q-item-section>
-                <q-item-section side>
-                  <q-badge
-                    class="contador-badge"
-                    :class="{ 'contador-badge--activo': grupo.seleccionados > 0 }"
-                    :label="`${grupo.seleccionados}/${grupo.total}`"
-                  />
-                </q-item-section>
-              </template>
-
-              <div class="permiso-grupo__body">
-                <q-checkbox
-                  v-for="permiso in grupo.permisos"
-                  :key="permiso.id"
-                  v-model="formDialog.permiso_ids"
-                  :val="permiso.id"
-                  :label="permiso.nombre"
-                  :disable="!!editando && !editando.permisos_editables"
-                  color="positive"
-                  dense
-                  class="permiso-checkbox"
-                />
-              </div>
-            </q-expansion-item>
-          </div>
-        </q-card-section>
-
-        <q-card-actions class="row items-center q-pa-md q-pt-sm" style="flex-shrink: 0">
-          <q-badge
-            class="contador-badge"
-            :class="{ 'contador-badge--activo': formDialog.permiso_ids.length > 0 }"
-            :label="`${formDialog.permiso_ids.length} permisos seleccionados`"
-          />
-          <q-space />
-          <q-btn flat no-caps label="Cancelar" color="grey-7" @click="cerrarDialog" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            :label="editando ? 'Guardar cambios' : 'Crear rol'"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="guardando"
-            :disable="!formDialog.nombre.trim()"
-            @click="guardar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ── Dialog Confirmar Desactivar ──────────────────────────────────────── -->
-    <q-dialog v-model="dialogDesactivar">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">Desactivar rol</div>
-          <div class="q-mt-sm text-body2 text-grey-8">
-            ¿Deseas desactivar <strong>{{ filaDesactivar?.nombre }}</strong
-            >? Los usuarios que ya lo tienen conservan su acceso, pero no podrás asignarlo a
-            usuarios nuevos.
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="negative"
-            label="Desactivar"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="desactivando"
-            @click="ejecutarDesactivar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <q-dialog v-model="dialogReactivar">
-      <q-card style="min-width: 360px; border-radius: 12px">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">Reactivar rol</div>
-          <div class="q-mt-sm text-body2 text-grey-8">
-            ¿Deseas reactivar <strong>{{ filaReactivar?.nombre }}</strong
-            >? Volverá a estar disponible para asignarlo a usuarios nuevos.
-          </div>
-        </q-card-section>
-        <q-card-actions align="right" class="q-pa-md q-pt-xs">
-          <q-btn v-close-popup flat no-caps label="Cancelar" color="grey-7" />
-          <q-btn
-            unelevated
-            no-caps
-            color="positive"
-            label="Reactivar"
-            style="border-radius: 8px; font-weight: 600"
-            :loading="reactivando"
-            @click="ejecutarReactivar"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <BaseDialog
+      v-model="dialogReactivar"
+      title="Reactivar rol"
+      :subtitle="filaReactivar?.nombre"
+      icon="restart_alt"
+      tone="green"
+      :width="460"
+      primary-label="Reactivar"
+      :loading="reactivando"
+      @confirm="ejecutarReactivar"
+    >
+      <p class="dlg-text">
+        Volverá a estar disponible para asignarlo a usuarios con sus
+        {{ filaReactivar?.permisos.length ?? 0 }} permisos actuales.
+      </p>
+    </BaseDialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import DataTableCard from '@/components/ui/DataTableCard.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StateBlock from '@/components/ui/StateBlock.vue'
+import BaseDialog from '@/components/ui/BaseDialog.vue'
+import type { FilterChip } from '@/types/ui'
 import { useQuasar } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { resolveErrorMessage } from '@/utils/errorHandler'
@@ -331,38 +292,39 @@ const cargar = async () => {
 onMounted(cargar)
 
 const columns: QTableColumn[] = [
-  { name: 'nombre', label: 'NOMBRE', field: 'nombre', align: 'left', sortable: true },
-  { name: 'descripcion', label: 'DESCRIPCIÓN', field: 'descripcion', align: 'left' },
-  { name: 'permisos', label: 'PERMISOS', field: 'permisos', align: 'left' },
-  { name: 'activo', label: 'ESTADO', field: 'activo', align: 'left' },
-  { name: 'actions', label: 'ACCIONES', field: 'id', align: 'right' },
+  { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
+  { name: 'descripcion', label: 'Descripción', field: 'descripcion', align: 'left' },
+  { name: 'permisos', label: 'Permisos', field: 'permisos', align: 'left' },
+  { name: 'activo', label: 'Estado', field: 'activo', align: 'left' },
+  { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 
-const modulosBase = computed(() => {
-  const vistos = new Set<string>()
-  const orden: string[] = []
-  for (const permiso of store.catalogoPermisos) {
-    if (!vistos.has(permiso.modulo)) {
-      vistos.add(permiso.modulo)
-      orden.push(permiso.modulo)
-    }
-  }
-  return orden
+type Filtro = 'todos' | 'activos' | 'inactivos'
+const FILTROS: FilterChip<Filtro>[] = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Activos', value: 'activos' },
+  { label: 'Inactivos', value: 'inactivos' },
+]
+const filtro = ref<Filtro | null>('todos')
+const busqueda = ref('')
+const filtrando = computed(() => !!busqueda.value || filtro.value !== 'todos')
+const rolesFiltrados = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  return store.roles.filter(
+    (r) =>
+      (!q ||
+        r.nombre.toLowerCase().includes(q) ||
+        (r.descripcion ?? '').toLowerCase().includes(q)) &&
+      (filtro.value !== 'activos' || r.activo) &&
+      (filtro.value !== 'inactivos' || !r.activo),
+  )
 })
 
+const totalPermisos = computed(() => store.catalogoPermisos.length)
+const pctPermisos = (rol: RolConPermisos): number =>
+  totalPermisos.value ? Math.min(100, (rol.permisos.length / totalPermisos.value) * 100) : 0
+
 const busquedaPermiso = ref('')
-const modulosExpandido = ref<Set<string>>(new Set())
-
-const isModuloExpandido = (modulo: string) =>
-  busquedaPermiso.value.trim() ? true : modulosExpandido.value.has(modulo)
-
-const toggleModulo = (modulo: string, expandido: boolean) => {
-  if (busquedaPermiso.value.trim()) return
-  const set = new Set(modulosExpandido.value)
-  if (expandido) set.add(modulo)
-  else set.delete(modulo)
-  modulosExpandido.value = set
-}
 
 const gruposPermisos = computed(() => {
   const grupos = new Map<string, typeof store.catalogoPermisos>()
@@ -390,6 +352,7 @@ const gruposPermisos = computed(() => {
 // ── Estado del dialog ─────────────────────────────────────────────────────────
 
 const dialogOpen = ref(false)
+const modo = ref<'crear' | 'editar' | 'permisos'>('crear')
 const editando = ref<RolConPermisos | null>(null)
 const guardando = ref(false)
 const nombreRef = ref()
@@ -402,13 +365,13 @@ const formDialog = ref({
 
 const abrirCrear = () => {
   editando.value = null
+  modo.value = 'crear'
   formDialog.value = { nombre: '', descripcion: '', permiso_ids: [] }
   busquedaPermiso.value = ''
-  modulosExpandido.value = new Set(modulosBase.value.slice(0, 1))
   dialogOpen.value = true
 }
 
-const abrirEditar = (row: RolConPermisos) => {
+const prepararEdicion = (row: RolConPermisos) => {
   editando.value = row
   formDialog.value = {
     nombre: row.nombre,
@@ -416,15 +379,29 @@ const abrirEditar = (row: RolConPermisos) => {
     permiso_ids: row.permisos.map((p) => p.id),
   }
   busquedaPermiso.value = ''
-  const idsSeleccionados = new Set(formDialog.value.permiso_ids)
-  const modulosConSeleccion = store.catalogoPermisos
-    .filter((p) => idsSeleccionados.has(p.id))
-    .map((p) => p.modulo)
-  modulosExpandido.value = new Set(
-    modulosConSeleccion.length > 0 ? modulosConSeleccion : modulosBase.value.slice(0, 1),
-  )
   dialogOpen.value = true
 }
+
+const abrirEditar = (row: RolConPermisos) => {
+  modo.value = 'editar'
+  prepararEdicion(row)
+}
+
+const abrirPermisos = (row: RolConPermisos) => {
+  modo.value = 'permisos'
+  prepararEdicion(row)
+}
+
+const tituloDialog = computed(() => {
+  if (modo.value === 'crear') return 'Nuevo rol'
+  if (modo.value === 'editar') return 'Editar rol'
+  return `Permisos · ${editando.value?.nombre ?? ''}`
+})
+const subtituloDialog = computed(() =>
+  modo.value === 'editar'
+    ? editando.value?.nombre
+    : `${formDialog.value.permiso_ids.length} de ${totalPermisos.value} permisos activos`,
+)
 
 const cerrarDialog = () => {
   dialogOpen.value = false
@@ -432,7 +409,7 @@ const cerrarDialog = () => {
 }
 
 const guardar = async () => {
-  if (!formDialog.value.nombre.trim()) {
+  if (modo.value !== 'permisos' && !formDialog.value.nombre.trim()) {
     nombreRef.value?.validate()
     return
   }
@@ -440,30 +417,29 @@ const guardar = async () => {
   try {
     if (editando.value) {
       const rol = editando.value
-      if (rol.requiere_sucursal) {
+      if (modo.value === 'editar' && rol.requiere_sucursal) {
         await store.actualizarMetadata(rol.id, {
           nombre: formDialog.value.nombre.trim(),
           descripcion: formDialog.value.descripcion.trim() || null,
         })
       }
-      if (rol.permisos_editables) {
+      if (modo.value === 'permisos' && rol.permisos_editables) {
         await store.actualizarPermisos(rol.id, formDialog.value.permiso_ids)
       }
-      $q.notify({ type: 'positive', message: 'Rol actualizado', position: 'top-right' })
+      $q.notify({ type: 'positive', message: 'Rol actualizado' })
     } else {
       await store.crear({
         nombre: formDialog.value.nombre.trim(),
         descripcion: formDialog.value.descripcion.trim() || null,
         permiso_ids: formDialog.value.permiso_ids,
       })
-      $q.notify({ type: 'positive', message: 'Rol creado', position: 'top-right' })
+      $q.notify({ type: 'positive', message: 'Rol creado' })
     }
     cerrarDialog()
   } catch (err) {
     $q.notify({
       type: 'negative',
       message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
     })
   } finally {
     guardando.value = false
@@ -486,13 +462,12 @@ const ejecutarDesactivar = async () => {
   desactivando.value = true
   try {
     await store.desactivar(filaDesactivar.value.id)
-    $q.notify({ type: 'positive', message: 'Rol desactivado', position: 'top-right' })
+    $q.notify({ type: 'positive', message: 'Rol desactivado' })
     dialogDesactivar.value = false
   } catch (err) {
     $q.notify({
       type: 'negative',
       message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
     })
   } finally {
     desactivando.value = false
@@ -513,13 +488,12 @@ const ejecutarReactivar = async () => {
   reactivando.value = true
   try {
     await store.reactivar(filaReactivar.value.id)
-    $q.notify({ type: 'positive', message: 'Rol reactivado', position: 'top-right' })
+    $q.notify({ type: 'positive', message: 'Rol reactivado' })
     dialogReactivar.value = false
   } catch (err) {
     $q.notify({
       type: 'negative',
       message: resolveErrorMessage(err as ApiError),
-      position: 'top-right',
     })
   } finally {
     reactivando.value = false
@@ -528,65 +502,82 @@ const ejecutarReactivar = async () => {
 </script>
 
 <style scoped lang="scss">
-.rol-dialog-card {
-  width: 460px;
-  height: 620px;
-  max-height: 90vh;
+.rol-lock {
+  margin-left: 4px;
+  color: var(--text-muted);
+}
+
+.perm-bar {
   display: flex;
-  flex-direction: column;
-}
+  align-items: center;
+  gap: 8px;
+  min-width: 160px;
 
-.rol-dialog-body {
-  flex: 1;
-  overflow-y: auto;
-}
+  &__track {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border-soft);
+    overflow: hidden;
+  }
 
-.permiso-grupo {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  margin-bottom: 8px;
-  overflow: hidden;
-  transition: background 0.2s ease;
+  &__fill {
+    height: 100%;
+    background: var(--q-primary);
+  }
 
-  &--activo {
-    background: rgba(63, 168, 52, 0.05);
-    border-color: rgba(63, 168, 52, 0.25);
+  &__value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-body);
+    white-space: nowrap;
   }
 }
 
-:deep(.permiso-grupo__header) {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.permiso-grupo__nombre {
+.perm-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   text-transform: capitalize;
-}
 
-.permiso-grupo__body {
-  padding: 0 16px 10px 16px;
-  border-top: 1px solid var(--border-color);
-}
-
-.permiso-checkbox {
-  display: flex;
-  width: 100%;
-}
-
-.contador-badge {
-  background: var(--bg-main);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 20px;
-
-  &--activo {
-    background: rgba(63, 168, 52, 0.12);
-    color: #3fa834;
-    border: 1px solid rgba(63, 168, 52, 0.3);
+  &__count {
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--text-muted);
   }
+}
+
+.perm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-control);
+  font-size: 13.5px;
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+.perm-note {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--tone-info-bg);
+  color: var(--tone-info-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dlg-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
 }
 </style>

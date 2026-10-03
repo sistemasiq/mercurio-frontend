@@ -2,6 +2,7 @@ import type { App } from 'vue'
 import type { Router } from 'vue-router'
 import { Quasar, Notify, Loading, Dialog } from 'quasar'
 import langEs from 'quasar/lang/es'
+import iconSet from 'quasar/icon-set/material-icons-outlined'
 import '@quasar/extras/material-icons/material-icons.css'
 import '@quasar/extras/material-icons-outlined/material-icons-outlined.css'
 import '@quasar/extras/material-symbols-outlined/material-symbols-outlined.css'
@@ -21,11 +22,27 @@ export function setupPlugins(app: App, router: Router): void {
   app.use(router)
   app.use(Quasar, {
     plugins: { Notify, Loading, Dialog },
+    iconSet,
     lang: { ...langEs, table: { ...langEs.table, recordsPerPage: 'Registros por página:' } },
     config: {
-      notify: { position: 'top', timeout: 4000 },
+      // Toast del diseño (07b Sistema): el estilo vive en .wk-toast (app.scss).
+      notify: {
+        position: 'top-right',
+        timeout: 4000,
+        classes: 'wk-toast',
+        multiLine: false,
+        // Quasar concatena estas acciones con las de cada llamada: no repetir
+        // el botón de cerrar al pasar `actions`.
+        actions: [{ icon: 'close', round: true, dense: true, flat: true, 'aria-label': 'Cerrar' }],
+      },
     },
   })
+
+  // Íconos de cada tono según el catálogo de notificaciones del diseño.
+  Notify.registerType('positive', { color: 'positive', icon: 'check_circle' })
+  Notify.registerType('negative', { color: 'negative', icon: 'error' })
+  Notify.registerType('warning', { color: 'warning', icon: 'warning' })
+  Notify.registerType('info', { color: 'info', icon: 'info' })
 
   const auth = useAuthStore()
 

@@ -47,47 +47,63 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <q-page class="access-padre flex flex-center">
-    <transition
-      appear
-      enter-active-class="animated fadeIn"
-      leave-active-class="animated fadeOut"
-      mode="out-in"
-    >
-      <!-- VALIDANDO -->
-      <div v-if="validating" key="loading" class="column items-center">
-        <q-spinner-rings color="primary" size="48px" />
-        <p class="text-body2 text-grey-7 q-mt-md">Validando acceso...</p>
-      </div>
+  <q-page class="access-padre">
+    <div v-if="validating" class="access-padre__state">
+      <q-spinner-rings color="primary" size="48px" />
+      <span class="access-padre__text">Validando acceso…</span>
+    </div>
 
-      <!-- ERROR / SIN TOKEN -->
-      <q-card v-else-if="hasError" key="error" class="error-card">
-        <q-card-section class="column items-center q-pa-lg">
-          <q-icon name="warning_amber" color="warning" size="56px" />
-          <h2 class="text-h6 text-weight-bold q-mt-md q-mb-xs">Acceso no válido</h2>
-          <p class="text-body2 text-grey-7 text-center q-mb-none" style="max-width: 320px">
-            {{ errorMessage }}
-          </p>
-        </q-card-section>
-      </q-card>
-    </transition>
+    <div v-else-if="hasError" class="access-padre__state" role="alert">
+      <span class="access-padre__icon"><q-icon name="link_off" size="32px" /></span>
+      <h1 class="access-padre__title">Acceso no válido</h1>
+      <p class="access-padre__text">{{ errorMessage }}</p>
+      <p class="access-padre__text">Pide un enlace nuevo en recepción al registrar a tu hijo.</p>
+    </div>
   </q-page>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .access-padre {
-  height: 100% !important;
   min-height: 100vh;
-  padding: 24px;
+  padding: 24px 32px;
   background: var(--bg-main);
-}
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-.error-card {
-  width: 100%;
-  max-width: 400px;
-  border-radius: 12px;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 1px 2px rgba(0, 0, 0, 0.04);
+  &__state {
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    text-align: center;
+  }
+
+  &__icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 32px;
+    background: var(--tone-bad-bg);
+    color: var(--tone-bad-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #475569;
+  }
 }
 </style>

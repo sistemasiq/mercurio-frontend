@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { ref } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
 
@@ -66,96 +67,68 @@ function braceletLabelForChild(childId: string) {
 </script>
 
 <template>
-  <q-card flat bordered class="rfid-card q-mb-md">
-    <q-card-section>
-      <div class="row items-center q-mb-lg">
-        <q-icon name="nfc" size="22px" color="primary" class="q-mr-sm" />
-        <span class="text-subtitle1 text-weight-bold">Vinculación de pulseras</span>
-        <q-chip
-          dense
-          :color="store.allChildrenHaveBracelet ? 'positive' : 'warning'"
-          text-color="white"
-          :label="store.allChildrenHaveBracelet ? 'Todos vinculados' : 'Pendientes'"
-          size="md"
-          class="q-ml-sm"
-        />
+  <section class="rfid">
+    <header class="rfid__head">
+      <span class="rfid__icon"><q-icon name="sensors" size="22px" /></span>
+      <div class="rfid__titles">
+        <h2 class="rfid__title">Asignar pulseras</h2>
+        <span class="rfid__subtitle">Acerca cada pulsera al lector</span>
       </div>
+      <StatusBadge
+        :tone="store.allChildrenHaveBracelet ? 'ok' : 'warn'"
+        :label="store.allChildrenHaveBracelet ? 'Todos vinculados' : 'Pendientes'"
+      />
+    </header>
 
-      <!-- ── PULSERAS DE NIÑOS ── -->
-      <div
-        v-for="(child, i) in store.savedChildren"
-        :key="child.id"
-        class="rfid-row q-mb-sm q-pa-sm"
-        :class="child.rfidBracelet ? 'rfid-assigned' : 'rfid-pending'"
-      >
-        <div class="row items-center q-mb-sm">
-          <q-icon
-            :name="child.rfidBracelet ? 'check_circle' : 'radio_button_unchecked'"
-            :color="child.rfidBracelet ? 'positive' : 'grey-5'"
-            size="20px"
-            class="q-mr-sm"
-          />
-          <div class="col">
-            <div class="text-weight-medium" style="font-size: 16px">{{ child.name }}</div>
-            <div class="text-caption text-grey-6">{{ child.age }} años</div>
-          </div>
+    <div class="rfid__table">
+      <div class="rfid__row rfid__row--head"><span>Niño</span><span>Pulsera</span></div>
+      <div v-for="(child, i) in store.savedChildren" :key="child.id" class="rfid__row">
+        <div class="rfid__kid">
+          <span class="rfid__name">{{ child.name }}</span>
+          <span class="rfid__meta">{{ child.age }} años · {{ store.tutor.estimatedTime }}</span>
+          <span v-if="childScanErrors[child.id]" class="rfid__error">
+            <q-icon name="error" size="14px" />{{ childScanErrors[child.id] }}
+          </span>
+        </div>
 
-          <!-- Ya asignada -->
+        <div class="rfid__band">
           <template v-if="child.rfidBracelet">
-            <q-chip
-              dense
-              color="positive"
-              text-color="white"
-              icon="nfc"
-              :label="braceletLabelForChild(child.id) ?? ''"
-              size="md"
-            />
+            <span class="rfid__code">{{ braceletLabelForChild(child.id) }}</span>
             <q-btn
               flat
               round
               dense
               icon="close"
-              size="xs"
-              color="grey-6"
-              class="q-ml-xs"
+              size="sm"
+              class="action-btn"
+              aria-label="Quitar pulsera"
               @click="clearChildBracelet(child.id)"
             />
           </template>
-
-          <template v-else-if="activeChildScanIndex !== i">
-            <q-btn
-              unelevated
-              dense
-              size="sm"
-              icon="nfc"
-              label="Escanear pulsera"
-              color="primary"
-              @click="activateChildScan(child.id, i)"
-            />
-          </template>
-          <div v-else class="row items-center q-gutter-xs">
-            <q-chip
-              dense
-              color="primary"
-              text-color="white"
-              icon="sensors"
-              label="Esperando escaneo..."
-              size="sm"
-              class="scanning-pulse"
-            />
+          <q-btn
+            v-else-if="activeChildScanIndex !== i"
+            outline
+            dense
+            icon="sensors"
+            label="Escanear"
+            class="rfid__scan"
+            @click="activateChildScan(child.id, i)"
+          />
+          <template v-else>
+            <span class="rfid__waiting">Esperando…</span>
             <q-btn
               flat
               round
               dense
               icon="close"
-              size="xs"
-              color="grey-6"
+              size="sm"
+              class="action-btn"
+              aria-label="Cancelar escaneo"
               @click="activeChildScanIndex = -1"
             />
-          </div>
+          </template>
         </div>
 
-        <!-- Input invisible para niño -->
         <input
           v-if="activeChildScanIndex === i && !child.rfidBracelet"
           :ref="
@@ -166,37 +139,20 @@ function braceletLabelForChild(childId: string) {
           v-model="childScanInputs[child.id]"
           class="hidden-scan-input"
           autocomplete="off"
+          aria-label="Lectura de pulsera"
           @keydown.enter.prevent="onChildScanEnter(child.id)"
         />
-
-        <div v-if="childScanErrors[child.id]" class="text-caption text-negative q-mt-xs">
-          <q-icon name="error_outline" size="14px" class="q-mr-xs" />{{ childScanErrors[child.id] }}
-        </div>
       </div>
-    </q-card-section>
-  </q-card>
+    </div>
+
+    <div class="rfid__callout">
+      <q-icon name="info" size="19px" />
+      Lector listo. {{ store.pulseras.length }} pulseras libres en la sucursal.
+    </div>
+  </section>
 </template>
 
 <style scoped>
-.rfid-card {
-  border-radius: 12px;
-}
-
-.rfid-row {
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  transition: all 0.2s;
-}
-
-.rfid-pending {
-  background: var(--bg-main);
-}
-
-.rfid-assigned {
-  background: rgba(63, 168, 52, 0.08);
-  border-color: rgba(63, 168, 52, 0.4);
-}
-
 .hidden-scan-input {
   position: absolute;
   opacity: 0;
@@ -205,18 +161,149 @@ function braceletLabelForChild(childId: string) {
   height: 1px;
   overflow: hidden;
 }
+</style>
 
-@keyframes pulse-opacity {
-  0%,
-  100% {
-    opacity: 1;
+<style scoped lang="scss">
+.rfid {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
   }
-  50% {
-    opacity: 0.5;
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--q-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.3;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__table {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  &__row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f3f7;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+
+    &--head {
+      padding: 10px 14px;
+      background: var(--bg-subtle);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+  }
+
+  &__kid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  &__meta {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__error {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tone-bad-fg);
+  }
+
+  &__band {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__code {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--tone-ok-fg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__scan {
+    padding: 0 12px;
+  }
+
+  &__waiting {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    animation: rfid-pulse 1.2s ease-in-out infinite;
+  }
+
+  &__callout {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tone-ok-bg);
+    color: var(--tone-ok-fg);
+    font-size: 13px;
+    font-weight: 600;
   }
 }
 
-.scanning-pulse {
-  animation: pulse-opacity 1.2s ease-in-out infinite;
+@keyframes rfid-pulse {
+  50% {
+    opacity: 0.45;
+  }
 }
 </style>
