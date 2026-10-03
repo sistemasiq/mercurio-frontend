@@ -20,6 +20,15 @@
             class="periodo__input"
           />
           <q-btn unelevated color="primary" label="Filtrar" @click="cargar" />
+          <q-btn
+            outline
+            color="primary"
+            icon="download"
+            label="Exportar"
+            :loading="exportando"
+            :disable="!authStore.currentBranchId"
+            @click="exportar"
+          />
         </div>
       </template>
     </PageHeader>
@@ -89,6 +98,7 @@ import PageHeader from '@/components/ui/PageHeader.vue'
 import KpiCard from '@/components/ui/KpiCard.vue'
 import StateBlock from '@/components/ui/StateBlock.vue'
 import { onMounted, ref } from 'vue'
+import { Notify } from 'quasar'
 import type { QTableColumn } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useLealtadStore } from '@/stores/lealtad'
@@ -99,6 +109,7 @@ const store = useLealtadStore()
 
 const desde = ref('')
 const hasta = ref('')
+const exportando = ref(false)
 
 const cargar = () => {
   if (!authStore.currentBranchId) return
@@ -106,6 +117,22 @@ const cargar = () => {
 }
 
 onMounted(cargar)
+
+async function exportar() {
+  if (!authStore.currentBranchId) return
+  exportando.value = true
+  try {
+    await store.exportarReporte(
+      authStore.currentBranchId,
+      desde.value || undefined,
+      hasta.value || undefined,
+    )
+  } catch {
+    Notify.create({ type: 'negative', message: 'Error al exportar el reporte de lealtad.' })
+  } finally {
+    exportando.value = false
+  }
+}
 
 const fmt = (n?: number): string => (n ?? 0).toLocaleString('es-MX')
 

@@ -2,8 +2,8 @@ import { cajasAdminApi } from '@/api/cajasAdminApi'
 import type { CajaAdmin, CajaCreate, CajaUpdate } from '@/types/caja-admin'
 
 export const cajaAdminService = {
-  async listCajas(): Promise<CajaAdmin[]> {
-    return cajasAdminApi.list()
+  async listCajas(sucursalId?: string): Promise<CajaAdmin[]> {
+    return cajasAdminApi.list(sucursalId)
   },
 
   async createCaja(payload: CajaCreate): Promise<CajaAdmin> {

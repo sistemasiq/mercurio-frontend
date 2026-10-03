@@ -24,6 +24,12 @@
       <KpiCard label="Saldo actual" :value="`${fmt(store.saldo.saldo)} pts`" note-tone="ok" />
       <KpiCard label="Acumulado" :value="`${fmt(acumulado)} pts`" />
       <KpiCard label="Canjeado" :value="`${fmt(canjeado)} pts`" />
+      <KpiCard
+        label="Por vencer"
+        :value="`${fmt(store.saldo.por_vencer)} pts`"
+        note="caducan en 30 días"
+        note-tone="warn"
+      />
     </div>
 
     <DataTableCard

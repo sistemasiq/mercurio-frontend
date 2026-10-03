@@ -175,11 +175,11 @@ const columns: QTableColumn[] = [
   { name: 'status', label: 'Estado', field: 'isActive', align: 'left' },
 ]
 
-// ── Pestañas Cajas y Horarios (C2) ──────────────────────────────────────────
-// Los endpoints /cajas y /horarios filtran por la sucursal del usuario
-// autenticado (vía token), no por un parámetro `sucursal_id`: reflejan la
-// sucursal de la sesión, que coincide con esta vista cuando el admin ve su
-// propia sucursal.
+// ── Pestañas Cajas y Horarios (C2 / D1) ─────────────────────────────────────
+// /cajas y /horarios aceptan un sucursal_id opcional (D1.1): se envía el id
+// de la sucursal que se está viendo en esta página, no el de la sesión. El
+// backend responde 403 si el usuario no es AdministradorSistema y pide una
+// sucursal distinta a la suya.
 const tab = ref<'resumen' | 'cajas' | 'horarios'>('resumen')
 
 const cajas = ref<CajaAdmin[]>([])
@@ -192,7 +192,7 @@ async function cargarCajas() {
   cajasCargando.value = true
   cajasError.value = ''
   try {
-    cajas.value = await cajaAdminService.listCajas()
+    cajas.value = await cajaAdminService.listCajas(id.value)
     cajasCargadas = true
   } catch (err) {
     cajasError.value = resolveErrorMessage(err as ApiError)
@@ -211,7 +211,7 @@ async function cargarHorarios() {
   horariosCargando.value = true
   horariosError.value = ''
   try {
-    horarios.value = await horarioService.listHorarios()
+    horarios.value = await horarioService.listHorarios(id.value)
     horariosCargados = true
   } catch (err) {
     horariosError.value = resolveErrorMessage(err as ApiError)

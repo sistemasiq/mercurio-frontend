@@ -22,8 +22,10 @@ function mapHorario(raw: BackendHorario): Horario {
 }
 
 export const horariosApi = {
-  async list(): Promise<Horario[]> {
-    const { data } = await apiClient.get<BackendHorario[]>('/horarios')
+  async list(sucursalId?: string): Promise<Horario[]> {
+    const { data } = await apiClient.get<BackendHorario[]>('/horarios', {
+      params: sucursalId ? { sucursal_id: sucursalId } : undefined,
+    })
     return data.map(mapHorario)
   },
 

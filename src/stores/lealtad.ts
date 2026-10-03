@@ -3,6 +3,7 @@ import {
   actualizarConfiguracionLealtad,
   ajustarPuntosLealtad,
   buscarClientesLealtad,
+  exportarReporteLealtad,
   listarMovimientosLealtad,
   obtenerConfiguracionLealtad,
   obtenerReporteLealtad,
@@ -91,6 +92,9 @@ export const useLealtadStore = defineStore('lealtad', {
       } finally {
         this.loading = false
       }
+    },
+    async exportarReporte(sucursalId: string, desde?: string, hasta?: string) {
+      await exportarReporteLealtad(sucursalId, desde, hasta)
     },
     async buscarClientes(sucursalId: string, q: string) {
       if (!q) {

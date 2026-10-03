@@ -51,28 +51,13 @@ simplifican hasta que exista la fuente.
 - **Método de pago en el panel del pedido**: se elige dentro del cobro
   multimodal.
 
-### 02 Eventos
-
-- **Botón "Filtrar"** (Resumen): no había filtros implementados; se reemplazó
-  por acceso a Reservaciones.
-
 ### 03 Catálogo
 
 ### 04 Inventario
 
-- **Imagen 1:1 del producto** (4a.1): se conserva el selector de imagen
-  existente.
-
-### 05 Lealtad
-
-- **KPI "Por vencer"** (kardex): el saldo ya trae `por_vencer`; falta mostrarlo.
-- **Exportar** (reporte): sin endpoint.
 
 ### 06 Administración
 
-- **Pestañas Cajas / Horarios en el detalle de sucursal**: `/cajas` y
-  `/horarios` filtran por la sucursal de la sesión, no por la que se consulta;
-  al ver otra sucursal se muestran las de la propia.
 
 ## Cambios de comportamiento
 
