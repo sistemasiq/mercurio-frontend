@@ -531,6 +531,7 @@ const procesarPago = async (
         metodo_pago_id: mapearMetodoPago(p.method),
         monto: p.amount,
         notas_pago: p.cardType ? `${p.cardType} - Folio: ${p.authCode ?? ''}` : '',
+        ...(p.ultimos4 ? { ultimos4: p.ultimos4 } : {}),
       })),
       ...(celularCliente ? { celular_cliente: celularCliente } : {}),
       ...(puntosARedimir > 0 ? { puntos_a_redimir: puntosARedimir } : {}),
