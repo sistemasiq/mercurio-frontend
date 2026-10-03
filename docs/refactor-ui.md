@@ -36,17 +36,15 @@ Implementación del diseño "Refactor UI Woow Kids" (claude.ai/design, proyecto
 - **Dev:** `/dev` (7a) y `/dev/ui` (kit con tabla, toasts, estados y
   diálogos de ejemplo).
 
-## Pendientes (elementos del mockup sin dato o sin soporte)
+## Pendientes
 
-No se muestran valores inventados; estos elementos se ocultan o se
-simplifican hasta que exista la fuente.
-
-### 00 Acceso
-
-- **Foto del panel de login**: el mockup deja un placeholder; se usa la
-  ilustración del logo.
+Sin pendientes: todos los elementos del mockup tienen fuente de datos o una
+decisión de diseño registrada abajo.
 
 ## Cambios de comportamiento
+
+- Panel del login: la imagen del mockup es el logo de la marca
+  (`public/woow-kids-logo.png`).
 
 - Método de pago: no se elige en el panel del pedido; se elige dentro del
   cobro multimétodo (decisión de diseño final).
