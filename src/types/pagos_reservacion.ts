@@ -1,9 +1,12 @@
+export type TipoPagoReservacion = 'anticipo' | 'pago' | 'liquidacion'
+
 export interface Pagos_reservacion {
   id: string
   reservacion_id: string
   metodo_pago_id: string
   monto: string
   notas: string | null
+  tipo: TipoPagoReservacion
   fecha_pago: string
   creado_por: string | null
 }
@@ -13,6 +16,9 @@ export interface Pagos_reservacion_create {
   metodo_pago_id: string
   monto: string
   notas?: string | null
+  // Opcional: si no se envía, el backend usa 'pago' salvo que el pago deje
+  // el saldo de la reservación en 0, en cuyo caso siempre marca 'liquidacion'.
+  tipo?: TipoPagoReservacion
 }
 
 export interface Pagos_reservacion_update {
@@ -25,6 +31,7 @@ export interface PagoReservacionItem {
   metodo_pago_id: string
   monto: string
   notas?: string | null
+  tipo?: TipoPagoReservacion
 }
 
 export interface Pagos_reservacion_completar_request {

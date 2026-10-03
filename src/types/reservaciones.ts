@@ -3,6 +3,7 @@ import AuditFields from '@/types/shared'
 export type EstadoReservacion = 'pendiente' | 'confirmada' | 'en_curso' | 'completada' | 'cancelada'
 
 export interface Reservaciones extends AuditFields {
+  folio: string | null
   sucursal_id: string
   tipo_evento_id: string
   paquete_id: string
@@ -85,10 +86,24 @@ export interface ReservacionesUpdate {
 
 export interface EventoDelDia {
   id: string
+  folio: string | null
   nombre_cliente: string
   apellidos_cliente: string | null
   telefono_cliente: string
   hora_inicio: string
   hora_fin: string
   numero_personas: number
+}
+
+export interface BloqueDisponibilidad {
+  hora_inicio: string
+  hora_fin: string
+  ocupado: boolean
+  reservacion_id: string | null
+}
+
+export interface Disponibilidad {
+  sucursal_id: string
+  fecha: string
+  bloques: BloqueDisponibilidad[]
 }
