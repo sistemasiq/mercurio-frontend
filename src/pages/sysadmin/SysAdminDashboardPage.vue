@@ -7,6 +7,7 @@ import KpiCard from '@/components/ui/KpiCard.vue'
 import DataTableCard from '@/components/ui/DataTableCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import StateBlock from '@/components/ui/StateBlock.vue'
+import { Notify } from 'quasar'
 import { userService } from '@/services/userService'
 import { branchService } from '@/services/branchService'
 import type { UserListItem } from '@/types/user'
@@ -14,6 +15,33 @@ import type { Branch } from '@/types/branch'
 import type { FilterChip } from '@/types/ui'
 
 const router = useRouter()
+
+// Exportar indicadores (C2): mismo rango por defecto que DetailBranchPage.vue
+// (el mes en curso).
+function primerDiaDelMes(): string {
+  const hoy = new Date()
+  return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`
+}
+function hoyIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+const exportandoId = ref<string | null>(null)
+
+async function exportarIndicadores(branch: Branch) {
+  exportandoId.value = branch.id
+  try {
+    await branchService.exportarIndicadores(
+      branch.id,
+      primerDiaDelMes(),
+      hoyIso(),
+      `indicadores_${branch.clave ?? branch.id}.csv`,
+    )
+  } catch {
+    Notify.create({ type: 'negative', message: 'Error al exportar los indicadores.' })
+  } finally {
+    exportandoId.value = null
+  }
+}
 
 const users = ref<UserListItem[]>([])
 const branches = ref<Branch[]>([])
@@ -182,6 +210,18 @@ onMounted(cargar)
         </template>
         <template #body-cell-actions="props">
           <q-td :props="props">
+            <q-btn
+              flat
+              round
+              dense
+              icon="download"
+              class="action-btn"
+              aria-label="Exportar indicadores"
+              :loading="exportandoId === props.row.id"
+              @click="exportarIndicadores(props.row)"
+            >
+              <q-tooltip>Exportar indicadores del mes</q-tooltip>
+            </q-btn>
             <q-btn
               flat
               round
