@@ -74,8 +74,9 @@ export async function inyectarSesionDev(): Promise<void> {
   ).replace(/=/g, '')
   const fakeToken = `${header}.${payload}.dev-sig-not-valid`
 
-  // Persiste en session para que los guards no redirijan
-  appSession.save(fakeToken, MOCK_USER)
+  // Persiste el usuario en session para que los guards no redirijan; el
+  // token (fake) solo se inyecta en memoria vía _setDevSession (ver abajo).
+  appSession.save(MOCK_USER)
 
   // Inyecta en el store usando el helper DEV expuesto en el return
   const auth = useAuthStore()

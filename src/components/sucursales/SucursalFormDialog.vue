@@ -105,6 +105,56 @@
         />
       </label>
 
+      <span class="form-grid__section">Horario de operación</span>
+      <label class="form-grid__field">
+        <span class="field-label">Abre</span>
+        <q-input
+          v-model="form.horaApertura"
+          dense
+          outlined
+          mask="time"
+          :rules="['time', reglaHorarioValido]"
+          lazy-rules
+          hide-bottom-space
+        >
+          <template #append>
+            <q-icon name="schedule" class="cursor-pointer">
+              <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                <q-time v-model="form.horaApertura" format24h>
+                  <div class="row items-center justify-end">
+                    <q-btn v-close-popup label="Cerrar" color="primary" flat />
+                  </div>
+                </q-time>
+              </q-popup-proxy>
+            </q-icon>
+          </template>
+        </q-input>
+      </label>
+      <label class="form-grid__field">
+        <span class="field-label">Cierra</span>
+        <q-input
+          v-model="form.horaCierre"
+          dense
+          outlined
+          mask="time"
+          :rules="['time', reglaHorarioValido]"
+          lazy-rules
+          hide-bottom-space
+        >
+          <template #append>
+            <q-icon name="schedule" class="cursor-pointer">
+              <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                <q-time v-model="form.horaCierre" format24h>
+                  <div class="row items-center justify-end">
+                    <q-btn v-close-popup label="Cerrar" color="primary" flat />
+                  </div>
+                </q-time>
+              </q-popup-proxy>
+            </q-icon>
+          </template>
+        </q-input>
+      </label>
+
       <span class="form-grid__section">Responsable</span>
       <label class="form-grid__field form-grid__field--full">
         <span class="field-label">Administrador (opcional)</span>
@@ -162,7 +212,14 @@ const form = reactive({
   estado: '',
   codigoPostal: '',
   zonaHoraria: 'America/Mexico_City',
+  horaApertura: '09:00',
+  horaCierre: '23:00',
 })
+
+function reglaHorarioValido(): boolean | string {
+  if (!form.horaApertura || !form.horaCierre) return true
+  return form.horaApertura < form.horaCierre || 'La apertura debe ser antes del cierre'
+}
 
 const zonaHorariaOptions = [
   { label: 'Ciudad de México (centro)', value: 'America/Mexico_City' },
@@ -202,6 +259,8 @@ async function cargar() {
     estado: '',
     codigoPostal: '',
     zonaHoraria: 'America/Mexico_City',
+    horaApertura: '09:00',
+    horaCierre: '23:00',
   })
   administrador.value = null
   cargando.value = !!props.branchId
@@ -239,6 +298,8 @@ async function cargar() {
       estado: b.estado ?? '',
       codigoPostal: b.codigoPostal ?? '',
       zonaHoraria: b.zonaHoraria || 'America/Mexico_City',
+      horaApertura: (b.horaApertura || '09:00:00').slice(0, 5),
+      horaCierre: (b.horaCierre || '23:00:00').slice(0, 5),
     })
     administrador.value = adminOptionsAll.value.find((a) => a.id === b.administradorId) ?? null
   }
@@ -265,6 +326,8 @@ async function guardar() {
     estado: form.estado || null,
     codigo_postal: form.codigoPostal || null,
     zona_horaria: form.zonaHoraria,
+    hora_apertura: form.horaApertura,
+    hora_cierre: form.horaCierre,
     telefono: form.telefono || null,
     correo: form.correo || null,
     clave: form.clave || null,

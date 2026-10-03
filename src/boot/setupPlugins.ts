@@ -65,9 +65,14 @@ export function setupPlugins(app: App, router: Router): void {
     })
   }, INACTIVITY_MS)
 
-  if (auth.restoreSession()) {
-    inactivityTimer.start()
-  }
+  // C3: restoreSession ahora es async (recupera el access token con un
+  // refresh vía la cookie HttpOnly, ya que al recargar vivía solo en
+  // memoria). No se bloquea el arranque: el router guard (`requiresAuth`)
+  // hace su propio `tryRefresh` si la navegación llega antes de que esto
+  // termine -- ambos comparten la misma promesa de refresh en vuelo.
+  void auth.restoreSession().then((restaurada) => {
+    if (restaurada) inactivityTimer.start()
+  })
 
   setupRouterGuards(router)
 

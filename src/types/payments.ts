@@ -13,6 +13,8 @@ export interface AppliedPayment {
   timestamp: Date
   cardType?: 'DEBITO' | 'CREDITO'
   authCode?: string
+  /** Últimos 4 dígitos de la tarjeta, opcionales (B9 B.1). */
+  ultimos4?: string
 }
 
 // ── Tipos para el endpoint POST /api/pagos/completar ────────────────────────
@@ -21,6 +23,7 @@ export interface PaymentItemRequest {
   metodo_pago_id: string
   monto: number
   notas_pago?: string
+  ultimos4?: string
 }
 
 export interface PagoCompletoRequest {
@@ -35,4 +38,5 @@ export interface PagoCompletoRequest {
   puntos_a_redimir?: number
   cambio?: number
   nombre_cliente?: string
+  mesa?: string
 }

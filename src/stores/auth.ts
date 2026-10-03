@@ -4,6 +4,7 @@ import type { AuthState, BranchOption, LoginRequest, User, UserRole } from '@/ty
 import { refreshAccessToken } from '@/api/axiosClient'
 import { authService } from '@/services/authService'
 import { sessionStorage, viewingBranch } from '@/utils/session'
+import { tokenMemory } from '@/utils/tokenMemory'
 import { resolveErrorMessage } from '@/utils/errorHandler'
 import { resetAllStores } from '@/utils/piniaReset'
 import { inactivityTimer } from '@/utils/inactivityTimer'
@@ -91,7 +92,9 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = result.data.token
       user.value = result.data.user
 
-      sessionStorage.save(result.data.token, result.data.user)
+      // C3: el access token nunca toca localStorage -- solo vive en memoria.
+      tokenMemory.set(result.data.token)
+      sessionStorage.save(result.data.user)
       return true
     } catch (err) {
       error.value = resolveErrorMessage(err as ApiError)
@@ -131,24 +134,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function restoreSession(): boolean {
+  // C3: al recargar la página el access token se pierde (vivía solo en
+  // memoria); lo único que sobrevive es el usuario cacheado en localStorage.
+  // Se muestra de inmediato (evita el parpadeo a "sin sesión") mientras se
+  // confirma la sesión real con un refresh vía la cookie HttpOnly.
+  async function restoreSession(): Promise<boolean> {
     const session = sessionStorage.load()
     if (!session) return false
 
-    token.value = session.token
     user.value = session.user
 
-    // Refrescar datos del usuario en segundo plano
-    authService
-      .me()
-      .then((freshUser) => {
-        user.value = freshUser
-      })
-      .catch(() => {
-        // El interceptor de 401 maneja la renovación o el logout
-      })
-
-    return true
+    return tryRefresh()
   }
 
   async function tryRefresh(): Promise<boolean> {
@@ -158,7 +154,8 @@ export const useAuthStore = defineStore('auth', () => {
     if (!session) return false
 
     try {
-      // Mismo refresh compartido que usa el interceptor de axios.
+      // Mismo refresh compartido que usa el interceptor de axios. Ya deja el
+      // token en memoria (tokenMemory) y el usuario en localStorage.
       const newToken = await refreshAccessToken()
       token.value = newToken
       user.value = sessionStorage.load()?.user ?? user.value
@@ -172,6 +169,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function updateToken(newToken: string): void {
     token.value = newToken
+    tokenMemory.set(newToken)
   }
 
   function clearError(): void {
@@ -220,10 +218,11 @@ export const useAuthStore = defineStore('auth', () => {
     // Helper DEV: inyecta usuario y token sin pasar por el backend
     ...(import.meta.env.DEV
       ? {
-          /* v8 ignore next 5 */
+          /* v8 ignore next 6 */
           _setDevSession(mockUser: typeof user.value, mockToken: string) {
             user.value = mockUser
             token.value = mockToken
+            tokenMemory.set(mockToken)
           },
         }
       : {}),

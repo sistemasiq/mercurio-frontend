@@ -63,42 +63,43 @@
                   </div>
                   <div class="col">
                     <div class="field-label">Tipo de evento</div>
-                    <q-select
-                      v-model="form.tipoEvento"
-                      dense
-                      outlined
-                      :options="tiposEventoOptions"
-                      :loading="tiposEventoStore.loading"
-                      emit-value
-                      map-options
-                      placeholder="Selecciona un tipo"
-                      :error="!!tiposEventoStore.error"
-                      :error-message="tiposEventoStore.error ?? undefined"
-                      no-error-icon
+                    <div v-if="tiposEventoStore.loading" class="tipo-evento-chips">
+                      <q-spinner size="20px" color="primary" />
+                    </div>
+                    <div
+                      v-else-if="tiposEventoOptions.length"
+                      class="tipo-evento-chips"
+                      role="radiogroup"
+                      aria-label="Tipo de evento"
                     >
-                      <template
-                        v-if="!tiposEventoStore.loading && !tiposEventoOptions.length"
-                        #no-option
+                      <q-chip
+                        v-for="opt in tiposEventoOptions"
+                        :key="opt.value"
+                        clickable
+                        :selected="form.tipoEvento === opt.value"
+                        :color="form.tipoEvento === opt.value ? 'primary' : undefined"
+                        :text-color="form.tipoEvento === opt.value ? 'white' : undefined"
+                        :outline="form.tipoEvento !== opt.value"
+                        @click="form.tipoEvento = opt.value"
                       >
-                        <q-item>
-                          <q-item-section class="text-grey-6 text-caption">
-                            <span v-if="tiposEventoStore.error">
-                              Error al cargar.
-                              <q-btn
-                                flat
-                                dense
-                                no-caps
-                                size="sm"
-                                color="primary"
-                                label="Reintentar"
-                                @click.stop="tiposEventoStore.cargar()"
-                              />
-                            </span>
-                            <span v-else>No hay tipos de evento configurados.</span>
-                          </q-item-section>
-                        </q-item>
-                      </template>
-                    </q-select>
+                        {{ opt.label }}
+                      </q-chip>
+                    </div>
+                    <div v-else class="text-grey-6 text-caption">
+                      <span v-if="tiposEventoStore.error">
+                        {{ tiposEventoStore.error }}
+                        <q-btn
+                          flat
+                          dense
+                          no-caps
+                          size="sm"
+                          color="primary"
+                          label="Reintentar"
+                          @click="tiposEventoStore.cargar()"
+                        />
+                      </span>
+                      <span v-else>No hay tipos de evento configurados.</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -188,6 +189,15 @@
                         style="font-size: 0.75rem"
                       >
                         La hora de fin debe ser mayor a la hora de inicio.
+                      </div>
+                      <div
+                        v-if="eventoFueraDeHorario"
+                        class="text-warning q-mt-xs"
+                        style="font-size: 0.75rem"
+                      >
+                        El evento queda fuera del horario de operación de la sucursal ({{
+                          horarioSucursal?.apertura
+                        }}–{{ horarioSucursal?.cierre }}).
                       </div>
                     </div>
                     <div>
@@ -944,6 +954,7 @@ import { horasFacturables } from '@/utils/horario'
 import { mensajeDeError } from '@/utils/errorHandler'
 import { resolverMetodoPagoId } from '@/utils/pagos'
 import { pulserasApi } from '@/api/pulserasApi'
+import { branchService } from '@/services/branchService'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -979,6 +990,20 @@ onMounted(() => {
       inventarioPulseras.value = null
     })
   resStore.cargar(authStore.currentBranchId)
+
+  // Horario de operación de la sucursal, para avisar (no bloquear) cuando el
+  // evento quede fuera de ese horario.
+  branchService
+    .getBranch(authStore.currentBranchId)
+    .then((b) => {
+      horarioSucursal.value = {
+        apertura: b.horaApertura.slice(0, 5),
+        cierre: b.horaCierre.slice(0, 5),
+      }
+    })
+    .catch(() => {
+      horarioSucursal.value = null
+    })
 })
 
 interface BookingCalendarDay {
@@ -1043,6 +1068,18 @@ const horarioValido = computed(
   () =>
     !!form.value.horaInicio && !!form.value.horaFin && form.value.horaFin > form.value.horaInicio,
 )
+
+/** Horario de operación de la sucursal actual ("HH:mm"), para el aviso de
+ * evento fuera de horario. null mientras no se cargue o si falla. */
+const horarioSucursal = ref<{ apertura: string; cierre: string } | null>(null)
+
+/** Aviso, no bloqueo: si el evento cae fuera del horario de operación de la
+ * sucursal. */
+const eventoFueraDeHorario = computed(() => {
+  const horario = horarioSucursal.value
+  if (!horario || !form.value.horaInicio || !form.value.horaFin) return false
+  return form.value.horaInicio < horario.apertura || form.value.horaFin > horario.cierre
+})
 
 const paso1Valido = computed(
   () =>
@@ -1442,7 +1479,8 @@ const opcionesAnticipo = computed<number[]>(() => {
 })
 
 const porcentajeSeleccionado = computed(
-  () => opcionesAnticipo.value.find((p) => montoPorPorcentaje(p) === anticipoIngresado.value) ?? null,
+  () =>
+    opcionesAnticipo.value.find((p) => montoPorPorcentaje(p) === anticipoIngresado.value) ?? null,
 )
 
 const aplicarPorcentaje = (porcentaje: number) => {
@@ -1864,5 +1902,13 @@ const confirmarReservacion = async () => {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.tipo-evento-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
 }
 </style>

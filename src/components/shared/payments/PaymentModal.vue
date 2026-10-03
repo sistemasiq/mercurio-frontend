@@ -161,6 +161,19 @@
           placeholder="Folio del voucher"
         />
       </div>
+      <div class="card-form__field">
+        <span class="field-label">Últimos 4 dígitos (opcional)</span>
+        <q-input
+          v-model="tarjetaUltimos4"
+          outlined
+          dense
+          maxlength="4"
+          mask="####"
+          placeholder="0000"
+          :rules="[(v: string) => !v || /^\d{4}$/.test(v) || '4 dígitos']"
+          hide-bottom-space
+        />
+      </div>
     </div>
   </BaseDialog>
 
@@ -258,6 +271,7 @@ const mostrarModalTarjeta = ref(false)
 const tarjetaMontoTemporal = ref(0)
 const tarjetaTipo = ref<'DEBITO' | 'CREDITO'>('CREDITO')
 const tarjetaAutorizacion = ref('')
+const tarjetaUltimos4 = ref('')
 
 // Métodos marcados con "requiere referencia" en el catálogo piden un folio
 // antes de agregarse (la tarjeta ya lo pide en su propio diálogo).
@@ -311,6 +325,7 @@ watch(
       tarjetaMontoTemporal.value = 0
       tarjetaTipo.value = 'CREDITO'
       tarjetaAutorizacion.value = ''
+      tarjetaUltimos4.value = ''
     }
   },
   { immediate: true },
@@ -498,6 +513,7 @@ const confirmarPagoTarjeta = () => {
     tarjetaMontoTemporal.value,
     tarjetaTipo.value as 'DEBITO' | 'CREDITO',
     tarjetaAutorizacion.value,
+    tarjetaUltimos4.value || undefined,
   )
   limpiarModalTarjeta()
 }
@@ -508,7 +524,12 @@ const confirmarPagoTarjeta = () => {
 let contadorPagos = 0
 const nuevoIdPago = () => `pago-${Date.now()}-${++contadorPagos}`
 
-const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: string) => {
+const agregarPago = (
+  monto: number,
+  cardType?: 'DEBITO' | 'CREDITO',
+  authCode?: string,
+  ultimos4?: string,
+) => {
   if (esEfectivo(metodoSeleccionado.value)) {
     const existente = pagosAplicados.value.find((p) => esEfectivo(p.method))
     if (existente) {
@@ -524,6 +545,7 @@ const agregarPago = (monto: number, cardType?: 'DEBITO' | 'CREDITO', authCode?: 
     timestamp: new Date(),
     cardType,
     authCode,
+    ultimos4,
   })
 }
 
@@ -543,6 +565,7 @@ const limpiarModalTarjeta = () => {
   tarjetaMontoTemporal.value = 0
   tarjetaTipo.value = 'CREDITO'
   tarjetaAutorizacion.value = ''
+  tarjetaUltimos4.value = ''
 }
 
 const ID_REDENCION_LEALTAD = 'redencion-lealtad'

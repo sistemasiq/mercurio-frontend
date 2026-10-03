@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { configurarRefresh } from '@/api/axiosClient'
 import { authService } from '@/services/authService'
+import { tokenMemory } from '@/utils/tokenMemory'
 import type { ApiError, LoginResult } from '@/types/auth'
 
 vi.mock('@/services/authService', () => ({
@@ -101,8 +102,6 @@ describe('auth store: tryRefresh', () => {
     localStorage.setItem(
       'auth_session',
       JSON.stringify({
-        token: 'old',
-        tokenExpiry: 0,
         user: { ...base, permissions: [] },
       }),
     )
@@ -120,5 +119,104 @@ describe('auth store: tryRefresh', () => {
     expect(JSON.parse(localStorage.getItem('auth_session') ?? '{}').user.permissions).toEqual([
       'pos:acceder',
     ])
+    // C3: el token refrescado queda solo en memoria, nunca en localStorage.
+    expect(JSON.parse(localStorage.getItem('auth_session') ?? '{}').token).toBeUndefined()
+    expect(tokenMemory.get()).toBe('new')
+  })
+})
+
+describe('auth store: restoreSession (C3)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    tokenMemory.clear()
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    configurarRefresh(null)
+  })
+
+  const base = {
+    id: '1',
+    name: 'x',
+    email: 'x@x.com',
+    roles: ['Cajero'],
+    branchId: null,
+    branchName: null,
+    permissions: [],
+  }
+
+  it('sin sesión cacheada, no intenta refrescar', async () => {
+    const auth = useAuthStore()
+
+    expect(await auth.restoreSession()).toBe(false)
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it('con usuario cacheado, recupera el token con un refresh vía la cookie', async () => {
+    localStorage.setItem('auth_session', JSON.stringify({ user: base }))
+    configurarRefresh(() => Promise.resolve({ token: 'restaurado', user: base }))
+    const auth = useAuthStore()
+
+    expect(await auth.restoreSession()).toBe(true)
+
+    expect(auth.token).toBe('restaurado')
+    expect(tokenMemory.get()).toBe('restaurado')
+  })
+
+  it('si el refresh falla (sin cookie válida), limpia el estado', async () => {
+    localStorage.setItem('auth_session', JSON.stringify({ user: base }))
+    configurarRefresh(() => Promise.reject(new Error('sin cookie')))
+    const auth = useAuthStore()
+
+    expect(await auth.restoreSession()).toBe(false)
+
+    expect(auth.isAuthenticated).toBe(false)
+    expect(tokenMemory.get()).toBeNull()
+    expect(localStorage.getItem('auth_session')).toBeNull()
+  })
+})
+
+describe('auth store: logout limpia la memoria (C3)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    tokenMemory.clear()
+    setActivePinia(createPinia())
+    // Limpia cualquier mockResolvedValueOnce que haya quedado en cola de
+    // describes anteriores (ej. llamadas a selectBranchAndLogin que nunca
+    // llegaron a invocar a login()).
+    vi.mocked(authService.login).mockReset()
+    vi.mocked(authService.logout).mockResolvedValue(undefined)
+  })
+
+  it('tras logout no queda token en memoria ni sesión en localStorage', async () => {
+    const auth = useAuthStore()
+    vi.mocked(authService.login).mockResolvedValueOnce({
+      kind: 'success',
+      data: {
+        token: 'tok',
+        tokenType: 'bearer',
+        expiresIn: 900,
+        refreshToken: '',
+        refreshExpiresIn: 0,
+        user: {
+          id: '1',
+          name: 'x',
+          email: 'x@x.com',
+          roles: ['Cajero'],
+          branchId: null,
+          branchName: null,
+          permissions: [],
+        },
+      },
+    })
+    await auth.login({ email: 'a@a.com', password: 'secreto' })
+    expect(tokenMemory.get()).toBe('tok')
+
+    await auth.logout()
+
+    expect(tokenMemory.get()).toBeNull()
+    expect(auth.token).toBeNull()
+    expect(localStorage.getItem('auth_session')).toBeNull()
   })
 })

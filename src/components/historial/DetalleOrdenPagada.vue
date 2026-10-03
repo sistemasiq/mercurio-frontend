@@ -65,6 +65,10 @@ const referenciaLabel = computed(() =>
   orden.value?.tipo_origen === 'comanda' ? 'TICKET' : 'CLIENTE',
 )
 
+const puntosGanados = computed(() => orden.value?.puntos_ganados ?? null)
+
+const ultimos4PorMetodo = computed(() => orden.value?.metodos_pago.filter((m) => m.ultimos4) ?? [])
+
 function formatearFecha(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -122,12 +126,27 @@ async function ejecutarImpresion() {
           <span class="receipt-card__subtitle">
             {{ referenciaLabel === 'TICKET' ? 'Pedido' : 'Cliente' }} {{ orden.titulo }} ·
             {{ formatearFecha(orden.fecha_hora) }}
+            <template v-if="orden.mesa"> · Mesa {{ orden.mesa }}</template>
           </span>
         </div>
 
         <div v-if="esCancelado" class="receipt-card__cancel">
           <q-icon name="warning" size="19px" />
           <span>{{ orden.motivo_cancelacion || 'Cancelación sin motivo especificado' }}</span>
+        </div>
+
+        <!-- Info en pantalla únicamente (B9 B.1/B.3): no forma parte del ticket
+             térmico impreso, que no se toca. -->
+        <div v-if="puntosGanados !== null" class="receipt-card__info">
+          <q-icon name="stars" size="18px" />
+          Puntos ganados: {{ puntosGanados }}
+        </div>
+        <div v-if="ultimos4PorMetodo.length" class="receipt-card__info">
+          <q-icon name="credit_card" size="18px" />
+          <span v-for="(m, idx) in ultimos4PorMetodo" :key="idx">
+            {{ m.metodo_pago_nombre }} terminada en {{ m.ultimos4
+            }}<template v-if="idx < ultimos4PorMetodo.length - 1">, </template>
+          </span>
         </div>
 
         <!-- TICKET TÉRMICO — ancho dinámico 58/80mm, impresión universal -->
@@ -246,6 +265,18 @@ async function ejecutarImpresion() {
   &__subtitle {
     font-size: 13px;
     color: var(--text-secondary);
+  }
+
+  &__info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    font-size: 13px;
+    font-weight: 600;
   }
 
   &__cancel {

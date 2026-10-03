@@ -8,6 +8,7 @@ import { useAccessControlStore, type ActiveChild } from '@/stores/accessControl'
 import { useReservacionesStore } from '@/stores/reservaciones'
 import { useAlertasInventarioStore } from '@/stores/alertasInventario'
 import { usePaquetesStore } from '@/stores/paquetes'
+import { useTurnoCajaStore } from '@/stores/turnoCaja'
 import { obtenerComandas } from '@/services/comandaService'
 import { formatMXN } from '@/utils/formatoMoneda'
 import PageHeader from '@/components/ui/PageHeader.vue'
@@ -26,6 +27,7 @@ const acceso = useAccessControlStore()
 const reservacionesStore = useReservacionesStore()
 const alertas = useAlertasInventarioStore()
 const paquetesStore = usePaquetesStore()
+const turnoCaja = useTurnoCajaStore()
 
 const puede = {
   estancias: computed(() => auth.hasPermission('estancias:ver_activos')),
@@ -272,6 +274,13 @@ const sinModulos = computed(
         icon="celebration"
         :value="eventosHoy.length"
         :note="siguienteEvento ? `siguiente ${siguienteEvento.hora_inicio.slice(0, 5)}` : undefined"
+      />
+      <KpiCard
+        v-if="puede.pos.value && turnoCaja.estaOperando"
+        label="Ventas del turno"
+        icon="point_of_sale"
+        :value="formatMXN(turnoCaja.totalVendido)"
+        :note="`${turnoCaja.numeroVentas} ${turnoCaja.numeroVentas === 1 ? 'venta' : 'ventas'}`"
       />
     </div>
 

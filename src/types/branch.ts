@@ -6,6 +6,8 @@ export interface Branch {
   estado: string | null
   codigoPostal: string | null
   zonaHoraria: string
+  horaApertura: string
+  horaCierre: string
   telefono: string | null
   correo: string | null
   clave: string | null
@@ -27,6 +29,8 @@ export interface CreateBranchPayload {
   estado?: string | null
   codigo_postal?: string | null
   zona_horaria?: string
+  hora_apertura?: string
+  hora_cierre?: string
   telefono?: string | null
   correo?: string | null
   clave?: string | null
@@ -47,6 +51,8 @@ export interface UpdateBranchPayload {
   estado?: string | null
   codigo_postal?: string | null
   zona_horaria?: string
+  hora_apertura?: string
+  hora_cierre?: string
   telefono?: string | null
   correo?: string | null
   clave?: string | null
