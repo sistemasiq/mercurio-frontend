@@ -67,7 +67,9 @@
         </template>
         <template #body-cell-costo="props">
           <q-td :props="props">
-            <template v-if="props.row.costo_receta !== null && props.row.costo_receta !== undefined">
+            <template
+              v-if="props.row.costo_receta !== null && props.row.costo_receta !== undefined"
+            >
               {{ formatMXN(Number(props.row.costo_receta)) }}
               <span v-if="margenDe(props.row) !== null" class="cell-sub">
                 Margen {{ margenDe(props.row) }} %
@@ -318,16 +320,18 @@
           <div class="field-label">Foto / miniatura (opcional)</div>
           <div class="row items-center q-gutter-md">
             <q-avatar square size="64px" class="imagen-preview-avatar">
-              <img v-if="imagenPreviewUrl" :src="imagenPreviewUrl" />
+              <q-spinner v-if="recortandoImagen" color="primary" size="24px" />
+              <img v-else-if="imagenPreviewUrl" :src="imagenPreviewUrl" />
               <q-icon v-else name="image" size="32px" color="grey-5" />
             </q-avatar>
             <q-file
-              v-model="imagenFile"
+              v-model="imagenFileSeleccionado"
               dense
               outlined
               clearable
               accept="image/*"
               label="Seleccionar imagen"
+              hint="Se recorta al cuadrado (1:1) y se redimensiona a 800x800"
               style="flex: 1"
             >
               <template #prepend><q-icon name="attach_file" /></template>
@@ -606,6 +610,7 @@ import {
 } from '@/types/producto'
 import { apiClient } from '@/api/axiosClient.ts'
 import { getProductoImagenUrl } from '@/api/productosApi'
+import { recortarImagenCuadrada } from '@/utils/imageCrop'
 
 interface TramoEstancia {
   min_horas: number
@@ -734,8 +739,13 @@ const productoComboTemporal = ref({
   cantidad: 1,
 })
 
+// D1.4: la imagen que elige el usuario (imagenFileSeleccionado) se recorta
+// al cuadrado centrado y se redimensiona a 800x800 JPEG antes de usarse; lo
+// que se sube y se previsualiza es siempre el resultado ya recortado.
+const imagenFileSeleccionado = ref<File | null>(null)
 const imagenFile = ref<File | null>(null)
 const imagenPreviewLocal = ref<string | null>(null)
+const recortandoImagen = ref(false)
 
 // Si el tipo cambia a 'E', forzar precio_unitario a 0
 watch(
@@ -856,14 +866,26 @@ const obtenerNombreProducto = (id: string) => {
   return prod ? prod.nombre : 'Producto no encontrado'
 }
 
-watch(imagenFile, (file, _oldFile, onCleanup) => {
+watch(imagenFileSeleccionado, async (file, _oldFile, onCleanup) => {
   if (!file) {
+    imagenFile.value = null
     imagenPreviewLocal.value = null
     return
   }
-  const url = URL.createObjectURL(file)
-  imagenPreviewLocal.value = url
-  onCleanup(() => URL.revokeObjectURL(url))
+  recortandoImagen.value = true
+  try {
+    const recortada = await recortarImagenCuadrada(file)
+    imagenFile.value = recortada
+    const url = URL.createObjectURL(recortada)
+    imagenPreviewLocal.value = url
+    onCleanup(() => URL.revokeObjectURL(url))
+  } catch {
+    imagenFile.value = null
+    imagenPreviewLocal.value = null
+    $q.notify({ type: 'negative', message: 'No se pudo recortar la imagen seleccionada.' })
+  } finally {
+    recortandoImagen.value = false
+  }
 })
 
 const imagenPreviewUrl = computed(
@@ -883,7 +905,7 @@ const abrirCrear = () => {
   }
   tramoTemporal.value = { min_horas: 1, max_horas: 1, precio: 0 }
   productoComboTemporal.value = { producto_id: '', cantidad: 1 }
-  imagenFile.value = null
+  imagenFileSeleccionado.value = null
   dialogOpen.value = true
 }
 
@@ -937,14 +959,14 @@ const abrirEditar = async (row: ProductoAdmin) => {
 
   tramoTemporal.value = { min_horas: ultimaHora, max_horas: ultimaHora, precio: 0 }
   productoComboTemporal.value = { producto_id: '', cantidad: 1 }
-  imagenFile.value = null
+  imagenFileSeleccionado.value = null
   dialogOpen.value = true
 }
 
 const cerrarDialog = () => {
   dialogOpen.value = false
   editando.value = null
-  imagenFile.value = null
+  imagenFileSeleccionado.value = null
 }
 
 const guardar = async () => {
@@ -1180,11 +1202,13 @@ const ejecutarReactivar = async () => {
   border: 1px solid #e2e8f0;
   overflow: hidden;
   flex-shrink: 0;
+  aspect-ratio: 1;
 }
 
 .imagen-preview-avatar img {
   width: 100%;
   height: 100%;
+  aspect-ratio: 1;
   object-fit: cover;
 }
 

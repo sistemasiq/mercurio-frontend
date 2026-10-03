@@ -99,6 +99,8 @@ const stockBajo = computed(
   &__img {
     width: 100%;
     height: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
   }
 
   &__placeholder {

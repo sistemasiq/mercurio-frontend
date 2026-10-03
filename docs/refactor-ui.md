@@ -63,8 +63,6 @@ simplifican hasta que exista la fuente.
 
 ### 04 Inventario
 
-- **Imagen 1:1 del producto** (4a.1): se conserva el selector de imagen
-  existente.
 - **Presentaciones dentro del diálogo de insumo** (4b.1): se gestionan en su
   propio diálogo.
 
