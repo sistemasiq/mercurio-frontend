@@ -30,12 +30,17 @@
         note-tone="warn"
       />
       <KpiCard label="Pagos registrados" :value="pagosStore.pagos_reservacion.length" />
+      <KpiCard
+        label="Anticipos"
+        :value="fmt(totalAnticipos)"
+        :note="`${anticipos.length} anticipos`"
+      />
     </div>
 
     <DataTableCard
       v-model:search="busqueda"
       v-model:filter="filtro"
-      search-placeholder="Buscar cliente o evento"
+      search-placeholder="Buscar folio, cliente o evento"
       :filters="FILTROS"
       :count="`${filasVisibles.length} pagos`"
     >
@@ -86,6 +91,11 @@
               :tone="props.row.estado_pago === 'pagado' ? 'ok' : 'warn'"
               :label="props.row.estado_pago === 'pagado' ? 'Liquidado' : 'Parcial'"
             />
+          </q-td>
+        </template>
+        <template #body-cell-tipo="props">
+          <q-td :props="props">
+            <StatusBadge :tone="TONO_TIPO[props.row.tipo]" :label="LABEL_TIPO[props.row.tipo]" />
           </q-td>
         </template>
         <template #body-cell-fecha_pago="props">
@@ -266,6 +276,7 @@ const fmtFecha = (iso: string) =>
 const columns: QTableColumn[] = [
   { name: 'cliente', label: 'Cliente', field: 'cliente', align: 'left', sortable: true },
   { name: 'evento', label: 'Evento', field: 'evento', align: 'left' },
+  { name: 'tipo', label: 'Tipo', field: 'tipo', align: 'left' },
   { name: 'metodo', label: 'Método', field: 'metodo', align: 'left' },
   { name: 'monto', label: 'Pago', field: 'monto', align: 'right', sortable: true },
   { name: 'total', label: 'Total', field: 'total', align: 'right', sortable: true },
@@ -274,13 +285,25 @@ const columns: QTableColumn[] = [
   { name: 'fecha_pago', label: 'Fecha', field: 'fecha_pago', align: 'left', sortable: true },
 ]
 
+const LABEL_TIPO: Record<string, string> = {
+  anticipo: 'Anticipo',
+  pago: 'Pago',
+  liquidacion: 'Liquidación',
+}
+const TONO_TIPO: Record<string, 'ok' | 'warn' | 'info'> = {
+  anticipo: 'info',
+  pago: 'warn',
+  liquidacion: 'ok',
+}
+
 // ── Filtros y KPIs ────────────────────────────────────────────────────────────
 
-type Filtro = 'todos' | 'pagado' | 'pendiente'
+type Filtro = 'todos' | 'pagado' | 'pendiente' | 'anticipo'
 const FILTROS: FilterChip<Filtro>[] = [
   { label: 'Todos', value: 'todos' },
   { label: 'Liquidados', value: 'pagado' },
   { label: 'Parciales', value: 'pendiente' },
+  { label: 'Anticipos', value: 'anticipo' },
 ]
 const filtro = ref<Filtro | null>('todos')
 const busqueda = ref('')
@@ -288,9 +311,18 @@ const busqueda = ref('')
 const filasVisibles = computed(() => {
   const q = busqueda.value.trim().toLowerCase()
   return filas.value
-    .filter((f) => filtro.value === 'todos' || f.estado_pago === filtro.value)
-    .filter((f) => !q || `${f.cliente} ${f.evento}`.toLowerCase().includes(q))
+    .filter((f) => {
+      if (filtro.value === 'todos') return true
+      if (filtro.value === 'anticipo') return f.tipo === 'anticipo'
+      return f.estado_pago === filtro.value
+    })
+    .filter((f) => !q || `${f.folio ?? ''} ${f.cliente} ${f.evento}`.toLowerCase().includes(q))
 })
+
+const anticipos = computed(() =>
+  pagosStore.pagos_reservacion.filter((p) => p.tipo === 'anticipo'),
+)
+const totalAnticipos = computed(() => anticipos.value.reduce((s, p) => s + parseFloat(p.monto), 0))
 
 const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
 const pagosMes = computed(() =>
@@ -329,6 +361,7 @@ const filas = computed(() =>
 
     return {
       ...p,
+      folio: res?.folio ?? null,
       cliente: res
         ? `${res.nombre_cliente}${res.apellidos_cliente ? ' ' + res.apellidos_cliente : ''}`.trim()
         : p.reservacion_id.slice(0, 8) + '…',
@@ -474,7 +507,7 @@ const onCobroExitoso = async (pagos: AppliedPayment[]) => {
       const totalEvento = parseFloat(res.precio_total)
       const tipoEvento = tiposEventoStore.activos.find((t) => t.id === res.tipo_evento_id)?.nombre
       ticketData.value = {
-        folio: res.id,
+        folio: res.folio ?? res.id,
         sucursal: authStore.currentBranchName ?? 'Sucursal',
         clienteNombre:
           `${res.nombre_cliente}${res.apellidos_cliente ? ' ' + res.apellidos_cliente : ''}`.trim(),
