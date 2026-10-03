@@ -29,11 +29,16 @@ export const useReservacionesStore = defineStore('reservaciones', {
     activas: (state) => state.reservaciones.filter((r) => r.activo),
   },
   actions: {
-    async cargar(sucursal_id?: string) {
+    /**
+     * `desde`/`hasta` (YYYY-MM-DD, ambos inclusive) acotan la carga al rango
+     * visible del calendario -- las vistas Semana y Día de CalendarioPage.vue
+     * los usan para no traer todo el histórico de la sucursal.
+     */
+    async cargar(sucursal_id?: string, desde?: string, hasta?: string) {
       this.loading = true
       this.error = null
       try {
-        this.reservaciones = await reservacionesApi.listar(sucursal_id)
+        this.reservaciones = await reservacionesApi.listar(sucursal_id, desde, hasta)
       } catch (error: unknown) {
         this.error = mensajeDeError(error, 'Error al cargar reservaciones')
       } finally {
