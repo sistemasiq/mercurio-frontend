@@ -18,4 +18,4 @@ coverage
 !.vscode/extensions.json
 .idea
 
-CLAUDE.md
+CLAUDE.md.env.docker

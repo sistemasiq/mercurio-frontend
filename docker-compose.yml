@@ -1,0 +1,103 @@
+# Stack completo de Woow Kids: BD, MinIO, backend (construido desde este repo) y
+# frontend (imagen publicada por woowkids-frontend en GHCR).
+#
+#   docker compose up -d --build
+#
+# Todo trae valores genéricos por defecto (usuario admin, contraseña admin1234)
+# para levantar sin configurar nada. ANTES DE PRODUCCIÓN cámbialos: copia
+# .env.docker.example a .env.docker y usa `--env-file .env.docker`.
+#
+# Entrar a la app: admin@woowkids.com / admin1234
+#
+# Front:   http://localhost:${FRONTEND_PORT:-8080}
+# API:     http://localhost:${BACKEND_PORT:-8000}/docs
+# MinIO:   http://localhost:${MINIO_CONSOLE_PORT:-9001}
+#
+# La primera vez el backend crea la BD con sql/schema_maestro.sql (y el seed de
+# demo si SEED_DEMO=true). Para empezar de cero: docker compose down -v
+#
+# Para construir también el backend desde el repo hermano en lugar de usar la
+# imagen publicada:
+#   docker compose -f docker-compose.yml -f docker-compose.local-back.yml up -d --build
+
+name: woowkids
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin1234}
+      POSTGRES_DB: ${POSTGRES_DB:-woowkids}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-admin1234}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/sistemasiq/woowkids-backend:${BACKEND_TAG:-latest}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin1234}@db:5432/${POSTGRES_DB:-woowkids}
+      SECRET_KEY: ${SECRET_KEY:-woowkids-secret-key-cambiar-en-produccion}
+      CORS_ORIGINS: '["http://localhost:${FRONTEND_PORT:-8080}"]'
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-admin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-admin1234}
+      MINIO_BUCKET: ${MINIO_BUCKET:-woowkids}
+      MINIO_SECURE: "false"
+      # Por HTTP (sin TLS) el navegador no guarda una cookie Secure salvo en
+      # localhost. En producción detrás de HTTPS debe ser true.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SEED_DEMO: ${SEED_DEMO:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@woowkids.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin1234}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_APP_TITLE: Woow Kids
+    image: ghcr.io/sistemasiq/woowkids-frontend:${FRONTEND_TAG:-local}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  minio_data:
