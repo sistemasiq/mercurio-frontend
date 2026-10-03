@@ -15,6 +15,7 @@
           :back-to="{ name: 'eventos-reservaciones' }"
         >
           <template #subtitle>
+            <template v-if="reservacion.folio">{{ reservacion.folio }} · </template>
             {{ fmtFechaEvento }} · {{ duracionEvento
             }}<template v-if="paquete"> · {{ paquete.nombre }}</template>
             ·

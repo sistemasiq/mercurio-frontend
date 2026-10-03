@@ -94,16 +94,10 @@ simplifican hasta que exista la fuente.
 
 - **Botón "Filtrar"** (Resumen): no había filtros implementados; se reemplazó
   por acceso a Reservaciones.
-- **Folio de reservación (R-0418)**: `Reservaciones` no tiene folio legible.
-- **Tipo de evento como chips y bloques de horario ocupados/libres**
-  (Nueva reservación): se conserva el selector y las horas libres; la
-  disponibilidad por bloque requiere endpoint.
 - **Montos sugeridos de anticipo (30 %, 50 %, total)**: se conserva el campo
   con mínimo sugerido.
-- **Vistas Semana / Día y "horario libre"** (Calendario): solo existe la vista
-  mensual.
-- **KPI "Anticipos" y filtros por método / mes** (Pagos): el modelo no
-  distingue anticipo de liquidación.
+- **Vistas Semana / Día** (Calendario): solo existe la vista mensual; el
+  endpoint por rango (`GET /reservaciones?desde&hasta`) ya existe.
 
 ### 03 Catálogo
 
