@@ -98,4 +98,12 @@ export const branchesApi = {
       cajasAbiertas: data.cajas_abiertas,
     }
   },
+
+  async exportarIndicadores(id: string, desde: string, hasta: string): Promise<Blob> {
+    const { data } = await apiClient.get(`/sucursales/${id}/indicadores/export`, {
+      params: { desde, hasta },
+      responseType: 'blob',
+    })
+    return data as Blob
+  },
 }

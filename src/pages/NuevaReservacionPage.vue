@@ -63,42 +63,43 @@
                   </div>
                   <div class="col">
                     <div class="field-label">Tipo de evento</div>
-                    <q-select
-                      v-model="form.tipoEvento"
-                      dense
-                      outlined
-                      :options="tiposEventoOptions"
-                      :loading="tiposEventoStore.loading"
-                      emit-value
-                      map-options
-                      placeholder="Selecciona un tipo"
-                      :error="!!tiposEventoStore.error"
-                      :error-message="tiposEventoStore.error ?? undefined"
-                      no-error-icon
+                    <div v-if="tiposEventoStore.loading" class="tipo-evento-chips">
+                      <q-spinner size="20px" color="primary" />
+                    </div>
+                    <div
+                      v-else-if="tiposEventoOptions.length"
+                      class="tipo-evento-chips"
+                      role="radiogroup"
+                      aria-label="Tipo de evento"
                     >
-                      <template
-                        v-if="!tiposEventoStore.loading && !tiposEventoOptions.length"
-                        #no-option
+                      <q-chip
+                        v-for="opt in tiposEventoOptions"
+                        :key="opt.value"
+                        clickable
+                        :selected="form.tipoEvento === opt.value"
+                        :color="form.tipoEvento === opt.value ? 'primary' : undefined"
+                        :text-color="form.tipoEvento === opt.value ? 'white' : undefined"
+                        :outline="form.tipoEvento !== opt.value"
+                        @click="form.tipoEvento = opt.value"
                       >
-                        <q-item>
-                          <q-item-section class="text-grey-6 text-caption">
-                            <span v-if="tiposEventoStore.error">
-                              Error al cargar.
-                              <q-btn
-                                flat
-                                dense
-                                no-caps
-                                size="sm"
-                                color="primary"
-                                label="Reintentar"
-                                @click.stop="tiposEventoStore.cargar()"
-                              />
-                            </span>
-                            <span v-else>No hay tipos de evento configurados.</span>
-                          </q-item-section>
-                        </q-item>
-                      </template>
-                    </q-select>
+                        {{ opt.label }}
+                      </q-chip>
+                    </div>
+                    <div v-else class="text-grey-6 text-caption">
+                      <span v-if="tiposEventoStore.error">
+                        {{ tiposEventoStore.error }}
+                        <q-btn
+                          flat
+                          dense
+                          no-caps
+                          size="sm"
+                          color="primary"
+                          label="Reintentar"
+                          @click="tiposEventoStore.cargar()"
+                        />
+                      </span>
+                      <span v-else>No hay tipos de evento configurados.</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1478,7 +1479,8 @@ const opcionesAnticipo = computed<number[]>(() => {
 })
 
 const porcentajeSeleccionado = computed(
-  () => opcionesAnticipo.value.find((p) => montoPorPorcentaje(p) === anticipoIngresado.value) ?? null,
+  () =>
+    opcionesAnticipo.value.find((p) => montoPorPorcentaje(p) === anticipoIngresado.value) ?? null,
 )
 
 const aplicarPorcentaje = (porcentaje: number) => {
@@ -1900,5 +1902,13 @@ const confirmarReservacion = async () => {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.tipo-evento-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
 }
 </style>

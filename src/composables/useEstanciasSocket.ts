@@ -1,5 +1,5 @@
 import { onBeforeUnmount, ref } from 'vue'
-import { sessionStorage } from '@/utils/session'
+import { tokenMemory } from '@/utils/tokenMemory'
 import { authApi } from '@/api/authApi'
 import type { EstanciaWsMessage } from '@/types/estancia'
 
@@ -21,7 +21,7 @@ const BACKOFF_MAX_MS = 30000
  * settings.WS_ACEPTA_JWT siga activo.
  */
 async function construirUrlWs(): Promise<string | null> {
-  const token = sessionStorage.load()?.token
+  const token = tokenMemory.get()
   if (!token) return null
 
   let ticket: string | null = null

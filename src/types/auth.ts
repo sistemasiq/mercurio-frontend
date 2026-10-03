@@ -58,9 +58,10 @@ export interface AuthState {
   error: string | null
 }
 
+// C3: ya no guarda el token (vive solo en memoria, ver utils/tokenMemory.ts)
+// ni su expiración -- solo el usuario, que no es sensible y permite mostrar
+// la sesión cacheada mientras `restoreSession` confirma con el backend.
 export interface StoredSession {
-  token: string
-  tokenExpiry: number
   user: User
 }
 
