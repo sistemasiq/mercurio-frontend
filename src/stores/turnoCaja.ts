@@ -13,6 +13,7 @@
 
 import { ref, computed, reactive } from 'vue'
 import { defineStore } from 'pinia'
+import { Notify } from 'quasar'
 import { turnoCajaService, TurnoNoEncontradoError } from '@/services/turnoCajaService'
 import { mensajeDeError, resolveErrorMessage } from '@/utils/errorHandler'
 import { useAuthStore } from '@/stores/auth'
@@ -25,6 +26,8 @@ import type {
   FilaBalance,
   RevisionAdminResponse,
   RetiroParcialPayload,
+  RetiroParcialResponse,
+  IngresoEfectivoPayload,
   ResultadoCierre,
   ResultadoCargaTurno,
 } from '@/types/turnoCaja'
@@ -73,6 +76,20 @@ function borrarAdminEmail(): void {
   }
 }
 
+// Notificación flotante (se autodesvanece), igual que el resto de avisos de la
+// app (ej. "¡Bienvenido!" al iniciar sesión) -- reemplaza los q-banner fijos que
+// antes quedaban pegados en la página incluso al cambiar de vista (apertura,
+// retiro, ingreso, cierre comparten este store y su `error`).
+function notificarError(mensaje: string): void {
+  Notify.create({
+    type: 'negative',
+    message: mensaje,
+    position: 'top',
+    timeout: 4000,
+    icon: 'error',
+  })
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Store
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,7 +102,9 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   const sucursalNombre = ref('')
   const fondoInicial = ref(0)
   const totalRetiros = ref(0)
+  const totalIngresos = ref(0)
   const totalVentas = ref(0)
+  const totalVentasEfectivo = ref(0)
   const fechaApertura = ref<string | null>(null)
   const estado = ref<EstadoTurno>('SIN_TURNO')
 
@@ -97,6 +116,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   // lo invalide junto con el resto del store.
   const cargadoParaSucursal = ref<string | null>(null)
   let cargaEnVuelo: { clave: string; promesa: Promise<ResultadoCargaTurno> } | null = null
+  const ultimoRetiro = ref<RetiroParcialResponse | null>(null)
 
   // ── Modal de autenticación de administrador ───────────────────────────────
   const mostrarDialogAdmin = ref(false)
@@ -157,6 +177,11 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
   /** true si hay diferencias (para forzar observaciones) */
   const hayDiferencias = computed(() => diferenciaNeta.value !== 0)
 
+  /** Efectivo físico esperado en caja: fondo + ingresos - retiros + ventas cobradas en efectivo. */
+  const efectivoDisponible = computed(
+    () => fondoInicial.value + totalIngresos.value - totalRetiros.value + totalVentasEfectivo.value,
+  )
+
   // ─────────────────────────────────────────────────────────────────────────
   // Acciones
   // ─────────────────────────────────────────────────────────────────────────
@@ -185,6 +210,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       _aplicarTurno(turno)
     } catch (err) {
       error.value = mensajeDeError(err, 'No se pudo abrir el turno.')
+      notificarError(error.value)
     } finally {
       cargando.value = false
     }
@@ -258,6 +284,8 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     sucursalNombre.value = ''
     fondoInicial.value = 0
     totalRetiros.value = 0
+    totalIngresos.value = 0
+    totalVentasEfectivo.value = 0
     fechaApertura.value = null
     estado.value = 'SIN_TURNO'
     error.value = null
@@ -286,6 +314,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       _aplicarTurno(turno)
     } catch (err) {
       error.value = mensajeDeError(err, 'No se pudo iniciar el conteo.')
+      notificarError(error.value)
     } finally {
       cargando.value = false
     }
@@ -301,6 +330,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     const totalDeclaradoMonto = aNumero(totalContadoDeclarado.value)
     if (totalDeclaradoMonto <= 0) {
       error.value = 'El total declarado debe ser mayor a $0.00 para poder generar el corte de caja.'
+      notificarError(error.value)
       return
     }
 
@@ -345,6 +375,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
         if (esperandoRevision.value) return
       }
       error.value = mensajeDeError(err, 'No se pudo enviar el conteo.')
+      notificarError(error.value)
     } finally {
       cargando.value = false
     }
@@ -404,6 +435,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       _resetFormulario()
     } catch (err) {
       error.value = mensajeDeError(err, 'No se pudo cancelar el conteo.')
+      notificarError(error.value)
     } finally {
       cargando.value = false
     }
@@ -423,7 +455,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     cargando.value = true
     error.value = null
     try {
-      await turnoCajaService.registrarRetiro({
+      ultimoRetiro.value = await turnoCajaService.registrarRetiro({
         turnoId: turnoId.value,
         concepto,
         tipoDestinatario,
@@ -434,6 +466,25 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
       return true
     } catch (err) {
       error.value = mensajeDeError(err, 'No se pudo registrar el retiro.')
+      notificarError(error.value)
+      return false
+    } finally {
+      cargando.value = false
+    }
+  }
+
+  async function registrarIngreso(monto: number): Promise<boolean> {
+    if (!turnoId.value) return false
+    cargando.value = true
+    error.value = null
+    try {
+      const payload: IngresoEfectivoPayload = { turnoId: turnoId.value, monto }
+      await turnoCajaService.registrarIngreso(payload)
+      await cargarTurnoActivo()
+      return true
+    } catch (err) {
+      error.value = mensajeDeError(err, 'No se pudo registrar el ingreso de efectivo.')
+      notificarError(error.value)
       return false
     } finally {
       cargando.value = false
@@ -446,8 +497,9 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
    * @param observaciones - Requerido si hayDiferencias === true
    *
    * Nunca lanza: devuelve `{ ok: true, pdfUrl, arqueoId }` o `{ ok: false, error }`.
-   * Si falla, el turno NO cambia de estado y `error` queda asignado; el consumidor
-   * no debe reiniciar el ciclo ni redirigir.
+   * `arqueoId` (cierre_caja.id) es distinto de turnoId y es el que espera
+   * GET /turnos-caja/historial/{cierre_id}/pdf. Si falla, el turno NO cambia de
+   * estado; el consumidor no debe reiniciar el ciclo ni redirigir.
    */
   async function confirmarCierre(
     observaciones: string,
@@ -469,61 +521,11 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     } catch (err) {
       const mensaje = resolveErrorMessage(err as ApiError)
       error.value = mensaje
+      notificarError(mensaje)
       return { ok: false, error: mensaje }
     } finally {
       cargando.value = false
     }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Helper de pruebas — SOLO DESARROLLO
-  // ─────────────────────────────────────────────────────────────────────────
-
-  /* v8 ignore next 20 */
-  async function inyectarAperturaMock(fondo = 2000): Promise<void> {
-    if (!import.meta.env.DEV) return
-    error.value = null
-    _aplicarTurno({
-      id: `mock-turno-${Date.now()}`,
-      sucursalId: 'suc-001',
-      sucursalNombre: 'Sucursal Centro (TEST)',
-      cajeroId: 'usr-001',
-      cajeroNombre: 'Ana López (mock)',
-      terminal: 'CAJA 01 - TEST',
-      estado: 'OPERANDO',
-      fondoInicial: fondo,
-      fechaApertura: new Date().toISOString(),
-      totalVentas: 0,
-      totalRetiros: 0,
-      movimientos: [],
-    })
-  }
-
-  /**
-   * Inyecta un turno mock en el store sin llamar al backend.
-   * Disponible únicamente cuando `import.meta.env.DEV === true`.
-   * En producción esta función no existe (tree-shaken por Vite).
-   */
-  /* v8 ignore next 20 */
-  async function inyectarTurnoMock(): Promise<void> {
-    if (!import.meta.env.DEV) return
-    const { MOCK_TURNO_ACTIVO } = await import('@/mocks/turnoCajaMock')
-    error.value = null
-    _aplicarTurno(MOCK_TURNO_ACTIVO)
-  }
-
-  /**
-   * Salta la autenticación real del admin e inyecta directamente la respuesta
-   * de revisión mock, transitando el store a BALANCE_REVELADO.
-   * Disponible únicamente cuando `import.meta.env.DEV === true`.
-   */
-  /* v8 ignore next 20 */
-  async function inyectarRevisionMock(): Promise<void> {
-    if (!import.meta.env.DEV) return
-    const { MOCK_REVISION_ADMIN } = await import('@/mocks/turnoCajaMock')
-    _aplicarRevision(MOCK_REVISION_ADMIN)
-    mostrarDialogAdmin.value = false
-    estado.value = 'BALANCE_REVELADO'
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -537,7 +539,10 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     sucursalNombre.value = turno.sucursalNombre
     fondoInicial.value = turno.fondoInicial
     totalRetiros.value = turno.totalRetiros
+    totalIngresos.value = turno.totalIngresos
     totalVentas.value = turno.totalVentas ?? 0
+    const movEfectivo = turno.movimientos.find((m) => m.metodo.trim().toLowerCase() === 'efectivo')
+    totalVentasEfectivo.value = movEfectivo?.totalVentas ?? 0
     fechaApertura.value = turno.fechaApertura ?? null
     estado.value = turno.estado
 
@@ -605,12 +610,16 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     sucursalNombre,
     fondoInicial,
     totalRetiros,
+    totalIngresos,
     totalVentas,
+    totalVentasEfectivo,
+    efectivoDisponible,
     fechaApertura,
     estado,
     cargando,
     error,
     cargadoParaSucursal,
+    ultimoRetiro,
     // flags semánticos
     sinTurno,
     estaOperando,
@@ -644,10 +653,7 @@ export const useTurnoCajaStore = defineStore('turnoCaja', () => {
     autenticarAdmin,
     cancelarConteo,
     registrarRetiro,
+    registrarIngreso,
     confirmarCierre,
-    // helper de pruebas (DEV only — tree-shaken en producción)
-    ...(import.meta.env.DEV
-      ? { inyectarAperturaMock, inyectarTurnoMock, inyectarRevisionMock }
-      : {}),
   }
 })

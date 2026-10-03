@@ -1,9 +1,11 @@
 <!-- src/components/historial/DetalleOrdenPagada.vue -->
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useQuasar } from 'quasar'
 import { obtenerDetalleOrden } from '@/services/historialService'
 import type { DetalleOrden } from '@/api/historialApi'
-
+import { printTicketElement } from '@/utils/ticketPrinting'
+import TicketReceipt from '@/components/shared/TicketReceipt.vue'
 const props = withDefaults(
   defineProps<{
     tipoOrigen?: 'comanda' | 'estancia' | 'reservacion'
@@ -16,8 +18,12 @@ const props = withDefaults(
 )
 const emit = defineEmits(['close'])
 
+const $q = useQuasar()
+
 const isLoading = ref(true)
 const orden = ref<DetalleOrden | null>(null)
+const isPrinting = ref(false)
+const ticketRef = ref<InstanceType<typeof TicketReceipt> | null>(null)
 
 const onKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') emit('close')
@@ -32,12 +38,14 @@ onMounted(async () => {
   document.body.style.overflow = 'hidden'
   try {
     orden.value = await obtenerDetalleOrden(props.tipoOrigen, props.referenciaId || props.comandaId)
-    if (props.autoPrint) {
-      await nextTick()
-      window.print()
-    }
   } finally {
     isLoading.value = false
+  }
+  if (props.autoPrint && orden.value) {
+    // esperar a que el DOM del ticket (v-else-if="orden") se monte con isLoading=false
+    await nextTick()
+    await nextTick()
+    ejecutarImpresion()
   }
 })
 
@@ -57,10 +65,6 @@ const referenciaLabel = computed(() =>
   orden.value?.tipo_origen === 'comanda' ? 'TICKET' : 'CLIENTE',
 )
 
-function textoEstado(): string {
-  return esCancelado.value ? 'CANCELADO' : 'PAGADO'
-}
-
 function formatearFecha(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -73,14 +77,19 @@ function formatearFecha(iso: string | null): string {
   })
 }
 
-const totalPagado = computed(() =>
-  (orden.value?.metodos_pago ?? []).reduce((suma, m) => suma + Number(m.monto), 0),
-)
-
-const fmt = (n: number | string) => Number(n).toFixed(2)
-
-const ejecutarImpresion = () => {
-  window.print()
+async function ejecutarImpresion() {
+  if (!orden.value || isPrinting.value) return
+  isPrinting.value = true
+  try {
+    await printTicketElement(ticketRef.value?.$el as HTMLElement | null)
+  } catch (e: unknown) {
+    $q.notify({
+      type: 'negative',
+      message: (e as Error).message || 'No se pudo preparar el ticket.',
+    })
+  } finally {
+    isPrinting.value = false
+  }
 }
 </script>
 
@@ -121,56 +130,17 @@ const ejecutarImpresion = () => {
           <span>{{ orden.motivo_cancelacion || 'Cancelación sin motivo especificado' }}</span>
         </div>
 
-        <div class="receipt">
-          <div v-if="orden.creado_por_nombre || orden.nombre_cliente" class="receipt__meta">
-            <div v-if="orden.nombre_cliente" class="receipt__line">
-              <span>Cliente</span><span>{{ orden.nombre_cliente }}</span>
-            </div>
-            <div v-if="orden.creado_por_nombre" class="receipt__line">
-              <span>Cajero</span><span>{{ orden.creado_por_nombre }}</span>
-            </div>
-            <div class="receipt__line">
-              <span>Estado</span><span>{{ textoEstado() }}</span>
-            </div>
-          </div>
-
-          <div
-            v-for="(item, idx) in orden.detalles"
-            :key="idx"
-            class="receipt__line"
-            :class="{ 'receipt__line--child': item.nombre_combo_padre }"
-          >
-            <span>
-              <template v-if="!item.nombre_combo_padre">{{ item.cantidad }} </template>
-              {{ item.producto_nombre }}
-              <small v-if="item.notas_especiales && !item.nombre_combo_padre" class="receipt__note">
-                {{ item.notas_especiales }}
-              </small>
-            </span>
-            <span v-if="!item.nombre_combo_padre">{{ fmt(item.importe) }}</span>
-          </div>
-
-          <div class="receipt__rule" />
-
-          <div class="receipt__line receipt__line--total">
-            <span>TOTAL</span><span>${{ fmt(orden.total_final) }}</span>
-          </div>
-          <div v-for="(mp, idx) in orden.metodos_pago" :key="`mp-${idx}`" class="receipt__line">
-            <span>
-              {{ mp.metodo_pago_nombre }}
-              <small v-if="mp.notas_pago" class="receipt__note receipt__note--muted">{{
-                mp.notas_pago
-              }}</small>
-            </span>
-            <span>{{ fmt(mp.monto) }}</span>
-          </div>
-          <div v-if="totalPagado > Number(orden.total_final)" class="receipt__line">
-            <span>Cambio</span><span>{{ fmt(totalPagado - Number(orden.total_final)) }}</span>
-          </div>
-        </div>
+        <!-- TICKET TÉRMICO — ancho dinámico 58/80mm, impresión universal -->
+        <TicketReceipt ref="ticketRef" :orden="orden" :ancho-mm="80" />
 
         <div class="receipt-card__actions">
-          <q-btn outline icon="print" label="Imprimir" @click="ejecutarImpresion()" />
+          <q-btn
+            outline
+            icon="print"
+            :label="isPrinting ? 'Imprimiendo…' : 'Imprimir'"
+            :loading="isPrinting"
+            @click="ejecutarImpresion()"
+          />
           <q-btn
             unelevated
             color="primary"
@@ -299,112 +269,9 @@ const ejecutarImpresion = () => {
       min-height: 46px;
     }
   }
-}
 
-.receipt {
-  padding: 16px;
-  border-radius: 12px;
-  background: #f6f8fc;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 13px;
-  color: var(--text-body);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  &__meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding-bottom: 10px;
-    border-bottom: 1px dashed #cbd2de;
-    color: var(--text-secondary);
-  }
-
-  &__line {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-
-    span:last-child {
-      white-space: nowrap;
-      font-variant-numeric: tabular-nums;
-    }
-
-    &--child {
-      padding-left: 16px;
-      color: var(--text-secondary);
-      font-size: 12px;
-    }
-
-    &--total {
-      font-weight: 800;
-      color: var(--text-primary);
-    }
-  }
-
-  &__note {
-    display: block;
-    font-size: 11.5px;
-    color: #c2410c;
-
-    &--muted {
-      color: var(--text-secondary);
-    }
-  }
-
-  &__rule {
-    border-top: 1px dashed #cbd2de;
-    margin: 4px 0;
-  }
-}
-
-@media print {
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .modal-backdrop-blur,
-  .ticket-pos-root {
-    position: static !important;
-    background: none !important;
-    padding: 0 !important;
-    display: block !important;
-  }
-
-  .receipt-card {
-    width: 100% !important;
-    max-width: 340px !important;
-    margin: 0 auto !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-
-  .receipt-card__close,
-  .receipt-card__actions,
-  .receipt-card__icon {
-    display: none !important;
-  }
-
-  .receipt {
-    background: none !important;
-    padding: 0 !important;
-  }
-}
-</style>
-
-<style>
-@media print {
-  .historial-layout-wrapper > * {
-    display: none !important;
-  }
-  .historial-layout-wrapper > .modal-backdrop-blur {
-    display: block !important;
-    position: static !important;
-    background: none !important;
+  :deep(.ticket-receipt) {
+    margin: 0 auto;
   }
 }
 </style>

@@ -18,7 +18,18 @@
 
     <div class="kpi-row">
       <KpiCard label="Total" :value="store.pulseras.length" />
-      <KpiCard label="Activas" :value="totalActivas" note="listas para usar" note-tone="ok" />
+      <KpiCard
+        label="Disponibles"
+        :value="totalDisponibles"
+        note="listas para usar"
+        note-tone="ok"
+      />
+      <KpiCard
+        label="Usadas"
+        :value="totalUsadas"
+        :note="totalUsadas ? 'asignadas actualmente' : undefined"
+        note-tone="info"
+      />
       <KpiCard
         label="Inactivas"
         :value="totalInactivas"
@@ -62,8 +73,8 @@
         <template #body-cell-activo="props">
           <q-td :props="props">
             <StatusBadge
-              :tone="props.row.activo ? 'ok' : 'off'"
-              :label="props.row.activo ? 'Activa' : 'Inactiva'"
+              :tone="!props.row.activo ? 'off' : props.row.usada ? 'info' : 'ok'"
+              :label="!props.row.activo ? 'Inactiva' : props.row.usada ? 'Usada' : 'Disponible'"
             />
           </q-td>
         </template>
@@ -180,10 +191,11 @@ const columns: QTableColumn[] = [
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]
 
-type FiltroEstado = 'todas' | 'activas' | 'inactivas'
+type FiltroEstado = 'todas' | 'disponibles' | 'usadas' | 'inactivas'
 const FILTROS: FilterChip<FiltroEstado>[] = [
   { label: 'Todas', value: 'todas' },
-  { label: 'Activas', value: 'activas' },
+  { label: 'Disponibles', value: 'disponibles' },
+  { label: 'Usadas', value: 'usadas' },
   { label: 'Inactivas', value: 'inactivas' },
 ]
 
@@ -194,13 +206,15 @@ const filtroEstado = ref<FiltroEstado | null>('todas')
 const paginaActual = ref(1)
 const porPagina = 10
 
-const totalActivas = computed(() => store.pulseras.filter((p) => p.activo).length)
-const totalInactivas = computed(() => store.pulseras.length - totalActivas.value)
+const totalDisponibles = computed(() => store.pulseras.filter((p) => p.activo && !p.usada).length)
+const totalUsadas = computed(() => store.pulseras.filter((p) => p.activo && p.usada).length)
+const totalInactivas = computed(() => store.pulseras.filter((p) => !p.activo).length)
 
 const pulserasFiltradas = computed(() => {
   const q = busqueda.value?.trim().toLowerCase() ?? ''
   return store.pulseras.filter((p) => {
-    if (filtroEstado.value === 'activas' && !p.activo) return false
+    if (filtroEstado.value === 'disponibles' && (!p.activo || p.usada)) return false
+    if (filtroEstado.value === 'usadas' && (!p.activo || !p.usada)) return false
     if (filtroEstado.value === 'inactivas' && p.activo) return false
     return !q || p.pulsera_rfid.toLowerCase().includes(q)
   })

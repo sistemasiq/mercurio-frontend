@@ -196,9 +196,10 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   /**
-   * Se emite al confirmar el cobro. `amount` de cada pago es SIEMPRE el monto
-   * aplicado al cargo (en efectivo ya descontado el cambio); el efectivo
-   * entregado por el cliente va en `recibido`. Nunca sumes `recibido` al cargo.
+   * Se emite al confirmar el cobro. En efectivo, `amount` es lo que entregó el
+   * cliente; `cambio` (último argumento) es lo que se le devuelve. El consumidor
+   * descuenta el cambio o lo manda al endpoint atómico (`completar`) — el modal
+   * no lo descuenta para no restarlo dos veces.
    */
   (
     e: 'pago-exitoso',
@@ -206,6 +207,7 @@ const emit = defineEmits<{
     celularCliente: string | null,
     puntosARedimir: number,
     descuentoPuntos: number,
+    cambio: number,
   ): void
 }>()
 
@@ -497,39 +499,14 @@ const eliminarPago = (id: string) => {
   pagosAplicados.value = pagosAplicados.value.filter((p) => p.id !== id)
 }
 
-/**
- * Ajusta los pagos en efectivo al monto realmente aplicado: lo que falta por
- * cubrir después de los pagos no efectivo. El efectivo entregado se conserva en
- * `recibido` para el ticket y el cambio. Si hay varias líneas de efectivo, la
- * última absorbe la diferencia. Descarta los pagos con monto <= 0.
- */
-const normalizarPagos = (): AppliedPayment[] => {
-  const noEfectivo = redondear2(
-    pagosAplicados.value.filter((p) => !esEfectivo(p.method)).reduce((s, p) => s + p.amount, 0),
-  )
-  const necesario = Math.max(0, redondear2(totalNeto.value - noEfectivo))
-  let ultimaEfectivo = -1
-  pagosAplicados.value.forEach((p, i) => {
-    if (esEfectivo(p.method)) ultimaEfectivo = i
-  })
-  let asignado = 0
-  const pagos = pagosAplicados.value.map((p, i) => {
-    if (!esEfectivo(p.method)) return { ...p }
-    const restante = Math.max(0, redondear2(necesario - asignado))
-    const amount = i === ultimaEfectivo ? restante : Math.min(redondear2(p.amount), restante)
-    asignado = redondear2(asignado + amount)
-    return { ...p, amount, recibido: redondear2(p.amount) }
-  })
-  return pagos.filter((p) => p.amount > TOLERANCIA_MONTO)
-}
-
 const finalizarPago = () => {
   emit(
     'pago-exitoso',
-    normalizarPagos(),
+    pagosAplicados.value.map((p) => ({ ...p })),
     props.permitirLealtad && celularCliente.value.length === 10 ? celularCliente.value : null,
     props.permitirLealtad ? Math.min(puntosARedimir.value, maxPuntosRedimibles.value) : 0,
     props.permitirLealtad ? descuentoPuntos.value : 0,
+    cambioADevolver.value,
   )
   emit('update:modelValue', false)
   pagosAplicados.value = []

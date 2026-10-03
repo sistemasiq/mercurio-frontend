@@ -76,9 +76,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRegistrationStore } from '@/stores/registration'
 import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import TutorForm from '@/components/registro-infantes/TutorForm.vue'
 import ChildrenSection from '@/components/registro-infantes/ChildrenSection.vue'
 import OrderSummary from '@/components/registro-infantes/OrderSummary.vue'
@@ -105,14 +106,34 @@ const MODOS = [
   },
 ] as const
 const router = useRouter()
+const $q = useQuasar()
 
 onMounted(() => {
   // La validación de turno (y la espera de su carga async) ya la hace el
-  // guard de ruta (`requiresTurno`, ver router/guards.ts) antes de entrar
-  // aquí: para cuando este onMounted corre, `turno.estaOperando` ya refleja
-  // el estado real del backend.
+  // guard de ruta (`requiresTurno`, ver router/guards.ts) antes de entrar aquí.
   store.loadProductos()
 })
+
+// Watch para detectar cuando no hay precios disponibles y redirigir
+watch(
+  () => store.noPreciosDisponibles,
+  (noPrecios) => {
+    if (noPrecios) {
+      $q.dialog({
+        title: 'Precios no configurados',
+        message:
+          'No se encontraron los precios de estancias. Por favor, contacta al administrador para solucionarlo.',
+        ok: {
+          label: 'Entendido',
+          color: 'primary',
+        },
+        persistent: true,
+      }).onOk(() => {
+        router.back()
+      })
+    }
+  },
+)
 
 onUnmounted(() => {
   store.reset()

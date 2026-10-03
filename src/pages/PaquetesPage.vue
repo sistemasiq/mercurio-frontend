@@ -53,8 +53,8 @@
             {{ formatMXN(Number(props.row.precio_base)) }}
           </q-td>
         </template>
-        <template #body-cell-precio_pulsera="props">
-          <q-td :props="props">{{ formatMXN(Number(props.row.precio_pulsera)) }}</q-td>
+        <template #body-cell-precio_hora_pulsera="props">
+          <q-td :props="props">{{ formatMXN(Number(props.row.precio_hora_pulsera)) }}</q-td>
         </template>
         <template #body-cell-productos_incluidos="props">
           <q-td :props="props" class="cell-muted">
@@ -159,16 +159,16 @@
           />
         </label>
         <label class="form-grid__field">
-          <span class="field-label">Precio de la pulsera</span>
+          <span class="field-label">Precio por pulsera, por hora</span>
           <q-input
-            v-model.number="formDialog.precio_pulsera"
+            v-model.number="formDialog.precio_hora_pulsera"
             dense
             outlined
             type="number"
             min="0"
             step="0.01"
             prefix="$"
-            hint="Por cada invitado, además del precio base"
+            hint="Por cada invitado y por cada hora del evento, además del precio base"
           />
         </label>
         <label class="form-grid__field">
@@ -198,6 +198,10 @@
             hide-bottom-space
           />
         </label>
+        <p class="form-grid__field form-grid__field--full form-grid__note">
+          Al reservar solo se ofrecerán los paquetes cuyo rango cubra el número de niños que pida
+          el cliente.
+        </p>
         <label class="form-grid__field form-grid__field--full">
           <span class="field-label">Descripción</span>
           <q-input
@@ -408,9 +412,9 @@ const columns: QTableColumn[] = [
     sortable: true,
   },
   {
-    name: 'precio_pulsera',
-    label: 'Pulsera',
-    field: 'precio_pulsera',
+    name: 'precio_hora_pulsera',
+    label: 'Pulsera/hora',
+    field: 'precio_hora_pulsera',
     align: 'right',
     sortable: true,
   },
@@ -443,7 +447,7 @@ const formDialog = ref({
   min_invitados: 1,
   max_invitados: 10,
   precio_base: 0,
-  precio_pulsera: 0,
+  precio_hora_pulsera: 0,
   productos_incluidos: [] as PaqueteProductoItem[],
 })
 
@@ -455,7 +459,7 @@ const abrirCrear = () => {
     min_invitados: 1,
     max_invitados: 10,
     precio_base: 0,
-    precio_pulsera: 0,
+    precio_hora_pulsera: 0,
     productos_incluidos: [],
   }
   productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
@@ -487,7 +491,7 @@ const abrirEditar = async (row: Paquetes) => {
     min_invitados: row.min_invitados,
     max_invitados: row.max_invitados,
     precio_base: Number(row.precio_base),
-    precio_pulsera: Number(row.precio_pulsera),
+    precio_hora_pulsera: Number(row.precio_hora_pulsera),
     productos_incluidos: productosIncluidosCargados,
   }
   productoIncluidoTemporal.value = { producto_id: '', cantidad: 1 }
@@ -530,7 +534,7 @@ const guardar = async () => {
         min_invitados: formDialog.value.min_invitados,
         max_invitados: formDialog.value.max_invitados,
         precio_base: String(formDialog.value.precio_base),
-        precio_pulsera: String(formDialog.value.precio_pulsera),
+        precio_hora_pulsera: String(formDialog.value.precio_hora_pulsera),
         productos_incluidos: formDialog.value.productos_incluidos,
       })
       $q.notify({ type: 'positive', message: 'Paquete actualizado', position: 'top-right' })
@@ -542,7 +546,7 @@ const guardar = async () => {
         min_invitados: formDialog.value.min_invitados,
         max_invitados: formDialog.value.max_invitados,
         precio_base: String(formDialog.value.precio_base),
-        precio_pulsera: String(formDialog.value.precio_pulsera),
+        precio_hora_pulsera: String(formDialog.value.precio_hora_pulsera),
         productos_incluidos: formDialog.value.productos_incluidos,
         sucursal_id: authStore.currentBranchId,
       })
@@ -610,6 +614,12 @@ const ejecutarEliminar = async () => {
 </script>
 
 <style scoped lang="scss">
+.form-grid__note {
+  margin: -4px 0 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
 .incl-add {
   display: flex;
   gap: 8px;

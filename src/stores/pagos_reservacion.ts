@@ -3,6 +3,7 @@ import { mensajeDeError } from '@/utils/errorHandler'
 import { pagosReservacionApi } from '@/api/pagosReservacionApi'
 import type {
   Pagos_reservacion,
+  Pagos_reservacion_completar_request,
   Pagos_reservacion_update,
   Pagos_reservacion_create,
 } from '@/types/pagos_reservacion.ts'
@@ -47,6 +48,11 @@ export const usePagosReservacionesStore = defineStore('pagos_reservacion', {
       const nuevo = await pagosReservacionApi.crear(body)
       this.pagos_reservacion.push(nuevo)
       return nuevo
+    },
+    async completarPagosReservacion(body: Pagos_reservacion_completar_request) {
+      const resultado = await pagosReservacionApi.completar(body)
+      this.pagos_reservacion.push(...resultado.pagos)
+      return resultado
     },
     async actualizarPagosReservacion(id: string, body: Pagos_reservacion_update) {
       const actualizado = await pagosReservacionApi.actualizar(id, body)

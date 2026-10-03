@@ -71,16 +71,19 @@ export const useRegistrationStore = defineStore('registration', () => {
   const productoBase = ref<PrecioEstancia | null>(null)
   const pulseras = computed(() => accessControlStore.pulserasDisponibles)
   const pagosFromModal = ref<OnboardingPago[]>([])
+  const cambioFromModal = ref(0)
   const puntosARedimirValue = ref(0)
   const descuentoPuntosValue = ref(0)
   const isLoadingCatalog = ref(false)
   const isSubmitting = ref(false)
   const submitError = ref<string | null>(null)
+  const noPreciosDisponibles = ref(false)
 
   const registroId = ref('')
   const totalFromServer = ref<number | null>(null)
   const pagadoFromServer = ref<number | null>(null)
   const estadoFromServer = ref('')
+  const advertenciaEfectivoFromServer = ref<string | null>(null)
 
   function createChild(): Child {
     return {
@@ -122,8 +125,14 @@ export const useRegistrationStore = defineStore('registration', () => {
     }
     isLoadingCatalog.value = true
     submitError.value = null
+    noPreciosDisponibles.value = false
     try {
       productoBase.value = await productosApi.obtenerPreciosEstancia()
+
+      // Verificar si hay rangos de precios configurados
+      if (!productoBase.value?.config_estancia?.length) {
+        noPreciosDisponibles.value = true
+      }
     } catch (err) {
       submitError.value = 'No se pudo cargar el catálogo de precios de estancia.'
       console.error(err)
@@ -178,11 +187,20 @@ export const useRegistrationStore = defineStore('registration', () => {
   const tramoAplicable = computed<TramoEstancia | null>(() => {
     if (!productoBase.value?.config_estancia?.length) return null
     const h = hours.value
-    return (
-      productoBase.value.config_estancia.find(
-        (tramo) => h >= tramo.min_horas && h <= tramo.max_horas,
-      ) ?? null
+
+    // Primero buscar tramo exacto
+    const tramoExacto = productoBase.value.config_estancia.find(
+      (tramo) => h >= tramo.min_horas && h <= tramo.max_horas,
     )
+
+    if (tramoExacto) return tramoExacto
+
+    // Si no encuentra, usar el tramo con min_horas más bajo
+    const tramoMasBajo = productoBase.value.config_estancia.reduce((min, tramo) =>
+      tramo.min_horas < min.min_horas ? tramo : min,
+    )
+
+    return tramoMasBajo ?? null
   })
 
   const tieneTarifaValida = computed(() => {
@@ -310,11 +328,13 @@ export const useRegistrationStore = defineStore('registration', () => {
 
   async function proceedToRFID(
     pagos?: OnboardingPago[],
+    cambio?: number,
     puntosARedimir?: number,
     descuentoPuntos?: number,
   ) {
     if (pagos) {
       pagosFromModal.value = pagos
+      cambioFromModal.value = cambio ?? 0
     }
     if (puntosARedimir) {
       puntosARedimirValue.value = puntosARedimir
@@ -354,7 +374,9 @@ export const useRegistrationStore = defineStore('registration', () => {
       // Los pagos (puede venir vacío si los puntos cubren todo) más el
       // descuento por puntos deben cuadrar exactamente con el total: si no,
       // no se envía nada al backend (evita cobros fantasma o dobles).
-      const sumaPagos = pagosFromModal.value.reduce((acc, p) => acc + p.monto, 0)
+      // En efectivo el monto es lo entregado; el cambio se descuenta para cuadrar.
+      const sumaPagos =
+        pagosFromModal.value.reduce((acc, p) => acc + p.monto, 0) - cambioFromModal.value
       const cuadra =
         Math.abs(redondear2(sumaPagos + descuentoPuntosValue.value) - redondear2(total.value)) <=
         TOLERANCIA_MONTO
@@ -384,6 +406,7 @@ export const useRegistrationStore = defineStore('registration', () => {
       parentesco: tutor.value.relationship,
       detalles,
       pagos: esEvento ? [] : pagosFromModal.value,
+      cambio: cambioFromModal.value > 0 ? cambioFromModal.value : undefined,
       reservacionId: esEvento ? eventoSeleccionado.value!.id : null,
       puntosARedimir: puntosARedimirValue.value,
     }
@@ -399,9 +422,22 @@ export const useRegistrationStore = defineStore('registration', () => {
       totalFromServer.value = response.total
       pagadoFromServer.value = response.pagado
       estadoFromServer.value = response.estado
+      advertenciaEfectivoFromServer.value = response.advertenciaEfectivo ?? null
       step.value = 'complete'
-    } catch (err) {
-      submitError.value = 'No se pudo completar el registro. Intenta de nuevo.'
+    } catch (err: any) {
+      if (err?.statusCode === 409) {
+        const message = err?.message || ''
+        if (message.includes('pulsera no puede asignarse a más de un niño en el mismo registro')) {
+          submitError.value =
+            'No puedes asignar la misma pulsera a más de un niño. Verifica las pulseras asignadas.'
+        } else if (message.includes('ya fue usada o no está disponible')) {
+          submitError.value = 'Una de las pulseras seleccionadas ya fue usada o no está disponible.'
+        } else {
+          submitError.value = message || 'No se pudo completar el registro. Intenta de nuevo.'
+        }
+      } else {
+        submitError.value = 'No se pudo completar el registro. Intenta de nuevo.'
+      }
       console.error(err)
     } finally {
       isSubmitting.value = false
@@ -414,6 +450,7 @@ export const useRegistrationStore = defineStore('registration', () => {
     eventoSeleccionado.value = null
     eventoNoEncontrado.value = false
     pagosFromModal.value = []
+    cambioFromModal.value = 0
     puntosARedimirValue.value = 0
     descuentoPuntosValue.value = 0
     tutor.value = {
@@ -447,10 +484,13 @@ export const useRegistrationStore = defineStore('registration', () => {
     isLoadingCatalog,
     isSubmitting,
     submitError,
+    noPreciosDisponibles,
     registroId,
     totalFromServer,
     pagadoFromServer,
     estadoFromServer,
+    pagosFromModal,
+    advertenciaEfectivoFromServer,
     savedChildren,
     hours,
     tramoAplicable,

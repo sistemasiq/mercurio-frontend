@@ -679,11 +679,25 @@ body {
 }
 
 // Paquetes
+// Con `row q-gutter-md` + `.col` las tarjetas se reparten siempre en una sola
+// fila y se enciman al haber varias; el grid con auto-fill/minmax las deja saltar
+// de renglón. El min() evita que la columna desborde en contenedores < 240px.
+.packages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
 .package-card {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 18px;
   cursor: pointer;
+  // Empuja el botón al fondo para que tarjetas con distinta cantidad de
+  // "incluidos" queden parejas en el mismo renglón.
+  display: flex;
+  flex-direction: column;
   position: relative;
   background: var(--bg-card);
   transition: border-color 0.15s;
@@ -740,17 +754,41 @@ body {
     margin: 0 0 14px;
     font-size: 13px;
     color: var(--text-body);
+    // Ocupa el espacio sobrante para que el botón quede al fondo.
+    flex: 1;
 
     li {
       display: flex;
-      align-items: center;
+      // Un incluido de varias líneas alinea su palomita con la primera línea.
+      align-items: flex-start;
       gap: 8px;
       padding: 3px 0;
+      // Sin esto, un nombre de producto largo sin espacios desborda la tarjeta
+      // y reaparece el encimado que el grid vino a resolver.
+      overflow-wrap: anywhere;
 
       .q-icon {
         color: var(--tone-ok-dot);
         font-size: 17px;
+        flex-shrink: 0;
+        margin-top: 1px;
       }
+    }
+  }
+
+  // En pantallas angostas la tarjeta ya ocupa todo el ancho disponible, así que
+  // el aire y el tamaño del precio se reducen para que quepa más contenido útil
+  // sin obligar a hacer scroll por cada paquete.
+  @media (max-width: 599px) {
+    padding: 16px;
+
+    &__price {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+
+    &__capacity {
+      margin-bottom: 8px;
     }
   }
 }

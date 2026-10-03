@@ -8,10 +8,8 @@ export interface PaymentProps {
 export interface AppliedPayment {
   id: string
   method: string
-  /** Monto aplicado al cargo. En efectivo, ya descontado el cambio. */
+  /** En efectivo es lo entregado por el cliente; el cambio se emite aparte. */
   amount: number
-  /** Solo efectivo, al emitir: lo que entregó el cliente (>= amount), para ticket y cambio. */
-  recibido?: number
   timestamp: Date
   cardType?: 'DEBITO' | 'CREDITO'
   authCode?: string
@@ -33,4 +31,6 @@ export interface PagoCompletoRequest {
   pagos: PaymentItemRequest[]
   celular_cliente?: string
   puntos_a_redimir?: number
+  cambio?: number
+  nombre_cliente?: string
 }

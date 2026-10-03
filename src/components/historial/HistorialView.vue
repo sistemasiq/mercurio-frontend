@@ -113,6 +113,13 @@
                 <span v-for="(mp, idx) in tx.metodos_pago" :key="idx" class="hist-method">
                   {{ mp.metodo_pago_nombre }}
                   <span class="cell-muted">{{ formatearMonto(mp.monto) }}</span>
+                  <!--
+                    En un evento la nota del pago es el concepto del cobro
+                    (anticipo, liquidacion...). Un evento se cobra en varias
+                    exhibiciones, asi que sin esto los renglones de metodo de
+                    pago se ven identicos entre si y no se sabe cual es cual.
+                  -->
+                  <span v-if="mp.notas_pago" class="hist-method__note">{{ mp.notas_pago }}</span>
                 </span>
               </td>
               <td class="text-right hist-table__num">
@@ -589,5 +596,12 @@ function onCerrarDetallePagado() {
 .hist-method {
   display: block;
   white-space: nowrap;
+
+  &__note {
+    display: block;
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: normal;
+  }
 }
 </style>

@@ -74,5 +74,12 @@ export function setupRouterGuards(router: Router): void {
         return { name: 'estancias-control-acceso' }
       }
     }
+
+    if (to.name === 'estancias-registro-infantes') {
+      const turno = useTurnoCajaStore()
+      if (!turno.estaOperando) {
+        return { name: 'pos-cierre' }
+      }
+    }
   })
 }

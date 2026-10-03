@@ -3,17 +3,7 @@
     <PageHeader
       :title="turno.sinTurno ? 'Apertura de caja' : 'Cierre de caja'"
       :subtitle="turno.sinTurno ? 'Abre un turno para empezar a vender.' : subtitulo"
-    >
-      <template v-if="turno.estaOperando || turno.enConteo" #actions>
-        <q-btn
-          outline
-          icon="savings"
-          label="Retiro parcial"
-          :disable="!turno.estaOperando"
-          @click="dialogRetiro = true"
-        />
-      </template>
-    </PageHeader>
+    />
 
     <!-- Sin turno activo: apertura -->
     <AperturaCajaCard
@@ -26,40 +16,75 @@
     </div>
 
     <template v-else>
-      <!-- Turno operando: resumen y arranque del cierre -->
-      <section v-if="turno.estaOperando" class="cierre-active">
-        <div class="cierre-active__info">
-          <span class="cierre-active__badge"><span class="cierre-active__dot" />Caja abierta</span>
-          <h2 class="cierre-active__title">Turno en operación</h2>
-          <p class="cierre-active__text">
-            Cuando termines tu turno, inicia el cierre para capturar el conteo de la caja. El conteo
-            es ciego: el total esperado se muestra hasta enviarlo.
-          </p>
-          <q-btn
-            unelevated
-            color="primary"
-            icon="point_of_sale"
-            label="Iniciar cierre de caja"
-            class="cierre-active__cta"
-            :loading="turno.cargando"
-            @click="turno.iniciarConteo()"
-          />
+      <!-- Turno operando: hub de operaciones (retiro, ingreso, iniciar cierre) -->
+      <template v-if="turno.estaOperando">
+        <div v-if="vistaOperando === 'hub'" class="cierre-hub">
+          <div class="cierre-hub__head">
+            <h2 class="cierre-hub__title">Gestión de caja activa</h2>
+            <p class="cierre-hub__text">
+              Selecciona la operación que deseas realizar en el turno actual.
+            </p>
+          </div>
+          <div class="cierre-hub__actions">
+            <button type="button" class="cierre-hub__card" @click="vistaOperando = 'ingreso'">
+              <span class="cierre-hub__icon cierre-hub__icon--ingreso">
+                <q-icon name="add_card" size="28px" />
+              </span>
+              <h3 class="cierre-hub__card-title">Ingreso de efectivo</h3>
+              <p class="cierre-hub__card-text">Agregar dinero físico a la caja actual.</p>
+            </button>
+            <button type="button" class="cierre-hub__card" @click="vistaOperando = 'retiro'">
+              <span class="cierre-hub__icon cierre-hub__icon--retiro">
+                <q-icon name="payments" size="28px" />
+              </span>
+              <h3 class="cierre-hub__card-title">Retiro parcial</h3>
+              <p class="cierre-hub__card-text">Extraer fondos para operaciones específicas.</p>
+            </button>
+            <button
+              type="button"
+              class="cierre-hub__card"
+              :disabled="turno.cargando"
+              @click="turno.iniciarConteo()"
+            >
+              <span class="cierre-hub__icon cierre-hub__icon--cierre">
+                <q-icon name="receipt_long" size="28px" />
+              </span>
+              <h3 class="cierre-hub__card-title">Cierre de caja</h3>
+              <p class="cierre-hub__card-text">Finalizar tu turno y hacer el corte.</p>
+            </button>
+          </div>
+          <dl class="cierre-active__stats cierre-hub__stats">
+            <div>
+              <dt>Fondo inicial</dt>
+              <dd>{{ formatMXN(turno.fondoInicial) }}</dd>
+            </div>
+            <div>
+              <dt>Retiros parciales</dt>
+              <dd>{{ formatMXN(turno.totalRetiros) }}</dd>
+            </div>
+            <div v-if="turno.totalIngresos > 0">
+              <dt>Ingresos de efectivo</dt>
+              <dd>{{ formatMXN(turno.totalIngresos) }}</dd>
+            </div>
+            <div v-if="horaApertura">
+              <dt>Apertura</dt>
+              <dd>{{ horaApertura }}</dd>
+            </div>
+          </dl>
         </div>
-        <dl class="cierre-active__stats">
-          <div>
-            <dt>Fondo inicial</dt>
-            <dd>{{ formatMXN(turno.fondoInicial) }}</dd>
-          </div>
-          <div>
-            <dt>Retiros parciales</dt>
-            <dd>{{ formatMXN(turno.totalRetiros) }}</dd>
-          </div>
-          <div v-if="horaApertura">
-            <dt>Apertura</dt>
-            <dd>{{ horaApertura }}</dd>
-          </div>
-        </dl>
-      </section>
+
+        <IngresoEfectivoCard
+          v-else-if="vistaOperando === 'ingreso'"
+          @volver="vistaOperando = 'hub'"
+          @ingreso-exitoso="vistaOperando = 'hub'"
+        />
+
+        <RetiroParcialCard
+          v-else
+          @volver="vistaOperando = 'hub'"
+          @retiro-exitoso="vistaOperando = 'hub'"
+        />
+      </template>
 
       <!-- Stepper del cierre -->
       <ol v-if="!turno.estaOperando" class="cierre-steps">
@@ -139,8 +164,6 @@
       </section>
     </template>
 
-    <RetiroParcialCard v-model="dialogRetiro" />
-
     <BaseDialog
       v-model="dialogCancelarConteo"
       title="Cancelar conteo de caja"
@@ -187,6 +210,7 @@ import ConteoBloqueadoOverlay from '@/components/cierre-caja/ConteoBloqueadoOver
 import AutenticacionAdminForm from '@/components/cierre-caja/AutenticacionAdminForm.vue'
 import AutorizacionCierreModal from '@/components/cierre-caja/AutorizacionCierreModal.vue'
 import RetiroParcialCard from '@/components/cierre-caja/RetiroParcialCard.vue'
+import IngresoEfectivoCard from '@/components/cierre-caja/IngresoEfectivoCard.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import BaseDialog from '@/components/ui/BaseDialog.vue'
 import { formatMXN } from '@/utils/formatoMoneda'
@@ -286,7 +310,15 @@ watch(
   },
 )
 
-const dialogRetiro = ref(false)
+// Sub-vista del hub de la fase OPERANDO: 'hub' (elegir operación), 'retiro' o
+// 'ingreso' (formularios).
+const vistaOperando = ref<'hub' | 'retiro' | 'ingreso'>('hub')
+watch(
+  () => turno.turnoId,
+  () => {
+    vistaOperando.value = 'hub'
+  },
+)
 </script>
 
 <style scoped lang="scss">
@@ -388,6 +420,114 @@ const dialogRetiro = ref(false)
       color: var(--text-strong);
       font-variant-numeric: tabular-nums;
     }
+  }
+}
+
+.cierre-hub {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  &__head {
+    text-align: center;
+  }
+
+  &__title {
+    margin: 0 0 6px;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  &__actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+
+    @media (max-width: 760px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: 24px 18px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    font: inherit;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+
+    &:hover:not(:disabled) {
+      border-color: var(--q-primary);
+      box-shadow: var(--shadow-md);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+
+    &--ingreso {
+      background: var(--tone-ok-bg);
+      color: var(--tone-ok-fg);
+    }
+
+    &--retiro {
+      background: var(--tone-info-bg);
+      color: var(--tone-info-fg);
+    }
+
+    &--cierre {
+      background: var(--tone-bad-bg);
+      color: var(--tone-bad-fg);
+    }
+  }
+
+  &__card-title {
+    margin: 0;
+    font-size: 15.5px;
+    font-weight: 800;
+    color: var(--text-strong);
+  }
+
+  &__card-text {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  &__stats {
+    max-width: 480px;
+    width: 100%;
+    margin: 0 auto;
   }
 }
 

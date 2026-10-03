@@ -41,8 +41,9 @@
               v-model="inputEscaneo"
               outlined
               dense
-              placeholder="Escanea el código…"
-              maxlength="50"
+              placeholder="Ej. WK-0000001"
+              maxlength="10"
+              counter
               :disable="!store.formularioHabilitado || store.enviando"
               @keydown.enter.prevent="handleScanEnter"
             >
@@ -179,6 +180,8 @@ const router = useRouter()
 const authStore = useAuthStore()
 const store = useRegistroPulserasStore()
 
+const FORMATO_PULSERA = /^WK-\d{7}$/
+
 const inputEscaneo = ref('')
 const scanInputRef = ref<QInput | null>(null)
 const mostrarModalFinalizar = ref(false)
@@ -197,6 +200,31 @@ async function enfocarEscaneo() {
 async function handleScanEnter() {
   const codigo = inputEscaneo.value.trim()
   if (!codigo) return
+
+  if (!FORMATO_PULSERA.test(codigo)) {
+    $q.notify({
+      type: 'negative',
+      message: 'Formato inválido. El ID de pulsera debe tener el formato WK-0000000.',
+      position: 'top-right',
+    })
+    inputEscaneo.value = ''
+    await nextTick()
+    scanInputRef.value?.focus()
+    return
+  }
+
+  if (store.escaneos.some((e) => e.codigo === codigo)) {
+    $q.notify({
+      type: 'warning',
+      message: `La pulsera ${codigo} ya fue escaneada en esta sesión.`,
+      position: 'top-right',
+    })
+    inputEscaneo.value = ''
+    await nextTick()
+    scanInputRef.value?.focus()
+    return
+  }
+
   inputEscaneo.value = ''
   store.registrarPulsera(codigo)
   await nextTick()

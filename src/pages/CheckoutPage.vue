@@ -136,6 +136,7 @@ import type { AppliedPayment } from '@/types/payments'
 import type { ApiError } from '@/types/auth'
 import { resolverMetodoPagoId } from '@/utils/metodosPago'
 import { mensajeDeError } from '@/utils/errorHandler'
+import { descontarCambio } from '@/utils/pagos'
 
 const store = useAccessControlStore()
 const router = useRouter()
@@ -265,7 +266,10 @@ async function ejecutarCheckout(pagos: { metodoPagoId: string; monto: number }[]
 async function onPagoExtraExitoso(pagos: AppliedPayment[]) {
   isLoading.value = true
   try {
-    const pagosMapeados = pagos.map((p) => ({
+    // El modal entrega el efectivo recibido; el checkout exige que los pagos
+    // cubran exactamente el cargo, así que se descuenta el cambio antes de enviar.
+    const aplicados = descontarCambio(pagos, cotizacion.value?.totalExtra ?? 0)
+    const pagosMapeados = aplicados.map((p) => ({
       metodoPagoId: mapearMetodoPago(p.method),
       monto: p.amount,
     }))
