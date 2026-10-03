@@ -3,11 +3,17 @@ export interface SucursalTutor {
   nombre: string
 }
 
+export interface LealtadTutor {
+  saldo: number
+  por_vencer: number
+}
+
 export interface Tutor {
   id: string
   nombreCompleto: string
   telefono: string
   sucursal: SucursalTutor
+  lealtad?: LealtadTutor | null
 }
 
 export interface NinoActivo {
