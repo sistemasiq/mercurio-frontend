@@ -50,9 +50,6 @@ simplifican hasta que exista la fuente.
 
 - **Método de pago en el panel del pedido**: se elige dentro del cobro
   multimodal.
-- **Stock en piezas ("48 pzas")**: solo existe el "rinde" calculado por receta.
-- **Checklist "Quien recoge coincide"** (Checkout): sería una validación nueva;
-  se deja el acceso a las fotos para comparar.
 
 ### 02 Eventos
 
@@ -79,8 +76,6 @@ simplifican hasta que exista la fuente.
 - **Pestañas Cajas / Horarios en el detalle de sucursal**: `/cajas` y
   `/horarios` filtran por la sucursal de la sesión, no por la que se consulta;
   al ver otra sucursal se muestran las de la propia.
-- **PIN de caja** (usuario): su semántica es una decisión de negocio
-  pendiente; el usuario no trae ese campo.
 
 ## Cambios de comportamiento
 

@@ -55,6 +55,10 @@
             <q-icon name="photo_library" size="24px" />
             Comparar con la foto de llegada e INE del tutor
           </button>
+
+          <q-checkbox v-model="identidadVerificada" dense class="verify__checklist">
+            Verifiqué que quien recoge coincide con el tutor autorizado (ver fotos)
+          </q-checkbox>
         </section>
       </div>
 
@@ -95,7 +99,7 @@
             label="Confirmar salida"
             class="charges__confirm"
             :loading="isLoading"
-            :disable="mostrarModalPagoExtra"
+            :disable="mostrarModalPagoExtra || !identidadVerificada"
             @click="confirmarSalida"
           />
         </footer>
@@ -227,6 +231,9 @@ const horaEntrada = computed(() => {
 })
 
 const showFotos = ref(false)
+// Checklist obligatorio (solo front, es una validación humana del cajero):
+// "Confirmar salida" queda deshabilitado hasta marcarlo.
+const identidadVerificada = ref(false)
 
 async function confirmarSalida() {
   if (!child.value) return
@@ -491,6 +498,12 @@ function cancelar() {
       border-color: var(--q-primary);
       color: var(--q-primary);
     }
+  }
+
+  &__checklist {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
   }
 }
 

@@ -671,7 +671,7 @@ const columns: QTableColumn[] = [
   { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left', sortable: true },
   { name: 'unidad_base_id', label: 'Unidad', field: 'unidad_base_id', align: 'left' },
   { name: 'stock_actual', label: 'Stock', field: 'stock_actual', align: 'left', sortable: true },
-  { name: 'rinde_para', label: 'Rinde para', field: 'id', align: 'left' },
+  { name: 'rinde_para', label: 'Rinde para (estimado)', field: 'id', align: 'left' },
   { name: 'stock_minimo', label: 'Mínimo', field: 'stock_minimo', align: 'right' },
   { name: 'costo_unitario', label: 'Costo', field: 'costo_unitario', align: 'right' },
   {

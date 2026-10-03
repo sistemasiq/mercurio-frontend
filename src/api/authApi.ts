@@ -9,6 +9,8 @@ export interface BackendUser {
   branch_id: string | null
   branch_name: string | null
   permissions: string[]
+  /** C1: solo /auth/me lo trae poblado; login/refresh lo dejan en false. */
+  tiene_pin?: boolean
 }
 
 export interface BackendLoginResponse {
