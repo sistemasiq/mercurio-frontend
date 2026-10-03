@@ -240,6 +240,32 @@ describe('turno en BALANCE_REVELADO tras recargar', () => {
     expect(store.mostrarDialogAutorizacion).toBe(true)
     expect(store.adminEmail).toBe('admin@x.com')
   })
+
+  it('usa adminEmail y balancePorMetodo del backend sin re-autenticar (QA #8)', async () => {
+    const store = useTurnoCajaStore()
+    servicio.cargarTurnoActivo.mockResolvedValue(
+      turnoEn('BALANCE_REVELADO', {
+        adminEmail: 'admin-backend@x.com',
+        balancePorMetodo: [
+          {
+            metodo: 'efectivo',
+            label: 'Efectivo en Caja',
+            declarado: 100,
+            esperado: 100,
+            diferencia: 0,
+          },
+        ],
+      }),
+    )
+
+    await store.cargarTurnoActivo()
+
+    expect(store.adminEmail).toBe('admin-backend@x.com')
+    expect(store.balancePorMetodo).toHaveLength(1)
+    expect(store.mostrarDialogAdmin).toBe(false)
+    expect(store.mostrarDialogAutorizacion).toBe(true)
+    expect(servicio.autenticarAdmin).not.toHaveBeenCalled()
+  })
 })
 
 describe('filas de metodos de pago', () => {

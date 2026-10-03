@@ -117,6 +117,10 @@ export interface TurnoActivoResponse {
   totalRetiros: number
   totalIngresos: number
   movimientos: MovimientoTurno[]
+  /** Solo poblado por el backend cuando estado === 'BALANCE_REVELADO' (QA #8). */
+  adminEmail?: string | null
+  /** Solo poblado por el backend cuando estado === 'BALANCE_REVELADO' (QA #8). */
+  balancePorMetodo?: FilaBalance[]
 }
 
 // ---------------------------------------------------------------------------
@@ -163,6 +167,15 @@ export interface ConfirmarCierrePayload {
   turnoId: string
   observaciones: string
   tipoCierre?: TipoCierre
+  /** Tokens de un solo uso emitidos al validar cada PIN (doble firma, QA #14). */
+  tokenPinCajero?: string | null
+  tokenPinAdmin?: string | null
+}
+
+/** Resultado de validar un PIN: el backend emite un token de un solo uso (5 min). */
+export interface ResultadoValidacionPin {
+  ok: boolean
+  tokenPin: string | null
 }
 
 export interface ConfirmarCierreResponse {

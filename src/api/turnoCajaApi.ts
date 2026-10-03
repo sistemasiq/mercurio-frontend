@@ -48,6 +48,9 @@ function mapTurnoActivo(raw: any): TurnoActivoResponse {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (m: any) => ({ metodo: m.metodo, totalVentas: Number(m.total_ventas) }),
     ),
+    // QA #8: solo vienen poblados cuando estado === 'BALANCE_REVELADO'.
+    adminEmail: raw.admin_email ?? null,
+    balancePorMetodo: mapBalancePorMetodo(raw.balance_por_metodo),
   }
 }
 
@@ -215,7 +218,10 @@ export const turnoCajaApi = {
     return mapRevisionAdmin(data)
   },
 
-  async validarPinCajero(turnoId: string, pin: string): Promise<{ ok: boolean; mensaje: string }> {
+  async validarPinCajero(
+    turnoId: string,
+    pin: string,
+  ): Promise<{ ok: boolean; mensaje: string; token_pin?: string | null }> {
     const { data } = await apiClient.post(`${BASE}/validar-pin-cajero`, { turno_id: turnoId, pin })
     return data
   },
@@ -224,7 +230,7 @@ export const turnoCajaApi = {
     turnoId: string,
     adminEmail: string,
     pin: string,
-  ): Promise<{ ok: boolean; mensaje: string }> {
+  ): Promise<{ ok: boolean; mensaje: string; token_pin?: string | null }> {
     const { data } = await apiClient.post(`${BASE}/validar-pin-admin`, {
       turno_id: turnoId,
       admin_email: adminEmail,
@@ -243,6 +249,8 @@ export const turnoCajaApi = {
       turno_id: payload.turnoId,
       observaciones: payload.observaciones,
       tipo_cierre: payload.tipoCierre ?? 'NORMAL',
+      token_pin_cajero: payload.tokenPinCajero ?? null,
+      token_pin_admin: payload.tokenPinAdmin ?? null,
     })
     return {
       arqueoId: data.arqueo_id,

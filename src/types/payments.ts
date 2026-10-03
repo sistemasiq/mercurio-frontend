@@ -24,7 +24,9 @@ export interface PaymentItemRequest {
 }
 
 export interface PagoCompletoRequest {
-  ticket_numero: string
+  // QA #21: el backend asigna el folio secuencial por sucursal; ya no lo
+  // genera el front. Se mantiene opcional solo como fallback de compatibilidad.
+  ticket_numero?: string
   total_final: number
   detalles_comanda: DetalleComandaRequest[]
   notas_generales?: string
